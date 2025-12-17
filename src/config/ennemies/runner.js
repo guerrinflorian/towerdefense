@@ -1,15 +1,17 @@
 export const runner = {
   name: "Scout",
   speed: 260,
-  hp: 70,
+  hp: 110, 
   reward: 30,
   color: 0xffd166, // Jaune/Orange
+  damage: 14, // Dégâts par attaque (rapide mais faible)
+  attackSpeed: 600, // Vitesse d'attaque en ms
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};
 
-    // Le corps est légèrement penché vers l'avant
-    container.angle = -15;
+    // Le corps est légèrement penché vers l'avant (mais on garde l'orientation verticale)
+    // container.angle = -15; // Retiré pour garder l'ennemi droit
 
     // 1. Jambe Arrière (sombre)
     enemyInstance.legs.back = scene.add.container(2, 4);
@@ -41,7 +43,7 @@ export const runner = {
     enemyInstance.legs.front.add(legF);
     container.add(enemyInstance.legs.front);
 
-    enemyInstance.shouldRotate = true;
+    enemyInstance.shouldRotate = false;
   },
 
   onUpdateAnimation: (time, enemyInstance) => {

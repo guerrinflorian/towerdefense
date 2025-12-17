@@ -4,6 +4,8 @@ export const grunt = {
   hp: 100,
   reward: 20,
   color: 0x558844, // Vert militaire
+  damage: 8, // Dégâts par attaque
+  attackSpeed: 800, // Vitesse d'attaque en ms
 
   // --- DESSIN DU PERSONNAGE (Vue de profil) ---
   onDraw: (scene, container, color, enemyInstance) => {
@@ -44,8 +46,8 @@ export const grunt = {
     enemyInstance.legs.front.add(legF);
     container.add(enemyInstance.legs.front);
 
-    // L'ennemi doit se tourner selon le chemin
-    enemyInstance.shouldRotate = true;
+    // L'ennemi utilise maintenant le flip horizontal au lieu de rotation
+    enemyInstance.shouldRotate = false;
   },
 
   // --- ANIMATION DE MARCHE (Pendule) ---
