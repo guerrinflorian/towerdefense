@@ -80,35 +80,36 @@ export class Turret extends Phaser.GameObjects.Container {
     // Si on a atteint le niveau max défini pour CETTE tourelle, pas d'upgrade
     if (this.level >= this.config.maxLevel) return null;
 
-    let nextDmg = this.config.damage;
-    let nextRate = this.config.rate;
-    let nextRange = this.config.range;
-    let nextAoE = this.config.aoe; // On gère aussi l'AoE
+    // Utiliser les valeurs actuelles de la config (qui sont déjà mises à jour après upgrade)
+    let nextDmg = this.config.damage || 0;
+    let nextRate = this.config.rate || 0;
+    let nextRange = this.config.range || 0;
+    let nextAoE = this.config.aoe || 0;
     let cost = 0;
 
-    const baseCost = TURRETS[this.config.key].cost;
+    const baseCost = TURRETS[this.config.key]?.cost || 0;
 
     if (this.level === 1) {
       // Niv 1 -> 2
-      nextDmg *= 1.8;
-      nextRate /= 1.2;
-      nextRange *= 1.2;
-      if (nextAoE) nextAoE *= 1.3; // Augmente l'AoE si elle existe
+      nextDmg = Math.round(nextDmg * 1.5);
+      nextRate = Math.round(nextRate / 1.2);
+      nextRange = Math.round(nextRange * 1.2);
+      if (nextAoE > 0) nextAoE = Math.round(nextAoE * 1.3);
       cost = Math.floor(baseCost * 2.5);
     } else if (this.level === 2) {
       // Niv 2 -> 3
-      nextDmg *= 1.3;
-      nextRate /= 1.7;
-      nextRange *= 1.1;
-      if (nextAoE) nextAoE *= 1.2;
+      nextDmg = Math.round(nextDmg * 1.3);
+      nextRate = Math.round(nextRate / 1.5);
+      nextRange = Math.round(nextRange * 1.1);
+      if (nextAoE > 0) nextAoE = Math.round(nextAoE * 1.2);
       cost = Math.floor(baseCost * 2.5 * 2.2);
     }
 
     return {
-      damage: Math.round(nextDmg),
-      rate: Math.round(nextRate),
-      range: Math.round(nextRange),
-      aoe: nextAoE ? Math.round(nextAoE) : undefined,
+      damage: nextDmg,
+      rate: nextRate,
+      range: nextRange,
+      aoe: nextAoE > 0 ? nextAoE : undefined,
       cost: cost,
     };
   }

@@ -51,10 +51,15 @@ export const LEVEL_1 = {
 
   waves: [
     // VAGUE 1 : Soldats (50% haut, 50% bas)
-    [{ count: 28, type: "grunt", interval: 1000 }],
+    [
+      { count: 14, type: "grunt", interval: 1000 },
+    { count: 3, type: "thrower", interval: 500 },   
+    { count: 15, type: "grunt", interval: 1000 }
+    ]   ,
+
 
     // VAGUE 2 : Runners
-    [{ count: 25, type: "runner", interval: 800 }],
+    [{ count: 25, type: "runner", interval: 400 }],
 
     // VAGUE 3 : Mixte
     [

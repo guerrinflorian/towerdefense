@@ -4,6 +4,8 @@ export const shield = {
   hp: 550,
   reward: 70,
   color: 0x00aabb, // Cyan/Teal
+  damage: 12, // Dégâts par attaque
+  attackSpeed: 900, // Vitesse d'attaque en ms
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};
@@ -53,7 +55,7 @@ export const shield = {
 
     container.add(shield);
 
-    enemyInstance.shouldRotate = true;
+    enemyInstance.shouldRotate = false;
   },
 
   onUpdateAnimation: (time, enemyInstance) => {
