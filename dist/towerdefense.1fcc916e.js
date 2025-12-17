@@ -1952,15 +1952,21 @@ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "LEVELS_CONFIG", ()=>LEVELS_CONFIG);
 var _level1Js = require("./level1.js");
+var _level2Js = require("./level2.js");
 const LEVELS_CONFIG = [
     {
         id: 1,
         name: "Les Bocages",
         data: (0, _level1Js.LEVEL_1)
+    },
+    {
+        id: 2,
+        name: "Double Front",
+        data: (0, _level2Js.LEVEL_2)
     }
 ];
 
-},{"./level1.js":"4Dl0R","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"4Dl0R":[function(require,module,exports,__globalThis) {
+},{"./level1.js":"4Dl0R","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./level2.js":"alrw9"}],"4Dl0R":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "LEVEL_1", ()=>LEVEL_1);
@@ -2423,6 +2429,480 @@ const LEVEL_1 = {
                 count: 1,
                 type: "boss",
                 interval: 3000
+            }
+        ]
+    ]
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"alrw9":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LEVEL_2", ()=>LEVEL_2);
+const LEVEL_2 = {
+    // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont
+    map: [
+        [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
+        [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+        ],
+        [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+        ],
+        [
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
+        [
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            3,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            2
+        ]
+    ],
+    // LISTE DES CHEMINS CORRIGÉS
+    paths: [
+        // --- CHEMIN A : Départ HAUT GAUCHE ---
+        [
+            {
+                x: 0,
+                y: 2
+            },
+            {
+                x: 8,
+                y: 2
+            },
+            {
+                x: 8,
+                y: 5
+            },
+            {
+                x: 14,
+                y: 5
+            },
+            {
+                x: 14,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            } // Va à droite vers la Base
+        ],
+        // --- CHEMIN B : Départ BAS GAUCHE (Le zig-zag) ---
+        [
+            {
+                x: 0,
+                y: 8
+            },
+            {
+                x: 2,
+                y: 8
+            },
+            {
+                x: 2,
+                y: 11
+            },
+            {
+                x: 4,
+                y: 11
+            },
+            {
+                x: 4,
+                y: 10
+            },
+            {
+                x: 6,
+                y: 10
+            },
+            {
+                x: 6,
+                y: 9
+            },
+            {
+                x: 8,
+                y: 9
+            },
+            {
+                x: 8,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            } // Va à droite vers la Base
+        ]
+    ],
+    waves: [
+        // VAGUE 1 : Introduction avec deux spawns
+        [
+            {
+                count: 10,
+                type: "grunt",
+                interval: 800
+            },
+            {
+                count: 5,
+                type: "runner",
+                interval: 600
+            }
+        ],
+        // VAGUE 2 : Runners rapides depuis les deux points
+        [
+            {
+                count: 20,
+                type: "runner",
+                interval: 350
+            },
+            {
+                count: 8,
+                type: "grunt",
+                interval: 700
+            }
+        ],
+        // VAGUE 3 : Mixte avec shields
+        [
+            {
+                count: 12,
+                type: "grunt",
+                interval: 600
+            },
+            {
+                count: 8,
+                type: "runner",
+                interval: 500
+            },
+            {
+                count: 4,
+                type: "shield",
+                interval: 1200
+            }
+        ],
+        // VAGUE 4 : Tanks et runners
+        [
+            {
+                count: 25,
+                type: "runner",
+                interval: 350
+            },
+            {
+                count: 15,
+                type: "grunt",
+                interval: 500
+            },
+            {
+                count: 2,
+                type: "shield",
+                interval: 1200
+            },
+            {
+                count: 4,
+                type: "tank",
+                interval: 3500
+            }
+        ],
+        // VAGUE 5 : Invasion massive
+        [
+            {
+                count: 40,
+                type: "grunt",
+                interval: 400
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 300
+            },
+            {
+                count: 6,
+                type: "shield",
+                interval: 1000
+            },
+            {
+                count: 5,
+                type: "tank",
+                interval: 3000
+            }
+        ],
+        // VAGUE 6 : Boss avec support
+        [
+            {
+                count: 50,
+                type: "grunt",
+                interval: 500
+            },
+            {
+                count: 35,
+                type: "runner",
+                interval: 400
+            },
+            {
+                count: 8,
+                type: "shield",
+                interval: 1000
+            },
+            {
+                count: 6,
+                type: "tank",
+                interval: 4000
+            },
+            {
+                count: 1,
+                type: "boss",
+                interval: 2000
             }
         ]
     ]
