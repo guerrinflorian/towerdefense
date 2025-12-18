@@ -8,6 +8,7 @@ export const cannon = {
   color: 0xff8844,
   aoe: 50,
   maxLevel: 3,
+  description: "Artillerie lourde avec dégâts de zone (AOE).\n\n✅ Avantages:\n• Dégâts de zone (touche plusieurs ennemis)\n• Portée longue\n• Efficace contre les groupes\n\n❌ Inconvénients:\n• Cadence de tir lente\n• Projectile en arc (délai d'impact)\n• Moins précis que les autres tourelles",
 
   // ============================================================
   // DESSIN DU CANON

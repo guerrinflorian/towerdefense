@@ -7,6 +7,7 @@ export const machine_gun = {
   rate: 240,
   color: 0x4488ff,
   maxLevel: 3,
+  description: "Tourelle polyvalente avec cadence de tir très élevée.\n\n✅ Avantages:\n• Cadence de tir rapide\n• Dégâts constants\n• Portée correcte\n\n❌ Inconvénients:\n• Dégâts par tir faibles\n• Moins efficace contre les ennemis blindés",
 
   // --- DESSIN ÉVOLUTIF (Base + 2 Améliorations) ---
   // Note: On assume que Turret.js passe (scene, container, color, turretInstance)

@@ -1,6 +1,7 @@
 import { CONFIG } from "../config/settings.js";
 import { LEVELS_CONFIG } from "../config/levels/index.js";
 import { TURRETS } from "../config/turrets/index.js";
+import { lightning as LIGHTNING_SPELL } from "../sorts/lightning.js";
 import { Enemy } from "../objects/Enemy.js";
 import { Turret } from "../objects/Turret.js";
 import { Barracks } from "../objects/Barracks.js";
@@ -34,23 +35,42 @@ export class GameScene extends Phaser.Scene {
     this.isWaveRunning = false;
     this.enemies = null;
     this.soldiers = null;
+    this.nextWaveAutoTimer = null; // Timer pour le lancement automatique
+    this.nextWaveCountdown = 0; // Compte à rebours en secondes
+    this.waveSpawnTimers = []; // Liste des timers de spawn des ennemis
+    this.endCheckTimer = null; // Timer de vérification de fin de vague
     this.selectedTurret = null;
     this.maxBarracks = 5;
     this.draggingTurret = null;
     this.placementPreview = null;
     this.validCellsPreview = [];
     this.upgradeTextLines = []; // Pour stocker les lignes de texte du menu
+    this.tileHighlight = null; // Highlight visuel sur la case survolée
+    this.placingSpell = null; // Sort en cours de placement
+    this.spellPreview = null; // Preview de la zone du sort
+    this.lightningCooldown = 0; // Cooldown du sort éclair (0 = disponible)
+    this.lightningOnCooldown = false; // Flag pour empêcher les clics multiples
 
     // Réinitialiser toutes les références UI pour éviter les références vers objets détruits
     this.buildToolbar = null;
     this.toolbarButtons = null;
     this.txtMoney = null;
     this.txtLives = null;
+    this.txtWave = null;
+    this.txtWave = null;
     this.buildMenu = null;
     this.upgradeMenu = null;
+    this.treeRemovalMenu = null;
+    this.treeRemovalTile = null;
     this.waveBtnContainer = null;
     this.waveBtnBg = null;
     this.waveBtnText = null;
+    this.toolbarTooltip = null; // Tooltip pour la toolbar
+    this.isPaused = false; // État de pause
+    this.pauseBtn = null; // Bouton pause
+    this.resumeBtn = null; // Bouton reprendre au centre de l'écran
+    this.pausedTimers = []; // Liste des timers en pause
+    this.pausedTweens = []; // Liste des tweens en pause
   }
 
   preload() {
@@ -101,9 +121,13 @@ export class GameScene extends Phaser.Scene {
     this.uiManager.createUI();
     this.createBuildToolbar();
 
-    // Gestion de la touche Echap pour annuler le drag
+    // Gestion de la touche Echap pour annuler le drag ou le sort
     this.input.keyboard.on("keydown-ESC", () => {
-      this.cancelDrag();
+      if (this.placingSpell) {
+        this.cancelSpellPlacement();
+      } else {
+        this.cancelDrag();
+      }
     });
 
     // Gestion des clics
@@ -180,8 +204,56 @@ export class GameScene extends Phaser.Scene {
   }
 
   setupInputHandlers() {
+    // Highlight visuel sur la case survolée
+    this.input.on("pointermove", (pointer) => {
+      const T = CONFIG.TILE_SIZE * this.scaleFactor;
+      
+      // Vérifier si le pointeur est dans la zone de la map
+      if (
+        pointer.worldY < this.mapStartY ||
+        pointer.worldY > this.mapStartY + 15 * T ||
+        pointer.worldX < this.mapStartX ||
+        pointer.worldX > this.mapStartX + 15 * T
+      ) {
+        if (this.tileHighlight) {
+          this.tileHighlight.setVisible(false);
+        }
+        return;
+      }
+
+      // Convertir en coordonnées grille
+      const tx = Math.floor((pointer.worldX - this.mapStartX) / T);
+      const ty = Math.floor((pointer.worldY - this.mapStartY) / T);
+
+      if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) {
+        if (this.tileHighlight) {
+          this.tileHighlight.setVisible(false);
+        }
+        return;
+      }
+
+      // Créer ou mettre à jour le highlight
+      if (!this.tileHighlight) {
+        this.tileHighlight = this.add.graphics();
+        this.tileHighlight.setDepth(1);
+      }
+
+      const px = this.mapStartX + tx * T;
+      const py = this.mapStartY + ty * T;
+
+      this.tileHighlight.clear();
+      this.tileHighlight.lineStyle(2, 0xffffff, 0.3); // Border très léger
+      this.tileHighlight.strokeRect(px, py, T, T);
+      this.tileHighlight.setVisible(true);
+    });
+
     // Gestion des clics normaux et tactiles
     this.input.on("pointerdown", (pointer) => {
+      // Si le jeu est en pause, ne pas gérer les clics (sauf sur le bouton pause)
+      if (this.isPaused) {
+        return;
+      }
+      
       // Vérifier si le clic est sur la toolbar
       if (this.isPointerOnToolbar(pointer)) {
         // Ne pas gérer les clics sur la toolbar comme des clics de jeu
@@ -199,6 +271,9 @@ export class GameScene extends Phaser.Scene {
       // Masquer les menus par défaut
       this.buildMenu.setVisible(false);
       this.upgradeMenu.setVisible(false);
+      if (this.treeRemovalMenu) {
+        this.treeRemovalMenu.setVisible(false);
+      }
       this.selectedTurret = null;
 
       // Clic droit ou long press sur mobile
@@ -231,6 +306,18 @@ export class GameScene extends Phaser.Scene {
       ) {
         this.placeDraggedTurret(pointer);
       }
+
+      // Si on place un sort, gérer le clic
+      if (this.placingSpell && pointer.leftButtonReleased()) {
+        if (!this.isPointerOnToolbar(pointer)) {
+          this.placeLightning(pointer.worldX, pointer.worldY);
+        }
+      }
+
+      // Annuler le placement du sort avec clic droit
+      if (this.placingSpell && pointer.rightButtonReleased()) {
+        this.cancelSpellPlacement();
+      }
     });
   }
 
@@ -251,6 +338,27 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time, delta) {
+    // Si le jeu est en pause, ne rien mettre à jour
+    if (this.isPaused) {
+      return;
+    }
+    // Mettre à jour le cooldown du sort
+    if (this.lightningCooldown > 0) {
+      this.lightningCooldown -= delta;
+      if (this.lightningCooldown <= 0) {
+        this.lightningCooldown = 0;
+        // Réinitialiser le flag quand le cooldown est terminé
+        this.lightningOnCooldown = false;
+      }
+      this.updateLightningSpellButton();
+    } else if (this.lightningOnCooldown) {
+      // S'assurer que le flag est réinitialisé si le cooldown est déjà à 0
+      this.lightningOnCooldown = false;
+      this.updateLightningSpellButton();
+    }
+
+    // Le compte à rebours est géré par le timer dans WaveManager, pas besoin de le mettre à jour ici
+
     this.turrets.forEach((t) => t.update(time, this.enemies));
     this.barracks.forEach((b) => b.update(time));
     this.soldiers.children.each((soldier) => {
@@ -298,6 +406,12 @@ export class GameScene extends Phaser.Scene {
   // =========================================================
 
   startWave() {
+    // Annuler le timer automatique si le joueur lance manuellement
+    if (this.nextWaveAutoTimer) {
+      this.nextWaveAutoTimer.remove();
+      this.nextWaveAutoTimer = null;
+      this.nextWaveCountdown = 0;
+    }
     this.waveManager.startWave();
   }
 
@@ -367,13 +481,19 @@ export class GameScene extends Phaser.Scene {
       // Clic exact sur la tourelle -> Upgrade
       this.uiManager.openUpgradeMenu(pointer, clickedTurret);
     } else {
-      // --- CORRECTION ICI ---
       // Vérifier le type de terrain AVANT d'ouvrir le menu
       // 0 = Herbe (Constructible), tout le reste (Chemin, Eau, Base) = Non constructible
       const tileType = this.levelConfig.map[ty][tx];
 
       if (tileType !== 0) {
         // C'est un chemin ou un obstacle, on ne fait rien (pas de menu)
+        return;
+      }
+
+      // Vérifier s'il y a un arbre sur cette case
+      if (this.mapManager.hasTree(tx, ty)) {
+        // Ouvrir le menu de confirmation pour enlever l'arbre
+        this.uiManager.openTreeRemovalConfirmation(pointer, tx, ty);
         return;
       }
 
@@ -502,9 +622,234 @@ export class GameScene extends Phaser.Scene {
     this.updateUI();
   }
 
+  // =========================================================
+  // GESTION DE LA PAUSE
+  // =========================================================
+  pauseGame() {
+    if (this.isPaused) return;
+    
+    this.isPaused = true;
+    
+    // Le bouton pause dans la toolbar reste inchangé (reste "PAUSE")
+    
+    // Mettre en pause tous les timers de spawn des vagues
+    this.pausedTimers = [];
+    if (this.waveSpawnTimers) {
+      this.waveSpawnTimers.forEach((timer) => {
+        if (timer && timer.paused !== undefined) {
+          timer.paused = true;
+          this.pausedTimers.push(timer);
+        }
+      });
+    }
+    
+    // Mettre en pause le timer de vérification de fin de vague
+    if (this.endCheckTimer && this.endCheckTimer.paused !== undefined) {
+      this.endCheckTimer.paused = true;
+      this.pausedTimers.push(this.endCheckTimer);
+    }
+    
+    // Mettre en pause le timer de compte à rebours
+    if (this.nextWaveAutoTimer && this.nextWaveAutoTimer.paused !== undefined) {
+      this.nextWaveAutoTimer.paused = true;
+      this.pausedTimers.push(this.nextWaveAutoTimer);
+    }
+    
+    // Mettre en pause tous les autres timers
+    if (this.time && this.time.events) {
+      this.time.events.getAll().forEach((event) => {
+        if (event && !event.paused && event !== this.endCheckTimer && event !== this.nextWaveAutoTimer) {
+          // Vérifier que ce n'est pas déjà dans waveSpawnTimers
+          if (!this.waveSpawnTimers || !this.waveSpawnTimers.includes(event)) {
+            event.paused = true;
+            this.pausedTimers.push(event);
+          }
+        }
+      });
+    }
+    
+    // Mettre en pause tous les tweens
+    this.pausedTweens = [];
+    if (this.tweens && this.tweens.getAllTweens) {
+      const allTweens = this.tweens.getAllTweens();
+      allTweens.forEach((tween) => {
+        if (tween && tween.isPlaying && !tween.isPaused) {
+          tween.pause();
+          this.pausedTweens.push(tween);
+        }
+      });
+    }
+    
+    // Mettre en pause les ennemis (leurs tweens de mouvement)
+    if (this.enemies) {
+      this.enemies.children.each((enemy) => {
+        if (enemy && enemy.follower && enemy.follower.tween && enemy.follower.tween.isPlaying) {
+          enemy.follower.tween.pause();
+        }
+      });
+    }
+    
+    // Mettre en pause les animations des tourelles
+    if (this.turrets) {
+      this.turrets.forEach((turret) => {
+        if (turret && turret.rotationTween && turret.rotationTween.isPlaying) {
+          turret.rotationTween.pause();
+        }
+      });
+    }
+    
+    // Créer le bouton "REPRENDRE" au centre de l'écran
+    if (!this.resumeBtn) {
+      const s = this.scaleFactor;
+      const btnWidth = 250 * s;
+      const btnHeight = 60 * s;
+      
+      // Container pour le bouton
+      const resumeContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2).setDepth(200);
+      
+      // Fond du bouton
+      const resumeBg = this.add.graphics();
+      resumeBg.fillStyle(0x333333, 0.95);
+      resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+      resumeBg.lineStyle(3, 0x00ff00, 1);
+      resumeBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+      resumeContainer.add(resumeBg);
+      
+      // Texte du bouton
+      const resumeText = this.add.text(0, 0, "▶️ REPRENDRE", {
+        fontSize: `${Math.max(18, 24 * s)}px`,
+        fill: "#00ff00",
+        fontStyle: "bold",
+        fontFamily: "Arial",
+      }).setOrigin(0.5);
+      resumeContainer.add(resumeText);
+      
+      // Rendre le bouton interactif
+      resumeBg.setInteractive(
+        new Phaser.Geom.Rectangle(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight),
+        Phaser.Geom.Rectangle.Contains
+      );
+      
+      resumeBg.on("pointerover", () => {
+        resumeBg.clear();
+        resumeBg.fillStyle(0x444444, 0.95);
+        resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+        resumeBg.lineStyle(3, 0x00ff00, 1);
+        resumeBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+        resumeText.setColor("#00ff88");
+      });
+      
+      resumeBg.on("pointerout", () => {
+        resumeBg.clear();
+        resumeBg.fillStyle(0x333333, 0.95);
+        resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+        resumeBg.lineStyle(3, 0x00ff00, 1);
+        resumeBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+        resumeText.setColor("#00ff00");
+      });
+      
+      resumeBg.on("pointerdown", () => {
+        this.resumeGame();
+      });
+      
+      this.resumeBtn = resumeContainer;
+    } else {
+      this.resumeBtn.setVisible(true);
+    }
+  }
+
+  resumeGame() {
+    if (!this.isPaused) return;
+    
+    this.isPaused = false;
+    
+    // Le bouton pause dans la toolbar reste inchangé
+    
+    // Reprendre tous les timers de spawn des vagues
+    if (this.waveSpawnTimers) {
+      this.waveSpawnTimers.forEach((timer) => {
+        if (timer && timer.paused !== undefined) {
+          timer.paused = false;
+        }
+      });
+    }
+    
+    // Reprendre le timer de vérification de fin de vague
+    if (this.endCheckTimer && this.endCheckTimer.paused !== undefined) {
+      this.endCheckTimer.paused = false;
+    }
+    
+    // Reprendre le timer de compte à rebours
+    if (this.nextWaveAutoTimer && this.nextWaveAutoTimer.paused !== undefined) {
+      this.nextWaveAutoTimer.paused = false;
+    }
+    
+    // Reprendre tous les autres timers
+    this.pausedTimers.forEach((timer) => {
+      if (timer && timer.paused !== undefined) {
+        timer.paused = false;
+      }
+    });
+    this.pausedTimers = [];
+    
+    // Reprendre tous les tweens
+    this.pausedTweens.forEach((tween) => {
+      if (tween && tween.isPaused) {
+        tween.resume();
+      }
+    });
+    this.pausedTweens = [];
+    
+    // Reprendre les ennemis
+    if (this.enemies) {
+      this.enemies.children.each((enemy) => {
+        if (enemy && enemy.follower && enemy.follower.tween && enemy.follower.tween.isPaused && !enemy.isParalyzed && !enemy.isInShell) {
+          enemy.follower.tween.resume();
+        }
+      });
+    }
+    
+    // Reprendre les animations des tourelles
+    if (this.turrets) {
+      this.turrets.forEach((turret) => {
+        if (turret && turret.rotationTween && turret.rotationTween.isPaused) {
+          turret.rotationTween.resume();
+        }
+      });
+    }
+    
+    // Masquer le bouton reprendre
+    if (this.resumeBtn) {
+      this.resumeBtn.setVisible(false);
+    }
+  }
+
   updateUI() {
     if (this.txtMoney) this.txtMoney.setText(`💰 ${this.money}`);
     if (this.txtLives) this.txtLives.setText(`❤️ ${this.lives}`);
+    
+    // Mettre à jour l'affichage de la vague
+    if (this.txtWave) {
+      let currentWave = (this.currentWaveIndex || 0) + 1;
+      let totalWaves = 0;
+      
+      // Obtenir le nombre total de vagues
+      if (this.levelConfig && this.levelConfig.waves) {
+        totalWaves = this.levelConfig.waves.length;
+      } else {
+        // Fallback : chercher dans LEVELS_CONFIG
+        const levelData = LEVELS_CONFIG.find((l) => l.id === this.levelID);
+        if (levelData && levelData.data && levelData.data.waves) {
+          totalWaves = levelData.data.waves.length;
+        } else {
+          // Fallback par défaut selon le niveau
+          totalWaves = this.levelID === 2 ? 9 : 6;
+        }
+      }
+      
+      this.txtWave.setText(`🌊 VAGUE ${currentWave}/${totalWaves}`);
+    }
+    
     this.updateToolbarCounts();
     // Mettre à jour les boutons du menu de construction si visible
     if (this.buildMenu && this.buildMenu.visible) {
@@ -518,21 +863,43 @@ export class GameScene extends Phaser.Scene {
 
   // Créer la toolbar de construction en bas (sous la map)
   createBuildToolbar() {
-    const toolbarX = this.toolbarOffsetX || 10 * this.scaleFactor;
     const toolbarY = this.toolbarOffsetY;
-    const itemSize = 80 * this.scaleFactor; // Augmenté de 60 à 80
-    const itemSpacing = 90 * this.scaleFactor; // Augmenté de 70 à 90
-
-    this.buildToolbar = this.add.container(toolbarX, toolbarY).setDepth(150);
-
-    // Fond de la toolbar (plus grande)
+    const itemSize = 80 * this.scaleFactor;
+    const itemSpacing = 90 * this.scaleFactor;
+    const toolbarHeight = 120 * this.scaleFactor;
+    const margin = 20 * this.scaleFactor;
+    
+    // Calculer les largeurs des sections
+    const spellSectionWidth = itemSize + margin * 2; // Section des sorts à gauche
+    const turretsSectionWidth = 5 * itemSpacing; // Section des tourelles au milieu
+    const waveButtonWidth = 300 * this.scaleFactor; // Bouton de vague à droite
+    const waveButtonHeight = 60 * this.scaleFactor;
+    
+    // Calculer la position de départ pour centrer les tourelles
+    const totalWidth = spellSectionWidth + turretsSectionWidth + waveButtonWidth + margin * 4;
+    const startX = (this.gameWidth - totalWidth) / 2;
+    
+    // Section des sorts à gauche
+    const spellSectionX = startX + margin;
+    this.spellSection = this.add.container(spellSectionX, toolbarY).setDepth(150);
+    const spellBg = this.add.graphics();
+    spellBg.fillStyle(0x000000, 0.9);
+    spellBg.fillRoundedRect(0, 0, spellSectionWidth, toolbarHeight, 10);
+    spellBg.lineStyle(3, 0xffffff, 0.6);
+    spellBg.strokeRoundedRect(0, 0, spellSectionWidth, toolbarHeight, 10);
+    this.spellSection.add(spellBg);
+    
+    // Créer le bouton du sort éclair dans la section des sorts
+    this.createLightningSpellButton(itemSize, itemSize / 2 + margin, toolbarHeight, spellSectionX);
+    
+    // Section des tourelles au milieu
+    const turretsSectionX = startX + spellSectionWidth + margin * 2;
+    this.buildToolbar = this.add.container(turretsSectionX, toolbarY).setDepth(150);
     const toolbarBg = this.add.graphics();
-    const toolbarWidth = 5 * itemSpacing + 40 * this.scaleFactor; // Plus large
-    const toolbarHeight = 120 * this.scaleFactor; // Plus haute (au lieu de CONFIG.TOOLBAR_HEIGHT)
     toolbarBg.fillStyle(0x000000, 0.9);
-    toolbarBg.fillRoundedRect(0, 0, toolbarWidth, toolbarHeight, 10);
+    toolbarBg.fillRoundedRect(0, 0, turretsSectionWidth, toolbarHeight, 10);
     toolbarBg.lineStyle(3, 0xffffff, 0.6);
-    toolbarBg.strokeRoundedRect(0, 0, toolbarWidth, toolbarHeight, 10);
+    toolbarBg.strokeRoundedRect(0, 0, turretsSectionWidth, toolbarHeight, 10);
     this.buildToolbar.add(toolbarBg);
 
     // Créer les boutons pour chaque type de tourelle
@@ -547,9 +914,9 @@ export class GameScene extends Phaser.Scene {
     this.toolbarButtons = [];
 
     turretTypes.forEach((item, index) => {
-      // Centrer les boutons dans la toolbar
+      // Centrer les boutons dans la section des tourelles
       const totalWidth = 5 * itemSpacing;
-      const startX = (toolbarWidth - totalWidth) / 2 + itemSpacing / 2;
+      const startX = (turretsSectionWidth - totalWidth) / 2 + itemSpacing / 2;
       const x = startX + index * itemSpacing;
       const y = toolbarHeight / 2; // Centrer verticalement
 
@@ -575,7 +942,16 @@ export class GameScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
 
-      // Fonction pour mettre à jour le compteur
+      // Texte avec le prix de la tourelle
+      const priceText = this.add
+        .text(0, itemSize / 2 + 28 * this.scaleFactor, `${item.config.cost}$`, {
+          fontSize: `${Math.max(12, 14 * this.scaleFactor)}px`,
+          fill: "#ffd700",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+
+      // Fonction pour mettre à jour le compteur et l'état du bouton
       const updateCount = () => {
         // Vérifier que les objets sont encore valides avant de les manipuler
         if (!countText || countText.active === false) {
@@ -584,19 +960,52 @@ export class GameScene extends Phaser.Scene {
         if (!btnBg || btnBg.active === false) {
           return;
         }
+        if (!priceText || priceText.active === false) {
+          return;
+        }
 
         try {
+          const canAfford = this.money >= item.config.cost;
+          let isDisabled = false;
+          let disabledReason = "";
+
           if (item.key === "barracks") {
             const count = this.barracks.length;
             const max = this.maxBarracks;
             countText.setText(`${count}/${max}`);
+            isDisabled = count >= max;
+            disabledReason = count >= max ? "MAX" : "";
             countText.setColor(count >= max ? "#ff0000" : "#ffffff");
-            btnBg.setFillStyle(count >= max ? 0x330000 : 0x333333);
           } else {
             const count = this.turrets.filter(
               (t) => t.config.key === item.key
             ).length;
             countText.setText(`${count}`);
+          }
+
+          // Désactiver visuellement si on ne peut pas se le permettre ou si limite atteinte
+          const shouldDisable = !canAfford || isDisabled;
+          
+          if (shouldDisable) {
+            // État désactivé : grisé
+            btnBg.setFillStyle(0x1a1a1a, 0.6);
+            btnBg.setStrokeStyle(3, 0x444444, 0.5);
+            btnBg.setAlpha(0.5);
+            previewContainer.setAlpha(0.4);
+            priceText.setColor("#ff4444");
+            priceText.setAlpha(0.7);
+            countText.setAlpha(0.7);
+            btnBg.disableInteractive();
+          } else {
+            // État actif : normal
+            btnBg.setFillStyle(0x333333, 0.9);
+            btnBg.setStrokeStyle(3, 0x666666, 1);
+            btnBg.setAlpha(1);
+            previewContainer.setAlpha(1);
+            priceText.setColor("#ffd700");
+            priceText.setAlpha(1);
+            countText.setAlpha(1);
+            btnBg.setInteractive({ useHandCursor: true });
           }
         } catch (e) {
           // Ignorer si les objets ont été détruits
@@ -604,11 +1013,34 @@ export class GameScene extends Phaser.Scene {
         }
       };
 
-      btnContainer.add([btnBg, previewContainer, countText]);
+      btnContainer.add([btnBg, previewContainer, countText, priceText]);
       this.buildToolbar.add(btnContainer);
 
-      // Gestion du clic pour démarrer le drag
+      // Tooltip pour la description dans la toolbar
+      let toolbarTooltip = null;
+      
+      btnBg.on("pointerover", () => {
+        // Afficher le tooltip avec la description
+        if (item.config.description) {
+          this.showToolbarTooltip(btnContainer, item.config.description, btnBg);
+        }
+      });
+      
+      btnBg.on("pointerout", () => {
+        // Cacher le tooltip
+        if (this.toolbarTooltip) {
+          this.toolbarTooltip.destroy();
+          this.toolbarTooltip = null;
+        }
+      });
+
+      // Gestion du clic pour démarrer le drag (seulement si actif)
       btnBg.on("pointerdown", (pointer) => {
+        // Cacher le tooltip lors du clic
+        if (this.toolbarTooltip) {
+          this.toolbarTooltip.destroy();
+          this.toolbarTooltip = null;
+        }
         // Vérifier les limites
         if (
           item.key === "barracks" &&
@@ -629,29 +1061,455 @@ export class GameScene extends Phaser.Scene {
         container: btnContainer,
         config: item.config,
         updateCount: updateCount,
+        btnBg: btnBg,
+        priceText: priceText,
+        countText: countText,
+        previewContainer: previewContainer,
       });
     });
 
     // Mettre à jour les compteurs
     this.updateToolbarCounts();
   }
+  
+  // Afficher un tooltip avec la description de la tourelle dans la toolbar
+  showToolbarTooltip(btnContainer, description, triggerElement) {
+    const s = this.scaleFactor;
+    
+    // Détruire l'ancien tooltip s'il existe
+    if (this.toolbarTooltip) {
+      this.toolbarTooltip.destroy();
+    }
+    
+    // Calculer la position du tooltip (au-dessus du bouton)
+    // Le btnContainer peut être dans buildToolbar (tourelles) ou directement dans la scène (sort)
+    let btnX, btnY;
+    
+    // Vérifier si le container est dans buildToolbar en vérifiant son parent
+    const isInBuildToolbar = this.buildToolbar && 
+      (btnContainer.parentContainer === this.buildToolbar || 
+       (this.buildToolbar.list && this.buildToolbar.list.includes(btnContainer)));
+    
+    if (isInBuildToolbar) {
+      // Pour les tourelles dans buildToolbar
+      btnX = btnContainer.x + this.buildToolbar.x;
+      btnY = btnContainer.y + this.buildToolbar.y;
+    } else {
+      // Pour le sort, btnContainer est directement dans la scène avec position absolue
+      btnX = btnContainer.x;
+      btnY = btnContainer.y;
+    }
+    
+    // Créer le tooltip
+    const tooltipContainer = this.add.container(0, 0).setDepth(300);
+    this.toolbarTooltip = tooltipContainer;
+    
+    // Fond du tooltip
+    const tooltipBg = this.add.graphics();
+    const padding = 15 * s;
+    const maxWidth = 350 * s;
+    
+    // Calculer la taille du texte
+    const tempText = this.add.text(0, 0, description, {
+      fontSize: `${Math.max(11, 12 * s)}px`,
+      fill: "#ffffff",
+      fontFamily: "Arial",
+      wordWrap: { width: maxWidth - padding * 2 },
+      lineSpacing: 4 * s,
+    });
+    const textWidth = Math.min(tempText.width, maxWidth - padding * 2);
+    const textHeight = tempText.height;
+    tempText.destroy();
+    
+    const tooltipWidth = textWidth + padding * 2;
+    const tooltipHeight = textHeight + padding * 2;
+    
+    // Positionner le tooltip au-dessus du bouton
+    const tooltipX = btnX;
+    const tooltipY = btnY - tooltipHeight - 10 * s;
+    
+    // Dessiner le fond
+    tooltipBg.fillStyle(0x000000, 0.95);
+    tooltipBg.fillRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
+    tooltipBg.lineStyle(2, 0x00ccff, 1);
+    tooltipBg.strokeRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
+    
+    // Texte de description
+    const descText = this.add.text(
+      padding,
+      padding,
+      description,
+      {
+        fontSize: `${Math.max(11, 12 * s)}px`,
+        fill: "#ffffff",
+        fontFamily: "Arial",
+        wordWrap: { width: maxWidth - padding * 2 },
+        lineSpacing: 4 * s,
+      }
+    );
+    
+    tooltipContainer.add([tooltipBg, descText]);
+    tooltipContainer.setPosition(tooltipX, tooltipY);
+    
+    // Ajuster la position si le tooltip sort de l'écran
+    if (tooltipX + tooltipWidth > this.gameWidth) {
+      tooltipContainer.setX(this.gameWidth - tooltipWidth - 10 * s);
+    }
+    if (tooltipY < 0) {
+      tooltipContainer.setY(btnY + 80 * s + 10 * s); // En dessous si pas de place au-dessus
+    }
+  }
+
+  // Créer le bouton du sort éclair
+  createLightningSpellButton(itemSize, xOffset, toolbarHeight, sectionX) {
+    const x = xOffset;
+    const y = toolbarHeight / 2;
+
+    const btnContainer = this.add.container(sectionX + x, this.toolbarOffsetY + y);
+    btnContainer.setDepth(151);
+
+    // Fond du bouton
+    const btnBg = this.add.rectangle(0, 0, itemSize, itemSize, 0x333333, 0.9);
+    btnBg.setStrokeStyle(3, 0x666666);
+    btnBg.setInteractive({ useHandCursor: true });
+
+    // Icône d'éclair
+    const lightningIcon = this.add.graphics();
+    this.drawLightningIcon(lightningIcon, 0, 0, itemSize * 0.6);
+    lightningIcon.setScale(this.scaleFactor);
+
+    // Masque de cooldown (cercle qui se remplit)
+    const cooldownMask = this.add.graphics();
+    cooldownMask.setDepth(152);
+    cooldownMask.setVisible(false);
+
+    // Texte de cooldown
+    const cooldownText = this.add
+      .text(0, itemSize / 2 + 12 * this.scaleFactor, "", {
+        fontSize: `${Math.max(10, 12 * this.scaleFactor)}px`,
+        fill: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    btnContainer.add([btnBg, lightningIcon, cooldownMask, cooldownText]);
+
+    // Tooltip pour la description (même système que pour les tourelles)
+    btnBg.on("pointerover", () => {
+      // Afficher le tooltip avec la description
+      if (LIGHTNING_SPELL.description) {
+        this.showToolbarTooltip(btnContainer, LIGHTNING_SPELL.description, btnBg);
+      }
+    });
+    
+    btnBg.on("pointerout", () => {
+      // Cacher le tooltip
+      if (this.toolbarTooltip) {
+        this.toolbarTooltip.destroy();
+        this.toolbarTooltip = null;
+      }
+    });
+
+    // Gestion du clic
+    btnBg.on("pointerdown", () => {
+      // Cacher le tooltip lors du clic
+      if (this.toolbarTooltip) {
+        this.toolbarTooltip.destroy();
+        this.toolbarTooltip = null;
+      }
+      
+      // Vérifier que le cooldown est terminé et qu'on n'est pas déjà en train de placer
+      if (this.lightningCooldown <= 0 && !this.placingSpell) {
+        this.startPlacingLightning();
+      }
+    });
+
+    // Stocker les références pour la mise à jour
+    this.lightningSpellButton = {
+      container: btnContainer,
+      bg: btnBg,
+      icon: lightningIcon,
+      cooldownMask: cooldownMask,
+      cooldownText: cooldownText,
+    };
+    
+    // Initialiser l'affichage
+    this.updateLightningSpellButton();
+  }
+
+  // Dessiner l'icône d'éclair
+  drawLightningIcon(graphics, x, y, size) {
+    graphics.clear();
+    graphics.fillStyle(0xffff00, 1);
+    
+    // Forme d'éclair en zigzag
+    graphics.beginPath();
+    graphics.moveTo(x, y - size / 2);
+    graphics.lineTo(x - size / 4, y - size / 6);
+    graphics.lineTo(x, y);
+    graphics.lineTo(x + size / 4, y + size / 6);
+    graphics.lineTo(x, y + size / 2);
+    graphics.lineTo(x - size / 6, y + size / 4);
+    graphics.lineTo(x, y);
+    graphics.lineTo(x + size / 6, y - size / 4);
+    graphics.closePath();
+    graphics.fillPath();
+    
+    // Bordure
+    graphics.lineStyle(2, 0xffffff, 1);
+    graphics.strokePath();
+  }
+
+  // Démarrer le placement du sort
+  startPlacingLightning() {
+    this.placingSpell = LIGHTNING_SPELL;
+    
+    // Créer le preview de la zone
+    if (!this.spellPreview) {
+      this.spellPreview = this.add.graphics();
+      this.spellPreview.setDepth(200);
+    }
+    
+    // Mettre à jour le preview au mouvement de la souris
+    this.input.on("pointermove", this.updateSpellPreview, this);
+  }
+
+  // Mettre à jour le preview du sort
+  updateSpellPreview(pointer) {
+    if (!this.placingSpell || !this.spellPreview) return;
+
+    // Utiliser exactement le même radius que pour les dégâts
+    const radius = LIGHTNING_SPELL.radius;
+    const x = pointer.worldX;
+    const y = pointer.worldY;
+
+    this.spellPreview.clear();
+    this.spellPreview.lineStyle(3, 0x00ffff, 0.8);
+    this.spellPreview.strokeCircle(x, y, radius);
+    this.spellPreview.fillStyle(0x00ffff, 0.2);
+    this.spellPreview.fillCircle(x, y, radius);
+  }
+
+  // Placer le sort éclair
+  placeLightning(x, y) {
+    if (!this.placingSpell || this.lightningOnCooldown) return;
+
+    // Activer le cooldown immédiatement pour empêcher les clics multiples
+    this.lightningOnCooldown = true;
+    this.lightningCooldown = LIGHTNING_SPELL.cooldown;
+
+    // Créer l'animation d'éclair
+    this.castLightning(x, y);
+
+    // Nettoyer le placement
+    this.cancelSpellPlacement();
+  }
+
+  // Annuler le placement du sort
+  cancelSpellPlacement() {
+    this.placingSpell = null;
+    if (this.spellPreview) {
+      this.spellPreview.clear();
+    }
+    this.input.off("pointermove", this.updateSpellPreview, this);
+  }
+
+  // Lancer le sort éclair avec animation
+  castLightning(x, y) {
+    // Utiliser exactement le même radius partout
+    const effectRadius = LIGHTNING_SPELL.radius;
+
+    // 1. Éclair qui tombe du ciel (animation fixe pour être toujours identique)
+    const lightningBolt = this.add.graphics();
+    lightningBolt.setDepth(300);
+    
+    // Ligne d'éclair depuis le haut
+    const startY = this.mapStartY - 50;
+    
+    // Éclair principal (zigzag fixe - pas de random pour avoir toujours la même animation)
+    lightningBolt.lineStyle(10, 0xffffff, 1);
+    lightningBolt.beginPath();
+    lightningBolt.moveTo(x, startY);
+    
+    // Créer un zigzag fixe pour l'éclair (même pattern à chaque fois)
+    const steps = 8;
+    const stepHeight = (y - startY) / steps;
+    const offsets = [-8, 12, -10, 15, -12, 10, -8, 5]; // Pattern fixe
+    for (let i = 1; i <= steps; i++) {
+      const currentY = startY + stepHeight * i;
+      const offsetX = offsets[i - 1] || 0;
+      lightningBolt.lineTo(x + offsetX, currentY);
+    }
+    lightningBolt.lineTo(x, y);
+    lightningBolt.strokePath();
+    
+    // Éclair secondaire (plus fin, cyan) - pattern fixe aussi
+    lightningBolt.lineStyle(4, 0x00ffff, 1);
+    lightningBolt.beginPath();
+    lightningBolt.moveTo(x, startY);
+    const offsets2 = [-6, 9, -7, 11, -9, 7, -6, 3]; // Pattern fixe
+    for (let i = 1; i <= steps; i++) {
+      const currentY = startY + stepHeight * i;
+      const offsetX = offsets2[i - 1] || 0;
+      lightningBolt.lineTo(x + offsetX, currentY);
+    }
+    lightningBolt.lineTo(x, y);
+    lightningBolt.strokePath();
+    
+    // Branches d'éclair latérales (positions fixes)
+    const branchOffsets = [
+      { x: -25, y: 0.3 },
+      { x: 30, y: 0.5 },
+      { x: -20, y: 0.7 },
+      { x: 28, y: 0.4 },
+      { x: -22, y: 0.6 },
+    ];
+    branchOffsets.forEach((branch) => {
+      const offsetY = startY + (y - startY) * branch.y;
+      lightningBolt.lineStyle(3, 0xffffff, 0.8);
+      lightningBolt.lineBetween(x, offsetY, x + branch.x, offsetY);
+    });
+
+    // Flash initial
+    const flash = this.add.circle(x, y, effectRadius * 1.5, 0xffffff, 1);
+    flash.setDepth(301);
+    
+    this.tweens.add({
+      targets: flash,
+      scale: 0,
+      alpha: 0,
+      duration: 200,
+      onComplete: () => {
+        flash.destroy();
+        lightningBolt.destroy();
+      },
+    });
+
+    // 2. Zone d'impact avec brûlure du terrain (même radius que les dégâts)
+    const burnZone = this.add.graphics();
+    burnZone.setDepth(5);
+    burnZone.fillStyle(0x000000, 0.6);
+    burnZone.fillCircle(x, y, effectRadius);
+    burnZone.lineStyle(2, 0x8b4513, 1);
+    burnZone.strokeCircle(x, y, effectRadius);
+    
+    // Effet de brûlure qui s'estompe
+    this.tweens.add({
+      targets: burnZone,
+      alpha: 0,
+      duration: 5000,
+      onComplete: () => burnZone.destroy(),
+    });
+
+    // 3. Dégâts et paralysie sur les ennemis (utiliser exactement le même radius)
+    if (this.enemies) {
+      this.enemies.children.each((enemy) => {
+        if (enemy && enemy.active) {
+          const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+          if (dist <= effectRadius) {
+            // Dégâts
+            enemy.damage(LIGHTNING_SPELL.damage);
+            
+            // Paralysie seulement si l'ennemi survit
+            if (enemy.hp > 0 && enemy.paralyze) {
+              enemy.paralyze(LIGHTNING_SPELL.paralysisDuration);
+            }
+          }
+        }
+      });
+    }
+
+    // 4. Effet de particules (dans la zone d'effet)
+    for (let i = 0; i < 20; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * effectRadius;
+      const px = x + Math.cos(angle) * dist;
+      const py = y + Math.sin(angle) * dist;
+      
+      const particle = this.add.circle(px, py, 3, 0xffff00, 1);
+      particle.setDepth(302);
+      
+      this.tweens.add({
+        targets: particle,
+        x: px + (Math.random() - 0.5) * 50,
+        y: py + (Math.random() - 0.5) * 50,
+        alpha: 0,
+        scale: 0,
+        duration: 1000 + Math.random() * 500,
+        onComplete: () => particle.destroy(),
+      });
+    }
+  }
+
+  // Mettre à jour l'affichage du bouton de sort
+  updateLightningSpellButton() {
+    if (!this.lightningSpellButton) return;
+
+    const { bg, icon, cooldownMask, cooldownText } = this.lightningSpellButton;
+    const cooldownPercent = this.lightningCooldown / LIGHTNING_SPELL.cooldown;
+    const remainingSeconds = Math.ceil(this.lightningCooldown / 1000);
+
+    if (this.lightningCooldown > 0) {
+      // Afficher le masque de cooldown
+      cooldownMask.setVisible(true);
+      cooldownMask.clear();
+      
+      const itemSize = 80 * this.scaleFactor;
+      const radius = itemSize / 2;
+      
+      // Dessiner un masque circulaire qui se remplit progressivement (de bas en haut)
+      cooldownMask.clear();
+      cooldownMask.fillStyle(0x000000, 0.7);
+      
+      if (cooldownPercent > 0) {
+        const startAngle = -Math.PI / 2; // Commence en haut
+        const endAngle = startAngle + cooldownPercent * Math.PI * 2;
+        
+        cooldownMask.beginPath();
+        cooldownMask.moveTo(0, 0);
+        cooldownMask.arc(0, 0, radius, startAngle, endAngle, false);
+        cooldownMask.closePath();
+        cooldownMask.fillPath();
+      }
+      
+      // Texte de cooldown
+      cooldownText.setText(`${remainingSeconds}s`);
+      cooldownText.setVisible(true);
+      
+      // Désactiver le bouton
+      bg.setFillStyle(0x1a1a1a, 0.6);
+      bg.setStrokeStyle(3, 0x444444);
+      icon.setAlpha(0.5);
+      bg.disableInteractive();
+    } else {
+      // Réactiver le bouton
+      cooldownMask.setVisible(false);
+      cooldownText.setVisible(false);
+      bg.setFillStyle(0x333333, 0.9);
+      bg.setStrokeStyle(3, 0x666666);
+      icon.setAlpha(1);
+      bg.setInteractive({ useHandCursor: true });
+    }
+  }
 
   // Dessiner une miniature du bâtiment pour la toolbar avec le vrai visuel
   drawTurretPreview(container, config) {
-    // Dessiner la base (cercle simple)
+    // Dessiner la base exactement comme dans Turret.drawBase() (niveau 1)
     const base = this.add.graphics();
-    base.fillStyle(config.color || 0x888888, 0.8);
-    base.fillCircle(0, 0, 25);
-    base.lineStyle(2, 0xffffff, 0.5);
-    base.strokeCircle(0, 0, 25);
+    const color = 0x333333; // Même couleur que Turret.drawBase() pour niveau 1
+    base.fillStyle(color);
+    base.fillCircle(0, 0, 24); // Même taille que dans Turret.drawBase()
+    base.lineStyle(2, 0x111111); // Même bordure que dans Turret.drawBase()
+    base.strokeCircle(0, 0, 24);
     container.add(base);
 
-    // Dessiner le canon/barrel avec la fonction onDrawBarrel si elle existe
+    // Dessiner le canon/barrel avec la fonction onDrawBarrel exactement comme dans Turret.drawBarrel()
     if (config.onDrawBarrel) {
       const barrelContainer = this.add.container(0, 0);
-      // Créer un objet turret factice pour onDrawBarrel
-      const fakeTurret = { level: 1 };
+      // Créer un objet turret factice pour onDrawBarrel (niveau 1 pour la preview)
+      const fakeTurret = { level: 1, config: config };
       try {
+        // Utiliser exactement la même signature que Turret.drawBarrel()
         config.onDrawBarrel(this, barrelContainer, config.color, fakeTurret);
         container.add(barrelContainer);
       } catch (e) {
@@ -1032,6 +1890,26 @@ export class GameScene extends Phaser.Scene {
       g.strokePath();
     });
 
+    // tile_mountain
+    generateIfNotExists("tile_mountain", () => {
+      // Fond rocheux
+      g.fillStyle(0x6b5b4f, 1);
+      g.fillRect(0, 0, T, T);
+      // Texture de roche
+      g.fillStyle(0x5a4b3f, 0.8);
+      for (let i = 0; i < 15; i++) {
+        g.fillRect(Math.random() * T, Math.random() * T, 3, 3);
+      }
+      // Détails de roche plus clairs
+      g.fillStyle(0x7b6b5f, 0.6);
+      for (let i = 0; i < 8; i++) {
+        g.fillRect(Math.random() * T, Math.random() * T, 2, 2);
+      }
+      // Bordure sombre
+      g.lineStyle(1, 0x4a3d32, 0.5);
+      g.strokeRect(0, 0, T, T);
+    });
+
     // Ne pas détruire l'objet Graphics ici car il peut être réutilisé
     // Il sera nettoyé automatiquement par Phaser quand la scène est détruite
   }
@@ -1094,9 +1972,15 @@ export class GameScene extends Phaser.Scene {
 
     // Nettoyer les managers
     try {
-      if (this.mapManager && this.mapManager.treePositions) {
-        this.mapManager.treePositions.clear();
-      }
+    if (this.mapManager && this.mapManager.treePositions) {
+      this.mapManager.treePositions.clear();
+    }
+
+    // Nettoyer le timer de vague automatique
+    if (this.nextWaveAutoTimer) {
+      this.nextWaveAutoTimer.remove();
+      this.nextWaveAutoTimer = null;
+    }
     } catch (e) {
       // Ignorer si déjà détruit
     }

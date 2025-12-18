@@ -103,6 +103,22 @@ export class Barracks extends Phaser.GameObjects.Container {
     };
   }
 
+  // Calculer le coût total déboursé (base + améliorations)
+  getTotalCost() {
+    const baseCost = TURRETS[this.config.key].cost;
+    let totalCost = baseCost;
+
+    // Calculer les coûts des améliorations
+    if (this.level >= 2) {
+      totalCost += Math.floor(baseCost * 2.5);
+    }
+    if (this.level >= 3) {
+      totalCost += Math.floor(baseCost * 2.5 * 2.2);
+    }
+
+    return totalCost;
+  }
+
   upgrade() {
     const nextStats = this.getNextLevelStats();
     if (!nextStats) return;
@@ -314,6 +330,9 @@ export class Barracks extends Phaser.GameObjects.Container {
       soldier.maxHp = this.config.soldierHp[this.level - 1];
       soldier.hp = soldier.maxHp;
       soldier.updateHealthBar();
+      
+      // S'assurer que le soldat est bien positionné sur le chemin
+      soldier.deployToPath(this.scene.paths);
       
       // Animation d'apparition
       soldier.setScale(0);

@@ -353,62 +353,44 @@ export class Soldier extends Phaser.GameObjects.Container {
     return null;
   }
   
-  // Placer le soldat sur le chemin
+  // Placer le soldat sur le chemin (version simplifiée)
   deployToPath(paths) {
     if (!this.scene) return;
     
-    const position = this.findPathPosition(paths);
-    if (position && this.isPositionOnPath(position.x, position.y)) {
-      this.setPosition(position.x, position.y);
-      // Animation d'apparition
-      this.setScale(0);
-      if (this.scene.tweens) {
-        this.scene.tweens.add({
-          targets: this,
-          scale: this.scene.scaleFactor || 1,
-          duration: 300,
-          ease: "Back.easeOut",
-        });
-      }
-    } else {
-      // Si on ne trouve pas de position valide, essayer de trouver un point sur le chemin le plus proche
-      // en cherchant directement dans la map
-      const CONFIG = { TILE_SIZE: 64 };
-      const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
-      // Utiliser mapStartX et mapStartY au lieu de MAP_OFFSET
-      const mapStartX = this.scene.mapStartX || 0;
-      const mapStartY = this.scene.mapStartY || (120 * (this.scene.scaleFactor || 1));
-      const map = this.scene.levelConfig.map;
-      
-      // Chercher la tile de chemin la plus proche
-      let closestTile = null;
-      let minTileDist = Infinity;
-      
-      for (let y = 0; y < map.length; y++) {
-        for (let x = 0; x < map[y].length; x++) {
-          const tileType = map[y][x];
-          if (tileType === 1 || tileType === 4) {
-            const tileX = mapStartX + x * T + T / 2;
-            const tileY = mapStartY + y * T + T / 2;
-            const dist = Phaser.Math.Distance.Between(this.x, this.y, tileX, tileY);
-            if (dist < minTileDist) {
-              minTileDist = dist;
-              closestTile = { x: tileX, y: tileY };
-            }
+    // Si le soldat est déjà sur un chemin valide, ne rien faire
+    if (this.isPositionOnPath(this.x, this.y)) {
+      return;
+    }
+    
+    // Chercher la position la plus proche sur un chemin
+    const CONFIG = { TILE_SIZE: 64 };
+    const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
+    const mapStartX = this.scene.mapStartX || 0;
+    const mapStartY = this.scene.mapStartY || (120 * (this.scene.scaleFactor || 1));
+    const map = this.scene.levelConfig.map;
+    
+    // Chercher la tile de chemin la plus proche
+    let closestTile = null;
+    let minTileDist = Infinity;
+    
+    for (let y = 0; y < map.length; y++) {
+      for (let x = 0; x < map[y].length; x++) {
+        const tileType = map[y][x];
+        if (tileType === 1 || tileType === 4) {
+          const tileX = mapStartX + x * T + T / 2;
+          const tileY = mapStartY + y * T + T / 2;
+          const dist = Phaser.Math.Distance.Between(this.x, this.y, tileX, tileY);
+          if (dist < minTileDist) {
+            minTileDist = dist;
+            closestTile = { x: tileX, y: tileY };
           }
         }
       }
-      
-      if (closestTile && this.scene && this.scene.tweens) {
-        this.setPosition(closestTile.x, closestTile.y);
-        this.setScale(0);
-        this.scene.tweens.add({
-          targets: this,
-          scale: this.scene.scaleFactor || 1,
-          duration: 300,
-          ease: "Back.easeOut",
-        });
-      }
+    }
+    
+    // Positionner le soldat sur la tile la plus proche trouvée
+    if (closestTile) {
+      this.setPosition(closestTile.x, closestTile.y);
     }
   }
   
@@ -706,10 +688,8 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.setRotation(0);
     this.updateHealthBar();
     
-    // Redéployer sur le chemin
-    if (this.scene.paths) {
-      this.deployToPath(this.scene.paths);
-    }
+    // Redéployer sur le chemin (version simplifiée)
+    this.deployToPath(this.scene.paths);
     
     // Animation de réapparition
     if (this.scene && this.scene.tweens) {

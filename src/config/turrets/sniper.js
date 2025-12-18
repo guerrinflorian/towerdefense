@@ -7,6 +7,7 @@ export const sniper = {
   rate: 2500, // Tir très lent
   color: 0x44ff44, // Vert fluo (interface)
   maxLevel: 3,
+  description: "Tourelle de précision avec dégâts massifs et très longue portée.\n\n✅ Avantages:\n• Dégâts énormes par tir\n• Portée exceptionnelle\n• Idéal contre les ennemis résistants\n\n❌ Inconvénients:\n• Cadence de tir très lente\n• Coût élevé\n• Moins efficace contre les groupes",
 
   // --- DESSIN ÉVOLUTIF ---
   onDrawBarrel: (scene, container, color, turret) => {

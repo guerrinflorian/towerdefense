@@ -568,8 +568,15 @@ var _gruntJs = require("../config/ennemies/grunt.js");
 var _runnerJs = require("../config/ennemies/runner.js");
 var _tankJs = require("../config/ennemies/tank.js");
 var _shieldJs = require("../config/ennemies/shield.js");
-var _bossJs = require("../config/ennemies/boss.js");
-var _throwerJs = require("../config/ennemies/thrower.js");
+var _bosslvl1Js = require("../config/ennemies/bosslvl1.js");
+var _bosslvl2Js = require("../config/ennemies/bosslvl2.js");
+var _witchJs = require("../config/ennemies/witch.js");
+var _zombieMinionJs = require("../config/ennemies/zombie_minion.js");
+var _tortueDragonJs = require("../config/ennemies/tortue_dragon.js");
+var _shamanGobelinJs = require("../config/ennemies/shaman_gobelin.js");
+var _diviseurJs = require("../config/ennemies/diviseur.js");
+var _slimeMediumJs = require("../config/ennemies/slime_medium.js");
+var _slimeSmallJs = require("../config/ennemies/slime_small.js");
 var _machineGunJs = require("../config/turrets/machineGun.js");
 var _sniperJs = require("../config/turrets/sniper.js");
 var _cannonJs = require("../config/turrets/cannon.js");
@@ -581,7 +588,7 @@ const CONFIG = {
     MAP_OFFSET: 120,
     GAME_WIDTH: 960,
     GAME_HEIGHT: 1080,
-    STARTING_MONEY: 550,
+    STARTING_MONEY: 650,
     STARTING_LIVES: 20,
     TOOLBAR_HEIGHT: 100,
     TOOLBAR_MARGIN: 20
@@ -591,8 +598,15 @@ const ENEMIES = {
     runner: (0, _runnerJs.runner),
     tank: (0, _tankJs.tank),
     shield: (0, _shieldJs.shield),
-    boss: (0, _bossJs.boss),
-    thrower: (0, _throwerJs.thrower)
+    bosslvl1: (0, _bosslvl1Js.bosslvl1),
+    bosslvl2: (0, _bosslvl2Js.bosslvl2),
+    witch: (0, _witchJs.witch),
+    zombie_minion: (0, _zombieMinionJs.zombie_minion),
+    tortue_dragon: (0, _tortueDragonJs.tortue_dragon),
+    shaman_gobelin: (0, _shamanGobelinJs.shaman_gobelin),
+    diviseur: (0, _diviseurJs.diviseur),
+    slime_medium: (0, _slimeMediumJs.slime_medium),
+    slime_small: (0, _slimeSmallJs.slime_small)
 };
 const TURRETS = {
     machine_gun: (0, _machineGunJs.machine_gun),
@@ -602,18 +616,19 @@ const TURRETS = {
     barracks: (0, _barracksJs.barracks)
 };
 
-},{"../config/ennemies/grunt.js":"iqyIL","../config/ennemies/runner.js":"k54Ru","../config/ennemies/tank.js":"caNrh","../config/ennemies/shield.js":"BAQN3","../config/ennemies/boss.js":"guYEg","../config/turrets/machineGun.js":"ecBws","../config/turrets/sniper.js":"fm2OQ","../config/turrets/cannon.js":"3RJPP","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../config/turrets/zap.js":"bgZGw","../config/turrets/barracks.js":"9rF1d","../config/ennemies/thrower.js":"9eVmk"}],"iqyIL":[function(require,module,exports,__globalThis) {
+},{"../config/ennemies/grunt.js":"iqyIL","../config/ennemies/runner.js":"k54Ru","../config/ennemies/tank.js":"caNrh","../config/ennemies/shield.js":"BAQN3","../config/turrets/machineGun.js":"ecBws","../config/turrets/sniper.js":"fm2OQ","../config/turrets/cannon.js":"3RJPP","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../config/turrets/zap.js":"bgZGw","../config/turrets/barracks.js":"9rF1d","../config/ennemies/witch.js":"k759O","../config/ennemies/zombie_minion.js":"bONBj","../config/ennemies/bosslvl1.js":"lF8pq","../config/ennemies/bosslvl2.js":"hQduM","../config/ennemies/tortue_dragon.js":"bnkzu","../config/ennemies/shaman_gobelin.js":"8mFrl","../config/ennemies/diviseur.js":"7ppi2","../config/ennemies/slime_medium.js":"j7fMh","../config/ennemies/slime_small.js":"KCZbL"}],"iqyIL":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "grunt", ()=>grunt);
 const grunt = {
     name: "Grunt",
-    speed: 90,
+    speed: 65,
     hp: 100,
     reward: 20,
     color: 0x558844,
     damage: 8,
     attackSpeed: 800,
+    scale: 1,
     // --- DESSIN DU PERSONNAGE (Vue de profil) ---
     onDraw: (scene, container, color, enemyInstance)=>{
         // On stocke les références aux jambes dans l'instance pour pouvoir les animer
@@ -699,12 +714,13 @@ parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "runner", ()=>runner);
 const runner = {
     name: "Scout",
-    speed: 260,
-    hp: 110,
+    speed: 220,
+    hp: 112,
     reward: 30,
     color: 0xffd166,
     damage: 14,
     attackSpeed: 600,
+    scale: 1,
     onDraw: (scene, container, color, enemyInstance)=>{
         enemyInstance.legs = {};
         // Le corps est légèrement penché vers l'avant (mais on garde l'orientation verticale)
@@ -754,11 +770,12 @@ parcelHelpers.export(exports, "tank", ()=>tank);
 const tank = {
     name: "Heavy",
     speed: 38,
-    hp: 2800,
+    hp: 2650,
     reward: 150,
     color: 0x224466,
     damage: 28,
     attackSpeed: 1200,
+    scale: 1,
     onDraw: (scene, container, color, enemyInstance)=>{
         enemyInstance.legs = {};
         // 1. "Pied" Arrière (Gros bloc)
@@ -819,6 +836,7 @@ const shield = {
     color: 0x00aabb,
     damage: 12,
     attackSpeed: 900,
+    scale: 1,
     onDraw: (scene, container, color, enemyInstance)=>{
         enemyInstance.legs = {};
         // 1. Jambes (Similaires au Grunt mais plus robustes)
@@ -872,97 +890,6 @@ const shield = {
     }
 };
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"guYEg":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "boss", ()=>boss);
-const boss = {
-    name: "DOOM",
-    speed: 20,
-    hp: 28000,
-    reward: 1000,
-    color: 0x222222,
-    damage: 70,
-    attackSpeed: 1000,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Pas de jambes pour le boss, il flotte !
-        // 1. Cape / Aura (Flottant derrière)
-        const aura = scene.add.graphics();
-        aura.fillStyle(0xff0000, 0.3); // Rouge sang transparent
-        // Forme déchiquetée
-        aura.beginPath();
-        aura.moveTo(-30, -40);
-        aura.lineTo(30, -40);
-        aura.lineTo(40, 20);
-        aura.lineTo(20, 50);
-        aura.lineTo(0, 30);
-        aura.lineTo(-20, 50);
-        aura.lineTo(-40, 20);
-        aura.closePath();
-        aura.fillPath();
-        container.add(aura);
-        // 2. Corps (Armure noire massive à pointes)
-        const body = scene.add.graphics();
-        body.fillStyle(color); // Noir
-        body.lineStyle(4, 0xff0000); // Bordure rouge
-        // Torse massif
-        body.beginPath();
-        body.moveTo(-25, -30);
-        body.lineTo(25, -30);
-        body.lineTo(15, 30);
-        body.lineTo(-15, 30);
-        body.closePath();
-        body.fillPath();
-        body.strokePath();
-        // Épaulières à pointes
-        body.fillStyle(0xff0000);
-        body.beginPath();
-        body.moveTo(-25, -30);
-        body.lineTo(-45, -40);
-        body.lineTo(-25, -10);
-        body.fillPath();
-        body.beginPath();
-        body.moveTo(25, -30);
-        body.lineTo(45, -40);
-        body.lineTo(25, -10);
-        body.fillPath();
-        // Tête (Casque cornu)
-        body.fillStyle(color);
-        body.fillRect(-12, -50, 24, 20);
-        // Cornes
-        body.fillStyle(0xff0000);
-        body.beginPath();
-        body.moveTo(-12, -50);
-        body.lineTo(-25, -70);
-        body.lineTo(-5, -50);
-        body.fillPath();
-        body.beginPath();
-        body.moveTo(12, -50);
-        body.lineTo(25, -70);
-        body.lineTo(5, -50);
-        body.fillPath();
-        // Yeux brillants
-        body.fillStyle(0xffff00);
-        body.fillRect(-8, -45, 6, 4);
-        body.fillRect(2, -45, 6, 4);
-        container.add(body);
-        // Le Boss est trop imposant pour tourner rapidement
-        enemyInstance.shouldRotate = false;
-        // On stocke l'aura pour l'animer
-        enemyInstance.aura = aura;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Pas de marche, mais une lévitation menaçante
-        const speed = 0.002;
-        const floatRange = 10;
-        // Flottement vertical lent
-        enemyInstance.bodyGroup.y = Math.sin(time * speed) * floatRange;
-        // L'aura ondule légèrement
-        enemyInstance.aura.scaleX = 1 + Math.sin(time * 0.005) * 0.1;
-        enemyInstance.aura.alpha = 0.3 + Math.sin(time * 0.01) * 0.1;
-    }
-};
-
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"ecBws":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
@@ -970,12 +897,13 @@ parcelHelpers.export(exports, "machine_gun", ()=>machine_gun);
 const machine_gun = {
     key: "machine_gun",
     name: "Mitrailleuse",
-    cost: 100,
-    range: 170,
+    cost: 90,
+    range: 95,
     damage: 10,
     rate: 240,
     color: 0x4488ff,
     maxLevel: 3,
+    description: "Tourelle polyvalente avec cadence de tir tr\xe8s \xe9lev\xe9e.\n\n\u2705 Avantages:\n\u2022 Cadence de tir rapide\n\u2022 D\xe9g\xe2ts constants\n\u2022 Port\xe9e correcte\n\n\u274C Inconv\xe9nients:\n\u2022 D\xe9g\xe2ts par tir faibles\n\u2022 Moins efficace contre les ennemis blind\xe9s",
     // --- DESSIN ÉVOLUTIF (Base + 2 Améliorations) ---
     // Note: On assume que Turret.js passe (scene, container, color, turretInstance)
     onDrawBarrel: (scene, container, color, turret)=>{
@@ -1101,12 +1029,13 @@ parcelHelpers.export(exports, "sniper", ()=>sniper);
 const sniper = {
     key: "sniper",
     name: "Sniper",
-    cost: 300,
-    range: 300,
+    cost: 270,
+    range: 160,
     damage: 150,
     rate: 2500,
     color: 0x44ff44,
     maxLevel: 3,
+    description: "Tourelle de pr\xe9cision avec d\xe9g\xe2ts massifs et tr\xe8s longue port\xe9e.\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts \xe9normes par tir\n\u2022 Port\xe9e exceptionnelle\n\u2022 Id\xe9al contre les ennemis r\xe9sistants\n\n\u274C Inconv\xe9nients:\n\u2022 Cadence de tir tr\xe8s lente\n\u2022 Co\xfbt \xe9lev\xe9\n\u2022 Moins efficace contre les groupes",
     // --- DESSIN ÉVOLUTIF ---
     onDrawBarrel: (scene, container, color, turret)=>{
         const g = scene.add.graphics();
@@ -1278,89 +1207,140 @@ parcelHelpers.export(exports, "cannon", ()=>cannon);
 const cannon = {
     key: "cannon",
     name: "Mortier",
-    cost: 220,
-    range: 160,
-    damage: 80,
-    rate: 2000,
+    cost: 180,
+    range: 135,
+    damage: 90,
+    rate: 2300,
     color: 0xff8844,
-    aoe: 100,
-    maxLevel: 2,
-    // --- DESSIN DU CANON (ÉVOLUTIF) ---
+    aoe: 50,
+    maxLevel: 3,
+    description: "Artillerie lourde avec d\xe9g\xe2ts de zone (AOE).\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts de zone (touche plusieurs ennemis)\n\u2022 Port\xe9e longue\n\u2022 Efficace contre les groupes\n\n\u274C Inconv\xe9nients:\n\u2022 Cadence de tir lente\n\u2022 Projectile en arc (d\xe9lai d'impact)\n\u2022 Moins pr\xe9cis que les autres tourelles",
+    // ============================================================
+    // DESSIN DU CANON
+    // ============================================================
     onDrawBarrel: (scene, container, color, turret)=>{
         const g = scene.add.graphics();
         const level = turret.level || 1;
-        // Palette Niv 1 (Bronze)
-        const bronze = 0xcd7f32;
-        const darkBronze = 0xa05a2c;
-        // Palette Niv 2 (Acier Lourd)
-        const steel = 0x8899aa;
-        const darkSteel = 0x445566;
         const black = 0x111111;
-        const heavyMetal = 0x555555;
+        g.clear();
         if (level === 1) {
-            // === NIVEAU 1 : Mortier Bronze ===
-            // Base pivotante
+            // --- Niv 1 : Mortier Bronze (Classique) ---
+            const bronze = 0xcd7f32;
+            const darkBronze = 0xa05a2c;
             g.fillStyle(darkBronze);
             g.fillRoundedRect(-20, -18, 30, 36, 6);
             g.lineStyle(3, 0x663311);
             g.strokeRoundedRect(-20, -18, 30, 36, 6);
-            // Rivets
             g.fillStyle(0x663311);
             g.fillCircle(-15, -12, 2);
             g.fillCircle(-15, 12, 2);
             g.fillCircle(5, -12, 2);
             g.fillCircle(5, 12, 2);
-            // Canon Court
             g.fillStyle(bronze);
             g.fillRect(10, -12, 20, 24);
-            g.fillStyle(darkBronze); // Renforts
+            g.fillStyle(darkBronze);
             g.fillRect(12, -14, 4, 28);
             g.fillRect(22, -14, 4, 28);
-            // Bouche
             g.fillStyle(black);
             g.fillCircle(30, 0, 10);
             g.lineStyle(4, darkBronze);
             g.strokeCircle(30, 0, 10);
-        } else {
-            // === NIVEAU 2 : Artillerie Lourde (Acier) ===
-            // Base blindée plus large
+            // Recul
+            g.fillStyle(0x555555);
+            g.fillRect(-5, 18, 20, 6);
+        } else if (level === 2) {
+            // --- Niv 2 : Artillerie Lourde (Classique) ---
+            const steel = 0x8899aa;
+            const darkSteel = 0x445566;
             g.fillStyle(darkSteel);
             g.fillRoundedRect(-22, -20, 34, 40, 4);
-            g.lineStyle(2, 0xaabbcc); // Bordure claire
+            g.lineStyle(2, 0xaabbcc);
             g.strokeRoundedRect(-22, -20, 34, 40, 4);
-            // Canon Long et Massif
             g.fillStyle(steel);
-            g.fillRect(12, -14, 30, 28); // Plus long
-            // Système de refroidissement (lamelles)
+            g.fillRect(12, -14, 30, 28);
             g.fillStyle(darkSteel);
             g.fillRect(15, -14, 2, 28);
             g.fillRect(20, -14, 2, 28);
             g.fillRect(25, -14, 2, 28);
             g.fillRect(30, -14, 2, 28);
-            // Bouche énorme
             g.fillStyle(black);
             g.fillCircle(42, 0, 12);
             g.lineStyle(4, darkSteel);
             g.strokeCircle(42, 0, 12);
-            // Chargeur automatique sur le côté
             g.fillStyle(0x333333);
             g.fillRect(-10, -22, 10, 8);
+            g.fillStyle(0x555555);
+            g.fillRect(-5, 18, 20, 6);
+        } else {
+            // --- Niv 3 : Système de Missiles "Titan" (RE-DESIGN COMPLET) ---
+            const hullColor = 0xe0e0e0; // Blanc cassé blindage
+            const darkHull = 0x546e7a; // Bleu gris sombre
+            const accent = 0xff3d00; // Orange sécurité
+            const glow = 0x00eaff; // Cyan futuriste
+            // 1. Base pivotante lourde
+            g.fillStyle(0x263238);
+            g.fillCircle(0, 0, 22);
+            g.lineStyle(2, 0x37474f);
+            g.strokeCircle(0, 0, 22);
+            // 2. Corps central blindé (Anguleux)
+            g.fillStyle(hullColor);
+            g.beginPath();
+            g.moveTo(-15, -15);
+            g.lineTo(25, -15);
+            g.lineTo(35, 0);
+            g.lineTo(25, 15);
+            g.lineTo(-15, 15);
+            g.closePath();
+            g.fill();
+            g.lineStyle(2, 0x90a4ae);
+            g.strokePath();
+            // Détails techniques sur le dessus
+            g.fillStyle(0x263238);
+            g.fillRect(-5, -8, 15, 16); // Trappe maintenance
+            g.fillStyle(accent);
+            g.fillRect(20, -5, 4, 10); // Indicateur de tir
+            // 3. Pods de missiles latéraux (Gauche et Droite)
+            const drawPod = (offsetY)=>{
+                // Structure du pod
+                g.fillStyle(darkHull);
+                g.fillRoundedRect(-10, offsetY - 10, 35, 20, 4);
+                g.lineStyle(1, 0x000000);
+                g.strokeRoundedRect(-10, offsetY - 10, 35, 20, 4);
+                // Têtes de missiles visibles
+                g.fillStyle(0x000000);
+                g.fillCircle(25, offsetY, 6); // Le trou
+                g.fillStyle(0xff0000);
+                g.fillCircle(25, offsetY, 3); // La tête du missile
+                // Lumière d'état sur le pod
+                g.fillStyle(glow);
+                g.fillRect(0, offsetY - 2, 8, 4);
+            };
+            drawPod(-20); // Pod Gauche
+            drawPod(20); // Pod Droit
+            // 4. Radar/Optique sur le côté
+            g.lineStyle(2, glow, 0.6);
+            g.strokeCircle(10, 0, 8);
+            g.fillStyle(glow, 0.3);
+            g.fillCircle(10, 0, 3);
         }
-        // Recul (Commun)
-        g.fillStyle(heavyMetal);
-        g.fillRect(-5, 18, 20, 6);
-        g.fillStyle(0x888888);
-        g.fillRect(-2, 20, 15, 2);
         container.add(g);
-        // --- INDICATEUR NIVEAU ---
+        // Badge niveau
         const badge = scene.add.container(-20, 20);
-        const badgeColor = level === 2 ? 0x00ffff : 0xffffff;
-        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.7);
-        badgeBg.setStrokeStyle(1, badgeColor);
+        let badgeColorStr = "#ffffff";
+        let badgeColorHex = 0xffffff;
+        if (level === 2) {
+            badgeColorStr = "#00ffff";
+            badgeColorHex = 0x00ffff;
+        } else if (level === 3) {
+            badgeColorStr = "#ff00aa";
+            badgeColorHex = 0xff00aa;
+        }
+        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.55);
+        badgeBg.setStrokeStyle(1, badgeColorHex, 0.9);
         const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
             fontSize: "10px",
             fontFamily: "Arial",
-            color: level === 2 ? "#00ffff" : "#ffffff",
+            color: badgeColorStr,
             fontStyle: "bold"
         }).setOrigin(0.5);
         badge.add([
@@ -1369,80 +1349,285 @@ const cannon = {
         ]);
         container.add(badge);
     },
-    // --- LOGIQUE DE TIR DE ZONE ---
+    // ============================================================
+    // LOGIQUE DE TIR
+    // ============================================================
     onFire: (scene, turret, target)=>{
+        if (!scene || !turret || !target || !target.active) return;
         const level = turret.level || 1;
-        const targetX = target.x;
-        const targetY = target.y;
-        // 1. Muzzle Flash (Plus gros au niv 2)
-        const flashSize = level === 2 ? 30 : 20;
-        const flashColor = level === 2 ? 0xffdd88 : 0xaaaaaa;
-        const muzzleFlash = scene.add.circle(turret.x, turret.y, flashSize, flashColor, 0.8);
-        scene.tweens.add({
-            targets: muzzleFlash,
-            scale: 2,
-            alpha: 0,
-            duration: 300,
-            onComplete: ()=>muzzleFlash.destroy()
-        });
-        // 2. Projectile
-        const shellSize = level === 2 ? 10 : 8;
-        const shellColor = level === 2 ? 0x444444 : 0x222222;
-        const shell = scene.add.circle(turret.x, turret.y, shellSize, shellColor);
-        shell.setStrokeStyle(2, 0x000000);
-        shell.setDepth(100);
-        // 3. Trajectoire
-        scene.tweens.add({
-            targets: shell,
-            scale: 1.8,
-            duration: 350,
-            yoyo: true,
-            ease: "Sine.easeInOut"
-        });
-        scene.tweens.add({
-            targets: shell,
-            x: targetX,
-            y: targetY,
-            duration: 700,
-            ease: "Linear",
-            onComplete: ()=>{
-                shell.destroy();
-                // 4. Explosion
-                // Niv 2 = Explosion plus rouge/sombre et plus grande
-                const blastColor = level === 2 ? 0xcc2200 : 0xff4400;
-                const blastRadius = turret.config.aoe; // L'AoE a été updatée dans Turret.js lors de l'upgrade
-                const blast = scene.add.circle(targetX, targetY, 10, blastColor, 0.9);
-                blast.setDepth(99);
-                scene.tweens.add({
-                    targets: blast,
-                    radius: blastRadius,
-                    alpha: 0,
-                    duration: 400,
-                    ease: "Quad.easeOut",
-                    onComplete: ()=>blast.destroy()
-                });
-                // Flash blanc interne
-                const innerBlast = scene.add.circle(targetX, targetY, 10, 0xffffaa, 1);
-                innerBlast.setDepth(100);
-                scene.tweens.add({
-                    targets: innerBlast,
-                    radius: blastRadius / 2,
-                    alpha: 0,
-                    duration: 200,
-                    onComplete: ()=>innerBlast.destroy()
-                });
-                // 5. Dégâts de zone
-                const allEnemies = scene.enemies.getChildren();
-                allEnemies.forEach((e)=>{
-                    if (e.active) {
-                        const dist = Phaser.Math.Distance.Between(targetX, targetY, e.x, e.y);
-                        if (dist <= blastRadius) e.damage(turret.config.damage);
-                    }
-                });
-            }
-        });
+        if (level < 3) {
+            // --- LOGIQUE NIV 1 & 2 : OBUS EN CLOCHE (INCHANGÉ) ---
+            const spread = 5;
+            const impactX = target.x + (Math.random() - 0.5) * spread;
+            const impactY = target.y + (Math.random() - 0.5) * spread;
+            const blastRadius = turret.config.aoe;
+            const damageAmount = turret.config.damage;
+            const muzzle = scene.add.circle(turret.x, turret.y, 10, 0xffaa00, 0.8);
+            scene.tweens.add({
+                targets: muzzle,
+                scale: 2,
+                alpha: 0,
+                duration: 100,
+                onComplete: ()=>muzzle.destroy()
+            });
+            const shell = scene.add.circle(turret.x, turret.y, 4, 0x000000, 1);
+            shell.setStrokeStyle(2, 0x555555);
+            shell.setDepth(200);
+            const shadow = scene.add.ellipse(turret.x, turret.y, 8, 4, 0x000000, 0.3);
+            shadow.setDepth(5);
+            const dist = Phaser.Math.Distance.Between(turret.x, turret.y, impactX, impactY);
+            const flightTime = Phaser.Math.Clamp(dist * 2.5, 400, 800);
+            const peakHeight = 150;
+            scene.tweens.add({
+                targets: [
+                    shell,
+                    shadow
+                ],
+                x: impactX,
+                y: impactY,
+                duration: flightTime,
+                ease: "Linear"
+            });
+            scene.tweens.add({
+                targets: shell,
+                z: 1,
+                duration: flightTime,
+                ease: "Linear",
+                onUpdate: (tween)=>{
+                    const progress = tween.progress;
+                    const heightOffset = Math.sin(progress * Math.PI) * peakHeight;
+                    shell.y = turret.y + (impactY - turret.y) * progress - heightOffset;
+                },
+                onComplete: ()=>{
+                    shell.destroy();
+                    shadow.destroy();
+                    triggerExplosion(scene, impactX, impactY, blastRadius, damageAmount, level);
+                }
+            });
+        } else // --- LOGIQUE NIV 3 : MISSILE CINÉMATIQUE ---
+        launchRealisticMissile(scene, turret, target);
     }
 };
+// ============================================================
+// NOUVEAU SYSTÈME DE MISSILE (PLUS FLUIDE ET RÉALISTE)
+// ============================================================
+function launchRealisticMissile(scene, turret, target) {
+    const damageAmount = turret.config.damage * 2.5;
+    const blastRadius = turret.config.aoe * 1.8;
+    const flightDuration = 2500; // 3 secondes
+    // 1. Design du Missile (Plus détaillé)
+    const missile = scene.add.container(turret.x, turret.y);
+    missile.setDepth(300);
+    const mg = scene.add.graphics();
+    // Flamme du réacteur (animée plus tard)
+    mg.fillStyle(0x00ffff);
+    mg.fillTriangle(0, 15, -4, 25, 4, 25);
+    // Corps
+    mg.fillStyle(0xffffff);
+    mg.fillRoundedRect(-5, -20, 10, 35, 2);
+    // Tête nucléaire
+    mg.fillStyle(0xff0000);
+    mg.fillTriangle(0, -30, -5, -20, 5, -20);
+    // Ailerons arrière
+    mg.fillStyle(0x445566);
+    mg.beginPath();
+    mg.moveTo(-5, 0);
+    mg.lineTo(-14, 15);
+    mg.lineTo(-5, 15);
+    mg.fill(); // Gauche
+    mg.beginPath();
+    mg.moveTo(5, 0);
+    mg.lineTo(14, 15);
+    mg.lineTo(5, 15);
+    mg.fill(); // Droite
+    missile.add(mg);
+    missile.setScale(0.6);
+    // 2. Définition de la trajectoire COURBE (Pas de zigzag sec)
+    // On crée un point de contrôle pour faire un bel arc de cercle
+    // Le point de contrôle est décalé perpendiculairement à la cible
+    const startX = turret.x;
+    const startY = turret.y;
+    // Angle initial vers la cible
+    const angleToTarget = Phaser.Math.Angle.Between(startX, startY, target.x, target.y);
+    // On détermine aléatoirement si l'arc part à gauche ou à droite (-1 ou 1)
+    const arcSide = Math.random() > 0.5 ? 1 : -1;
+    const arcIntensity = 200; // Amplitude de la courbe
+    // Variables de suivi
+    let prevX = startX;
+    let prevY = startY;
+    let smokeTimer = 0;
+    // Flash de départ
+    const flash = scene.add.circle(startX, startY, 25, 0xffaa00, 1);
+    scene.tweens.add({
+        targets: flash,
+        scale: 2,
+        alpha: 0,
+        duration: 200,
+        onComplete: ()=>flash.destroy()
+    });
+    // 3. TWEEN AVEC COURBE DE BÉZIER DYNAMIQUE
+    scene.tweens.add({
+        targets: missile,
+        z: 1,
+        duration: flightDuration,
+        ease: "Quad.easeIn",
+        onUpdate: (tween, targetParam, param2, progress)=>{
+            if (!missile.active) return;
+            // Position actuelle de la cible (ou dernière connue)
+            const tx = target.active ? target.x : target.lastX || target.x;
+            const ty = target.active ? target.y : target.lastY || target.y;
+            // --- CALCUL DE LA POSITION ---
+            // On calcule une courbe de Bézier quadratique à la volée.
+            // P0 = Départ
+            // P1 = Point de contrôle (qui bouge un peu pour faire "vivant")
+            // P2 = Cible
+            // Calcul du point de contrôle P1 :
+            // Il est au milieu du trajet, mais décalé sur le côté pour créer l'arc
+            const midX = (startX + tx) / 2;
+            const midY = (startY + ty) / 2;
+            // Vecteur perpendiculaire pour le décalage
+            const dx = tx - startX;
+            const dy = ty - startY;
+            // Normalisation approximative pour le décalage
+            const perpX = -dy * 0.5;
+            const perpY = dx * 0.5;
+            // Le point de contrôle se rapproche de la ligne directe à la fin (progress)
+            // pour que le missile "rentre" dans la cible
+            const currentArc = arcIntensity * (1 - progress);
+            // Ajout d'une petite turbulence (Noise) pour le réalisme, pas un zigzag mathématique
+            const turbulence = Math.sin(progress * 20) * 10 * (1 - progress); // Vibre moins à la fin
+            const controlX = midX + perpX * arcSide / (Math.abs(dx) + Math.abs(dy)) * currentArc + turbulence;
+            const controlY = midY + perpY * arcSide / (Math.abs(dx) + Math.abs(dy)) * currentArc + turbulence;
+            // Formule de Bézier Quadratique : (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+            const t = progress;
+            const x = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * controlX + t * t * tx;
+            const y = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * controlY + t * t * ty;
+            missile.x = x;
+            missile.y = y;
+            // --- CALCUL DE LA ROTATION (LISSÉE) ---
+            // On regarde la différence avec la frame d'avant
+            const angle = Math.atan2(y - prevY, x - prevX);
+            // + PI/2 car le dessin pointe vers le haut (-Y)
+            missile.setRotation(angle + Math.PI / 2);
+            prevX = x;
+            prevY = y;
+            // --- FX DE TRAINÉE (SMOKE) ---
+            smokeTimer += scene.game.loop.delta;
+            if (smokeTimer > 20) {
+                // Très dense
+                smokeTimer = 0;
+                const p = scene.add.circle(missile.x, missile.y, 4, 0x999999, 0.6);
+                p.setDepth(290);
+                scene.tweens.add({
+                    targets: p,
+                    scale: {
+                        from: 1,
+                        to: 3
+                    },
+                    alpha: {
+                        from: 0.6,
+                        to: 0
+                    },
+                    duration: 600,
+                    onComplete: ()=>p.destroy()
+                });
+                // Petit cœur de flamme
+                const f = scene.add.circle(missile.x, missile.y, 2, 0x00ffff, 1);
+                f.setDepth(291);
+                scene.tweens.add({
+                    targets: f,
+                    scale: 0,
+                    duration: 200,
+                    onComplete: ()=>f.destroy()
+                });
+            }
+        },
+        onComplete: ()=>{
+            const finalX = target.active ? target.x : missile.x;
+            const finalY = target.active ? target.y : missile.y;
+            missile.destroy();
+            triggerExplosion(scene, finalX, finalY, blastRadius, damageAmount, 3);
+        }
+    });
+}
+// ============================================================
+// EXPLOSION (INCHANGÉE MAIS OPTIMISÉE)
+// ============================================================
+function triggerExplosion(scene, x, y, radius, damage, level) {
+    const hitboxBuffer = 8;
+    const effectiveRadius = radius + hitboxBuffer;
+    const isLvl3 = level === 3;
+    // Secousse
+    scene.cameras.main.shake(isLvl3 ? 300 : 150, isLvl3 ? 0.01 : 0.005);
+    // Trace au sol
+    const scorch = scene.add.circle(x, y, effectiveRadius, isLvl3 ? 0x001122 : 0x000000, 0.6);
+    scorch.setDepth(4);
+    scorch.scaleY = 0.6;
+    scene.tweens.add({
+        targets: scorch,
+        alpha: 0,
+        duration: 2000,
+        delay: 500,
+        onComplete: ()=>scorch.destroy()
+    });
+    // Flash
+    const flash = scene.add.circle(x, y, radius, isLvl3 ? 0xccffff : 0xffaa00, 1);
+    flash.setDepth(350);
+    scene.tweens.add({
+        targets: flash,
+        scale: 1.5,
+        alpha: 0,
+        duration: 200,
+        onComplete: ()=>flash.destroy()
+    });
+    // Onde de choc
+    const shock = scene.add.graphics();
+    shock.setDepth(340);
+    shock.lineStyle(isLvl3 ? 8 : 4, isLvl3 ? 0x00ffff : 0xffaa00);
+    shock.strokeCircle(0, 0, radius);
+    shock.setPosition(x, y);
+    shock.setScale(0.1);
+    scene.tweens.add({
+        targets: shock,
+        scale: 1.2,
+        alpha: 0,
+        duration: 400,
+        onComplete: ()=>shock.destroy()
+    });
+    // Particules
+    const pCount = isLvl3 ? 20 : 8;
+    for(let i = 0; i < pCount; i++){
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * radius * 0.5;
+        const px = x + Math.cos(angle) * dist;
+        const py = y + Math.sin(angle) * dist;
+        // Mixte feu/fumée ou plasma/fumée
+        const color = isLvl3 ? Math.random() > 0.5 ? 0x00ffff : 0x555555 : 0x666666;
+        const p = scene.add.circle(px, py, Math.random() * 4 + 2, color, 1);
+        p.setDepth(345);
+        scene.tweens.add({
+            targets: p,
+            x: px + Math.cos(angle) * radius,
+            y: py + Math.sin(angle) * radius - 50,
+            alpha: 0,
+            scale: 0.5,
+            duration: Math.random() * 500 + 500,
+            onComplete: ()=>p.destroy()
+        });
+    }
+    // Dégâts
+    if (scene.enemies) scene.enemies.children.each((e)=>{
+        if (e.active && Phaser.Math.Distance.Between(x, y, e.x, e.y) <= effectiveRadius) {
+            e.damage(damage);
+            if (e.bodyGroup) scene.tweens.add({
+                targets: e.bodyGroup,
+                tint: isLvl3 ? 0x00ffff : 0xff0000,
+                duration: 100,
+                yoyo: true
+            });
+        }
+    });
+}
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bgZGw":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
@@ -1452,12 +1637,13 @@ const zap = {
     key: "zap",
     name: "\xc9clair",
     cost: 350,
-    range: 180,
-    damage: 60,
+    range: 120,
+    damage: 50,
     rate: 1800,
     color: 0x00ffff,
     maxLevel: 3,
-    maxChainTargets: 4,
+    maxChainTargets: 3,
+    description: "G\xe9n\xe9rateur \xe9lectrique avec propagation en cha\xeene.\n\n\u2705 Avantages:\n\u2022 Propagation d'\xe9clair entre ennemis proches\n\u2022 D\xe9g\xe2ts instantan\xe9s\n\u2022 Efficace contre les groupes serr\xe9s\n\n\u274C Inconv\xe9nients:\n\u2022 Co\xfbt tr\xe8s \xe9lev\xe9\n\u2022 Port\xe9e moyenne\n\u2022 Moins efficace si ennemis espac\xe9s",
     // --- DESSIN ÉVOLUTIF (Design Électrique) ---
     onDrawBarrel: (scene, container, color, turret)=>{
         const g = scene.add.graphics();
@@ -1573,10 +1759,10 @@ const zap = {
         const level = turret.level || 1;
         const angle = turret.barrelGroup.rotation;
         // Nombre max de cibles selon le niveau
-        const maxChainTargets = level === 1 ? 4 : level === 2 ? 6 : 9;
-        const chainDistance = 100; // 1/2 case = 32 pixels (TILE_SIZE / 2)
+        const maxChainTargets = level === 1 ? 3 : level === 2 ? 5 : 7;
+        const chainDistance = 80; // 1/2 case = 32 pixels donc environ 1.2 cases
         // Longueur du canon
-        const barrelLen = level === 1 ? 35 : level === 2 ? 45 : 55;
+        const barrelLen = level === 1 ? 32 : level === 2 ? 40 : 48;
         const tipX = turret.x + Math.cos(angle) * barrelLen;
         const tipY = turret.y + Math.sin(angle) * barrelLen;
         // --- EFFET VISUEL INITIAL ---
@@ -1702,12 +1888,13 @@ parcelHelpers.export(exports, "barracks", ()=>barracks);
 const barracks = {
     key: "barracks",
     name: "Caserne",
-    cost: 180,
+    cost: 200,
     range: 0,
     damage: 0,
     rate: 0,
     color: 0x8b4513,
     maxLevel: 3,
+    description: "B\xe2timent qui produit des soldats pour bloquer les ennemis.\n\n\u2705 Avantages:\n\u2022 Soldats bloquent temporairement les ennemis\n\u2022 Les soldats se r\xe9g\xe9n\xe8rent automatiquement\n\u2022 Compl\xe9mentaire aux tourelles\n\u2022 Peut \xeatre am\xe9lior\xe9 pour plus de soldats\n\n\u274C Inconv\xe9nients:\n\u2022 Pas de d\xe9g\xe2ts directs\n\u2022 Les soldats peuvent mourir\n\u2022 N\xe9cessite un placement strat\xe9gique",
     // Nombre de soldats par niveau
     soldiersCount: [
         2,
@@ -1723,8 +1910,8 @@ const barracks = {
     // Vie des soldats par niveau
     soldierHp: [
         100,
-        120,
-        150
+        130,
+        170
     ],
     // --- DESSIN ÉVOLUTIF (Bâtiment militaire) ---
     onDrawBarrel: (scene, container, color, turret)=>{
@@ -1877,72 +2064,984 @@ const barracks = {
     }
 };
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"9eVmk":[function(require,module,exports,__globalThis) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"k759O":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "thrower", ()=>thrower);
-const thrower = {
-    name: "Lanceur",
-    speed: 70,
-    hp: 150,
-    reward: 40,
-    color: 0x8b4513,
+parcelHelpers.export(exports, "witch", ()=>witch);
+const witch = {
+    name: "Sorci\xe8re",
+    speed: 28,
+    hp: 800,
+    reward: 150,
+    color: 0x6a1b9a,
     damage: 15,
-    attackSpeed: 1500,
-    attackRange: 80,
-    isRanged: true,
+    attackSpeed: 1200,
+    spawnInterval: 5000,
+    spawnCount: 4,
+    spawnType: "zombie_minion",
+    scale: 1.2,
     onDraw: (scene, container, color, enemyInstance)=>{
+        // Stocker les références pour l'animation
         enemyInstance.legs = {};
+        enemyInstance.staff = null;
+        enemyInstance.hat = null;
         // 1. Jambe Arrière
-        enemyInstance.legs.back = scene.add.container(0, 5);
+        enemyInstance.legs.back = scene.add.container(0, 8);
         const legB = scene.add.graphics();
-        legB.fillStyle(0x654321);
-        legB.fillRoundedRect(-3, 0, 6, 18, 2);
-        legB.fillRoundedRect(-4, 16, 10, 5, 2);
+        legB.fillStyle(0x4a148c); // Violet foncé
+        legB.fillRoundedRect(-3, 0, 6, 20, 2);
+        legB.fillRoundedRect(-4, 18, 8, 4, 2); // Botte pointue
         enemyInstance.legs.back.add(legB);
         container.add(enemyInstance.legs.back);
-        // 2. Corps
-        const body = scene.add.graphics();
-        body.fillStyle(color);
-        body.fillRoundedRect(-6, -10, 12, 18, 3);
-        // Tête
-        body.fillStyle(0xffdbac);
-        body.fillCircle(0, -14, 6);
-        // Casque simple
-        body.fillStyle(0x654321);
-        body.fillRect(-7, -18, 14, 6);
-        // Bras avec hache
-        body.fillStyle(color);
-        body.fillRoundedRect(-2, -8, 6, 14, 2);
-        body.fillRoundedRect(4, -8, 6, 14, 2);
-        container.add(body);
-        // 3. Jambe Avant
-        enemyInstance.legs.front = scene.add.container(0, 5);
+        // 2. Robe (longue et ample)
+        const robe = scene.add.graphics();
+        robe.fillStyle(color);
+        // Robe en forme de trapèze
+        robe.beginPath();
+        robe.moveTo(-8, -5);
+        robe.lineTo(8, -5);
+        robe.lineTo(12, 20);
+        robe.lineTo(-12, 20);
+        robe.closePath();
+        robe.fillPath();
+        // Bordure dorée
+        robe.lineStyle(2, 0xffd700);
+        robe.strokePath();
+        // Détails de la robe (étoiles, runes)
+        robe.fillStyle(0xffd700, 0.6);
+        robe.fillCircle(-5, 5, 2);
+        robe.fillCircle(5, 5, 2);
+        robe.fillCircle(0, 12, 1.5);
+        container.add(robe);
+        // 3. Tête et chapeau pointu
+        const head = scene.add.graphics();
+        head.fillStyle(0xffdbac); // Peau
+        head.fillCircle(0, -12, 6);
+        // Yeux brillants (magie)
+        head.fillStyle(0x00ffff); // Cyan magique
+        head.fillCircle(-2, -13, 1.5);
+        head.fillCircle(2, -13, 1.5);
+        // Chapeau pointu
+        enemyInstance.hat = scene.add.graphics();
+        enemyInstance.hat.fillStyle(0x4a148c);
+        enemyInstance.hat.beginPath();
+        enemyInstance.hat.moveTo(-6, -18);
+        enemyInstance.hat.lineTo(6, -18);
+        enemyInstance.hat.lineTo(0, -30);
+        enemyInstance.hat.closePath();
+        enemyInstance.hat.fillPath();
+        enemyInstance.hat.lineStyle(2, 0xffd700);
+        enemyInstance.hat.strokePath();
+        // Étoile sur le chapeau
+        enemyInstance.hat.fillStyle(0xffd700);
+        enemyInstance.hat.fillCircle(0, -24, 2);
+        container.add(head);
+        container.add(enemyInstance.hat);
+        // 4. Bâton magique (tenu à la main)
+        const staffContainer = scene.add.container(0, 0);
+        const staff = scene.add.graphics();
+        staff.fillStyle(0x8b4513); // Marron pour le bâton
+        staff.fillRect(8, -8, 3, 25);
+        staffContainer.add(staff);
+        // Orbe magique au bout (objet séparé pour l'animation)
+        enemyInstance.orb = scene.add.circle(9.5, 18, 4, 0x00ffff, 0.8);
+        enemyInstance.orb.setStrokeStyle(1, 0xffffff);
+        staffContainer.add(enemyInstance.orb);
+        enemyInstance.staff = staffContainer;
+        container.add(staffContainer);
+        // 5. Jambe Avant
+        enemyInstance.legs.front = scene.add.container(0, 8);
         const legF = scene.add.graphics();
-        legF.fillStyle(color);
-        legF.fillRoundedRect(-3, 0, 6, 18, 2);
-        legF.fillRoundedRect(-4, 16, 10, 5, 2);
+        legF.fillStyle(0x4a148c);
+        legF.fillRoundedRect(-3, 0, 6, 20, 2);
+        legF.fillRoundedRect(-4, 18, 8, 4, 2);
         enemyInstance.legs.front.add(legF);
         container.add(enemyInstance.legs.front);
-        // 4. Hache dans la main (sera animée lors du lancer)
-        enemyInstance.axe = scene.add.graphics();
-        enemyInstance.axe.fillStyle(0x888888); // Manche
-        enemyInstance.axe.fillRect(8, -6, 2, 8);
-        enemyInstance.axe.fillStyle(0xcccccc); // Lame
-        enemyInstance.axe.beginPath();
-        enemyInstance.axe.moveTo(10, -6);
-        enemyInstance.axe.lineTo(16, -10);
-        enemyInstance.axe.lineTo(16, -2);
-        enemyInstance.axe.closePath();
-        enemyInstance.axe.fillPath();
-        container.add(enemyInstance.axe);
+        // Aura magique (particules autour)
+        enemyInstance.aura = scene.add.graphics();
+        enemyInstance.aura.lineStyle(1, 0x00ffff, 0.4);
+        enemyInstance.aura.strokeCircle(0, 0, 18);
+        enemyInstance.aura.strokeCircle(0, 0, 20);
+        container.add(enemyInstance.aura);
         enemyInstance.shouldRotate = false;
     },
     onUpdateAnimation: (time, enemyInstance)=>{
-        const speed = 0.006;
+        const speed = 0.005; // Marche très lente
+        const range = 0.3;
+        // Animation de marche
+        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+        // Animation du chapeau (légère oscillation)
+        if (enemyInstance.hat) enemyInstance.hat.rotation = Math.sin(time * 0.003) * 0.1;
+        // Animation du bâton (légère pulsation de l'orbe)
+        if (enemyInstance.orb && enemyInstance.orb.active) {
+            const pulseScale = 1 + Math.sin(time * 0.01) * 0.2;
+            enemyInstance.orb.setScale(pulseScale);
+            enemyInstance.orb.setAlpha(0.6 + Math.sin(time * 0.015) * 0.3);
+        }
+        // Animation de l'aura
+        if (enemyInstance.aura) {
+            enemyInstance.aura.alpha = 0.3 + Math.sin(time * 0.008) * 0.2;
+            enemyInstance.aura.rotation += 0.002;
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bONBj":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "zombie_minion", ()=>zombie_minion);
+const zombie_minion = {
+    name: "B\xe9b\xe9 Zombie",
+    speed: 60,
+    hp: 55,
+    reward: 5,
+    color: 0x4a7a2f,
+    damage: 3,
+    attackSpeed: 1000,
+    scale: 0.7,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        enemyInstance.legs = {};
+        // 1. Jambe Arrière
+        enemyInstance.legs.back = scene.add.container(0, 3);
+        const legB = scene.add.graphics();
+        legB.fillStyle(0x2d5016); // Vert foncé
+        legB.fillRoundedRect(-2, 0, 4, 12, 1);
+        legB.fillRoundedRect(-3, 11, 6, 3, 1); // Petit pied
+        enemyInstance.legs.back.add(legB);
+        container.add(enemyInstance.legs.back);
+        // 2. Corps (petit et trapu)
+        const body = scene.add.graphics();
+        // Torse
+        body.fillStyle(color);
+        body.fillRoundedRect(-4, -6, 8, 10, 2);
+        // Tête (plus grosse proportionnellement)
+        body.fillStyle(0x3a6b1f);
+        body.fillCircle(0, -10, 5);
+        // Yeux morts (points rouges)
+        body.fillStyle(0xff0000);
+        body.fillCircle(-2, -11, 1);
+        body.fillCircle(2, -11, 1);
+        // Bras (courts)
+        body.fillStyle(color);
+        body.fillRoundedRect(-5, -4, 3, 6, 1);
+        body.fillRoundedRect(2, -4, 3, 6, 1);
+        container.add(body);
+        // 3. Jambe Avant
+        enemyInstance.legs.front = scene.add.container(0, 3);
+        const legF = scene.add.graphics();
+        legF.fillStyle(color);
+        legF.fillRoundedRect(-2, 0, 4, 12, 1);
+        legF.fillRoundedRect(-3, 11, 6, 3, 1);
+        enemyInstance.legs.front.add(legF);
+        container.add(enemyInstance.legs.front);
+        // Détails zombie (plaies, déchirures)
+        body.fillStyle(0x8b4513); // Marron pour les plaies
+        body.fillRect(-3, -2, 2, 1);
+        body.fillRect(1, 0, 2, 1);
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        const speed = 0.01; // Animation plus rapide pour les petits
         const range = 0.4;
         enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
         enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"lF8pq":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "bosslvl1", ()=>bosslvl1);
+const bosslvl1 = {
+    name: "DOOM",
+    speed: 11,
+    hp: 42000,
+    reward: 1000,
+    color: 0x222222,
+    damage: 70,
+    attackSpeed: 1500,
+    scale: 1,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Pas de jambes pour le boss, il flotte !
+        // 1. Cape / Aura (Flottant derrière)
+        const aura = scene.add.graphics();
+        aura.fillStyle(0xff0000, 0.3); // Rouge sang transparent
+        // Forme déchiquetée
+        aura.beginPath();
+        aura.moveTo(-30, -40);
+        aura.lineTo(30, -40);
+        aura.lineTo(40, 20);
+        aura.lineTo(20, 50);
+        aura.lineTo(0, 30);
+        aura.lineTo(-20, 50);
+        aura.lineTo(-40, 20);
+        aura.closePath();
+        aura.fillPath();
+        container.add(aura);
+        // 2. Corps (Armure noire massive à pointes)
+        const body = scene.add.graphics();
+        body.fillStyle(color); // Noir
+        body.lineStyle(4, 0xff0000); // Bordure rouge
+        // Torse massif
+        body.beginPath();
+        body.moveTo(-25, -30);
+        body.lineTo(25, -30);
+        body.lineTo(15, 30);
+        body.lineTo(-15, 30);
+        body.closePath();
+        body.fillPath();
+        body.strokePath();
+        // Épaulières à pointes
+        body.fillStyle(0xff0000);
+        body.beginPath();
+        body.moveTo(-25, -30);
+        body.lineTo(-45, -40);
+        body.lineTo(-25, -10);
+        body.fillPath();
+        body.beginPath();
+        body.moveTo(25, -30);
+        body.lineTo(45, -40);
+        body.lineTo(25, -10);
+        body.fillPath();
+        // Tête (Casque cornu)
+        body.fillStyle(color);
+        body.fillRect(-12, -50, 24, 20);
+        // Cornes
+        body.fillStyle(0xff0000);
+        body.beginPath();
+        body.moveTo(-12, -50);
+        body.lineTo(-25, -70);
+        body.lineTo(-5, -50);
+        body.fillPath();
+        body.beginPath();
+        body.moveTo(12, -50);
+        body.lineTo(25, -70);
+        body.lineTo(5, -50);
+        body.fillPath();
+        // Yeux brillants
+        body.fillStyle(0xffff00);
+        body.fillRect(-8, -45, 6, 4);
+        body.fillRect(2, -45, 6, 4);
+        container.add(body);
+        // Le Boss est trop imposant pour tourner rapidement
+        enemyInstance.shouldRotate = false;
+        // On stocke l'aura pour l'animer
+        enemyInstance.aura = aura;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Pas de marche, mais une lévitation menaçante
+        const speed = 0.002;
+        const floatRange = 10;
+        // Flottement vertical lent
+        enemyInstance.bodyGroup.y = Math.sin(time * speed) * floatRange;
+        // L'aura ondule légèrement
+        enemyInstance.aura.scaleX = 1 + Math.sin(time * 0.005) * 0.1;
+        enemyInstance.aura.alpha = 0.3 + Math.sin(time * 0.01) * 0.1;
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hQduM":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "bosslvl2", ()=>bosslvl2);
+const bosslvl2 = {
+    name: "N\xc9ANT VORACE",
+    speed: 12,
+    hp: 90000,
+    reward: 2500,
+    color: 0x000000,
+    damage: 150,
+    attackSpeed: 800,
+    scale: 1.3,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Initialisation pour l'animation
+        enemyInstance.legs = [];
+        enemyInstance.eye = null;
+        enemyInstance.pupil = null;
+        // --- 1. LES PATTES (8 pattes d'araignée effrayantes) ---
+        // On les dessine d'abord pour qu'elles soient derrière le corps
+        for(let i = 0; i < 8; i++){
+            const leg = scene.add.graphics();
+            leg.lineStyle(4, 0x110022); // Violet très sombre
+            // Forme de patte articulée pointue
+            leg.beginPath();
+            leg.moveTo(0, 0);
+            leg.lineTo(30, -20); // Premier segment
+            leg.lineTo(55, 10); // Pointe vers le bas
+            leg.strokePath();
+            // On positionne la patte autour du corps
+            // On les groupe un peu pour laisser de la place devant
+            // Angles : -135, -90, -45, -20 (gauche) et 20, 45, 90, 135 (droite)
+            const angles = [
+                -2.2,
+                -1.5,
+                -0.8,
+                -0.3,
+                0.3,
+                0.8,
+                1.5,
+                2.2
+            ];
+            const angle = angles[i];
+            // Créer un conteneur pour la patte pour pouvoir la pivoter facilement
+            const legContainer = scene.add.container(0, 0);
+            legContainer.add(leg);
+            legContainer.rotation = angle;
+            // Stocker l'angle de base pour l'animation
+            legContainer.baseRotation = angle;
+            container.add(legContainer);
+            enemyInstance.legs.push(legContainer);
+        }
+        // --- 2. AURA DE TÉNÈBRES (Fumée noire) ---
+        const darkness = scene.add.graphics();
+        darkness.fillStyle(0x000000, 0.3);
+        for(let i = 0; i < 8; i++)darkness.fillCircle((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50, 15 + Math.random() * 15);
+        container.add(darkness);
+        enemyInstance.darkness = darkness;
+        // --- 3. CORPS (Masse informe) ---
+        const body = scene.add.graphics();
+        body.fillStyle(0x0a000a); // Noir quasi absolu
+        body.lineStyle(3, 0x440044); // Contour violet maladif
+        // Forme irrégulière
+        body.beginPath();
+        body.moveTo(-25, -30);
+        body.lineTo(25, -30);
+        body.lineTo(35, 0);
+        body.lineTo(20, 35);
+        body.lineTo(-20, 35);
+        body.lineTo(-35, 0);
+        body.closePath();
+        body.fillPath();
+        body.strokePath();
+        container.add(body);
+        enemyInstance.bodyGraphic = body;
+        // --- 4. L'ŒIL UNIQUE (Sauron style mais organique) ---
+        // Blanc de l'œil (injecté de sang)
+        const eyeWhite = scene.add.graphics();
+        eyeWhite.fillStyle(0xffcccc);
+        eyeWhite.fillEllipse(0, -5, 15, 10);
+        container.add(eyeWhite);
+        enemyInstance.eye = eyeWhite;
+        // Pupille (Fente verticale rouge vif)
+        const pupil = scene.add.graphics();
+        pupil.fillStyle(0xff0000);
+        pupil.fillEllipse(0, -5, 3, 9);
+        container.add(pupil);
+        enemyInstance.pupil = pupil;
+        // --- CONFIG ---
+        enemyInstance.shouldRotate = false; // Il fait face au joueur
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Sécurité
+        if (!enemyInstance.legs || !enemyInstance.bodyGraphic) return;
+        // 1. ANIMATION DES PATTES (Frénétique)
+        // Elles bougent très vite et de manière désynchronisée (effet insecte)
+        const legSpeed = 0.02;
+        enemyInstance.legs.forEach((leg, index)=>{
+            // Mouvement de marche rapide et saccadé
+            const offset = index * 0.5; // Décalage pour qu'elles ne bougent pas toutes en même temps
+            const wiggle = Math.sin(time * legSpeed + offset) * 0.2;
+            // Ajout d'un "twitch" (spasme) aléatoire
+            const twitch = Math.random() > 0.95 ? 0.1 : 0;
+            leg.rotation = leg.baseRotation + wiggle + twitch;
+            // Les pointes des pattes bougent légèrement en distance
+            leg.x = Math.cos(leg.rotation) * (Math.sin(time * 0.01) * 2);
+            leg.y = Math.sin(leg.rotation) * (Math.sin(time * 0.01) * 2);
+        });
+        // 2. CORPS QUI RESPIRE / PALPITE
+        const breath = 1 + Math.sin(time * 0.005) * 0.05;
+        enemyInstance.bodyGraphic.scaleX = breath;
+        enemyInstance.bodyGraphic.scaleY = breath;
+        // 3. MOUVEMENT "GLITCH" DU BOSS
+        // Au lieu de flotter doucement, il se décale brusquement de temps en temps
+        if (Math.random() > 0.92) {
+            enemyInstance.bodyGroup.x = (Math.random() - 0.5) * 3;
+            enemyInstance.bodyGroup.y = (Math.random() - 0.5) * 3;
+        } else {
+            // Retour progressif au centre (lissage)
+            enemyInstance.bodyGroup.x *= 0.8;
+            enemyInstance.bodyGroup.y *= 0.8;
+        }
+        // 4. L'ŒIL QUI REGARDE PARTOUT
+        if (enemyInstance.pupil) {
+            // La pupille bouge nerveusement
+            enemyInstance.pupil.x = (Math.random() - 0.5) * 4;
+            enemyInstance.pupil.y = -5 + (Math.random() - 0.5) * 2;
+            // Clignement de l'œil (disparition brève)
+            if (Math.random() > 0.99) {
+                enemyInstance.eye.visible = false;
+                enemyInstance.pupil.visible = false;
+                // Réapparaît après 100ms
+                setTimeout(()=>{
+                    if (enemyInstance.active) {
+                        enemyInstance.eye.visible = true;
+                        enemyInstance.pupil.visible = true;
+                    }
+                }, 100);
+            }
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bnkzu":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "tortue_dragon", ()=>tortue_dragon);
+const tortue_dragon = {
+    name: "Tortue-Dragon",
+    speed: 35,
+    hp: 2800,
+    reward: 200,
+    color: 0x4a5d23,
+    damage: 25,
+    attackSpeed: 1000,
+    scale: 1.1,
+    // Paramètres spécifiques
+    shellThreshold: 0.3,
+    shellDuration: 4000,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Initialisation des états
+        enemyInstance.legs = {};
+        enemyInstance.shellGroup = null; // Groupe visuel carapace fermée
+        enemyInstance.normalGroup = null; // Groupe visuel normal
+        enemyInstance.isInShell = false;
+        enemyInstance.hasUsedShell = false; // Pour ne le faire qu'une fois
+        // --- 1. GROUPE NORMAL (Marche) ---
+        const normalGroup = scene.add.container(0, 0);
+        // a) Pattes Arrière
+        const legBack = scene.add.graphics();
+        legBack.fillStyle(0x3a4d13);
+        legBack.fillRoundedRect(-4, 0, 8, 18, 3); // Cuisse
+        legBack.fillRoundedRect(-5, 15, 12, 6, 2); // Pied
+        const legBackContainer = scene.add.container(-10, 5);
+        legBackContainer.add(legBack);
+        normalGroup.add(legBackContainer);
+        enemyInstance.legs.back = legBackContainer;
+        // b) Pattes Avant (Ajouté pour le réalisme)
+        const legFront = scene.add.graphics();
+        legFront.fillStyle(0x3a4d13);
+        legFront.fillRoundedRect(-4, 0, 8, 18, 3);
+        legFront.fillRoundedRect(-5, 15, 12, 6, 2);
+        const legFrontContainer = scene.add.container(12, 5);
+        legFrontContainer.add(legFront);
+        normalGroup.add(legFrontContainer);
+        enemyInstance.legs.front = legFrontContainer;
+        // c) Queue
+        const tail = scene.add.graphics();
+        tail.fillStyle(color);
+        tail.fillTriangle(-20, 0, -35, -5, -35, 5);
+        normalGroup.add(tail);
+        // d) Corps/Carapace Ouverte
+        const body = scene.add.graphics();
+        body.fillStyle(color);
+        body.fillEllipse(0, -5, 42, 32); // Corps principal
+        body.lineStyle(3, 0x2a3d13);
+        body.strokeEllipse(0, -5, 42, 32); // Contour
+        // Écailles décoratives
+        body.fillStyle(0x2a3d13);
+        body.fillEllipse(-10, -8, 8, 6);
+        body.fillEllipse(0, -10, 10, 8);
+        body.fillEllipse(10, -8, 8, 6);
+        normalGroup.add(body);
+        // e) Tête
+        const head = scene.add.graphics();
+        head.fillStyle(0x5a6d33);
+        head.fillRoundedRect(15, -15, 20, 14, 5); // Cou/Tête
+        // Yeux
+        head.fillStyle(0xff0000);
+        head.fillCircle(28, -11, 2);
+        // Corne/Museau
+        head.fillStyle(0xffffaa);
+        head.fillTriangle(32, -15, 38, -12, 32, -9);
+        normalGroup.add(head);
+        container.add(normalGroup);
+        enemyInstance.normalGroup = normalGroup;
+        // --- 2. GROUPE CARAPACE (Caché) ---
+        const shellGroup = scene.add.container(0, 0);
+        const shellGraphic = scene.add.graphics();
+        // Ombre sous la carapace
+        shellGraphic.fillStyle(0x000000, 0.3);
+        shellGraphic.fillEllipse(0, 10, 40, 10);
+        // La carapace fermée
+        shellGraphic.fillStyle(0x3a4d13); // Plus sombre
+        shellGraphic.fillEllipse(0, 0, 46, 36);
+        shellGraphic.lineStyle(4, 0x1a2d03);
+        shellGraphic.strokeEllipse(0, 0, 46, 36);
+        // Pics sur la carapace fermée
+        shellGraphic.fillStyle(0x1a2d03);
+        shellGraphic.fillTriangle(-15, -10, -15, -20, -5, -12);
+        shellGraphic.fillTriangle(0, -15, 0, -25, 10, -15);
+        shellGraphic.fillTriangle(15, -10, 15, -20, 25, -12);
+        shellGroup.add(shellGraphic);
+        shellGroup.visible = false; // Invisible au départ
+        container.add(shellGroup);
+        enemyInstance.shellGroup = shellGroup;
+        // Désactiver la rotation automatique du sprite car on gère le flip dans Enemy.js
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // --- LOGIQUE "SE CACHER" ---
+        if (!enemyInstance.isInShell && !enemyInstance.hasUsedShell) // Vérifier si HP < 30%
+        {
+            if (enemyInstance.hp / enemyInstance.maxHp <= 0.3) {
+                enemyInstance.isInShell = true;
+                enemyInstance.hasUsedShell = true;
+                // 1. Arrêter le mouvement
+                if (enemyInstance.follower && enemyInstance.follower.tween) enemyInstance.follower.tween.pause();
+                // 2. Visuel : Passage en mode coquille
+                enemyInstance.normalGroup.visible = false;
+                enemyInstance.shellGroup.visible = true;
+                // 3. Timer pour ressortir (4 secondes)
+                enemyInstance.scene.time.delayedCall(4000, ()=>{
+                    // Vérifier si l'ennemi n'est pas mort entre temps
+                    if (enemyInstance.active) {
+                        enemyInstance.isInShell = false;
+                        // Reprendre le mouvement
+                        if (enemyInstance.follower && enemyInstance.follower.tween) enemyInstance.follower.tween.resume();
+                        // Visuel : Retour normal
+                        enemyInstance.normalGroup.visible = true;
+                        enemyInstance.shellGroup.visible = false;
+                    // Petit soin optionnel (bonus) : +10% HP
+                    // enemyInstance.hp = Math.min(enemyInstance.maxHp, enemyInstance.hp + (enemyInstance.maxHp * 0.1));
+                    // enemyInstance.updateHealthBar();
+                    }
+                });
+            }
+        }
+        // --- ANIMATIONS ---
+        if (enemyInstance.isInShell) // Animation : Tremblement quand caché
+        {
+            if (enemyInstance.shellGroup) {
+                enemyInstance.shellGroup.x = Math.sin(time * 0.05) * 1.5; // Tremble horizontalement
+                enemyInstance.shellGroup.rotation = Math.sin(time * 0.02) * 0.05; // Oscille un peu
+            }
+        } else {
+            // Animation : Marche normale
+            const speed = 0.006;
+            const range = 0.5;
+            // Animation des pattes (marche croisée)
+            if (enemyInstance.legs.front) enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+            if (enemyInstance.legs.back) enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range; // Opposé
+            // Animation du corps (léger rebond)
+            if (enemyInstance.normalGroup) enemyInstance.normalGroup.y = Math.sin(time * speed * 2) * 1;
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8mFrl":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "shaman_gobelin", ()=>shaman_gobelin);
+const shaman_gobelin = {
+    name: "Shaman Gobelin",
+    speed: 45,
+    hp: 1200,
+    reward: 120,
+    color: 0x8b4513,
+    damage: 12,
+    attackSpeed: 1500,
+    scale: 0.9,
+    // Stats spécifiques au healer
+    healAmount: 60,
+    healInterval: 2000,
+    healRadius: 3,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Initialisation des états
+        enemyInstance.legs = {};
+        enemyInstance.healArea = null;
+        enemyInstance.orb = null;
+        enemyInstance.lastHealTime = 0; // Important pour le cooldown du soin
+        // --- 1. ZONE DE SOIN (Au sol, tout en bas) ---
+        const CONFIG = {
+            TILE_SIZE: 64
+        };
+        const tileSize = CONFIG.TILE_SIZE * (scene.scaleFactor || 1);
+        // On convertit le rayon "cases" en pixels
+        const radiusInPixels = shaman_gobelin.healRadius * tileSize;
+        const healArea = scene.add.graphics();
+        healArea.lineStyle(2, 0x00ff00, 0.5); // Bordure fine
+        healArea.strokeCircle(0, 0, radiusInPixels);
+        healArea.fillStyle(0x00ff00, 0.1); // Fond très transparent
+        healArea.fillCircle(0, 0, radiusInPixels);
+        // On l'ajoute au container mais avec un z-index négatif simulé par l'ordre d'ajout
+        // Astuce : On le met dans un container 'background' attaché au container principal
+        const bgContainer = scene.add.container(0, 0);
+        bgContainer.add(healArea);
+        container.add(bgContainer);
+        bgContainer.sendToBack(healArea); // S'assurer qu'il est derrière
+        enemyInstance.healArea = healArea;
+        enemyInstance.healRadiusPixels = radiusInPixels; // Stocker pour la logique
+        // --- 2. JAMBE ARRIÈRE ---
+        enemyInstance.legs.back = scene.add.container(-4, 6);
+        const legB = scene.add.graphics();
+        legB.fillStyle(0x5a3510); // Marron plus foncé pour l'arrière
+        legB.fillRoundedRect(-3, 0, 6, 14, 2); // Cuisse
+        legB.fillRoundedRect(-4, 12, 9, 5, 2); // Pied
+        enemyInstance.legs.back.add(legB);
+        container.add(enemyInstance.legs.back);
+        // --- 3. CORPS (Robe & Masque) ---
+        const bodyGroup = scene.add.container(0, 0);
+        const body = scene.add.graphics();
+        // Robe
+        body.fillStyle(color);
+        body.fillRoundedRect(-10, -15, 20, 24, 6);
+        body.lineStyle(2, 0x5a3510);
+        body.strokeRoundedRect(-10, -15, 20, 24, 6);
+        // Détails de la robe (ceinture)
+        body.fillStyle(0xccaa00); // Doré
+        body.fillRect(-10, -2, 20, 4);
+        // Collier d'os
+        body.fillStyle(0xeeeeee);
+        body.fillCircle(-6, -10, 2);
+        body.fillCircle(0, -8, 2);
+        body.fillCircle(6, -10, 2);
+        // Masque Tribal
+        body.fillStyle(0x222222); // Masque noir
+        body.fillRoundedRect(-8, -22, 16, 12, 3);
+        // Peinture de guerre sur le masque
+        body.fillStyle(0xff0000);
+        body.fillRect(-6, -20, 2, 8);
+        body.fillRect(4, -20, 2, 8);
+        // Yeux brillants
+        body.fillStyle(0x00ff00);
+        body.fillCircle(-4, -16, 2);
+        body.fillCircle(4, -16, 2);
+        bodyGroup.add(body);
+        container.add(bodyGroup);
+        // --- 4. BÂTON MAGIQUE ---
+        const staffContainer = scene.add.container(12, -5);
+        const staff = scene.add.graphics();
+        // Manche
+        staff.fillStyle(0x654321);
+        staff.fillRoundedRect(-2, -15, 4, 35, 1);
+        // Tête du bâton (Crâne ou bois)
+        staff.fillStyle(0xdddddd);
+        staff.fillCircle(0, -15, 5);
+        // Orbe magique (séparé pour animer l'alpha)
+        const orb = scene.add.circle(0, -15, 6, 0x00ff00, 0.6);
+        enemyInstance.orb = orb;
+        staffContainer.add(staff);
+        staffContainer.add(orb);
+        container.add(staffContainer);
+        enemyInstance.staff = staffContainer;
+        // --- 5. JAMBE AVANT ---
+        enemyInstance.legs.front = scene.add.container(4, 6);
+        const legF = scene.add.graphics();
+        legF.fillStyle(color);
+        legF.fillRoundedRect(-3, 0, 6, 14, 2);
+        legF.fillRoundedRect(-4, 12, 9, 5, 2);
+        enemyInstance.legs.front.add(legF);
+        container.add(enemyInstance.legs.front);
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // 1. Animation de Marche (Classique)
+        const speed = 0.007;
+        const range = 0.5;
+        if (enemyInstance.legs.front) enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+        if (enemyInstance.legs.back) enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+        // Petit rebond du bâton
+        if (enemyInstance.staff) enemyInstance.staff.y = -5 + Math.sin(time * speed * 2) * 2;
+        // 2. Animation Orbe & Zone (Pulsation passive)
+        if (enemyInstance.orb) {
+            enemyInstance.orb.alpha = 0.5 + Math.sin(time * 0.005) * 0.4;
+            const s = 1 + Math.sin(time * 0.01) * 0.2;
+            enemyInstance.orb.setScale(s);
+        }
+        if (enemyInstance.healArea) // La zone "respire" doucement
+        enemyInstance.healArea.alpha = 0.3 + Math.sin(time * 0.002) * 0.1;
+        // --- 3. LOGIQUE DE SOIN ---
+        if (!enemyInstance.scene || !enemyInstance.active) return;
+        const now = enemyInstance.scene.time.now;
+        // Vérifier le Cooldown (healInterval)
+        if (now - enemyInstance.lastHealTime > enemyInstance.stats.healInterval) {
+            let hasHealedSomeone = false;
+            const r2 = enemyInstance.healRadiusPixels * enemyInstance.healRadiusPixels; // Distance au carré pour perf
+            // Parcourir tous les ennemis
+            enemyInstance.scene.enemies.children.each((ally)=>{
+                // Ne pas soigner si : soi-même, mort, ou déjà full vie
+                if (ally === enemyInstance || !ally.active || ally.hp >= ally.maxHp) return;
+                // Calcul distance
+                const dx = ally.x - enemyInstance.x;
+                const dy = ally.y - enemyInstance.y;
+                const distSq = dx * dx + dy * dy;
+                // Si à portée
+                if (distSq <= r2) {
+                    // APPLIQUER LE SOIN
+                    const amount = enemyInstance.stats.healAmount;
+                    ally.hp = Math.min(ally.maxHp, ally.hp + amount);
+                    ally.updateHealthBar(); // Mise à jour visuelle de la barre de vie
+                    hasHealedSomeone = true;
+                    // Effet visuel sur l'allié soigné (Particules +HP)
+                    if (enemyInstance.scene.add) {
+                        const txt = enemyInstance.scene.add.text(ally.x, ally.y - 40, `+${amount}`, {
+                            fontSize: '16px',
+                            fill: '#00ff00',
+                            fontStyle: 'bold',
+                            stroke: '#000',
+                            strokeThickness: 2
+                        }).setOrigin(0.5);
+                        enemyInstance.scene.tweens.add({
+                            targets: txt,
+                            y: ally.y - 80,
+                            alpha: 0,
+                            duration: 1000,
+                            onComplete: ()=>txt.destroy()
+                        });
+                    }
+                }
+            });
+            // Si on a soigné au moins une personne, on déclenche l'animation de cast
+            if (hasHealedSomeone) {
+                enemyInstance.lastHealTime = now;
+                // Flash de la zone au sol
+                if (enemyInstance.healArea) {
+                    enemyInstance.healArea.alpha = 0.8;
+                    enemyInstance.scene.tweens.add({
+                        targets: enemyInstance.healArea,
+                        alpha: 0.1,
+                        duration: 500
+                    });
+                }
+                // Flash de l'orbe
+                if (enemyInstance.orb) {
+                    enemyInstance.orb.setScale(2);
+                    enemyInstance.scene.tweens.add({
+                        targets: enemyInstance.orb,
+                        scaleX: 1,
+                        scaleY: 1,
+                        duration: 300
+                    });
+                }
+            }
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"7ppi2":[function(require,module,exports,__globalThis) {
+// ==========================================
+// 3. DIVISEUR (Le Boss, se divise en moyens)
+// ==========================================
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "diviseur", ()=>diviseur);
+const diviseur = {
+    name: "Diviseur",
+    speed: 30,
+    hp: 3500,
+    reward: 180,
+    color: 0x00ff00,
+    damage: 20,
+    attackSpeed: 1200,
+    scale: 1.3,
+    // --- LOGIQUE DE DIVISION ---
+    onDeath: (enemy)=>{
+        if (!enemy.scene || !enemy.active) return;
+        // Paramètres
+        const childKey = "slime_medium";
+        const count = 2; // Se divise en 2 moyens
+        // Splash visuel à la mort du gros
+        const splash = enemy.scene.add.circle(enemy.x, enemy.y, 10, 0x00ff00);
+        enemy.scene.tweens.add({
+            targets: splash,
+            scale: 5,
+            alpha: 0,
+            duration: 400,
+            onComplete: ()=>splash.destroy()
+        });
+        // Création des enfants
+        const ChildClass = enemy.constructor;
+        for(let i = 0; i < count; i++){
+            const child = new ChildClass(enemy.scene, enemy.path, childKey);
+            child.follower.t = Math.max(0, enemy.follower.t - i * 0.02);
+            const point = enemy.path.getPoint(child.follower.t);
+            child.setPosition(point.x, point.y);
+            child.targetPathOffset = (Math.random() - 0.5) * 35;
+            child.currentPathOffset = child.targetPathOffset;
+            child.spawn();
+            enemy.scene.enemies.add(child);
+            child.bodyGroup.y = -25;
+            enemy.scene.tweens.add({
+                targets: child.bodyGroup,
+                y: 0,
+                duration: 400,
+                ease: 'Bounce.Out'
+            });
+        }
+    },
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Slime géant : forme de goutte massive
+        const body = scene.add.graphics();
+        // Corps principal (grosse goutte)
+        body.fillStyle(color);
+        body.fillEllipse(0, 0, 50, 45);
+        body.lineStyle(3, 0x00cc00);
+        body.strokeEllipse(0, 0, 50, 45);
+        // Reflets brillants
+        body.fillStyle(0x88ff88);
+        body.fillEllipse(-8, -10, 15, 12);
+        body.fillEllipse(5, -8, 10, 8);
+        // Yeux multiples
+        body.fillStyle(0x000000);
+        body.fillCircle(-12, -5, 4);
+        body.fillCircle(0, -8, 4);
+        body.fillCircle(12, -5, 4);
+        // Petites bulles à la surface
+        body.fillStyle(0x88ff88);
+        for(let i = 0; i < 5; i++){
+            const angle = i / 5 * Math.PI * 2;
+            const dist = 18;
+            body.fillCircle(Math.cos(angle) * dist, Math.sin(angle) * dist, 3);
+        }
+        container.add(body);
+        enemyInstance.body = body;
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Animation de tremblement/ondulation
+        if (enemyInstance.body) {
+            const wobble = Math.sin(time * 0.008) * 0.1;
+            enemyInstance.body.scaleX = 1 + wobble;
+            enemyInstance.body.scaleY = 1 - wobble * 0.5;
+            // Mouvement vertical de rebond
+            enemyInstance.bodyGroup.y = Math.sin(time * 0.01) * 3;
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"j7fMh":[function(require,module,exports,__globalThis) {
+// ==========================================
+// 2. SLIME MOYEN (Se divise en petits)
+// ==========================================
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "slime_medium", ()=>slime_medium);
+const slime_medium = {
+    name: "Slime Moyen",
+    speed: 40,
+    hp: 800,
+    reward: 50,
+    color: 0x44ff44,
+    damage: 12,
+    attackSpeed: 1000,
+    scale: 0.9,
+    // --- LOGIQUE DE DIVISION ---
+    onDeath: (enemy)=>{
+        if (!enemy.scene || !enemy.active) return;
+        // Paramètres
+        const childKey = "slime_small";
+        const count = 2; // Se divise en 2 petits
+        // Création des enfants
+        const ChildClass = enemy.constructor;
+        for(let i = 0; i < count; i++){
+            const child = new ChildClass(enemy.scene, enemy.path, childKey);
+            // Positionnement légèrement décalé
+            child.follower.t = Math.max(0, enemy.follower.t - i * 0.015);
+            const point = enemy.path.getPoint(child.follower.t);
+            child.setPosition(point.x, point.y);
+            // Dispersion latérale
+            child.targetPathOffset = (Math.random() - 0.5) * 25;
+            child.currentPathOffset = child.targetPathOffset;
+            child.spawn();
+            enemy.scene.enemies.add(child);
+            // Petit saut à l'apparition
+            child.bodyGroup.y = -15;
+            enemy.scene.tweens.add({
+                targets: child.bodyGroup,
+                y: 0,
+                duration: 250,
+                ease: 'Bounce.Out'
+            });
+        }
+    },
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Slime moyen : forme de goutte
+        const body = scene.add.graphics();
+        // Corps principal
+        body.fillStyle(color);
+        body.fillEllipse(0, 0, 35, 30);
+        body.lineStyle(2, 0x33cc33);
+        body.strokeEllipse(0, 0, 35, 30);
+        // Reflets
+        body.fillStyle(0x66ff66);
+        body.fillEllipse(-5, -6, 10, 8);
+        body.fillEllipse(3, -5, 7, 6);
+        // Yeux
+        body.fillStyle(0x000000);
+        body.fillCircle(-8, -3, 3);
+        body.fillCircle(8, -3, 3);
+        // Petites bulles
+        body.fillStyle(0x66ff66);
+        for(let i = 0; i < 3; i++){
+            const angle = i / 3 * Math.PI * 2;
+            const dist = 12;
+            body.fillCircle(Math.cos(angle) * dist, Math.sin(angle) * dist, 2);
+        }
+        container.add(body);
+        enemyInstance.body = body;
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Animation de tremblement
+        if (enemyInstance.body) {
+            const wobble = Math.sin(time * 0.01) * 0.08;
+            enemyInstance.body.scaleX = 1 + wobble;
+            enemyInstance.body.scaleY = 1 - wobble * 0.5;
+            // Mouvement vertical
+            enemyInstance.bodyGroup.y = Math.sin(time * 0.012) * 2;
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"KCZbL":[function(require,module,exports,__globalThis) {
+// ==========================================
+// 1. PETIT SLIME (Dernier stade, ne se divise plus)
+// ==========================================
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "slime_small", ()=>slime_small);
+const slime_small = {
+    name: "Petit Slime",
+    speed: 50,
+    hp: 300,
+    reward: 20,
+    color: 0x88ff88,
+    damage: 8,
+    attackSpeed: 800,
+    scale: 0.6,
+    // Pas de onDeath car c'est la fin de la chaîne
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Petit slime : forme de goutte petite
+        const body = scene.add.graphics();
+        // Corps principal
+        body.fillStyle(color);
+        body.fillEllipse(0, 0, 22, 18);
+        body.lineStyle(2, 0x66ff66);
+        body.strokeEllipse(0, 0, 22, 18);
+        // Reflet
+        body.fillStyle(0xaaffaa);
+        body.fillEllipse(-3, -4, 6, 5);
+        // Yeux
+        body.fillStyle(0x000000);
+        body.fillCircle(-5, -2, 2);
+        body.fillCircle(5, -2, 2);
+        // Petite bulle
+        body.fillStyle(0xaaffaa);
+        body.fillCircle(0, 6, 1.5);
+        container.add(body);
+        enemyInstance.body = body;
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Animation de tremblement rapide
+        if (enemyInstance.body) {
+            const wobble = Math.sin(time * 0.015) * 0.06;
+            enemyInstance.body.scaleX = 1 + wobble;
+            enemyInstance.body.scaleY = 1 - wobble * 0.5;
+            // Mouvement vertical rapide
+            enemyInstance.bodyGroup.y = Math.sin(time * 0.018) * 1.5;
+        }
     }
 };
 
@@ -1986,9 +3085,9 @@ const LEVEL_1 = {
             0,
             0,
             0,
-            0,
-            0,
-            0
+            3,
+            3,
+            3
         ],
         [
             0,
@@ -2004,8 +3103,8 @@ const LEVEL_1 = {
             0,
             0,
             0,
-            0,
-            0
+            3,
+            3
         ],
         [
             0,
@@ -2022,7 +3121,7 @@ const LEVEL_1 = {
             0,
             0,
             0,
-            0
+            3
         ],
         [
             0,
@@ -2039,6 +3138,40 @@ const LEVEL_1 = {
             0,
             0,
             0,
+            3
+        ],
+        [
+            5,
+            0,
+            1,
+            3,
+            0,
+            5,
+            5,
+            5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            5,
+            5,
+            5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
             0
         ],
         [
@@ -2047,43 +3180,9 @@ const LEVEL_1 = {
             1,
             3,
             0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
+            5,
+            5,
+            5,
             0,
             0,
             1,
@@ -2123,7 +3222,7 @@ const LEVEL_1 = {
             1,
             0,
             0,
-            0,
+            3,
             0
         ],
         [
@@ -2139,9 +3238,9 @@ const LEVEL_1 = {
             0,
             1,
             0,
-            0,
-            0,
-            0
+            3,
+            3,
+            3
         ],
         [
             0,
@@ -2158,7 +3257,7 @@ const LEVEL_1 = {
             0,
             0,
             0,
-            0
+            3
         ],
         [
             0,
@@ -2195,9 +3294,9 @@ const LEVEL_1 = {
             0
         ],
         [
-            0,
-            0,
-            0,
+            3,
+            3,
+            3,
             3,
             0,
             0,
@@ -2326,14 +3425,9 @@ const LEVEL_1 = {
         // VAGUE 1 : Soldats (50% haut, 50% bas)
         [
             {
-                count: 14,
+                count: 18,
                 type: "grunt",
                 interval: 1000
-            },
-            {
-                count: 3,
-                type: "thrower",
-                interval: 500
             },
             {
                 count: 15,
@@ -2344,15 +3438,15 @@ const LEVEL_1 = {
         // VAGUE 2 : Runners
         [
             {
-                count: 25,
+                count: 20,
                 type: "runner",
-                interval: 400
+                interval: 450
             }
         ],
         // VAGUE 3 : Mixte
         [
             {
-                count: 5,
+                count: 4,
                 type: "shield",
                 interval: 1500
             },
@@ -2362,7 +3456,7 @@ const LEVEL_1 = {
                 interval: 800
             },
             {
-                count: 10,
+                count: 15,
                 type: "grunt",
                 interval: 600
             }
@@ -2375,17 +3469,17 @@ const LEVEL_1 = {
                 interval: 400
             },
             {
-                count: 2,
+                count: 3,
                 type: "shield",
                 interval: 1500
             },
             {
-                count: 6,
+                count: 8,
                 type: "grunt",
                 interval: 600
             },
             {
-                count: 3,
+                count: 4,
                 type: "tank",
                 interval: 4000
             }
@@ -2398,13 +3492,23 @@ const LEVEL_1 = {
                 interval: 500
             },
             {
-                count: 5,
+                count: 6,
                 type: "shield",
                 interval: 1500
             },
             {
-                count: 7,
+                count: 10,
+                type: "runner",
+                interval: 400
+            },
+            {
+                count: 4,
                 type: "tank",
+                interval: 4000
+            },
+            {
+                count: 2,
+                type: "witch",
                 interval: 4000
             }
         ],
@@ -2445,25 +3549,8 @@ const LEVEL_2 = {
             0,
             0,
             0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            3
-        ],
-        [
-            0,
-            0,
-            0,
-            0,
-            0,
+            3,
+            3,
             0,
             0,
             0,
@@ -2476,14 +3563,65 @@ const LEVEL_2 = {
             0
         ],
         [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            5,
+            5,
+            0
+        ],
+        [
+            1,
+            1,
+            1,
+            4,
             1,
             1,
             1,
             1,
             1,
+            0,
+            0,
+            5,
+            5,
+            5,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
             1,
-            1,
-            1,
+            0,
+            0,
+            5,
+            5,
+            5,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
             1,
             0,
             0,
@@ -2495,42 +3633,8 @@ const LEVEL_2 = {
         [
             0,
             0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            0,
+            3,
+            3,
             0,
             0,
             0,
@@ -2545,9 +3649,9 @@ const LEVEL_2 = {
         ],
         [
             0,
-            0,
-            0,
-            0,
+            3,
+            3,
+            3,
             0,
             0,
             0,
@@ -2564,7 +3668,7 @@ const LEVEL_2 = {
             0,
             0,
             0,
-            0,
+            3,
             0,
             0,
             0,
@@ -2581,8 +3685,8 @@ const LEVEL_2 = {
             1,
             1,
             1,
-            0,
-            0,
+            3,
+            3,
             0,
             0,
             0,
@@ -2598,7 +3702,7 @@ const LEVEL_2 = {
             0,
             0,
             1,
-            0,
+            3,
             0,
             0,
             1,
@@ -2615,7 +3719,7 @@ const LEVEL_2 = {
             0,
             0,
             1,
-            0,
+            3,
             1,
             1,
             1,
@@ -2632,8 +3736,25 @@ const LEVEL_2 = {
             0,
             0,
             1,
+            4,
             1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
             1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
             0,
             0,
             0,
@@ -2648,25 +3769,8 @@ const LEVEL_2 = {
         [
             0,
             0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
             3,
             3,
-            0,
-            0,
             0,
             0,
             0,
@@ -2683,10 +3787,10 @@ const LEVEL_2 = {
             3,
             3,
             3,
+            3,
+            3,
             0,
-            0,
-            0,
-            0,
+            5,
             0,
             0,
             0,
@@ -2787,74 +3891,102 @@ const LEVEL_2 = {
         ]
     ],
     waves: [
-        // VAGUE 1 : Introduction avec deux spawns
+        // VAGUE 1 : Introduction douce - Ennemis de base
         [
-            {
-                count: 10,
-                type: "grunt",
-                interval: 800
-            },
-            {
-                count: 5,
-                type: "runner",
-                interval: 600
-            }
-        ],
-        // VAGUE 2 : Runners rapides depuis les deux points
-        [
-            {
-                count: 20,
-                type: "runner",
-                interval: 350
-            },
-            {
-                count: 8,
-                type: "grunt",
-                interval: 700
-            }
-        ],
-        // VAGUE 3 : Mixte avec shields
-        [
-            {
-                count: 12,
-                type: "grunt",
-                interval: 600
-            },
-            {
-                count: 8,
-                type: "runner",
-                interval: 500
-            },
-            {
-                count: 4,
-                type: "shield",
-                interval: 1200
-            }
-        ],
-        // VAGUE 4 : Tanks et runners
-        [
-            {
-                count: 25,
-                type: "runner",
-                interval: 350
-            },
             {
                 count: 15,
                 type: "grunt",
+                interval: 900
+            },
+            {
+                count: 8,
+                type: "runner",
+                interval: 700
+            }
+        ],
+        // VAGUE 2 : Runners rapides et grunts
+        [
+            {
+                count: 15,
+                type: "runner",
+                interval: 400
+            },
+            {
+                count: 30,
+                type: "grunt",
+                interval: 600
+            }
+        ],
+        // VAGUE 3 : Introduction des shields - Mixte équilibré
+        [
+            {
+                count: 18,
+                type: "grunt",
+                interval: 550
+            },
+            {
+                count: 15,
+                type: "runner",
+                interval: 450
+            },
+            {
+                count: 5,
+                type: "shield",
+                interval: 1300
+            }
+        ],
+        // VAGUE 4 : Tanks et support - Augmentation de la difficulté
+        [
+            {
+                count: 30,
+                type: "runner",
+                interval: 380
+            },
+            {
+                count: 25,
+                type: "grunt",
                 interval: 500
             },
             {
-                count: 2,
+                count: 6,
                 type: "shield",
                 interval: 1200
+            },
+            {
+                count: 3,
+                type: "tank",
+                interval: 4000
+            }
+        ],
+        // VAGUE 5 : Introduction Tortue-Dragon - Premier nouveau ennemi
+        [
+            {
+                count: 35,
+                type: "grunt",
+                interval: 450
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 400
+            },
+            {
+                count: 8,
+                type: "shield",
+                interval: 1100
             },
             {
                 count: 4,
                 type: "tank",
                 interval: 3500
+            },
+            {
+                count: 2,
+                type: "tortue_dragon",
+                interval: 5000
             }
         ],
-        // VAGUE 5 : Invasion massive
+        // VAGUE 6 : Shaman Gobelin - Soin des ennemis
         [
             {
                 count: 40,
@@ -2862,12 +3994,12 @@ const LEVEL_2 = {
                 interval: 400
             },
             {
-                count: 20,
+                count: 25,
                 type: "runner",
-                interval: 300
+                interval: 350
             },
             {
-                count: 6,
+                count: 10,
                 type: "shield",
                 interval: 1000
             },
@@ -2875,34 +4007,145 @@ const LEVEL_2 = {
                 count: 5,
                 type: "tank",
                 interval: 3000
+            },
+            {
+                count: 3,
+                type: "tortue_dragon",
+                interval: 4500
+            },
+            {
+                count: 2,
+                type: "shaman_gobelin",
+                interval: 6000
             }
         ],
-        // VAGUE 6 : Boss avec support
+        // VAGUE 7 : Diviseur - Les slimes arrivent !
         [
             {
-                count: 50,
+                count: 45,
                 type: "grunt",
-                interval: 500
+                interval: 380
             },
             {
-                count: 35,
+                count: 30,
                 type: "runner",
-                interval: 400
+                interval: 350
             },
             {
-                count: 8,
+                count: 12,
                 type: "shield",
-                interval: 1000
+                interval: 950
             },
             {
                 count: 6,
                 type: "tank",
+                interval: 2800
+            },
+            {
+                count: 4,
+                type: "tortue_dragon",
                 interval: 4000
             },
             {
+                count: 3,
+                type: "shaman_gobelin",
+                interval: 5500
+            },
+            {
+                count: 2,
+                type: "diviseur",
+                interval: 8000
+            }
+        ],
+        // VAGUE 8 : Invasion massive - Tous les ennemis
+        [
+            {
+                count: 50,
+                type: "grunt",
+                interval: 350
+            },
+            {
+                count: 35,
+                type: "runner",
+                interval: 320
+            },
+            {
+                count: 15,
+                type: "shield",
+                interval: 900
+            },
+            {
+                count: 8,
+                type: "tank",
+                interval: 2500
+            },
+            {
+                count: 5,
+                type: "tortue_dragon",
+                interval: 3800
+            },
+            {
+                count: 4,
+                type: "shaman_gobelin",
+                interval: 5000
+            },
+            {
+                count: 3,
+                type: "diviseur",
+                interval: 7000
+            },
+            {
+                count: 2,
+                type: "witch",
+                interval: 6000
+            }
+        ],
+        // VAGUE 9 : BOSS FINAL - Boss Level 2 avec armée complète
+        [
+            {
+                count: 60,
+                type: "grunt",
+                interval: 400
+            },
+            {
+                count: 40,
+                type: "runner",
+                interval: 350
+            },
+            {
+                count: 18,
+                type: "shield",
+                interval: 850
+            },
+            {
+                count: 10,
+                type: "tank",
+                interval: 2200
+            },
+            {
+                count: 6,
+                type: "tortue_dragon",
+                interval: 3500
+            },
+            {
+                count: 5,
+                type: "shaman_gobelin",
+                interval: 4500
+            },
+            {
+                count: 4,
+                type: "diviseur",
+                interval: 6000
+            },
+            {
+                count: 3,
+                type: "witch",
+                interval: 5000
+            },
+            {
                 count: 1,
-                type: "boss",
-                interval: 2000
+                type: "bosslvl2",
+                interval: 20000
             }
         ]
     ]
@@ -2915,6 +4158,7 @@ parcelHelpers.export(exports, "GameScene", ()=>GameScene);
 var _settingsJs = require("../config/settings.js");
 var _indexJs = require("../config/levels/index.js");
 var _indexJs1 = require("../config/turrets/index.js");
+var _lightningJs = require("../sorts/lightning.js");
 var _enemyJs = require("../objects/Enemy.js");
 var _turretJs = require("../objects/Turret.js");
 var _barracksJs = require("../objects/Barracks.js");
@@ -2930,7 +4174,7 @@ class GameScene extends Phaser.Scene {
         const levelData = (0, _indexJs.LEVELS_CONFIG).find((l)=>l.id === this.levelID);
         const src = levelData ? levelData.data : (0, _indexJs.LEVELS_CONFIG)[0].data;
         // CLONE PROFOND pour ne jamais muter LEVELS_CONFIG
-        if (typeof structuredClone !== 'undefined') this.levelConfig = structuredClone(src);
+        if (typeof structuredClone !== "undefined") this.levelConfig = structuredClone(src);
         else this.levelConfig = JSON.parse(JSON.stringify(src));
         this.money = (0, _settingsJs.CONFIG).STARTING_MONEY;
         this.lives = (0, _settingsJs.CONFIG).STARTING_LIVES;
@@ -2941,22 +4185,41 @@ class GameScene extends Phaser.Scene {
         this.isWaveRunning = false;
         this.enemies = null;
         this.soldiers = null;
+        this.nextWaveAutoTimer = null; // Timer pour le lancement automatique
+        this.nextWaveCountdown = 0; // Compte à rebours en secondes
+        this.waveSpawnTimers = []; // Liste des timers de spawn des ennemis
+        this.endCheckTimer = null; // Timer de vérification de fin de vague
         this.selectedTurret = null;
         this.maxBarracks = 5;
         this.draggingTurret = null;
         this.placementPreview = null;
         this.validCellsPreview = [];
         this.upgradeTextLines = []; // Pour stocker les lignes de texte du menu
+        this.tileHighlight = null; // Highlight visuel sur la case survolée
+        this.placingSpell = null; // Sort en cours de placement
+        this.spellPreview = null; // Preview de la zone du sort
+        this.lightningCooldown = 0; // Cooldown du sort éclair (0 = disponible)
+        this.lightningOnCooldown = false; // Flag pour empêcher les clics multiples
         // Réinitialiser toutes les références UI pour éviter les références vers objets détruits
         this.buildToolbar = null;
         this.toolbarButtons = null;
         this.txtMoney = null;
         this.txtLives = null;
+        this.txtWave = null;
+        this.txtWave = null;
         this.buildMenu = null;
         this.upgradeMenu = null;
+        this.treeRemovalMenu = null;
+        this.treeRemovalTile = null;
         this.waveBtnContainer = null;
         this.waveBtnBg = null;
         this.waveBtnText = null;
+        this.toolbarTooltip = null; // Tooltip pour la toolbar
+        this.isPaused = false; // État de pause
+        this.pauseBtn = null; // Bouton pause
+        this.resumeBtn = null; // Bouton reprendre au centre de l'écran
+        this.pausedTimers = []; // Liste des timers en pause
+        this.pausedTweens = []; // Liste des tweens en pause
     }
     preload() {
         // Générer les textures seulement si le système est prêt
@@ -2993,9 +4256,10 @@ class GameScene extends Phaser.Scene {
         });
         this.uiManager.createUI();
         this.createBuildToolbar();
-        // Gestion de la touche Echap pour annuler le drag
+        // Gestion de la touche Echap pour annuler le drag ou le sort
         this.input.keyboard.on("keydown-ESC", ()=>{
-            this.cancelDrag();
+            if (this.placingSpell) this.cancelSpellPlacement();
+            else this.cancelDrag();
         });
         // Gestion des clics
         this.setupInputHandlers();
@@ -3051,8 +4315,37 @@ class GameScene extends Phaser.Scene {
     // (On pourrait recréer l'UI complètement, mais pour simplifier on ajuste juste)
     }
     setupInputHandlers() {
+        // Highlight visuel sur la case survolée
+        this.input.on("pointermove", (pointer)=>{
+            const T = (0, _settingsJs.CONFIG).TILE_SIZE * this.scaleFactor;
+            // Vérifier si le pointeur est dans la zone de la map
+            if (pointer.worldY < this.mapStartY || pointer.worldY > this.mapStartY + 15 * T || pointer.worldX < this.mapStartX || pointer.worldX > this.mapStartX + 15 * T) {
+                if (this.tileHighlight) this.tileHighlight.setVisible(false);
+                return;
+            }
+            // Convertir en coordonnées grille
+            const tx = Math.floor((pointer.worldX - this.mapStartX) / T);
+            const ty = Math.floor((pointer.worldY - this.mapStartY) / T);
+            if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) {
+                if (this.tileHighlight) this.tileHighlight.setVisible(false);
+                return;
+            }
+            // Créer ou mettre à jour le highlight
+            if (!this.tileHighlight) {
+                this.tileHighlight = this.add.graphics();
+                this.tileHighlight.setDepth(1);
+            }
+            const px = this.mapStartX + tx * T;
+            const py = this.mapStartY + ty * T;
+            this.tileHighlight.clear();
+            this.tileHighlight.lineStyle(2, 0xffffff, 0.3); // Border très léger
+            this.tileHighlight.strokeRect(px, py, T, T);
+            this.tileHighlight.setVisible(true);
+        });
         // Gestion des clics normaux et tactiles
         this.input.on("pointerdown", (pointer)=>{
+            // Si le jeu est en pause, ne pas gérer les clics (sauf sur le bouton pause)
+            if (this.isPaused) return;
             // Vérifier si le clic est sur la toolbar
             if (this.isPointerOnToolbar(pointer)) // Ne pas gérer les clics sur la toolbar comme des clics de jeu
             return;
@@ -3064,6 +4357,7 @@ class GameScene extends Phaser.Scene {
             // Masquer les menus par défaut
             this.buildMenu.setVisible(false);
             this.upgradeMenu.setVisible(false);
+            if (this.treeRemovalMenu) this.treeRemovalMenu.setVisible(false);
             this.selectedTurret = null;
             // Clic droit ou long press sur mobile
             if (pointer.rightButtonDown()) this.handleRightClick(pointer);
@@ -3082,6 +4376,12 @@ class GameScene extends Phaser.Scene {
             }
             // Si on drag, placer au clic gauche (mais pas si on est sur la toolbar)
             if (this.draggingTurret && pointer.leftButtonReleased() && !this.isPointerOnToolbar(pointer)) this.placeDraggedTurret(pointer);
+            // Si on place un sort, gérer le clic
+            if (this.placingSpell && pointer.leftButtonReleased()) {
+                if (!this.isPointerOnToolbar(pointer)) this.placeLightning(pointer.worldX, pointer.worldY);
+            }
+            // Annuler le placement du sort avec clic droit
+            if (this.placingSpell && pointer.rightButtonReleased()) this.cancelSpellPlacement();
         });
     }
     // Vérifier si le pointeur est sur la toolbar
@@ -3095,6 +4395,23 @@ class GameScene extends Phaser.Scene {
     // Gérer les clics sur les boutons UI
     }
     update(time, delta) {
+        // Si le jeu est en pause, ne rien mettre à jour
+        if (this.isPaused) return;
+        // Mettre à jour le cooldown du sort
+        if (this.lightningCooldown > 0) {
+            this.lightningCooldown -= delta;
+            if (this.lightningCooldown <= 0) {
+                this.lightningCooldown = 0;
+                // Réinitialiser le flag quand le cooldown est terminé
+                this.lightningOnCooldown = false;
+            }
+            this.updateLightningSpellButton();
+        } else if (this.lightningOnCooldown) {
+            // S'assurer que le flag est réinitialisé si le cooldown est déjà à 0
+            this.lightningOnCooldown = false;
+            this.updateLightningSpellButton();
+        }
+        // Le compte à rebours est géré par le timer dans WaveManager, pas besoin de le mettre à jour ici
         this.turrets.forEach((t)=>t.update(time, this.enemies));
         this.barracks.forEach((b)=>b.update(time));
         this.soldiers.children.each((soldier)=>{
@@ -3122,6 +4439,12 @@ class GameScene extends Phaser.Scene {
     // VAGUES
     // =========================================================
     startWave() {
+        // Annuler le timer automatique si le joueur lance manuellement
+        if (this.nextWaveAutoTimer) {
+            this.nextWaveAutoTimer.remove();
+            this.nextWaveAutoTimer = null;
+            this.nextWaveCountdown = 0;
+        }
         this.waveManager.startWave();
     }
     monitorWaveEnd() {
@@ -3136,6 +4459,7 @@ class GameScene extends Phaser.Scene {
     // =========================================================
     // GESTION CLICS & MENUS
     // =========================================================
+    // Dans GameScene.js
     handleRightClick(pointer) {
         const T = (0, _settingsJs.CONFIG).TILE_SIZE * this.scaleFactor;
         // Vérifier si le clic est dans la zone de la map
@@ -3148,6 +4472,7 @@ class GameScene extends Phaser.Scene {
         // Vérifier si une tourelle ou barracks est sur cette case
         let clickedTurret = null;
         for (const t of this.turrets){
+            // ... (code existant inchangé pour trouver la tourelle) ...
             const turretTx = Math.floor((t.x - this.mapStartX) / T);
             const turretTy = Math.floor((t.y - this.mapStartY) / T);
             if (turretTx === tx && turretTy === ty) {
@@ -3155,8 +4480,8 @@ class GameScene extends Phaser.Scene {
                 break;
             }
         }
-        // Vérifier aussi les barracks
         if (!clickedTurret) for (const b of this.barracks){
+            // ... (code existant inchangé pour trouver la caserne) ...
             const barracksTx = Math.floor((b.x - this.mapStartX) / T);
             const barracksTy = Math.floor((b.y - this.mapStartY) / T);
             if (barracksTx === tx && barracksTy === ty) {
@@ -3166,8 +4491,21 @@ class GameScene extends Phaser.Scene {
         }
         if (clickedTurret) // Clic exact sur la tourelle -> Upgrade
         this.uiManager.openUpgradeMenu(pointer, clickedTurret);
-        else // Clic sur case vide -> Build
-        this.uiManager.openBuildMenu(pointer);
+        else {
+            // Vérifier le type de terrain AVANT d'ouvrir le menu
+            // 0 = Herbe (Constructible), tout le reste (Chemin, Eau, Base) = Non constructible
+            const tileType = this.levelConfig.map[ty][tx];
+            if (tileType !== 0) // C'est un chemin ou un obstacle, on ne fait rien (pas de menu)
+            return;
+            // Vérifier s'il y a un arbre sur cette case
+            if (this.mapManager.hasTree(tx, ty)) {
+                // Ouvrir le menu de confirmation pour enlever l'arbre
+                this.uiManager.openTreeRemovalConfirmation(pointer, tx, ty);
+                return;
+            }
+            // Clic sur case vide ET constructible -> Build
+            this.uiManager.openBuildMenu(pointer);
+        }
     }
     // Vérifier si une case est adjacente à un chemin
     isAdjacentToPath(tx, ty) {
@@ -3187,9 +4525,16 @@ class GameScene extends Phaser.Scene {
         } else this.cameras.main.shake(50, 0.005);
     }
     buildTurret(turretConfig, tileX, tileY) {
+        // --- CORRECTION ICI ---
+        // Vérification stricte du terrain : Si ce n'est pas de l'herbe (0), on refuse tout de suite.
+        const tileType = this.levelConfig.map[tileY][tileX];
+        if (tileType !== 0) {
+            this.cameras.main.shake(50, 0.005);
+            return false;
+        }
         // Vérifier qu'il n'y a pas d'arbre ici
         if (this.mapManager.hasTree(tileX, tileY)) return false;
-        // Vérifier si c'est une barracks
+        // ... Le reste de ta méthode reste identique ...
         const isBarracks = turretConfig.key === "barracks";
         // Limiter les barracks à 5 maximum
         if (isBarracks && this.barracks.length >= this.maxBarracks) {
@@ -3253,9 +4598,157 @@ class GameScene extends Phaser.Scene {
         this.money += amount;
         this.updateUI();
     }
+    // =========================================================
+    // GESTION DE LA PAUSE
+    // =========================================================
+    pauseGame() {
+        if (this.isPaused) return;
+        this.isPaused = true;
+        // Le bouton pause dans la toolbar reste inchangé (reste "PAUSE")
+        // Mettre en pause tous les timers de spawn des vagues
+        this.pausedTimers = [];
+        if (this.waveSpawnTimers) this.waveSpawnTimers.forEach((timer)=>{
+            if (timer && timer.paused !== undefined) {
+                timer.paused = true;
+                this.pausedTimers.push(timer);
+            }
+        });
+        // Mettre en pause le timer de vérification de fin de vague
+        if (this.endCheckTimer && this.endCheckTimer.paused !== undefined) {
+            this.endCheckTimer.paused = true;
+            this.pausedTimers.push(this.endCheckTimer);
+        }
+        // Mettre en pause le timer de compte à rebours
+        if (this.nextWaveAutoTimer && this.nextWaveAutoTimer.paused !== undefined) {
+            this.nextWaveAutoTimer.paused = true;
+            this.pausedTimers.push(this.nextWaveAutoTimer);
+        }
+        // Mettre en pause tous les autres timers
+        if (this.time && this.time.events) this.time.events.getAll().forEach((event)=>{
+            if (event && !event.paused && event !== this.endCheckTimer && event !== this.nextWaveAutoTimer) // Vérifier que ce n'est pas déjà dans waveSpawnTimers
+            {
+                if (!this.waveSpawnTimers || !this.waveSpawnTimers.includes(event)) {
+                    event.paused = true;
+                    this.pausedTimers.push(event);
+                }
+            }
+        });
+        // Mettre en pause tous les tweens
+        this.pausedTweens = [];
+        if (this.tweens && this.tweens.getAllTweens) {
+            const allTweens = this.tweens.getAllTweens();
+            allTweens.forEach((tween)=>{
+                if (tween && tween.isPlaying && !tween.isPaused) {
+                    tween.pause();
+                    this.pausedTweens.push(tween);
+                }
+            });
+        }
+        // Mettre en pause les ennemis (leurs tweens de mouvement)
+        if (this.enemies) this.enemies.children.each((enemy)=>{
+            if (enemy && enemy.follower && enemy.follower.tween && enemy.follower.tween.isPlaying) enemy.follower.tween.pause();
+        });
+        // Mettre en pause les animations des tourelles
+        if (this.turrets) this.turrets.forEach((turret)=>{
+            if (turret && turret.rotationTween && turret.rotationTween.isPlaying) turret.rotationTween.pause();
+        });
+        // Créer le bouton "REPRENDRE" au centre de l'écran
+        if (!this.resumeBtn) {
+            const s = this.scaleFactor;
+            const btnWidth = 250 * s;
+            const btnHeight = 60 * s;
+            // Container pour le bouton
+            const resumeContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2).setDepth(200);
+            // Fond du bouton
+            const resumeBg = this.add.graphics();
+            resumeBg.fillStyle(0x333333, 0.95);
+            resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+            resumeBg.lineStyle(3, 0x00ff00, 1);
+            resumeBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+            resumeContainer.add(resumeBg);
+            // Texte du bouton
+            const resumeText = this.add.text(0, 0, "\u25B6\uFE0F REPRENDRE", {
+                fontSize: `${Math.max(18, 24 * s)}px`,
+                fill: "#00ff00",
+                fontStyle: "bold",
+                fontFamily: "Arial"
+            }).setOrigin(0.5);
+            resumeContainer.add(resumeText);
+            // Rendre le bouton interactif
+            resumeBg.setInteractive(new Phaser.Geom.Rectangle(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight), Phaser.Geom.Rectangle.Contains);
+            resumeBg.on("pointerover", ()=>{
+                resumeBg.clear();
+                resumeBg.fillStyle(0x444444, 0.95);
+                resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+                resumeBg.lineStyle(3, 0x00ff00, 1);
+                resumeBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+                resumeText.setColor("#00ff88");
+            });
+            resumeBg.on("pointerout", ()=>{
+                resumeBg.clear();
+                resumeBg.fillStyle(0x333333, 0.95);
+                resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+                resumeBg.lineStyle(3, 0x00ff00, 1);
+                resumeBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+                resumeText.setColor("#00ff00");
+            });
+            resumeBg.on("pointerdown", ()=>{
+                this.resumeGame();
+            });
+            this.resumeBtn = resumeContainer;
+        } else this.resumeBtn.setVisible(true);
+    }
+    resumeGame() {
+        if (!this.isPaused) return;
+        this.isPaused = false;
+        // Le bouton pause dans la toolbar reste inchangé
+        // Reprendre tous les timers de spawn des vagues
+        if (this.waveSpawnTimers) this.waveSpawnTimers.forEach((timer)=>{
+            if (timer && timer.paused !== undefined) timer.paused = false;
+        });
+        // Reprendre le timer de vérification de fin de vague
+        if (this.endCheckTimer && this.endCheckTimer.paused !== undefined) this.endCheckTimer.paused = false;
+        // Reprendre le timer de compte à rebours
+        if (this.nextWaveAutoTimer && this.nextWaveAutoTimer.paused !== undefined) this.nextWaveAutoTimer.paused = false;
+        // Reprendre tous les autres timers
+        this.pausedTimers.forEach((timer)=>{
+            if (timer && timer.paused !== undefined) timer.paused = false;
+        });
+        this.pausedTimers = [];
+        // Reprendre tous les tweens
+        this.pausedTweens.forEach((tween)=>{
+            if (tween && tween.isPaused) tween.resume();
+        });
+        this.pausedTweens = [];
+        // Reprendre les ennemis
+        if (this.enemies) this.enemies.children.each((enemy)=>{
+            if (enemy && enemy.follower && enemy.follower.tween && enemy.follower.tween.isPaused && !enemy.isParalyzed && !enemy.isInShell) enemy.follower.tween.resume();
+        });
+        // Reprendre les animations des tourelles
+        if (this.turrets) this.turrets.forEach((turret)=>{
+            if (turret && turret.rotationTween && turret.rotationTween.isPaused) turret.rotationTween.resume();
+        });
+        // Masquer le bouton reprendre
+        if (this.resumeBtn) this.resumeBtn.setVisible(false);
+    }
     updateUI() {
         if (this.txtMoney) this.txtMoney.setText(`\u{1F4B0} ${this.money}`);
         if (this.txtLives) this.txtLives.setText(`\u{2764}\u{FE0F} ${this.lives}`);
+        // Mettre à jour l'affichage de la vague
+        if (this.txtWave) {
+            let currentWave = (this.currentWaveIndex || 0) + 1;
+            let totalWaves = 0;
+            // Obtenir le nombre total de vagues
+            if (this.levelConfig && this.levelConfig.waves) totalWaves = this.levelConfig.waves.length;
+            else {
+                // Fallback : chercher dans LEVELS_CONFIG
+                const levelData = (0, _indexJs.LEVELS_CONFIG).find((l)=>l.id === this.levelID);
+                if (levelData && levelData.data && levelData.data.waves) totalWaves = levelData.data.waves.length;
+                else // Fallback par défaut selon le niveau
+                totalWaves = this.levelID === 2 ? 9 : 6;
+            }
+            this.txtWave.setText(`\u{1F30A} VAGUE ${currentWave}/${totalWaves}`);
+        }
         this.updateToolbarCounts();
         // Mettre à jour les boutons du menu de construction si visible
         if (this.buildMenu && this.buildMenu.visible) this.uiManager.updateBuildMenuButtons();
@@ -3265,19 +4758,38 @@ class GameScene extends Phaser.Scene {
     // =========================================================
     // Créer la toolbar de construction en bas (sous la map)
     createBuildToolbar() {
-        const toolbarX = this.toolbarOffsetX || 10 * this.scaleFactor;
         const toolbarY = this.toolbarOffsetY;
-        const itemSize = 80 * this.scaleFactor; // Augmenté de 60 à 80
-        const itemSpacing = 90 * this.scaleFactor; // Augmenté de 70 à 90
-        this.buildToolbar = this.add.container(toolbarX, toolbarY).setDepth(150);
-        // Fond de la toolbar (plus grande)
+        const itemSize = 80 * this.scaleFactor;
+        const itemSpacing = 90 * this.scaleFactor;
+        const toolbarHeight = 120 * this.scaleFactor;
+        const margin = 20 * this.scaleFactor;
+        // Calculer les largeurs des sections
+        const spellSectionWidth = itemSize + margin * 2; // Section des sorts à gauche
+        const turretsSectionWidth = 5 * itemSpacing; // Section des tourelles au milieu
+        const waveButtonWidth = 300 * this.scaleFactor; // Bouton de vague à droite
+        const waveButtonHeight = 60 * this.scaleFactor;
+        // Calculer la position de départ pour centrer les tourelles
+        const totalWidth = spellSectionWidth + turretsSectionWidth + waveButtonWidth + margin * 4;
+        const startX = (this.gameWidth - totalWidth) / 2;
+        // Section des sorts à gauche
+        const spellSectionX = startX + margin;
+        this.spellSection = this.add.container(spellSectionX, toolbarY).setDepth(150);
+        const spellBg = this.add.graphics();
+        spellBg.fillStyle(0x000000, 0.9);
+        spellBg.fillRoundedRect(0, 0, spellSectionWidth, toolbarHeight, 10);
+        spellBg.lineStyle(3, 0xffffff, 0.6);
+        spellBg.strokeRoundedRect(0, 0, spellSectionWidth, toolbarHeight, 10);
+        this.spellSection.add(spellBg);
+        // Créer le bouton du sort éclair dans la section des sorts
+        this.createLightningSpellButton(itemSize, itemSize / 2 + margin, toolbarHeight, spellSectionX);
+        // Section des tourelles au milieu
+        const turretsSectionX = startX + spellSectionWidth + margin * 2;
+        this.buildToolbar = this.add.container(turretsSectionX, toolbarY).setDepth(150);
         const toolbarBg = this.add.graphics();
-        const toolbarWidth = 5 * itemSpacing + 40 * this.scaleFactor; // Plus large
-        const toolbarHeight = 120 * this.scaleFactor; // Plus haute (au lieu de CONFIG.TOOLBAR_HEIGHT)
         toolbarBg.fillStyle(0x000000, 0.9);
-        toolbarBg.fillRoundedRect(0, 0, toolbarWidth, toolbarHeight, 10);
+        toolbarBg.fillRoundedRect(0, 0, turretsSectionWidth, toolbarHeight, 10);
         toolbarBg.lineStyle(3, 0xffffff, 0.6);
-        toolbarBg.strokeRoundedRect(0, 0, toolbarWidth, toolbarHeight, 10);
+        toolbarBg.strokeRoundedRect(0, 0, turretsSectionWidth, toolbarHeight, 10);
         this.buildToolbar.add(toolbarBg);
         // Créer les boutons pour chaque type de tourelle
         const turretTypes = [
@@ -3304,9 +4816,9 @@ class GameScene extends Phaser.Scene {
         ];
         this.toolbarButtons = [];
         turretTypes.forEach((item, index)=>{
-            // Centrer les boutons dans la toolbar
+            // Centrer les boutons dans la section des tourelles
             const totalWidth = 5 * itemSpacing;
-            const startX = (toolbarWidth - totalWidth) / 2 + itemSpacing / 2;
+            const startX = (turretsSectionWidth - totalWidth) / 2 + itemSpacing / 2;
             const x = startX + index * itemSpacing;
             const y = toolbarHeight / 2; // Centrer verticalement
             // Container pour le bouton
@@ -3327,21 +4839,57 @@ class GameScene extends Phaser.Scene {
                 fill: "#ffffff",
                 fontStyle: "bold"
             }).setOrigin(0.5);
-            // Fonction pour mettre à jour le compteur
+            // Texte avec le prix de la tourelle
+            const priceText = this.add.text(0, itemSize / 2 + 28 * this.scaleFactor, `${item.config.cost}$`, {
+                fontSize: `${Math.max(12, 14 * this.scaleFactor)}px`,
+                fill: "#ffd700",
+                fontStyle: "bold"
+            }).setOrigin(0.5);
+            // Fonction pour mettre à jour le compteur et l'état du bouton
             const updateCount = ()=>{
                 // Vérifier que les objets sont encore valides avant de les manipuler
                 if (!countText || countText.active === false) return;
                 if (!btnBg || btnBg.active === false) return;
+                if (!priceText || priceText.active === false) return;
                 try {
+                    const canAfford = this.money >= item.config.cost;
+                    let isDisabled = false;
+                    let disabledReason = "";
                     if (item.key === "barracks") {
                         const count = this.barracks.length;
                         const max = this.maxBarracks;
                         countText.setText(`${count}/${max}`);
+                        isDisabled = count >= max;
+                        disabledReason = count >= max ? "MAX" : "";
                         countText.setColor(count >= max ? "#ff0000" : "#ffffff");
-                        btnBg.setFillStyle(count >= max ? 0x330000 : 0x333333);
                     } else {
                         const count = this.turrets.filter((t)=>t.config.key === item.key).length;
                         countText.setText(`${count}`);
+                    }
+                    // Désactiver visuellement si on ne peut pas se le permettre ou si limite atteinte
+                    const shouldDisable = !canAfford || isDisabled;
+                    if (shouldDisable) {
+                        // État désactivé : grisé
+                        btnBg.setFillStyle(0x1a1a1a, 0.6);
+                        btnBg.setStrokeStyle(3, 0x444444, 0.5);
+                        btnBg.setAlpha(0.5);
+                        previewContainer.setAlpha(0.4);
+                        priceText.setColor("#ff4444");
+                        priceText.setAlpha(0.7);
+                        countText.setAlpha(0.7);
+                        btnBg.disableInteractive();
+                    } else {
+                        // État actif : normal
+                        btnBg.setFillStyle(0x333333, 0.9);
+                        btnBg.setStrokeStyle(3, 0x666666, 1);
+                        btnBg.setAlpha(1);
+                        previewContainer.setAlpha(1);
+                        priceText.setColor("#ffd700");
+                        priceText.setAlpha(1);
+                        countText.setAlpha(1);
+                        btnBg.setInteractive({
+                            useHandCursor: true
+                        });
                     }
                 } catch (e) {
                     // Ignorer si les objets ont été détruits
@@ -3351,11 +4899,30 @@ class GameScene extends Phaser.Scene {
             btnContainer.add([
                 btnBg,
                 previewContainer,
-                countText
+                countText,
+                priceText
             ]);
             this.buildToolbar.add(btnContainer);
-            // Gestion du clic pour démarrer le drag
+            // Tooltip pour la description dans la toolbar
+            let toolbarTooltip = null;
+            btnBg.on("pointerover", ()=>{
+                // Afficher le tooltip avec la description
+                if (item.config.description) this.showToolbarTooltip(btnContainer, item.config.description, btnBg);
+            });
+            btnBg.on("pointerout", ()=>{
+                // Cacher le tooltip
+                if (this.toolbarTooltip) {
+                    this.toolbarTooltip.destroy();
+                    this.toolbarTooltip = null;
+                }
+            });
+            // Gestion du clic pour démarrer le drag (seulement si actif)
             btnBg.on("pointerdown", (pointer)=>{
+                // Cacher le tooltip lors du clic
+                if (this.toolbarTooltip) {
+                    this.toolbarTooltip.destroy();
+                    this.toolbarTooltip = null;
+                }
                 // Vérifier les limites
                 if (item.key === "barracks" && this.barracks.length >= this.maxBarracks) {
                     this.cameras.main.shake(50, 0.005);
@@ -3367,29 +4934,414 @@ class GameScene extends Phaser.Scene {
             this.toolbarButtons.push({
                 container: btnContainer,
                 config: item.config,
-                updateCount: updateCount
+                updateCount: updateCount,
+                btnBg: btnBg,
+                priceText: priceText,
+                countText: countText,
+                previewContainer: previewContainer
             });
         });
         // Mettre à jour les compteurs
         this.updateToolbarCounts();
     }
+    // Afficher un tooltip avec la description de la tourelle dans la toolbar
+    showToolbarTooltip(btnContainer, description, triggerElement) {
+        const s = this.scaleFactor;
+        // Détruire l'ancien tooltip s'il existe
+        if (this.toolbarTooltip) this.toolbarTooltip.destroy();
+        // Calculer la position du tooltip (au-dessus du bouton)
+        // Le btnContainer peut être dans buildToolbar (tourelles) ou directement dans la scène (sort)
+        let btnX, btnY;
+        // Vérifier si le container est dans buildToolbar en vérifiant son parent
+        const isInBuildToolbar = this.buildToolbar && (btnContainer.parentContainer === this.buildToolbar || this.buildToolbar.list && this.buildToolbar.list.includes(btnContainer));
+        if (isInBuildToolbar) {
+            // Pour les tourelles dans buildToolbar
+            btnX = btnContainer.x + this.buildToolbar.x;
+            btnY = btnContainer.y + this.buildToolbar.y;
+        } else {
+            // Pour le sort, btnContainer est directement dans la scène avec position absolue
+            btnX = btnContainer.x;
+            btnY = btnContainer.y;
+        }
+        // Créer le tooltip
+        const tooltipContainer = this.add.container(0, 0).setDepth(300);
+        this.toolbarTooltip = tooltipContainer;
+        // Fond du tooltip
+        const tooltipBg = this.add.graphics();
+        const padding = 15 * s;
+        const maxWidth = 350 * s;
+        // Calculer la taille du texte
+        const tempText = this.add.text(0, 0, description, {
+            fontSize: `${Math.max(11, 12 * s)}px`,
+            fill: "#ffffff",
+            fontFamily: "Arial",
+            wordWrap: {
+                width: maxWidth - padding * 2
+            },
+            lineSpacing: 4 * s
+        });
+        const textWidth = Math.min(tempText.width, maxWidth - padding * 2);
+        const textHeight = tempText.height;
+        tempText.destroy();
+        const tooltipWidth = textWidth + padding * 2;
+        const tooltipHeight = textHeight + padding * 2;
+        // Positionner le tooltip au-dessus du bouton
+        const tooltipX = btnX;
+        const tooltipY = btnY - tooltipHeight - 10 * s;
+        // Dessiner le fond
+        tooltipBg.fillStyle(0x000000, 0.95);
+        tooltipBg.fillRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
+        tooltipBg.lineStyle(2, 0x00ccff, 1);
+        tooltipBg.strokeRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
+        // Texte de description
+        const descText = this.add.text(padding, padding, description, {
+            fontSize: `${Math.max(11, 12 * s)}px`,
+            fill: "#ffffff",
+            fontFamily: "Arial",
+            wordWrap: {
+                width: maxWidth - padding * 2
+            },
+            lineSpacing: 4 * s
+        });
+        tooltipContainer.add([
+            tooltipBg,
+            descText
+        ]);
+        tooltipContainer.setPosition(tooltipX, tooltipY);
+        // Ajuster la position si le tooltip sort de l'écran
+        if (tooltipX + tooltipWidth > this.gameWidth) tooltipContainer.setX(this.gameWidth - tooltipWidth - 10 * s);
+        if (tooltipY < 0) tooltipContainer.setY(btnY + 80 * s + 10 * s); // En dessous si pas de place au-dessus
+    }
+    // Créer le bouton du sort éclair
+    createLightningSpellButton(itemSize, xOffset, toolbarHeight, sectionX) {
+        const x = xOffset;
+        const y = toolbarHeight / 2;
+        const btnContainer = this.add.container(sectionX + x, this.toolbarOffsetY + y);
+        btnContainer.setDepth(151);
+        // Fond du bouton
+        const btnBg = this.add.rectangle(0, 0, itemSize, itemSize, 0x333333, 0.9);
+        btnBg.setStrokeStyle(3, 0x666666);
+        btnBg.setInteractive({
+            useHandCursor: true
+        });
+        // Icône d'éclair
+        const lightningIcon = this.add.graphics();
+        this.drawLightningIcon(lightningIcon, 0, 0, itemSize * 0.6);
+        lightningIcon.setScale(this.scaleFactor);
+        // Masque de cooldown (cercle qui se remplit)
+        const cooldownMask = this.add.graphics();
+        cooldownMask.setDepth(152);
+        cooldownMask.setVisible(false);
+        // Texte de cooldown
+        const cooldownText = this.add.text(0, itemSize / 2 + 12 * this.scaleFactor, "", {
+            fontSize: `${Math.max(10, 12 * this.scaleFactor)}px`,
+            fill: "#ffffff",
+            fontStyle: "bold"
+        }).setOrigin(0.5);
+        btnContainer.add([
+            btnBg,
+            lightningIcon,
+            cooldownMask,
+            cooldownText
+        ]);
+        // Tooltip pour la description (même système que pour les tourelles)
+        btnBg.on("pointerover", ()=>{
+            // Afficher le tooltip avec la description
+            if ((0, _lightningJs.lightning).description) this.showToolbarTooltip(btnContainer, (0, _lightningJs.lightning).description, btnBg);
+        });
+        btnBg.on("pointerout", ()=>{
+            // Cacher le tooltip
+            if (this.toolbarTooltip) {
+                this.toolbarTooltip.destroy();
+                this.toolbarTooltip = null;
+            }
+        });
+        // Gestion du clic
+        btnBg.on("pointerdown", ()=>{
+            // Cacher le tooltip lors du clic
+            if (this.toolbarTooltip) {
+                this.toolbarTooltip.destroy();
+                this.toolbarTooltip = null;
+            }
+            // Vérifier que le cooldown est terminé et qu'on n'est pas déjà en train de placer
+            if (this.lightningCooldown <= 0 && !this.placingSpell) this.startPlacingLightning();
+        });
+        // Stocker les références pour la mise à jour
+        this.lightningSpellButton = {
+            container: btnContainer,
+            bg: btnBg,
+            icon: lightningIcon,
+            cooldownMask: cooldownMask,
+            cooldownText: cooldownText
+        };
+        // Initialiser l'affichage
+        this.updateLightningSpellButton();
+    }
+    // Dessiner l'icône d'éclair
+    drawLightningIcon(graphics, x, y, size) {
+        graphics.clear();
+        graphics.fillStyle(0xffff00, 1);
+        // Forme d'éclair en zigzag
+        graphics.beginPath();
+        graphics.moveTo(x, y - size / 2);
+        graphics.lineTo(x - size / 4, y - size / 6);
+        graphics.lineTo(x, y);
+        graphics.lineTo(x + size / 4, y + size / 6);
+        graphics.lineTo(x, y + size / 2);
+        graphics.lineTo(x - size / 6, y + size / 4);
+        graphics.lineTo(x, y);
+        graphics.lineTo(x + size / 6, y - size / 4);
+        graphics.closePath();
+        graphics.fillPath();
+        // Bordure
+        graphics.lineStyle(2, 0xffffff, 1);
+        graphics.strokePath();
+    }
+    // Démarrer le placement du sort
+    startPlacingLightning() {
+        this.placingSpell = (0, _lightningJs.lightning);
+        // Créer le preview de la zone
+        if (!this.spellPreview) {
+            this.spellPreview = this.add.graphics();
+            this.spellPreview.setDepth(200);
+        }
+        // Mettre à jour le preview au mouvement de la souris
+        this.input.on("pointermove", this.updateSpellPreview, this);
+    }
+    // Mettre à jour le preview du sort
+    updateSpellPreview(pointer) {
+        if (!this.placingSpell || !this.spellPreview) return;
+        // Utiliser exactement le même radius que pour les dégâts
+        const radius = (0, _lightningJs.lightning).radius;
+        const x = pointer.worldX;
+        const y = pointer.worldY;
+        this.spellPreview.clear();
+        this.spellPreview.lineStyle(3, 0x00ffff, 0.8);
+        this.spellPreview.strokeCircle(x, y, radius);
+        this.spellPreview.fillStyle(0x00ffff, 0.2);
+        this.spellPreview.fillCircle(x, y, radius);
+    }
+    // Placer le sort éclair
+    placeLightning(x, y) {
+        if (!this.placingSpell || this.lightningOnCooldown) return;
+        // Activer le cooldown immédiatement pour empêcher les clics multiples
+        this.lightningOnCooldown = true;
+        this.lightningCooldown = (0, _lightningJs.lightning).cooldown;
+        // Créer l'animation d'éclair
+        this.castLightning(x, y);
+        // Nettoyer le placement
+        this.cancelSpellPlacement();
+    }
+    // Annuler le placement du sort
+    cancelSpellPlacement() {
+        this.placingSpell = null;
+        if (this.spellPreview) this.spellPreview.clear();
+        this.input.off("pointermove", this.updateSpellPreview, this);
+    }
+    // Lancer le sort éclair avec animation
+    castLightning(x, y) {
+        // Utiliser exactement le même radius partout
+        const effectRadius = (0, _lightningJs.lightning).radius;
+        // 1. Éclair qui tombe du ciel (animation fixe pour être toujours identique)
+        const lightningBolt = this.add.graphics();
+        lightningBolt.setDepth(300);
+        // Ligne d'éclair depuis le haut
+        const startY = this.mapStartY - 50;
+        // Éclair principal (zigzag fixe - pas de random pour avoir toujours la même animation)
+        lightningBolt.lineStyle(10, 0xffffff, 1);
+        lightningBolt.beginPath();
+        lightningBolt.moveTo(x, startY);
+        // Créer un zigzag fixe pour l'éclair (même pattern à chaque fois)
+        const steps = 8;
+        const stepHeight = (y - startY) / steps;
+        const offsets = [
+            -8,
+            12,
+            -10,
+            15,
+            -12,
+            10,
+            -8,
+            5
+        ]; // Pattern fixe
+        for(let i = 1; i <= steps; i++){
+            const currentY = startY + stepHeight * i;
+            const offsetX = offsets[i - 1] || 0;
+            lightningBolt.lineTo(x + offsetX, currentY);
+        }
+        lightningBolt.lineTo(x, y);
+        lightningBolt.strokePath();
+        // Éclair secondaire (plus fin, cyan) - pattern fixe aussi
+        lightningBolt.lineStyle(4, 0x00ffff, 1);
+        lightningBolt.beginPath();
+        lightningBolt.moveTo(x, startY);
+        const offsets2 = [
+            -6,
+            9,
+            -7,
+            11,
+            -9,
+            7,
+            -6,
+            3
+        ]; // Pattern fixe
+        for(let i = 1; i <= steps; i++){
+            const currentY = startY + stepHeight * i;
+            const offsetX = offsets2[i - 1] || 0;
+            lightningBolt.lineTo(x + offsetX, currentY);
+        }
+        lightningBolt.lineTo(x, y);
+        lightningBolt.strokePath();
+        // Branches d'éclair latérales (positions fixes)
+        const branchOffsets = [
+            {
+                x: -25,
+                y: 0.3
+            },
+            {
+                x: 30,
+                y: 0.5
+            },
+            {
+                x: -20,
+                y: 0.7
+            },
+            {
+                x: 28,
+                y: 0.4
+            },
+            {
+                x: -22,
+                y: 0.6
+            }
+        ];
+        branchOffsets.forEach((branch)=>{
+            const offsetY = startY + (y - startY) * branch.y;
+            lightningBolt.lineStyle(3, 0xffffff, 0.8);
+            lightningBolt.lineBetween(x, offsetY, x + branch.x, offsetY);
+        });
+        // Flash initial
+        const flash = this.add.circle(x, y, effectRadius * 1.5, 0xffffff, 1);
+        flash.setDepth(301);
+        this.tweens.add({
+            targets: flash,
+            scale: 0,
+            alpha: 0,
+            duration: 200,
+            onComplete: ()=>{
+                flash.destroy();
+                lightningBolt.destroy();
+            }
+        });
+        // 2. Zone d'impact avec brûlure du terrain (même radius que les dégâts)
+        const burnZone = this.add.graphics();
+        burnZone.setDepth(5);
+        burnZone.fillStyle(0x000000, 0.6);
+        burnZone.fillCircle(x, y, effectRadius);
+        burnZone.lineStyle(2, 0x8b4513, 1);
+        burnZone.strokeCircle(x, y, effectRadius);
+        // Effet de brûlure qui s'estompe
+        this.tweens.add({
+            targets: burnZone,
+            alpha: 0,
+            duration: 5000,
+            onComplete: ()=>burnZone.destroy()
+        });
+        // 3. Dégâts et paralysie sur les ennemis (utiliser exactement le même radius)
+        if (this.enemies) this.enemies.children.each((enemy)=>{
+            if (enemy && enemy.active) {
+                const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+                if (dist <= effectRadius) {
+                    // Dégâts
+                    enemy.damage((0, _lightningJs.lightning).damage);
+                    // Paralysie seulement si l'ennemi survit
+                    if (enemy.hp > 0 && enemy.paralyze) enemy.paralyze((0, _lightningJs.lightning).paralysisDuration);
+                }
+            }
+        });
+        // 4. Effet de particules (dans la zone d'effet)
+        for(let i = 0; i < 20; i++){
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * effectRadius;
+            const px = x + Math.cos(angle) * dist;
+            const py = y + Math.sin(angle) * dist;
+            const particle = this.add.circle(px, py, 3, 0xffff00, 1);
+            particle.setDepth(302);
+            this.tweens.add({
+                targets: particle,
+                x: px + (Math.random() - 0.5) * 50,
+                y: py + (Math.random() - 0.5) * 50,
+                alpha: 0,
+                scale: 0,
+                duration: 1000 + Math.random() * 500,
+                onComplete: ()=>particle.destroy()
+            });
+        }
+    }
+    // Mettre à jour l'affichage du bouton de sort
+    updateLightningSpellButton() {
+        if (!this.lightningSpellButton) return;
+        const { bg, icon, cooldownMask, cooldownText } = this.lightningSpellButton;
+        const cooldownPercent = this.lightningCooldown / (0, _lightningJs.lightning).cooldown;
+        const remainingSeconds = Math.ceil(this.lightningCooldown / 1000);
+        if (this.lightningCooldown > 0) {
+            // Afficher le masque de cooldown
+            cooldownMask.setVisible(true);
+            cooldownMask.clear();
+            const itemSize = 80 * this.scaleFactor;
+            const radius = itemSize / 2;
+            // Dessiner un masque circulaire qui se remplit progressivement (de bas en haut)
+            cooldownMask.clear();
+            cooldownMask.fillStyle(0x000000, 0.7);
+            if (cooldownPercent > 0) {
+                const startAngle = -Math.PI / 2; // Commence en haut
+                const endAngle = startAngle + cooldownPercent * Math.PI * 2;
+                cooldownMask.beginPath();
+                cooldownMask.moveTo(0, 0);
+                cooldownMask.arc(0, 0, radius, startAngle, endAngle, false);
+                cooldownMask.closePath();
+                cooldownMask.fillPath();
+            }
+            // Texte de cooldown
+            cooldownText.setText(`${remainingSeconds}s`);
+            cooldownText.setVisible(true);
+            // Désactiver le bouton
+            bg.setFillStyle(0x1a1a1a, 0.6);
+            bg.setStrokeStyle(3, 0x444444);
+            icon.setAlpha(0.5);
+            bg.disableInteractive();
+        } else {
+            // Réactiver le bouton
+            cooldownMask.setVisible(false);
+            cooldownText.setVisible(false);
+            bg.setFillStyle(0x333333, 0.9);
+            bg.setStrokeStyle(3, 0x666666);
+            icon.setAlpha(1);
+            bg.setInteractive({
+                useHandCursor: true
+            });
+        }
+    }
     // Dessiner une miniature du bâtiment pour la toolbar avec le vrai visuel
     drawTurretPreview(container, config) {
-        // Dessiner la base (cercle simple)
+        // Dessiner la base exactement comme dans Turret.drawBase() (niveau 1)
         const base = this.add.graphics();
-        base.fillStyle(config.color || 0x888888, 0.8);
-        base.fillCircle(0, 0, 25);
-        base.lineStyle(2, 0xffffff, 0.5);
-        base.strokeCircle(0, 0, 25);
+        const color = 0x333333; // Même couleur que Turret.drawBase() pour niveau 1
+        base.fillStyle(color);
+        base.fillCircle(0, 0, 24); // Même taille que dans Turret.drawBase()
+        base.lineStyle(2, 0x111111); // Même bordure que dans Turret.drawBase()
+        base.strokeCircle(0, 0, 24);
         container.add(base);
-        // Dessiner le canon/barrel avec la fonction onDrawBarrel si elle existe
+        // Dessiner le canon/barrel avec la fonction onDrawBarrel exactement comme dans Turret.drawBarrel()
         if (config.onDrawBarrel) {
             const barrelContainer = this.add.container(0, 0);
-            // Créer un objet turret factice pour onDrawBarrel
+            // Créer un objet turret factice pour onDrawBarrel (niveau 1 pour la preview)
             const fakeTurret = {
-                level: 1
+                level: 1,
+                config: config
             };
             try {
+                // Utiliser exactement la même signature que Turret.drawBarrel()
                 config.onDrawBarrel(this, barrelContainer, config.color, fakeTurret);
                 container.add(barrelContainer);
             } catch (e) {
@@ -3476,6 +5428,7 @@ class GameScene extends Phaser.Scene {
             if (tx >= 0 && tx < 15 && ty >= 0 && ty < 15 && this.levelConfig && this.levelConfig.map) {
                 const tileType = this.levelConfig.map[ty][tx];
                 if (tileType === 0) {
+                    // Herbe
                     // Vérifier qu'il n'y a pas d'arbre ici
                     const hasTree = this.mapManager && this.mapManager.hasTree ? this.mapManager.hasTree(tx, ty) : false;
                     if (!hasTree) {
@@ -3514,6 +5467,7 @@ class GameScene extends Phaser.Scene {
         for(let y = 0; y < 15; y++)for(let x = 0; x < 15; x++){
             const tileType = this.levelConfig.map[y][x];
             if (tileType === 0) {
+                // Herbe
                 // Vérifier qu'il n'y a pas d'arbre ici
                 const hasTree = this.mapManager.hasTree(x, y);
                 if (!hasTree) {
@@ -3541,6 +5495,7 @@ class GameScene extends Phaser.Scene {
         if (tx >= 0 && tx < 15 && ty >= 0 && ty < 15) {
             const tileType = this.levelConfig.map[ty][tx];
             if (tileType === 0) {
+                // Herbe
                 // Vérifier qu'il n'y a pas d'arbre ici
                 const hasTree = this.mapManager.hasTree(tx, ty);
                 if (!hasTree) {
@@ -3672,6 +5627,21 @@ class GameScene extends Phaser.Scene {
             g.lineTo(T - 4, 48);
             g.strokePath();
         });
+        // tile_mountain
+        generateIfNotExists("tile_mountain", ()=>{
+            // Fond rocheux
+            g.fillStyle(0x6b5b4f, 1);
+            g.fillRect(0, 0, T, T);
+            // Texture de roche
+            g.fillStyle(0x5a4b3f, 0.8);
+            for(let i = 0; i < 15; i++)g.fillRect(Math.random() * T, Math.random() * T, 3, 3);
+            // Détails de roche plus clairs
+            g.fillStyle(0x7b6b5f, 0.6);
+            for(let i = 0; i < 8; i++)g.fillRect(Math.random() * T, Math.random() * T, 2, 2);
+            // Bordure sombre
+            g.lineStyle(1, 0x4a3d32, 0.5);
+            g.strokeRect(0, 0, T, T);
+        });
     // Ne pas détruire l'objet Graphics ici car il peut être réutilisé
     // Il sera nettoyé automatiquement par Phaser quand la scène est détruite
     }
@@ -3717,6 +5687,11 @@ class GameScene extends Phaser.Scene {
         // Nettoyer les managers
         try {
             if (this.mapManager && this.mapManager.treePositions) this.mapManager.treePositions.clear();
+            // Nettoyer le timer de vague automatique
+            if (this.nextWaveAutoTimer) {
+                this.nextWaveAutoTimer.remove();
+                this.nextWaveAutoTimer = null;
+            }
         } catch (e) {
         // Ignorer si déjà détruit
         }
@@ -3796,7 +5771,7 @@ class GameScene extends Phaser.Scene {
     }
 }
 
-},{"../config/settings.js":"9kTMs","../config/levels/index.js":"8fcfE","../config/turrets/index.js":"97rhz","../objects/Enemy.js":"hW1Gp","../objects/Turret.js":"lbJGU","../objects/Barracks.js":"bSlQd","./managers/MapManager.js":"bYbwC","./managers/WaveManager.js":"bbCRa","./managers/UIManager.js":"1XDfq","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"97rhz":[function(require,module,exports,__globalThis) {
+},{"../config/settings.js":"9kTMs","../config/levels/index.js":"8fcfE","../config/turrets/index.js":"97rhz","../objects/Enemy.js":"hW1Gp","../objects/Turret.js":"lbJGU","../objects/Barracks.js":"bSlQd","./managers/MapManager.js":"bYbwC","./managers/WaveManager.js":"bbCRa","./managers/UIManager.js":"1XDfq","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../sorts/lightning.js":"lqA3P"}],"97rhz":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "TURRETS", ()=>TURRETS);
@@ -3825,45 +5800,69 @@ class Enemy extends Phaser.GameObjects.Container {
         this.scene = scene;
         this.path = path;
         this.typeKey = typeKey;
-        // --- DEBUG ---
-        // Si ENEMIES est undefined, c'est un problème d'import.
+        // --- DEBUG & INIT ---
         if (!(0, _settingsJs.ENEMIES)) {
-            console.error("ERREUR CRITIQUE : L'objet ENEMIES n'est pas charg\xe9. V\xe9rifiez src/config/settings.js");
+            console.error("ERREUR CRITIQUE : ENEMIES non charg\xe9.");
             return;
         }
-        // Si ENEMIES[typeKey] est undefined, c'est que la vague demande un type qui n'existe pas.
         if (!(0, _settingsJs.ENEMIES)[typeKey]) {
-            console.error(`ERREUR : Le type d'ennemi '${typeKey}' n'existe pas dans ENEMIES.`);
-            // Fallback sur 'grunt' pour éviter le crash
+            console.error(`ERREUR : Le type '${typeKey}' n'existe pas.`);
             this.stats = (0, _settingsJs.ENEMIES)["grunt"];
         } else this.stats = (0, _settingsJs.ENEMIES)[typeKey];
-        // -------------
-        // Stats
+        // --- STATS ---
         this.hp = this.stats.hp;
         this.maxHp = this.stats.hp;
         this.speed = this.stats.speed;
-        this.attackDamage = this.stats.damage || 10; // Dégâts par défaut (renommé pour éviter conflit avec méthode damage())
-        this.attackSpeed = this.stats.attackSpeed || 1000; // Vitesse d'attaque par défaut
-        this.attackRange = this.stats.attackRange || 30; // Portée d'attaque
-        this.isRanged = this.stats.isRanged || false; // Attaquant à distance
-        this.shouldRotate = false; // On n'utilise plus la rotation, mais le flip
-        this.facingRight = true; // Direction actuelle (true = droite, false = gauche)
+        this.attackDamage = this.stats.damage || 10;
+        this.attackSpeed = this.stats.attackSpeed || 1000;
+        this.attackRange = this.stats.attackRange || 30;
+        this.isRanged = this.stats.isRanged || false;
+        this.facingRight = true;
         this.lastAttackTime = 0;
-        this.targetSoldier = null; // Soldat ciblé pour les attaques à distance
+        this.targetSoldier = null;
+        // --- ÉTATS SPÉCIAUX ---
+        // Paralysie (Glace/Sorts)
+        this.isParalyzed = false;
+        this.paralysisTimer = null;
+        this.originalSpeed = this.speed;
+        this.paralysisOverlay = null;
+        // Spawn (Sorcière)
+        this.spawnTimer = null;
+        this.lastSpawnTime = 0;
+        // Tortue-Dragon : carapace
+        this.isInShell = false;
+        this.shellTimer = null;
+        this.isInvulnerable = false;
+        this.hasUsedShell = false; // Pour qu'elle ne le fasse qu'une fois
+        this.shellThreshold = this.stats.shellThreshold || null;
+        // Shaman Gobelin : soin
+        this.lastHealTime = 0;
+        this.healInterval = this.stats.healInterval || null;
+        this.healAmount = this.stats.healAmount || 0;
+        this.healRadius = this.stats.healRadius || 0;
+        // --- LOGIQUE DE POSITIONNEMENT (Anti-Stacking) ---
+        // Offset cible (là où l'ennemi veut aller sur la largeur du chemin)
+        this.targetPathOffset = (Math.random() - 0.5) * 25;
+        this.currentPathOffset = this.targetPathOffset;
+        this.separationRadius = 22; // Rayon de "bulle" personnelle
+        this.maxPathWidth = 25; // Limite pour ne pas sortir du chemin
+        // États de mouvement
+        this.isBlocked = false;
+        this.blockedBy = null;
         // --- 1. VISUEL ---
         // Ombre
         const shadow = scene.add.ellipse(0, 15, 30, 10, 0x000000, 0.5);
         this.add(shadow);
-        // Corps de l'ennemi
+        // Corps
         this.bodyGroup = scene.add.container(0, 0);
         this.add(this.bodyGroup);
-        // Dessin modulaire
+        // Dessin personnalisé (Settings) ou Carré par défaut
         if (this.stats.onDraw) this.stats.onDraw(this.scene, this.bodyGroup, this.stats.color, this);
         else {
             const fallback = scene.add.rectangle(0, 0, 32, 32, this.stats.color || 0xffffff);
             this.bodyGroup.add(fallback);
         }
-        // --- 2. BARRE DE VIE ---
+        // --- 2. BARRE DE VIE (CORRIGÉE) ---
         this.drawHealthBar(scene);
         // Initialisation Phaser
         this.scene.add.existing(this);
@@ -3871,9 +5870,9 @@ class Enemy extends Phaser.GameObjects.Container {
             t: 0,
             vec: new Phaser.Math.Vector2()
         };
-        // Tooltip HP - définir une zone interactive
+        // Tooltip HP (Souris)
         this.hpTooltip = null;
-        this.setSize(32, 32); // Taille pour l'interactivité
+        this.setSize(32, 32);
         this.setInteractive({
             useHandCursor: false
         });
@@ -3882,28 +5881,380 @@ class Enemy extends Phaser.GameObjects.Container {
         });
         this.on("pointerout", ()=>this.hideHpTooltip());
     }
+    // =========================================================
+    //                     BOUCLE PRINCIPALE
+    // =========================================================
+    update(time, delta) {
+        if (this.isParalyzed) return;
+        // Si dans la carapace (Tortue), on ne fait RIEN (pas de mouvement, pas d'attaque)
+        if (this.isInShell) {
+            // On continue juste l'animation visuelle pour l'effet de tremblement
+            if (this.stats.onUpdateAnimation) this.stats.onUpdateAnimation(time, this);
+            return;
+        }
+        // 1. Gestion des Spawns (Sorcière)
+        if (this.stats.spawnInterval && this.active) {
+            const currentTime = this.scene.time.now;
+            if (currentTime - this.lastSpawnTime >= this.stats.spawnInterval) {
+                this.spawnMinions();
+                this.lastSpawnTime = currentTime;
+            }
+        }
+        // 2. Gestion du Soin (Shaman)
+        if (this.healInterval && this.active) {
+            const currentTime = this.scene.time.now;
+            if (currentTime - this.lastHealTime >= this.healInterval) {
+                this.healNearbyEnemies();
+                this.lastHealTime = currentTime;
+            }
+        }
+        // 3. Ajustement de l'espacement (Anti-Stacking)
+        this.adjustSpacing(delta);
+        // 4. Animation Custom (Boss, Slimes, etc.)
+        if (this.active && this.stats && this.stats.onUpdateAnimation) this.stats.onUpdateAnimation(time, this);
+        // 5. Combat
+        if (this.active && !this.isBlocked) this.updateCombat(time);
+    }
+    // =========================================================
+    //                  MOUVEMENT & ESPACEMENT
+    // =========================================================
+    spawn() {
+        if (!this.path) return;
+        this.isBlocked = false;
+        this.blockedBy = null;
+        this.facingRight = true;
+        // Initialisation des timers
+        if (this.stats.spawnInterval) this.lastSpawnTime = this.scene.time.now;
+        if (this.healInterval) this.lastHealTime = this.scene.time.now;
+        if (this.bodyGroup) {
+            this.bodyGroup.setScale(1, 1);
+            this.bodyGroup.rotation = 0;
+        }
+        const pathLength = this.path.getLength();
+        const duration = pathLength / this.speed * 1000;
+        const tween = this.scene.tweens.add({
+            targets: this.follower,
+            t: 1,
+            duration: duration,
+            onUpdate: ()=>{
+                // Si bloqué ou caché, on arrête le calcul de position sur le chemin
+                if (this.isBlocked || this.isInShell) return;
+                const p = this.path.getPoint(this.follower.t, this.follower.vec);
+                // Calculer la normale pour appliquer l'offset latéral
+                const nextT = Math.min(this.follower.t + 0.01, 1);
+                const nextP = this.path.getPoint(nextT);
+                const dx = nextP.x - p.x;
+                const dy = nextP.y - p.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                // Appliquer l'offset dynamique
+                if (length > 0) {
+                    const perpX = -dy / length;
+                    const perpY = dx / length;
+                    const offsetX = perpX * this.currentPathOffset;
+                    const offsetY = perpY * this.currentPathOffset;
+                    this.setPosition(p.x + offsetX, p.y + offsetY);
+                } else this.setPosition(p.x, p.y);
+                // Gestion de la profondeur (Z-Index)
+                const baseDepth = 10 + Math.floor(this.follower.t * 50);
+                this.setDepth(baseDepth);
+                // S'assurer que la barre de vie reste au-dessus
+                if (this.hpBarContainer) this.hpBarContainer.setDepth(1000); // Toujours au-dessus du corps
+                // Orientation (Flip) - Sauf pour les Boss qui ont shouldRotate=false
+                if (this.stats.shouldRotate !== false) {
+                    const absDx = Math.abs(dx);
+                    const absDy = Math.abs(dy);
+                    if (absDx > absDy * 0.3) {
+                        const shouldFaceRight = dx > 0;
+                        if (shouldFaceRight !== this.facingRight) {
+                            this.facingRight = shouldFaceRight;
+                            this.bodyGroup.setScale(this.facingRight ? 1 : -1, 1);
+                        }
+                    }
+                }
+                this.bodyGroup.rotation = 0;
+            },
+            onComplete: ()=>{
+                if (this.active && !this.isBlocked) {
+                    this.scene.takeDamage();
+                    this.destroy();
+                }
+            }
+        });
+        this.follower.tween = tween;
+    }
+    adjustSpacing(delta) {
+        if (!this.scene || !this.scene.enemies || !this.active || !this.path) return;
+        let pushForce = 0;
+        // Vecteur direction du chemin
+        const t = this.follower.t;
+        const pCurrent = this.path.getPoint(t);
+        const pNext = this.path.getPoint(Math.min(t + 0.01, 1));
+        const dirX = pNext.x - pCurrent.x;
+        const dirY = pNext.y - pCurrent.y;
+        const len = Math.sqrt(dirX * dirX + dirY * dirY);
+        if (len === 0) return;
+        // Vecteur Normal (perpendiculaire)
+        const normX = -dirY / len;
+        const normY = dirX / len;
+        this.scene.enemies.children.each((other)=>{
+            if (other === this || !other.active) return;
+            const dist = Phaser.Math.Distance.Between(this.x, this.y, other.x, other.y);
+            if (dist < this.separationRadius) {
+                const dx = other.x - this.x;
+                const dy = other.y - this.y;
+                // Produit scalaire pour savoir si l'autre est à gauche ou droite
+                const dot = dx * normX + dy * normY;
+                if (dot > 0) pushForce -= 1.5;
+                else pushForce += 1.5;
+                if (Math.abs(dot) < 0.1 && dist < 5) pushForce += Math.random() > 0.5 ? 2 : -2;
+            }
+        });
+        // Appliquer et limiter
+        const speed = 0.8;
+        this.targetPathOffset += pushForce * speed;
+        this.targetPathOffset = Phaser.Math.Clamp(this.targetPathOffset, -this.maxPathWidth, this.maxPathWidth);
+        this.currentPathOffset = Phaser.Math.Linear(this.currentPathOffset, this.targetPathOffset, 0.1);
+    }
+    // =========================================================
+    //                  COMBAT & DÉGÂTS
+    // =========================================================
+    damage(amount) {
+        // 1. Tortue-Dragon : Invulnérable si cachée
+        if (this.isInvulnerable) return;
+        this.hp -= amount;
+        // Update Visuel
+        if (this.hpTooltip) this.hpTooltip.setText(`${Math.ceil(this.hp)} / ${this.maxHp} HP`);
+        if (this.bodyGroup) this.scene.tweens.add({
+            targets: this.bodyGroup,
+            alpha: 0.5,
+            duration: 50,
+            yoyo: true
+        });
+        this.updateHealthBar();
+        // 2. Tortue-Dragon : Vérifier seuil pour entrer dans la carapace
+        if (this.shellThreshold && !this.isInShell && !this.hasUsedShell) {
+            const hpPercent = this.hp / this.maxHp;
+            if (hpPercent <= this.shellThreshold) {
+                this.enterShell();
+                return; // On arrête là pour l'instant
+            }
+        }
+        // 3. Mort
+        if (this.hp <= 0) {
+            // Gestion des bloquages
+            if (this.isBlocked && this.blockedBy) this.blockedBy.releaseEnemy();
+            if (this.isParalyzed) this.removeParalysis();
+            // 4. Slimes / Diviseurs : Appel de la fonction onDeath définie dans settings.js
+            if (this.stats.onDeath) this.stats.onDeath(this);
+            this.hideHpTooltip();
+            this.scene.earnMoney(this.stats.reward);
+            this.explode();
+            this.destroy();
+        }
+    }
+    updateCombat(time) {
+        if (this.isRanged) {
+            this.findRangedTarget();
+            if (this.targetSoldier && this.targetSoldier.active && this.targetSoldier.isAlive) {
+                const dist = Phaser.Math.Distance.Between(this.x, this.y, this.targetSoldier.x, this.targetSoldier.y);
+                const stopDist = 64 * (this.scene.scaleFactor || 1); // ~1 case
+                if (dist <= this.attackRange) {
+                    if (dist <= stopDist) {
+                        // Pause pour tirer
+                        if (this.follower.tween && !this.follower.tween.isPaused()) this.follower.tween.pause();
+                        if (time - this.lastAttackTime >= this.attackSpeed) {
+                            this.attackSoldierRanged(this.targetSoldier);
+                            this.lastAttackTime = time;
+                        }
+                    } else // Avancer
+                    if (this.follower.tween && this.follower.tween.isPaused()) this.follower.tween.resume();
+                } else {
+                    // Trop loin
+                    if (this.follower.tween && this.follower.tween.isPaused()) this.follower.tween.resume();
+                    this.targetSoldier = null;
+                }
+            } else if (this.follower.tween && this.follower.tween.isPaused()) this.follower.tween.resume();
+        } else {
+            // Mêlée
+            if (this.isBlocked && this.blockedBy) {
+                if (time - this.lastAttackTime >= this.attackSpeed) {
+                    this.blockedBy.takeDamage(this.attackDamage);
+                    this.lastAttackTime = time;
+                }
+            }
+        }
+    }
+    findRangedTarget() {
+        if (!this.scene || !this.scene.soldiers) return;
+        const soldiers = this.scene.soldiers.getChildren();
+        let closest = null;
+        let minDist = this.attackRange;
+        for (const soldier of soldiers)if (soldier.active && soldier.isAlive) {
+            const dist = Phaser.Math.Distance.Between(this.x, this.y, soldier.x, soldier.y);
+            if (dist <= this.attackRange && dist < minDist) {
+                minDist = dist;
+                closest = soldier;
+            }
+        }
+        this.targetSoldier = closest;
+    }
+    attackSoldierRanged(soldier) {
+        if (!soldier || !soldier.active || !soldier.isAlive) return;
+        // Création projectile (Hache ou autre)
+        const startX = this.x;
+        const startY = this.y;
+        const endX = soldier.x;
+        const endY = soldier.y;
+        const projectile = this.scene.add.graphics();
+        projectile.fillStyle(0xffffff);
+        projectile.fillCircle(0, 0, 4);
+        projectile.setPosition(startX, startY);
+        projectile.setDepth(100);
+        this.scene.tweens.add({
+            targets: projectile,
+            x: endX,
+            y: endY,
+            duration: 400,
+            onComplete: ()=>{
+                if (soldier.active && soldier.isAlive) soldier.takeDamage(this.attackDamage);
+                projectile.destroy();
+            }
+        });
+    }
+    // =========================================================
+    //                  CAPACITÉS SPÉCIALES
+    // =========================================================
+    // --- TORTUE DRAGON ---
+    enterShell() {
+        if (this.isInShell) return;
+        this.isInShell = true;
+        this.isInvulnerable = true;
+        this.hasUsedShell = true;
+        if (this.follower.tween) this.follower.tween.pause();
+        // Sortir après X ms (défini dans settings ou par défaut 3000)
+        const duration = this.stats.shellDuration || 3000;
+        this.shellTimer = this.scene.time.delayedCall(duration, ()=>{
+            if (this.active) this.exitShell();
+        });
+    }
+    exitShell() {
+        if (!this.isInShell) return;
+        this.isInShell = false;
+        this.isInvulnerable = false;
+        if (this.follower.tween && !this.isBlocked) this.follower.tween.resume();
+    }
+    // --- SHAMAN ---
+    healNearbyEnemies() {
+        if (!this.scene.enemies) return;
+        // Conversion rayon cases -> pixels
+        const tileSize = 64 * (this.scene.scaleFactor || 1);
+        const radiusPixel = this.healRadius * tileSize; // Pour être sûr
+        // Visuel
+        const healEffect = this.scene.add.graphics();
+        healEffect.lineStyle(2, 0x00ff00, 0.5);
+        healEffect.strokeCircle(this.x, this.y, radiusPixel);
+        healEffect.setDepth(5);
+        this.scene.tweens.add({
+            targets: healEffect,
+            alpha: 0,
+            scale: 1.2,
+            duration: 500,
+            onComplete: ()=>healEffect.destroy()
+        });
+        // Logique
+        let hasHealed = false;
+        this.scene.enemies.children.each((enemy)=>{
+            if (enemy === this || !enemy.active || enemy.hp >= enemy.maxHp) return;
+            const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+            if (dist <= radiusPixel) {
+                enemy.hp = Math.min(enemy.hp + this.healAmount, enemy.maxHp);
+                enemy.updateHealthBar();
+                hasHealed = true;
+                // Texte flottant
+                const txt = this.scene.add.text(enemy.x, enemy.y - 40, `+${this.healAmount}`, {
+                    fontSize: '16px',
+                    fill: '#00ff00',
+                    fontStyle: 'bold'
+                }).setOrigin(0.5).setDepth(300);
+                this.scene.tweens.add({
+                    targets: txt,
+                    y: enemy.y - 60,
+                    alpha: 0,
+                    duration: 800,
+                    onComplete: ()=>txt.destroy()
+                });
+            }
+        });
+    }
+    // --- SORCIÈRE ---
+    spawnMinions() {
+        if (!this.stats.spawnType) return;
+        const spawnCount = this.stats.spawnCount || 3;
+        const type = this.stats.spawnType;
+        for(let i = 0; i < spawnCount; i++){
+            const minion = new Enemy(this.scene, this.path, type);
+            minion.follower.t = Math.max(0, this.follower.t - 0.05 - i * 0.02);
+            const p = this.path.getPoint(minion.follower.t);
+            minion.setPosition(p.x, p.y);
+            minion.spawn();
+            this.scene.enemies.add(minion);
+        }
+    }
+    // =========================================================
+    //                  UTILITAIRES & UI
+    // =========================================================
+    drawHealthBar(scene) {
+        const yOffset = -50;
+        const width = 40;
+        const height = 6;
+        // 1. On crée les rectangles
+        this.hpBg = scene.add.rectangle(0, yOffset, width + 2, height + 2, 0x000000);
+        this.hpBg.setStrokeStyle(1, 0xffffff);
+        this.hpRed = scene.add.rectangle(0, yOffset, width, height, 0x330000);
+        this.hpGreen = scene.add.rectangle(-width / 2, yOffset, width, height, 0x00ff00);
+        this.hpGreen.setOrigin(0, 0.5);
+        // 2. On les met dans un conteneur dédié à la barre de vie
+        this.hpBarContainer = scene.add.container(0, 0);
+        this.hpBarContainer.add([
+            this.hpBg,
+            this.hpRed,
+            this.hpGreen
+        ]);
+        // 3. On ajoute ce conteneur à l'ennemi (this)
+        this.add(this.hpBarContainer);
+        // 4. FIX : Si l'ennemi a un scale (ex: 1.3), on INVERSE le scale de la barre (ex: 0.76)
+        // Cela annule l'effet de grossissement, la barre garde sa taille d'origine.
+        if (this.stats.scale && this.stats.scale !== 1) this.hpBarContainer.setScale(1 / this.stats.scale);
+    }
+    updateHealthBar() {
+        const pct = Phaser.Math.Clamp(this.hp / this.maxHp, 0, 1);
+        let newWidth = 40 * pct;
+        if (this.hp > 0 && newWidth < 2) newWidth = 2;
+        this.hpGreen.width = newWidth;
+        if (pct < 0.25) this.hpGreen.fillColor = 0xff0000;
+        else if (pct < 0.5) this.hpGreen.fillColor = 0xffa500;
+        else this.hpGreen.fillColor = 0x00ff00;
+    }
     showHpTooltip() {
         if (!this.active) return;
         if (this.hpTooltip) this.hpTooltip.destroy();
         const fontSize = Math.max(12, 14 * (this.scene.scaleFactor || 1));
-        this.hpTooltip = this.scene.add.text(this.x, this.y - 60, `${Math.max(0, this.hp)} / ${this.maxHp} HP`, {
+        this.hpTooltip = this.scene.add.text(this.x, this.y - 60, `${Math.ceil(this.hp)} / ${this.maxHp} HP`, {
             fontSize: `${fontSize}px`,
             fill: "#ffffff",
-            fontStyle: "bold",
             backgroundColor: "#000000",
             padding: {
                 x: 8,
                 y: 4
             }
         }).setOrigin(0.5).setDepth(300);
-        // Mettre à jour la position et le texte du tooltip en continu
         if (this.tooltipUpdateTimer) this.tooltipUpdateTimer.remove();
         this.tooltipUpdateTimer = this.scene.time.addEvent({
             delay: 50,
             callback: ()=>{
                 if (this.hpTooltip && this.active) {
                     this.hpTooltip.setPosition(this.x, this.y - 60);
-                    this.hpTooltip.setText(`${Math.max(0, this.hp)} / ${this.maxHp} HP`);
+                    this.hpTooltip.setText(`${Math.ceil(this.hp)} / ${this.maxHp} HP`);
                 } else if (this.hpTooltip) this.hideHpTooltip();
             },
             loop: true
@@ -3919,240 +6270,34 @@ class Enemy extends Phaser.GameObjects.Container {
             this.tooltipUpdateTimer = null;
         }
     }
-    update(time, delta) {
-        if (this.active && this.stats && this.stats.onUpdateAnimation) this.stats.onUpdateAnimation(time, this);
-        // Gérer les attaques contre les soldats
-        if (this.active && !this.isBlocked) this.updateCombat(time);
-    }
-    // Mettre à jour le combat (attaques contre les soldats)
-    updateCombat(time) {
-        if (this.isRanged) {
-            // Attaquant à distance : chercher un soldat à portée
-            this.findRangedTarget();
-            if (this.targetSoldier && this.targetSoldier.active && this.targetSoldier.isAlive) {
-                const dist = Phaser.Math.Distance.Between(this.x, this.y, this.targetSoldier.x, this.targetSoldier.y);
-                // Une case = 64 pixels, on s'arrête à environ une case de distance
-                const CONFIG = {
-                    TILE_SIZE: 64
-                };
-                const stopDistance = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
-                if (dist <= this.attackRange) {
-                    // S'arrêter si on est assez proche pour attaquer
-                    if (dist <= stopDistance) {
-                        // S'arrêter et attaquer
-                        if (this.follower && this.follower.tween && !this.follower.tween.isPaused) this.follower.tween.pause();
-                        // Attaquer si le cooldown est écoulé
-                        if (time - this.lastAttackTime >= this.attackSpeed) {
-                            this.attackSoldierRanged(this.targetSoldier);
-                            this.lastAttackTime = time;
-                        }
-                    } else // On est dans la portée mais pas assez proche, continuer à avancer
-                    if (this.follower && this.follower.tween && this.follower.tween.isPaused) this.follower.tween.resume();
-                } else {
-                    // Trop loin pour attaquer, reprendre le mouvement
-                    if (this.follower && this.follower.tween && this.follower.tween.isPaused) this.follower.tween.resume();
-                    this.targetSoldier = null;
-                }
-            } else // Pas de cible, reprendre le mouvement
-            if (this.follower && this.follower.tween && this.follower.tween.isPaused) this.follower.tween.resume();
-        } else {
-            // Attaquant au corps à corps : attaquer le soldat qui le bloque
-            if (this.isBlocked && this.blockedBy) {
-                if (time - this.lastAttackTime >= this.attackSpeed) {
-                    this.blockedBy.takeDamage(this.attackDamage);
-                    this.lastAttackTime = time;
-                }
-            }
+    paralyze(duration) {
+        if (this.isParalyzed) {
+            if (this.paralysisTimer) this.paralysisTimer.remove();
         }
-    }
-    // Trouver une cible pour attaque à distance
-    findRangedTarget() {
-        if (!this.scene || !this.scene.soldiers) return;
-        const soldiers = this.scene.soldiers.getChildren();
-        let closestSoldier = null;
-        let minDist = this.attackRange;
-        for (const soldier of soldiers)if (soldier && soldier.active && soldier.isAlive) {
-            const dist = Phaser.Math.Distance.Between(this.x, this.y, soldier.x, soldier.y);
-            if (dist <= this.attackRange && dist < minDist) {
-                minDist = dist;
-                closestSoldier = soldier;
-            }
+        this.isParalyzed = true;
+        this.originalSpeed = this.speed;
+        this.speed = 0;
+        // Overlay visuel
+        if (!this.paralysisOverlay) {
+            this.paralysisOverlay = this.scene.add.graphics();
+            this.paralysisOverlay.fillStyle(0x4444ff, 0.3);
+            this.paralysisOverlay.fillCircle(0, 0, 25);
+            this.add(this.paralysisOverlay);
         }
-        this.targetSoldier = closestSoldier;
-    }
-    // Attaquer un soldat à distance (lancer de hache)
-    attackSoldierRanged(soldier) {
-        if (!soldier || !soldier.active || !soldier.isAlive) return;
-        // Animation de lancer
-        if (this.axe) this.scene.tweens.add({
-            targets: this.axe,
-            rotation: Math.PI * 2,
-            duration: 200,
-            onComplete: ()=>{
-                if (this.axe) this.axe.rotation = 0;
-            }
-        });
-        // Créer la hache volante
-        const CONFIG = {
-            TILE_SIZE: 64
-        };
-        const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
-        const startX = this.x;
-        const startY = this.y;
-        const endX = soldier.x;
-        const endY = soldier.y;
-        const axe = this.scene.add.graphics();
-        axe.fillStyle(0x888888);
-        axe.fillRect(-2, -4, 4, 8); // Manche
-        axe.fillStyle(0xcccccc);
-        axe.beginPath();
-        axe.moveTo(2, -4);
-        axe.lineTo(8, -8);
-        axe.lineTo(8, 0);
-        axe.closePath();
-        axe.fillPath();
-        axe.setPosition(startX, startY);
-        axe.setDepth(102);
-        // Rotation de la hache pendant le vol
-        this.scene.tweens.add({
-            targets: axe,
-            rotation: Math.PI * 4,
-            duration: 500
-        });
-        // Trajectoire de la hache
-        this.scene.tweens.add({
-            targets: axe,
-            x: endX,
-            y: endY,
-            duration: 500,
-            ease: "Power2",
-            onComplete: ()=>{
-                // Impact sur le soldat
-                if (soldier && soldier.active && soldier.isAlive) {
-                    soldier.takeDamage(this.attackDamage);
-                    // Particules d'impact
-                    for(let i = 0; i < 5; i++){
-                        const particle = this.scene.add.circle(endX + (Math.random() - 0.5) * 15, endY + (Math.random() - 0.5) * 15, 2, 0xff6600, 1);
-                        particle.setDepth(103);
-                        this.scene.tweens.add({
-                            targets: particle,
-                            alpha: 0,
-                            scale: 0,
-                            duration: 300,
-                            onComplete: ()=>particle.destroy()
-                        });
-                    }
-                }
-                axe.destroy();
-            }
+        if (this.follower.tween) this.follower.tween.pause();
+        this.paralysisTimer = this.scene.time.delayedCall(duration, ()=>{
+            if (this.active) this.removeParalysis();
         });
     }
-    drawHealthBar(scene) {
-        const yOffset = -50;
-        const width = 40;
-        const height = 6;
-        // Cadre noir + bordure blanche
-        this.hpBg = scene.add.rectangle(0, yOffset, width + 2, height + 2, 0x000000);
-        this.hpBg.setStrokeStyle(1, 0xffffff);
-        // Fond rouge sombre (vie manquante)
-        this.hpRed = scene.add.rectangle(0, yOffset, width, height, 0x330000);
-        // Barre verte (vie actuelle) - Ancrage à gauche (0, 0.5)
-        this.hpGreen = scene.add.rectangle(-width / 2, yOffset, width, height, 0x00ff00);
-        this.hpGreen.setOrigin(0, 0.5);
-        this.add([
-            this.hpBg,
-            this.hpRed,
-            this.hpGreen
-        ]);
-        this.hpBg.setDepth(100);
-        this.hpRed.setDepth(100);
-        this.hpGreen.setDepth(100);
-    }
-    spawn() {
-        // Sécurité si path est null
-        if (!this.path) return;
-        this.isBlocked = false;
-        this.blockedBy = null;
-        // Initialiser la direction (par défaut vers la droite)
-        this.facingRight = true;
-        if (this.bodyGroup) {
-            this.bodyGroup.setScale(1, 1);
-            this.bodyGroup.rotation = 0;
+    removeParalysis() {
+        if (!this.isParalyzed) return;
+        this.isParalyzed = false;
+        this.speed = this.originalSpeed;
+        if (this.paralysisOverlay) {
+            this.paralysisOverlay.destroy();
+            this.paralysisOverlay = null;
         }
-        const pathLength = this.path.getLength();
-        const duration = pathLength / this.speed * 1000;
-        const tween = this.scene.tweens.add({
-            targets: this.follower,
-            t: 1,
-            duration: duration,
-            onUpdate: ()=>{
-                // Ne pas bouger si bloqué
-                if (this.isBlocked) return;
-                const p = this.path.getPoint(this.follower.t, this.follower.vec);
-                this.setPosition(p.x, p.y);
-                // Déterminer la direction de mouvement pour le flip
-                const nextT = Math.min(this.follower.t + 0.01, 1);
-                const nextP = this.path.getPoint(nextT);
-                const dx = nextP.x - p.x;
-                const dy = nextP.y - p.y;
-                // Utiliser le flip horizontal au lieu de rotation
-                // On détermine la direction principale (horizontal ou vertical)
-                // Si le mouvement est principalement horizontal, on flip selon dx
-                // Si le mouvement est principalement vertical, on garde la dernière direction horizontale
-                const absDx = Math.abs(dx);
-                const absDy = Math.abs(dy);
-                // Si le mouvement horizontal est significatif, on change la direction
-                if (absDx > absDy * 0.3) {
-                    const shouldFaceRight = dx > 0;
-                    if (shouldFaceRight !== this.facingRight) {
-                        this.facingRight = shouldFaceRight;
-                        // Appliquer le flip sur le bodyGroup
-                        this.bodyGroup.setScale(this.facingRight ? 1 : -1, 1);
-                    }
-                }
-                // Garder l'ennemi toujours droit (pas de rotation)
-                // L'ennemi reste vertical, seule la direction horizontale change
-                this.bodyGroup.rotation = 0;
-            },
-            onComplete: ()=>{
-                if (this.active && !this.isBlocked) {
-                    this.scene.takeDamage();
-                    this.destroy();
-                }
-            }
-        });
-        // Stocker la référence au tween pour pouvoir le mettre en pause/reprendre
-        this.follower.tween = tween;
-    }
-    damage(amount) {
-        this.hp -= amount;
-        // Mettre à jour le tooltip si visible
-        if (this.hpTooltip) this.hpTooltip.setText(`${this.hp} / ${this.maxHp} HP`);
-        // Flash blanc
-        if (this.bodyGroup) this.scene.tweens.add({
-            targets: this.bodyGroup,
-            alpha: 0.5,
-            duration: 50,
-            yoyo: true
-        });
-        this.updateHealthBar();
-        if (this.hp <= 0) {
-            // Libérer le soldat qui bloque cet ennemi
-            if (this.isBlocked && this.blockedBy) this.blockedBy.releaseEnemy();
-            this.hideHpTooltip();
-            this.scene.earnMoney(this.stats.reward);
-            this.explode();
-            this.destroy();
-        }
-    }
-    updateHealthBar() {
-        const pct = Phaser.Math.Clamp(this.hp / this.maxHp, 0, 1);
-        let newWidth = 40 * pct;
-        if (this.hp > 0 && newWidth < 2) newWidth = 2;
-        this.hpGreen.width = newWidth;
-        if (pct < 0.25) this.hpGreen.fillColor = 0xff0000;
-        else if (pct < 0.5) this.hpGreen.fillColor = 0xffa500;
-        else this.hpGreen.fillColor = 0x00ff00;
+        if (this.follower.tween && !this.isBlocked && !this.isInShell) this.follower.tween.resume();
     }
     explode() {
         for(let i = 0; i < 6; i++){
@@ -4170,9 +6315,18 @@ class Enemy extends Phaser.GameObjects.Container {
             });
         }
     }
+    destroy(fromScene) {
+        if (this.paralysisTimer) this.paralysisTimer.remove();
+        if (this.spawnTimer) this.spawnTimer.remove();
+        if (this.shellTimer) this.shellTimer.remove();
+        if (this.tooltipUpdateTimer) this.tooltipUpdateTimer.remove();
+        if (this.hpTooltip) this.hpTooltip.destroy();
+        if (this.paralysisOverlay) this.paralysisOverlay.destroy();
+        super.destroy(fromScene);
+    }
 }
 
-},{"../config/settings.js":"9kTMs","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"lbJGU":[function(require,module,exports,__globalThis) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../config/settings.js":"9kTMs"}],"lbJGU":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Turret", ()=>Turret);
@@ -4181,12 +6335,14 @@ class Turret extends Phaser.GameObjects.Container {
     constructor(scene, x, y, config){
         super(scene, x, y);
         this.scene = scene;
-        // Clone de la config
+        // Clone de la config pour que chaque tourelle soit indépendante
         this.config = JSON.parse(JSON.stringify(typeof config === "string" ? (0, _indexJs.TURRETS)[config] : config));
         const originalConfig = typeof config === "string" ? (0, _indexJs.TURRETS)[config] : config;
+        // On récupère les fonctions de dessin et de tir depuis la config originale
         this.config.onDrawBarrel = originalConfig.onDrawBarrel;
         this.config.onFire = originalConfig.onFire;
         // Valeur par défaut si maxLevel n'est pas défini dans la config
+        // (Pour le cannon, c'est défini à 3 dans le fichier cannon.js)
         this.config.maxLevel = this.config.maxLevel || 3;
         this.level = 1;
         this.lastFired = 0;
@@ -4205,49 +6361,76 @@ class Turret extends Phaser.GameObjects.Container {
         this.add(this.rangeCircle);
         this.setSize(64, 64);
         this.setInteractive();
-        this.on("pointerover", ()=>this.rangeCircle.setVisible(true));
+        // --- GESTION DE LA PORTÉE VISUELLE ---
+        this.on("pointerover", ()=>{
+            this.rangeCircle.setVisible(true);
+            // Correction : On inverse l'échelle du parent pour garder un cercle rond
+            if (this.scaleX !== 0) this.rangeCircle.setScale(1 / this.scaleX);
+        });
         this.on("pointerout", ()=>this.rangeCircle.setVisible(false));
         scene.add.existing(this);
     }
     drawBase() {
         this.base.clear();
         const color = this.level > 1 ? 0x554422 : 0x333333;
+        // Socle principal
         this.base.fillStyle(color);
         this.base.fillCircle(0, 0, 24);
         this.base.lineStyle(2, 0x111111);
         this.base.strokeCircle(0, 0, 24);
+        // Indicateurs visuels de niveau sur le socle
         if (this.level >= 2) {
-            this.base.fillStyle(0xffff00);
+            this.base.fillStyle(0xffff00); // Jaune pour niv 2
             this.base.fillCircle(-10, -18, 3);
         }
-        if (this.level >= 3) this.base.fillCircle(10, -18, 3);
+        if (this.level >= 3) {
+            this.base.fillStyle(0x00ffff); // Cyan pour niv 3
+            this.base.fillCircle(10, -18, 3);
+        }
     }
     drawBarrel() {
         this.barrelGroup.removeAll(true);
         if (this.config.onDrawBarrel) this.config.onDrawBarrel(this.scene, this.barrelGroup, this.config.color, this);
     }
-    // --- LOGIQUE D'AMÉLIORATION CORRIGÉE ---
+    // ============================================================
+    // LOGIQUE D'AMÉLIORATION (MODIFIÉE POUR LE CANON NIV 3)
+    // ============================================================
     getNextLevelStats() {
-        // Si on a atteint le niveau max défini pour CETTE tourelle, pas d'upgrade
+        // Si on a atteint le niveau max, pas d'upgrade
         if (this.level >= this.config.maxLevel) return null;
-        // Utiliser les valeurs actuelles de la config (qui sont déjà mises à jour après upgrade)
+        // Utiliser les valeurs actuelles de la config
         let nextDmg = this.config.damage || 0;
         let nextRate = this.config.rate || 0;
         let nextRange = this.config.range || 0;
         let nextAoE = this.config.aoe || 0;
+        // Coût de base récupéré depuis la config globale
+        const baseCost = (0, _indexJs.TURRETS)[this.config.key]?.cost || 100;
         let cost = 0;
-        const baseCost = (0, _indexJs.TURRETS)[this.config.key]?.cost || 0;
-        if (this.level === 1) {
-            // Niv 1 -> 2
-            nextDmg = Math.round(nextDmg * 1.5);
-            nextRate = Math.round(nextRate / 1.2);
+        // --- LOGIQUE SPÉCIFIQUE : PASSAGE AU NIVEAU 3 POUR LE CANON ---
+        if (this.config.key === "cannon" && this.level === 2) {
+            // C'est ici qu'on applique les stats "Jugement dernier"
+            // 1. Dégâts x2.5
+            nextDmg = Math.round(nextDmg * 2.5);
+            // 2. Temps de rechargement fixée à 5 secondes (5000ms)
+            // Contrairement aux autres upgrades qui réduisent le temps, celui-ci l'augmente massivement
+            nextRate = 5000;
+            // 3. AoE x1.1
+            if (nextAoE > 0) nextAoE = Math.round(nextAoE * 1.1);
+            // Portée augmente un peu
             nextRange = Math.round(nextRange * 1.2);
-            if (nextAoE > 0) nextAoE = Math.round(nextAoE * 1.3);
+            // Coût très élevé pour cette arme ultime (x3 du coût précédent environ)
+            cost = Math.floor(baseCost * 10);
+        } else if (this.level === 1) {
+            // Niv 1 -> 2 (Standard)
+            nextDmg = Math.round(nextDmg * 1.5);
+            nextRate = Math.round(nextRate / 1.2); // Tir plus vite
+            nextRange = Math.round(nextRange * 1.2);
+            if (nextAoE > 0) nextAoE = Math.round(nextAoE * 1.1);
             cost = Math.floor(baseCost * 2.5);
         } else if (this.level === 2) {
-            // Niv 2 -> 3
+            // Niv 2 -> 3 (Standard pour les tourelles classiques)
             nextDmg = Math.round(nextDmg * 1.3);
-            nextRate = Math.round(nextRate / 1.5);
+            nextRate = Math.round(nextRate / 1.5); // Tir beaucoup plus vite
             nextRange = Math.round(nextRange * 1.1);
             if (nextAoE > 0) nextAoE = Math.round(nextAoE * 1.2);
             cost = Math.floor(baseCost * 5.5);
@@ -4264,40 +6447,66 @@ class Turret extends Phaser.GameObjects.Container {
         const nextStats = this.getNextLevelStats();
         if (!nextStats) return; // Sécurité
         this.level++;
+        // Application des nouvelles stats
         this.config.damage = nextStats.damage;
         this.config.rate = nextStats.rate;
         this.config.range = nextStats.range;
         if (nextStats.aoe) this.config.aoe = nextStats.aoe;
-        // Le coût pour le prochain niveau (informatif, sert à l'affichage si on reclique)
-        // Mais getNextLevelStats gère ça dynamiquement, donc pas besoin de stocker le "prochain coût" ici.
-        // Mise à jour visuelle
+        // Mise à jour visuelle du rayon
         this.rangeCircle.setRadius(this.config.range);
+        // On force la mise à jour de l'échelle du cercle après l'upgrade
+        if (this.scaleX !== 0) this.rangeCircle.setScale(1 / this.scaleX);
+        // Redessiner le socle (ajoute le point de couleur) et le canon (change le skin)
         this.drawBase();
         this.drawBarrel();
-        const txt = this.scene.add.text(this.x, this.y - 40, this.level >= this.config.maxLevel ? "MAX!" : "LEVEL UP!", {
+        // Texte flottant "LEVEL UP"
+        const txtContent = this.level >= this.config.maxLevel ? "MAX LEVEL!" : "LEVEL UP!";
+        const txtColor = this.level === 3 ? "#00ffff" : "#ffff00"; // Bleu pour le niv 3
+        const txt = this.scene.add.text(this.x, this.y - 40, txtContent, {
             fontSize: "20px",
+            fontFamily: "Arial",
             fontStyle: "bold",
-            color: "#ffff00",
-            stroke: "#000",
-            strokeThickness: 3
-        }).setOrigin(0.5).setDepth(200);
+            color: txtColor,
+            stroke: "#000000",
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(300);
         this.scene.tweens.add({
             targets: txt,
             y: this.y - 80,
             alpha: 0,
-            duration: 1000,
+            duration: 1200,
             onComplete: ()=>txt.destroy()
         });
     }
+    // Calculer le coût total déboursé (base + améliorations)
+    getTotalCost() {
+        const baseCost = (0, _indexJs.TURRETS)[this.config.key]?.cost || 100;
+        let totalCost = baseCost;
+        // Calculer les coûts des améliorations
+        if (this.level >= 2) // Coût upgrade niveau 1 -> 2
+        totalCost += Math.floor(baseCost * 2.5);
+        if (this.level >= 3) {
+            // Coût upgrade niveau 2 -> 3
+            if (this.config.key === "cannon") totalCost += Math.floor(baseCost * 10);
+            else totalCost += Math.floor(baseCost * 5.5);
+        }
+        return totalCost;
+    }
     update(time, enemies) {
+        // Si la tourelle a une 'rate' définie, on l'utilise, sinon valeur par défaut
         const rate = this.config.rate || 1000;
         if (time > this.lastFired) {
             const target = this.findTarget(enemies);
             if (target) {
+                // Calcul de l'angle vers la cible
                 const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
-                this.barrelGroup.rotation = Phaser.Math.Angle.RotateTo(this.barrelGroup.rotation, angle, 0.2);
+                // Rotation fluide du canon
+                this.barrelGroup.rotation = Phaser.Math.Angle.RotateTo(this.barrelGroup.rotation, angle, 0.15 // Vitesse de rotation (un peu plus lent pour faire lourd)
+                );
+                // Si le canon est aligné (à +/- 0.5 radian près), on tire
                 if (Math.abs(Phaser.Math.Angle.ShortestBetween(this.barrelGroup.rotation, angle)) < 0.5) {
                     this.fire(target);
+                    // Mise à jour du prochain tir basé sur le 'rate' actuel
                     this.lastFired = time + rate;
                 }
             }
@@ -4306,6 +6515,7 @@ class Turret extends Phaser.GameObjects.Container {
     findTarget(enemies) {
         let nearest = null;
         let minDist = this.config.range;
+        // Note: Distance.Between est en pixels Monde, indépendant du scale du container
         enemies.children.each((e)=>{
             if (e.active) {
                 const d = Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y);
@@ -4318,6 +6528,7 @@ class Turret extends Phaser.GameObjects.Container {
         return nearest;
     }
     fire(target) {
+        // Animation de recul du canon
         this.scene.tweens.add({
             targets: this.barrelGroup,
             x: -6 * Math.cos(this.barrelGroup.rotation),
@@ -4326,6 +6537,7 @@ class Turret extends Phaser.GameObjects.Container {
             yoyo: true,
             ease: "Quad.easeOut"
         });
+        // Appel de la fonction de tir spécifique définie dans cannon.js (ou autre config)
         if (this.config.onFire) this.config.onFire(this.scene, this, target);
     }
 }
@@ -4397,6 +6609,15 @@ class Barracks extends Phaser.GameObjects.Container {
         return {
             cost: cost
         };
+    }
+    // Calculer le coût total déboursé (base + améliorations)
+    getTotalCost() {
+        const baseCost = (0, _indexJs.TURRETS)[this.config.key].cost;
+        let totalCost = baseCost;
+        // Calculer les coûts des améliorations
+        if (this.level >= 2) totalCost += Math.floor(baseCost * 2.5);
+        if (this.level >= 3) totalCost += Math.floor(baseCost * 5.5);
+        return totalCost;
     }
     upgrade() {
         const nextStats = this.getNextLevelStats();
@@ -4566,6 +6787,8 @@ class Barracks extends Phaser.GameObjects.Container {
             soldier.maxHp = this.config.soldierHp[this.level - 1];
             soldier.hp = soldier.maxHp;
             soldier.updateHealthBar();
+            // S'assurer que le soldat est bien positionné sur le chemin
+            soldier.deployToPath(this.scene.paths);
             // Animation d'apparition
             soldier.setScale(0);
             this.scene.tweens.add({
@@ -4907,60 +7130,39 @@ class Soldier extends Phaser.GameObjects.Container {
         }
         return null;
     }
-    // Placer le soldat sur le chemin
+    // Placer le soldat sur le chemin (version simplifiée)
     deployToPath(paths) {
         if (!this.scene) return;
-        const position = this.findPathPosition(paths);
-        if (position && this.isPositionOnPath(position.x, position.y)) {
-            this.setPosition(position.x, position.y);
-            // Animation d'apparition
-            this.setScale(0);
-            if (this.scene.tweens) this.scene.tweens.add({
-                targets: this,
-                scale: this.scene.scaleFactor || 1,
-                duration: 300,
-                ease: "Back.easeOut"
-            });
-        } else {
-            // Si on ne trouve pas de position valide, essayer de trouver un point sur le chemin le plus proche
-            // en cherchant directement dans la map
-            const CONFIG = {
-                TILE_SIZE: 64
-            };
-            const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
-            // Utiliser mapStartX et mapStartY au lieu de MAP_OFFSET
-            const mapStartX = this.scene.mapStartX || 0;
-            const mapStartY = this.scene.mapStartY || 120 * (this.scene.scaleFactor || 1);
-            const map = this.scene.levelConfig.map;
-            // Chercher la tile de chemin la plus proche
-            let closestTile = null;
-            let minTileDist = Infinity;
-            for(let y = 0; y < map.length; y++)for(let x = 0; x < map[y].length; x++){
-                const tileType = map[y][x];
-                if (tileType === 1 || tileType === 4) {
-                    const tileX = mapStartX + x * T + T / 2;
-                    const tileY = mapStartY + y * T + T / 2;
-                    const dist = Phaser.Math.Distance.Between(this.x, this.y, tileX, tileY);
-                    if (dist < minTileDist) {
-                        minTileDist = dist;
-                        closestTile = {
-                            x: tileX,
-                            y: tileY
-                        };
-                    }
+        // Si le soldat est déjà sur un chemin valide, ne rien faire
+        if (this.isPositionOnPath(this.x, this.y)) return;
+        // Chercher la position la plus proche sur un chemin
+        const CONFIG = {
+            TILE_SIZE: 64
+        };
+        const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
+        const mapStartX = this.scene.mapStartX || 0;
+        const mapStartY = this.scene.mapStartY || 120 * (this.scene.scaleFactor || 1);
+        const map = this.scene.levelConfig.map;
+        // Chercher la tile de chemin la plus proche
+        let closestTile = null;
+        let minTileDist = Infinity;
+        for(let y = 0; y < map.length; y++)for(let x = 0; x < map[y].length; x++){
+            const tileType = map[y][x];
+            if (tileType === 1 || tileType === 4) {
+                const tileX = mapStartX + x * T + T / 2;
+                const tileY = mapStartY + y * T + T / 2;
+                const dist = Phaser.Math.Distance.Between(this.x, this.y, tileX, tileY);
+                if (dist < minTileDist) {
+                    minTileDist = dist;
+                    closestTile = {
+                        x: tileX,
+                        y: tileY
+                    };
                 }
             }
-            if (closestTile && this.scene && this.scene.tweens) {
-                this.setPosition(closestTile.x, closestTile.y);
-                this.setScale(0);
-                this.scene.tweens.add({
-                    targets: this,
-                    scale: this.scene.scaleFactor || 1,
-                    duration: 300,
-                    ease: "Back.easeOut"
-                });
-            }
         }
+        // Positionner le soldat sur la tile la plus proche trouvée
+        if (closestTile) this.setPosition(closestTile.x, closestTile.y);
     }
     // Bloquer un ennemi
     blockEnemy(enemy) {
@@ -5174,8 +7376,8 @@ class Soldier extends Phaser.GameObjects.Container {
         this.setScale(this.scene.scaleFactor || 1);
         this.setRotation(0);
         this.updateHealthBar();
-        // Redéployer sur le chemin
-        if (this.scene.paths) this.deployToPath(this.scene.paths);
+        // Redéployer sur le chemin (version simplifiée)
+        this.deployToPath(this.scene.paths);
         // Animation de réapparition
         if (this.scene && this.scene.tweens) {
             this.setScale(0);
@@ -5212,6 +7414,9 @@ class MapManager {
     constructor(scene){
         this.scene = scene;
         this.treePositions = new Set();
+        this.treeContainers = new Map(); // Stocker les containers d'arbres par position
+        this.mountainPositions = new Set(); // Stocker les positions des montagnes
+        this.mountainContainers = new Map(); // Stocker les containers de montagnes par position
     }
     createMap() {
         // Vérifier que levelConfig existe et a une map
@@ -5231,6 +7436,7 @@ class MapManager {
             if (type === 2) key = "tile_base";
             if (type === 3) key = "tile_water";
             if (type === 4) key = "tile_bridge";
+            if (type === 5) key = "tile_mountain"; // Nouveau type : montagne
             if (type === 9) key = "tile_grass_2";
             // Vérifier que la texture existe avant de l'utiliser
             if (!this.scene.textures.exists(key)) {
@@ -5250,7 +7456,130 @@ class MapManager {
                 }
             }
         }
+        // Détecter et créer les grandes montagnes (groupes 3x3)
+        this.detectAndCreateLargeMountains();
         this.createPaths();
+    }
+    // Détecter les groupes 3x3 de montagnes et créer une grande montagne
+    detectAndCreateLargeMountains() {
+        const mapData = this.scene.levelConfig.map;
+        const T = (0, _settingsJs.CONFIG).TILE_SIZE * this.scene.scaleFactor;
+        const processedTiles = new Set(); // Pour éviter de traiter plusieurs fois les mêmes tiles
+        // Parcourir toutes les tiles
+        for(let y = 0; y < mapData.length - 2; y++){
+            for(let x = 0; x < mapData[y].length - 2; x++)// Vérifier si c'est le coin supérieur gauche d'un groupe 3x3 de montagnes
+            if (this.is3x3MountainGroup(mapData, x, y, processedTiles)) {
+                // Créer une grande montagne qui couvre les 3x3 tiles
+                const centerX = x + 1;
+                const centerY = y + 1;
+                const px = this.scene.mapStartX + centerX * T + T / 2;
+                const py = this.scene.mapStartY + centerY * T + T / 2;
+                this.addLargeMountain(px, py, centerX, centerY);
+                // Marquer toutes les tiles du groupe 3x3 comme traitées
+                for(let dy = 0; dy < 3; dy++)for(let dx = 0; dx < 3; dx++){
+                    processedTiles.add(`${x + dx},${y + dy}`);
+                    this.mountainPositions.add(`${x + dx},${y + dy}`);
+                }
+            }
+        }
+    }
+    // Vérifier si un groupe 3x3 est composé uniquement de montagnes (type 5)
+    is3x3MountainGroup(mapData, startX, startY, processedTiles) {
+        // Vérifier que toutes les 9 tiles sont de type 5 (montagne) et non déjà traitées
+        for(let dy = 0; dy < 3; dy++)for(let dx = 0; dx < 3; dx++){
+            const x = startX + dx;
+            const y = startY + dy;
+            const key = `${x},${y}`;
+            // Vérifier les limites
+            if (y < 0 || y >= mapData.length || x < 0 || x >= mapData[y].length) return false;
+            // Vérifier que ce n'est pas déjà traité
+            if (processedTiles.has(key)) return false;
+            // Vérifier que c'est bien une montagne (type 5)
+            if (mapData[y][x] !== 5) return false;
+        }
+        return true;
+    }
+    // Créer une grande montagne visuelle (3x3 tiles)
+    addLargeMountain(px, py, tileX, tileY) {
+        const T = (0, _settingsJs.CONFIG).TILE_SIZE * this.scene.scaleFactor;
+        const scale = this.scene.scaleFactor;
+        const mountain = this.scene.add.container(px, py);
+        mountain.setDepth(1); // Au-dessus des tiles mais sous les arbres
+        const g = this.scene.add.graphics();
+        const size = T * 1.5; // Taille de la grande montagne (couvre 3x3)
+        // Base de la montagne (forme triangulaire arrondie plus grande)
+        g.fillStyle(0x6b5b4f); // Marron/gris pour la roche
+        g.beginPath();
+        g.moveTo(-size * 0.5, size * 0.3);
+        g.lineTo(-size * 0.3, -size * 0.1);
+        g.lineTo(0, -size * 0.4);
+        g.lineTo(size * 0.3, -size * 0.1);
+        g.lineTo(size * 0.5, size * 0.3);
+        g.lineTo(size * 0.4, size * 0.4);
+        g.lineTo(-size * 0.4, size * 0.4);
+        g.closePath();
+        g.fillPath();
+        // Ombre pour la profondeur
+        g.fillStyle(0x4a3d32, 0.6);
+        g.beginPath();
+        g.moveTo(-size * 0.4, size * 0.35);
+        g.lineTo(-size * 0.2, size * 0.15);
+        g.lineTo(0, -size * 0.3);
+        g.lineTo(size * 0.2, size * 0.15);
+        g.lineTo(size * 0.4, size * 0.35);
+        g.lineTo(size * 0.3, size * 0.4);
+        g.lineTo(-size * 0.3, size * 0.4);
+        g.closePath();
+        g.fillPath();
+        // Détails de roche (texture) - plus nombreux pour une grande montagne
+        g.fillStyle(0x5a4b3f, 0.8);
+        for(let i = 0; i < 20; i++){
+            const angle = i / 20 * Math.PI * 2;
+            const dist = (Math.random() * 0.4 + 0.1) * size;
+            const x = Math.cos(angle) * dist;
+            const y = Math.sin(angle) * dist * 0.5;
+            g.fillCircle(x, y, 4 * scale);
+        }
+        // Plusieurs sommets pour une montagne plus imposante
+        g.fillStyle(0x8b7d6f);
+        // Sommet principal
+        g.beginPath();
+        g.moveTo(-size * 0.15, -size * 0.35);
+        g.lineTo(0, -size * 0.5);
+        g.lineTo(size * 0.15, -size * 0.35);
+        g.lineTo(0, -size * 0.25);
+        g.closePath();
+        g.fillPath();
+        // Sommets secondaires
+        g.fillStyle(0x7b6d5f);
+        g.beginPath();
+        g.moveTo(-size * 0.35, -size * 0.2);
+        g.lineTo(-size * 0.25, -size * 0.3);
+        g.lineTo(-size * 0.15, -size * 0.25);
+        g.lineTo(-size * 0.2, -size * 0.15);
+        g.closePath();
+        g.fillPath();
+        g.beginPath();
+        g.moveTo(size * 0.35, -size * 0.2);
+        g.lineTo(size * 0.25, -size * 0.3);
+        g.lineTo(size * 0.15, -size * 0.25);
+        g.lineTo(size * 0.2, -size * 0.15);
+        g.closePath();
+        g.fillPath();
+        // Grands rochers autour de la base
+        g.fillStyle(0x5a4b3f);
+        g.fillCircle(-size * 0.4, size * 0.25, 6 * scale);
+        g.fillCircle(size * 0.4, size * 0.25, 6 * scale);
+        g.fillCircle(-size * 0.25, size * 0.3, 5 * scale);
+        g.fillCircle(size * 0.25, size * 0.3, 5 * scale);
+        g.fillCircle(0, size * 0.35, 4 * scale);
+        // Bordure pour plus de définition
+        g.lineStyle(3 * scale, 0x4a3d32, 0.5);
+        g.strokePath();
+        mountain.add(g);
+        // Stocker le container pour référence
+        const key = `${tileX},${tileY}`;
+        this.mountainContainers.set(key, mountain);
     }
     createPaths() {
         const T = (0, _settingsJs.CONFIG).TILE_SIZE * this.scene.scaleFactor;
@@ -5310,6 +7639,20 @@ class MapManager {
             g.fillCircle(0, -15 * scale, 8 * scale);
         }
         tree.add(g);
+        // Stocker le container pour pouvoir le supprimer plus tard
+        const key = `${tileX},${tileY}`;
+        this.treeContainers.set(key, tree);
+    }
+    removeTree(tileX, tileY) {
+        const key = `${tileX},${tileY}`;
+        const tree = this.treeContainers.get(key);
+        if (tree) {
+            tree.destroy();
+            this.treeContainers.delete(key);
+            this.treePositions.delete(key);
+            return true;
+        }
+        return false;
     }
     isAdjacentToPath(tx, ty) {
         const map = this.scene.levelConfig.map;
@@ -5358,6 +7701,21 @@ class WaveManager {
     startWave() {
         if (this.scene.isWaveRunning) return;
         if (this.scene.currentWaveIndex >= this.scene.levelConfig.waves.length) return;
+        // Ne pas démarrer une vague si le jeu est en pause
+        if (this.scene.isPaused) return;
+        // Annuler le timer automatique si présent
+        if (this.scene.nextWaveAutoTimer) {
+            this.scene.nextWaveAutoTimer.remove();
+            this.scene.nextWaveAutoTimer = null;
+            this.scene.nextWaveCountdown = 0;
+        }
+        // Nettoyer les anciens timers de spawn
+        if (this.scene.waveSpawnTimers) {
+            this.scene.waveSpawnTimers.forEach((timer)=>{
+                if (timer && timer.remove) timer.remove();
+            });
+            this.scene.waveSpawnTimers = [];
+        }
         this.scene.isWaveRunning = true;
         this.scene.waveBtnText.setText("\u26A0\uFE0F EN COURS");
         this.scene.waveBtnBg.setStrokeStyle(3, 0xffaa00);
@@ -5366,10 +7724,12 @@ class WaveManager {
         let spawnedTotal = 0;
         waveGroups.forEach((g)=>totalEnemiesInWave += g.count);
         waveGroups.forEach((group)=>{
-            this.scene.time.addEvent({
+            const spawnTimer = this.scene.time.addEvent({
                 delay: group.interval,
                 repeat: group.count - 1,
                 callback: ()=>{
+                    // Ne pas spawner si le jeu est en pause
+                    if (this.scene.isPaused) return;
                     const randomPath = Phaser.Utils.Array.GetRandom(this.scene.paths);
                     const enemy = new (0, _enemyJs.Enemy)(this.scene, randomPath, group.type);
                     enemy.setDepth(10);
@@ -5380,6 +7740,8 @@ class WaveManager {
                     if (spawnedTotal >= totalEnemiesInWave) this.monitorWaveEnd();
                 }
             });
+            // Stocker le timer pour pouvoir le mettre en pause
+            this.scene.waveSpawnTimers.push(spawnTimer);
         });
     }
     monitorWaveEnd() {
@@ -5387,6 +7749,8 @@ class WaveManager {
             delay: 500,
             loop: true,
             callback: ()=>{
+                // Ne pas vérifier si le jeu est en pause
+                if (this.scene.isPaused) return;
                 if (this.scene.enemies.getLength() === 0) this.finishWave();
             }
         });
@@ -5396,9 +7760,49 @@ class WaveManager {
         this.scene.isWaveRunning = false;
         this.scene.currentWaveIndex++;
         this.scene.earnMoney(50 + this.scene.currentWaveIndex * 20);
+        // Mettre à jour l'affichage de la vague
+        this.scene.updateUI();
         if (this.scene.currentWaveIndex >= this.scene.levelConfig.waves.length) this.levelComplete();
-        else {
-            this.scene.waveBtnText.setText(`\u{25B6} VAGUE ${this.scene.currentWaveIndex + 1}`);
+        else // Démarrer le timer automatique de 30 secondes
+        this.startNextWaveCountdown();
+    }
+    startNextWaveCountdown() {
+        // Annuler un timer existant si présent
+        if (this.scene.nextWaveAutoTimer) this.scene.nextWaveAutoTimer.remove();
+        this.scene.nextWaveCountdown = 30; // 30 secondes
+        this.updateWaveButtonText();
+        // Mettre à jour le bouton toutes les secondes
+        this.scene.nextWaveAutoTimer = this.scene.time.addEvent({
+            delay: 1000,
+            repeat: 30,
+            callback: ()=>{
+                // Ne pas décrémenter si le jeu est en pause
+                if (this.scene.isPaused) return;
+                this.scene.nextWaveCountdown--;
+                this.updateWaveButtonText();
+                // Si le compte à rebours arrive à 0, lancer automatiquement
+                if (this.scene.nextWaveCountdown <= 0) {
+                    if (this.scene.nextWaveAutoTimer) {
+                        this.scene.nextWaveAutoTimer.remove();
+                        this.scene.nextWaveAutoTimer = null;
+                    }
+                    this.scene.nextWaveCountdown = 0;
+                    // Lancer la vague directement (pas via waveManager.startWave() pour éviter la récursion)
+                    this.startWave();
+                }
+            }
+        });
+    }
+    updateWaveButtonText() {
+        if (!this.scene.waveBtnText) return;
+        const nextWaveNum = this.scene.currentWaveIndex + 1;
+        if (this.scene.nextWaveCountdown > 0) {
+            // Afficher le compte à rebours
+            this.scene.waveBtnText.setText(`\u{25B6} VAGUE ${nextWaveNum} (${this.scene.nextWaveCountdown}s)`);
+            this.scene.waveBtnBg.setStrokeStyle(3, 0x00ff00);
+        } else {
+            // État normal
+            this.scene.waveBtnText.setText(`\u{25B6} LANCER VAGUE ${nextWaveNum}`);
             this.scene.waveBtnBg.setStrokeStyle(3, 0x00ff00);
         }
     }
@@ -5430,198 +7834,404 @@ var _barracksJs = require("../../objects/Barracks.js");
 class UIManager {
     constructor(scene){
         this.scene = scene;
+        this.currentTooltip = null; // Tooltip actuellement affiché
+        // Text lines (upgrade menu)
         this.scene.upgradeTextLines = [];
+        // Build buttons cache (for easy refresh affordability)
+        this.buildButtons = [];
     }
+    // ------------------------------------------------------------
+    // UI ROOT
+    // ------------------------------------------------------------
     createUI() {
-        const UI_HEIGHT = (0, _settingsJs.CONFIG).UI_HEIGHT * this.scene.scaleFactor;
-        const fontSize = Math.max(16, 24 * this.scene.scaleFactor);
-        const smallFontSize = Math.max(12, 18 * this.scene.scaleFactor);
+        const s = this.scene.scaleFactor;
+        const UI_HEIGHT = (0, _settingsJs.CONFIG).UI_HEIGHT * s;
+        const fontSize = Math.max(16, 24 * s);
+        const smallFontSize = Math.max(12, 18 * s);
+        // Top bar
         const topBar = this.scene.add.container(0, 0).setDepth(100);
         const bgBar = this.scene.add.graphics();
         bgBar.fillStyle(0x111111, 1);
         bgBar.fillRect(0, 0, this.scene.gameWidth, UI_HEIGHT);
         bgBar.fillStyle(0x00ccff, 0.5);
-        bgBar.fillRect(0, UI_HEIGHT - 2 * this.scene.scaleFactor, this.scene.gameWidth, 2 * this.scene.scaleFactor);
+        bgBar.fillRect(0, UI_HEIGHT - 2 * s, this.scene.gameWidth, 2 * s);
         topBar.add(bgBar);
-        this.scene.txtMoney = this.scene.add.text(20 * this.scene.scaleFactor, UI_HEIGHT / 2, "", {
+        this.scene.txtMoney = this.scene.add.text(20 * s, UI_HEIGHT / 2, "", {
             fontSize: `${fontSize}px`,
             fill: "#ffd700",
             fontStyle: "bold",
             fontFamily: "Arial"
         }).setOrigin(0, 0.5);
         topBar.add(this.scene.txtMoney);
-        this.scene.txtLives = this.scene.add.text(250 * this.scene.scaleFactor, UI_HEIGHT / 2, "", {
+        this.scene.txtLives = this.scene.add.text(250 * s, UI_HEIGHT / 2, "", {
             fontSize: `${fontSize}px`,
             fill: "#ff4444",
             fontStyle: "bold",
             fontFamily: "Arial"
         }).setOrigin(0, 0.5);
         topBar.add(this.scene.txtLives);
-        const quitBtn = this.scene.add.text(this.scene.gameWidth - 20 * this.scene.scaleFactor, UI_HEIGHT / 2, "QUITTER", {
+        // Affichage de la vague actuelle
+        this.scene.txtWave = this.scene.add.text(350 * s, UI_HEIGHT / 2, "", {
+            fontSize: `${fontSize}px`,
+            fill: "#00ccff",
+            fontStyle: "bold",
+            fontFamily: "Arial"
+        }).setOrigin(0, 0.5);
+        topBar.add(this.scene.txtWave);
+        // Bouton Pause/Reprendre (plus à droite pour ne pas écraser la vague)
+        this.scene.pauseBtn = this.scene.add.text(600 * s, UI_HEIGHT / 2, "\u23F8\uFE0F PAUSE", {
+            fontSize: `${smallFontSize}px`,
+            fill: "#ffaa00",
+            backgroundColor: "#333333",
+            padding: {
+                x: 10 * s,
+                y: 5 * s
+            },
+            fontFamily: "Arial"
+        }).setOrigin(0, 0.5).setInteractive({
+            useHandCursor: true
+        }).on("pointerover", ()=>{
+            if (!this.scene.isPaused) this.scene.pauseBtn.setColor("#ffcc00");
+        }).on("pointerout", ()=>{
+            if (!this.scene.isPaused) this.scene.pauseBtn.setColor("#ffaa00");
+        }).on("pointerdown", ()=>{
+            // Le bouton pause dans la toolbar met toujours en pause
+            if (!this.scene.isPaused) this.scene.pauseGame();
+        // Pour reprendre, on utilise le bouton au centre de l'écran
+        });
+        topBar.add(this.scene.pauseBtn);
+        const quitBtn = this.scene.add.text(this.scene.gameWidth - 20 * s, UI_HEIGHT / 2, "QUITTER", {
             fontSize: `${smallFontSize}px`,
             fill: "#aaaaaa",
             backgroundColor: "#333333",
             padding: {
-                x: 10 * this.scene.scaleFactor,
-                y: 5 * this.scene.scaleFactor
-            }
+                x: 10 * s,
+                y: 5 * s
+            },
+            fontFamily: "Arial"
         }).setOrigin(1, 0.5).setInteractive({
             useHandCursor: true
         }).on("pointerover", ()=>quitBtn.setColor("#ffffff")).on("pointerout", ()=>quitBtn.setColor("#aaaaaa")).on("pointerdown", ()=>this.scene.scene.start("MainMenuScene"));
         topBar.add(quitBtn);
         this.scene.updateUI();
-        const btnWidth = 300 * this.scene.scaleFactor;
-        const btnHeight = 60 * this.scene.scaleFactor;
-        const wx = this.scene.gameWidth - 180 * this.scene.scaleFactor;
-        const wy = this.scene.mapStartY + 15 * (0, _settingsJs.CONFIG).TILE_SIZE * this.scene.scaleFactor - btnHeight - 10 * this.scene.scaleFactor;
-        this.scene.waveBtnContainer = this.scene.add.container(wx, wy).setDepth(100);
-        this.scene.waveBtnBg = this.scene.add.rectangle(0, 0, btnWidth, btnHeight, 0x000000, 0.8).setStrokeStyle(3 * this.scene.scaleFactor, 0x00ff00);
+        // Wave button - Positionné à droite, au même niveau que la toolbar
+        const btnWidth = 300 * s;
+        const btnHeight = 60 * s;
+        const toolbarHeight = 120 * s;
+        const margin = 20 * s;
+        // Calculer la position pour être aligné avec les autres sections
+        const itemSize = 80 * s;
+        const itemSpacing = 90 * s;
+        const spellSectionWidth = itemSize + margin * 2;
+        const turretsSectionWidth = 5 * itemSpacing;
+        const totalWidth = spellSectionWidth + turretsSectionWidth + btnWidth + margin * 4;
+        const startX = (this.scene.gameWidth - totalWidth) / 2;
+        // Positionner à droite, aligné avec les autres sections
+        const waveSectionX = startX + spellSectionWidth + turretsSectionWidth + margin * 3;
+        const wy = this.scene.toolbarOffsetY + toolbarHeight / 2; // Centré verticalement dans la toolbar
+        // Section du bouton de vague avec fond
+        this.scene.waveSection = this.scene.add.container(waveSectionX, this.scene.toolbarOffsetY).setDepth(150);
+        const waveSectionBg = this.scene.add.graphics();
+        waveSectionBg.fillStyle(0x000000, 0.9);
+        waveSectionBg.fillRoundedRect(0, 0, btnWidth + margin * 2, toolbarHeight, 10);
+        waveSectionBg.lineStyle(3, 0xffffff, 0.6);
+        waveSectionBg.strokeRoundedRect(0, 0, btnWidth + margin * 2, toolbarHeight, 10);
+        this.scene.waveSection.add(waveSectionBg);
+        this.scene.waveBtnContainer = this.scene.add.container(margin + btnWidth / 2, toolbarHeight / 2).setDepth(151);
+        this.scene.waveBtnBg = this.scene.add.rectangle(0, 0, btnWidth, btnHeight, 0x000000, 0.8).setStrokeStyle(3 * s, 0x00ff00);
         this.scene.waveBtnText = this.scene.add.text(0, 0, "\u25B6 LANCER VAGUE 1", {
-            fontSize: `${Math.max(16, 22 * this.scene.scaleFactor)}px`,
+            fontSize: `${Math.max(16, 22 * s)}px`,
             fill: "#ffffff",
-            fontStyle: "bold"
+            fontStyle: "bold",
+            fontFamily: "Arial"
         }).setOrigin(0.5);
         this.scene.waveBtnContainer.add([
             this.scene.waveBtnBg,
             this.scene.waveBtnText
         ]);
+        this.scene.waveSection.add(this.scene.waveBtnContainer);
+        // Interactivité simple sur le bouton
         this.scene.waveBtnBg.setInteractive({
             useHandCursor: true
         }).on("pointerdown", ()=>this.scene.startWave());
+        // Menus
         this.createBuildMenu();
         this.createUpgradeMenu();
+    // Le menu de confirmation d'arbre sera créé à la demande
     }
+    // ------------------------------------------------------------
+    // BUILD MENU (Right click)
+    // - Simple grid layout with octagonal turret icons
+    // - Names below in small text
+    // ------------------------------------------------------------
     createBuildMenu() {
+        const s = this.scene.scaleFactor;
+        this.buildButtons = [];
         this.scene.buildMenu = this.scene.add.container(0, 0).setVisible(false).setDepth(240);
-        const menuWidth = 320 * this.scene.scaleFactor;
-        const menuHeight = 220 * this.scene.scaleFactor;
-        const mBgGraphics = this.scene.add.graphics();
-        mBgGraphics.fillStyle(0x000000, 0.5);
-        mBgGraphics.fillRoundedRect(4 * this.scene.scaleFactor, 4 * this.scene.scaleFactor, menuWidth, menuHeight, 15);
-        mBgGraphics.fillStyle(0x0f0f1a, 0.98);
-        mBgGraphics.fillRoundedRect(0, 0, menuWidth, menuHeight, 15);
-        mBgGraphics.lineStyle(4, 0x00ccff, 1);
-        mBgGraphics.strokeRoundedRect(0, 0, menuWidth, menuHeight, 15);
-        mBgGraphics.lineStyle(2, 0x0066aa, 0.6);
-        mBgGraphics.strokeRoundedRect(2 * this.scene.scaleFactor, 2 * this.scene.scaleFactor, menuWidth - 4 * this.scene.scaleFactor, menuHeight - 4 * this.scene.scaleFactor, 13);
-        mBgGraphics.lineStyle(2, 0x00ccff, 0.8);
-        mBgGraphics.beginPath();
-        mBgGraphics.moveTo(15 * this.scene.scaleFactor, 42 * this.scene.scaleFactor);
-        mBgGraphics.lineTo(menuWidth - 15 * this.scene.scaleFactor, 42 * this.scene.scaleFactor);
-        mBgGraphics.strokePath();
-        const buildTitle = this.scene.add.text(menuWidth / 2, 25 * this.scene.scaleFactor, "CONSTRUIRE", {
-            fontSize: `${Math.max(18, 22 * this.scene.scaleFactor)}px`,
+        const menuWidth = 300 * s;
+        const menuHeight = 250 * s;
+        const pad = 20 * s;
+        const { bg, headerLine } = this.createPanelBackground(menuWidth, menuHeight, {
+            fill: 0x0f0f1a,
+            fillAlpha: 0.98,
+            shadowAlpha: 0.5,
+            stroke: 0x00ccff,
+            strokeAlpha: 1,
+            innerStroke: 0x0066aa,
+            innerAlpha: 0.6,
+            radius: 16,
+            headerY: 40 * s
+        });
+        const title = this.scene.add.text(menuWidth / 2, 20 * s, "CONSTRUIRE", {
+            fontSize: `${Math.max(16, 18 * s)}px`,
             fill: "#00ccff",
             fontStyle: "bold",
             stroke: "#003366",
-            strokeThickness: 2
+            strokeThickness: Math.max(2, 2 * s),
+            fontFamily: "Arial"
         }).setOrigin(0.5).setDepth(241);
         this.scene.buildMenu.add([
-            mBgGraphics,
-            buildTitle
+            bg,
+            headerLine,
+            title
         ]);
-        const btnSpacing = 34 * this.scene.scaleFactor;
-        const startY = 55 * this.scene.scaleFactor;
-        const btnX = menuWidth / 2;
-        const btn1 = this.createBuildBtn(btnX, startY, (0, _indexJs.TURRETS).machine_gun);
-        const btn2 = this.createBuildBtn(btnX, startY + btnSpacing, (0, _indexJs.TURRETS).sniper);
-        const btn3 = this.createBuildBtn(btnX, startY + btnSpacing * 2, (0, _indexJs.TURRETS).cannon);
-        const btn4 = this.createBuildBtn(btnX, startY + btnSpacing * 3, (0, _indexJs.TURRETS).zap);
-        const btn5 = this.createBuildBtn(btnX, startY + btnSpacing * 4, (0, _indexJs.TURRETS).barracks);
-        this.scene.buildMenu.add([
-            btn1,
-            btn2,
-            btn3,
-            btn4,
-            btn5
-        ]);
+        const turrets = [
+            (0, _indexJs.TURRETS).machine_gun,
+            (0, _indexJs.TURRETS).sniper,
+            (0, _indexJs.TURRETS).cannon,
+            (0, _indexJs.TURRETS).zap,
+            (0, _indexJs.TURRETS).barracks
+        ];
+        // Grille 3x2 (3 colonnes, 2 lignes) pour mieux accommoder 5 tourelles
+        const cols = 3;
+        const rows = 2;
+        const octagonSize = 45 * s;
+        const spacingX = (menuWidth - pad * 2) / cols;
+        const spacingY = 75 * s;
+        const startX = pad + spacingX / 2;
+        const startY = 55 * s;
+        turrets.forEach((cfg, i)=>{
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const x = startX + col * spacingX;
+            const y = startY + row * spacingY;
+            const btn = this.createBuildBtnOctagon(x, y, octagonSize, cfg);
+            this.scene.buildMenu.add(btn);
+            this.buildButtons.push(btn);
+        });
+        // Store menu geometry (used in openBuildMenu clamp)
+        this.scene._buildMenuSize = {
+            w: menuWidth,
+            h: menuHeight
+        };
     }
-    createBuildBtn(x, y, turretConfig) {
-        const fontSize = Math.max(14, 16 * this.scene.scaleFactor);
-        const btnWidth = 290 * this.scene.scaleFactor;
-        const btnHeight = 32 * this.scene.scaleFactor;
-        const btnContainer = this.scene.add.container(x, y);
-        const btnBg = this.scene.add.rectangle(0, 0, btnWidth, btnHeight, 0x1a1a2e, 0.95);
-        btnBg.setStrokeStyle(2, 0x00ccff, 0.7);
-        btnBg.setInteractive({
+    // Fonction pour dessiner un octogone
+    drawOctagon(graphics, x, y, radius, fillColor, fillAlpha, strokeColor, strokeWidth) {
+        graphics.clear();
+        graphics.fillStyle(fillColor, fillAlpha);
+        graphics.lineStyle(strokeWidth, strokeColor, 1);
+        const sides = 8;
+        const angleStep = Math.PI * 2 / sides;
+        graphics.beginPath();
+        for(let i = 0; i <= sides; i++){
+            const angle = i * angleStep - Math.PI / 2; // Commencer en haut
+            const px = x + Math.cos(angle) * radius;
+            const py = y + Math.sin(angle) * radius;
+            if (i === 0) graphics.moveTo(px, py);
+            else graphics.lineTo(px, py);
+        }
+        graphics.closePath();
+        graphics.fillPath();
+        graphics.strokePath();
+    }
+    createBuildBtnOctagon(x, y, size, turretConfig) {
+        const s = this.scene.scaleFactor;
+        const radius = size / 2;
+        const btn = this.scene.add.container(x, y).setDepth(241);
+        // Octogone de fond
+        const octagonBg = this.scene.add.graphics();
+        this.drawOctagon(octagonBg, 0, 0, radius, 0x1a1a2e, 0.96, 0x00ccff, Math.max(2, 2 * s));
+        // Zone interactive (cercle pour simplifier)
+        const hitArea = this.scene.add.circle(0, 0, radius + 5 * s, 0x000000, 0);
+        hitArea.setInteractive({
             useHandCursor: true
         });
-        const nameText = this.scene.add.text(0, -7 * this.scene.scaleFactor, turretConfig.name, {
-            fontSize: `${fontSize}px`,
-            fill: "#ffffff",
-            fontStyle: "bold"
-        }).setOrigin(0.5, 0.5);
-        const costText = this.scene.add.text(0, 7 * this.scene.scaleFactor, `${turretConfig.cost}$`, {
-            fontSize: `${fontSize - 2}px`,
-            fill: "#ffd700",
-            fontStyle: "bold"
-        }).setOrigin(0.5, 0.5);
-        const canAfford = this.scene.money >= turretConfig.cost;
-        if (!canAfford) {
-            nameText.setColor("#666666");
-            costText.setColor("#ff4444");
-            btnBg.setFillStyle(0x0f0f0f, 0.8);
-            btnBg.setStrokeStyle(2, 0x666666, 0.5);
+        // Miniature de la tourelle
+        const previewContainer = this.scene.add.container(0, 0);
+        if (this.scene.drawTurretPreview) {
+            this.scene.drawTurretPreview(previewContainer, turretConfig);
+            previewContainer.setScale(0.35 * s); // Plus petit pour rentrer dans l'octogone
         }
-        btnContainer.add([
-            btnBg,
+        // Nom en petit en dessous
+        const nameText = this.scene.add.text(0, radius + 8 * s, turretConfig.name, {
+            fontSize: `${Math.max(10, 11 * s)}px`,
+            fill: "#ffffff",
+            fontFamily: "Arial"
+        }).setOrigin(0.5);
+        // Prix en très petit
+        const costText = this.scene.add.text(0, radius + 18 * s, `${turretConfig.cost}$`, {
+            fontSize: `${Math.max(9, 10 * s)}px`,
+            fill: "#ffd700",
+            fontFamily: "Arial"
+        }).setOrigin(0.5);
+        btn.add([
+            octagonBg,
+            hitArea,
+            previewContainer,
             nameText,
             costText
         ]);
-        btnBg.on("pointerover", ()=>{
-            const canAffordNow = this.scene.money >= turretConfig.cost;
-            if (canAffordNow) {
-                btnBg.setFillStyle(0x2a2a4e, 1);
-                btnBg.setStrokeStyle(3, 0x00ffff, 1);
-                if (nameText) nameText.setColor("#ffffff");
-                if (costText) costText.setColor("#ffff00");
+        // Keep refs for refresh
+        btn.turretConfig = turretConfig;
+        btn.octagonBg = octagonBg;
+        btn.nameText = nameText;
+        btn.costText = costText;
+        btn.previewContainer = previewContainer;
+        btn.hitArea = hitArea;
+        btn.radius = radius; // Stocker le radius pour la mise à jour
+        // Initial state
+        this.applyBuildBtnStateOctagon(btn);
+        // Hover states
+        hitArea.on("pointerover", ()=>{
+            const canAfford = this.scene.money >= turretConfig.cost;
+            const isBarracksMaxed = turretConfig.key === "barracks" && this.scene.barracks.length >= this.scene.maxBarracks;
+            if (!canAfford || isBarracksMaxed) return;
+            this.drawOctagon(octagonBg, 0, 0, radius, 0x2a2a4e, 1, 0x00ffff, Math.max(3, 3 * s));
+            nameText.setColor("#ffffff");
+            costText.setColor("#ffff00");
+            // Afficher le tooltip avec la description
+            if (turretConfig.description) this.showTurretTooltip(btn, turretConfig.description, hitArea);
+        });
+        hitArea.on("pointerout", ()=>{
+            this.applyBuildBtnStateOctagon(btn);
+            // Cacher le tooltip
+            if (this.currentTooltip) {
+                this.currentTooltip.destroy();
+                this.currentTooltip = null;
             }
         });
-        btnBg.on("pointerout", ()=>{
-            const canAffordNow = this.scene.money >= turretConfig.cost;
-            if (canAffordNow) {
-                btnBg.setFillStyle(0x1a1a2e, 0.95);
-                btnBg.setStrokeStyle(2, 0x00ccff, 0.7);
-                if (nameText) nameText.setColor("#ffffff");
-                if (costText) costText.setColor("#ffd700");
-            } else {
-                btnBg.setFillStyle(0x0f0f0f, 0.8);
-                btnBg.setStrokeStyle(2, 0x666666, 0.5);
-                if (nameText) nameText.setColor("#666666");
-                if (costText) costText.setColor("#ff4444");
+        hitArea.on("pointerdown", ()=>{
+            // Cacher le tooltip lors du clic
+            if (this.currentTooltip) {
+                this.currentTooltip.destroy();
+                this.currentTooltip = null;
             }
-        });
-        btnBg.on("pointerdown", ()=>{
-            if (this.scene.selectedTile) {
-                if (this.scene.money >= turretConfig.cost) {
-                    const success = this.scene.buildTurret(turretConfig, this.scene.selectedTile.x, this.scene.selectedTile.y);
-                    if (success) this.scene.buildMenu.setVisible(false);
-                } else this.scene.cameras.main.shake(50, 0.005);
+            if (!this.scene.selectedTile) return;
+            const canAfford = this.scene.money >= turretConfig.cost;
+            const isBarracksMaxed = turretConfig.key === "barracks" && this.scene.barracks.length >= this.scene.maxBarracks;
+            if (!canAfford || isBarracksMaxed) {
+                this.scene.cameras.main.shake(50, 0.005);
+                return;
             }
+            const success = this.scene.buildTurret(turretConfig, this.scene.selectedTile.x, this.scene.selectedTile.y);
+            if (success) this.scene.buildMenu.setVisible(false);
+            this.updateBuildMenuButtons();
         });
-        btnContainer.turretConfig = turretConfig;
-        btnContainer.btnBg = btnBg;
-        btnContainer.nameText = nameText;
-        btnContainer.costText = costText;
-        return btnContainer;
+        return btn;
+    }
+    // Afficher un tooltip avec la description de la tourelle
+    showTurretTooltip(btnContainer, description, triggerElement) {
+        const s = this.scene.scaleFactor;
+        // Détruire l'ancien tooltip s'il existe
+        if (this.currentTooltip) this.currentTooltip.destroy();
+        // Calculer la position du tooltip (à droite du bouton)
+        const btnX = btnContainer.x + (this.scene.buildMenu.x || 0);
+        const btnY = btnContainer.y + (this.scene.buildMenu.y || 0);
+        // Créer le tooltip
+        const tooltipContainer = this.scene.add.container(0, 0).setDepth(300);
+        this.currentTooltip = tooltipContainer;
+        // Fond du tooltip
+        const tooltipBg = this.scene.add.graphics();
+        const padding = 15 * s;
+        const maxWidth = 350 * s;
+        const lineHeight = 20 * s;
+        // Calculer la taille du texte
+        const tempText = this.scene.add.text(0, 0, description, {
+            fontSize: `${Math.max(11, 12 * s)}px`,
+            fill: "#ffffff",
+            fontFamily: "Arial",
+            wordWrap: {
+                width: maxWidth - padding * 2
+            },
+            lineSpacing: 4 * s
+        });
+        const textWidth = Math.min(tempText.width, maxWidth - padding * 2);
+        const textHeight = tempText.height;
+        tempText.destroy();
+        const tooltipWidth = textWidth + padding * 2;
+        const tooltipHeight = textHeight + padding * 2;
+        // Positionner le tooltip à droite du bouton
+        const tooltipX = btnX + 60 * s;
+        const tooltipY = btnY;
+        // Dessiner le fond
+        tooltipBg.fillStyle(0x000000, 0.95);
+        tooltipBg.fillRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
+        tooltipBg.lineStyle(2, 0x00ccff, 1);
+        tooltipBg.strokeRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
+        // Texte de description
+        const descText = this.scene.add.text(padding, padding, description, {
+            fontSize: `${Math.max(11, 12 * s)}px`,
+            fill: "#ffffff",
+            fontFamily: "Arial",
+            wordWrap: {
+                width: maxWidth - padding * 2
+            },
+            lineSpacing: 4 * s
+        });
+        tooltipContainer.add([
+            tooltipBg,
+            descText
+        ]);
+        tooltipContainer.setPosition(tooltipX, tooltipY);
+        // Ajuster la position si le tooltip sort de l'écran
+        if (tooltipX + tooltipWidth > this.scene.gameWidth) tooltipContainer.setX(btnX - tooltipWidth - 10 * s);
+        if (tooltipY + tooltipHeight > this.scene.gameHeight) tooltipContainer.setY(this.scene.gameHeight - tooltipHeight - 10 * s);
+    }
+    applyBuildBtnStateOctagon(btnContainer) {
+        const s = this.scene.scaleFactor;
+        const cfg = btnContainer.turretConfig;
+        const canAfford = this.scene.money >= cfg.cost;
+        let isDisabled = false;
+        if (cfg.key === "barracks") isDisabled = this.scene.barracks.length >= this.scene.maxBarracks;
+        const shouldDisable = !canAfford || isDisabled;
+        const radius = btnContainer.radius || 50 * s / 2;
+        if (btnContainer.nameText) {
+            btnContainer.nameText.setColor(shouldDisable ? "#666666" : "#ffffff");
+            btnContainer.nameText.setAlpha(shouldDisable ? 0.6 : 1);
+        }
+        if (btnContainer.costText) {
+            btnContainer.costText.setColor(shouldDisable ? "#ff4444" : "#ffd700");
+            btnContainer.costText.setAlpha(shouldDisable ? 0.7 : 1);
+        }
+        if (btnContainer.octagonBg) {
+            const fillColor = shouldDisable ? 0x0f0f0f : 0x1a1a2e;
+            const fillAlpha = shouldDisable ? 0.6 : 0.96;
+            const strokeColor = shouldDisable ? 0x444444 : 0x00ccff;
+            const strokeWidth = Math.max(2, 2 * s);
+            this.drawOctagon(btnContainer.octagonBg, 0, 0, radius, fillColor, fillAlpha, strokeColor, strokeWidth);
+            btnContainer.octagonBg.setAlpha(shouldDisable ? 0.5 : 1);
+            if (shouldDisable) btnContainer.hitArea?.disableInteractive();
+            else btnContainer.hitArea?.setInteractive({
+                useHandCursor: true
+            });
+        }
+        if (btnContainer.previewContainer) btnContainer.previewContainer.setAlpha(shouldDisable ? 0.4 : 1);
+    }
+    applyBuildBtnState(btnContainer) {
+        // Ancienne méthode pour compatibilité, mais on utilise maintenant applyBuildBtnStateOctagon
+        this.applyBuildBtnStateOctagon(btnContainer);
     }
     updateBuildMenuButtons() {
-        if (!this.scene.buildMenu || !this.scene.buildMenu.list) return;
-        this.scene.buildMenu.list.forEach((item)=>{
-            if (item && item.turretConfig) {
-                const config = item.turretConfig;
-                const canAfford = this.scene.money >= config.cost;
-                if (item.nameText) item.nameText.setColor(canAfford ? "#ffffff" : "#666666");
-                if (item.costText) item.costText.setColor(canAfford ? "#ffd700" : "#ff4444");
-                if (item.btnBg) {
-                    item.btnBg.setFillStyle(canAfford ? 0x1a1a2e : 0x0f0f0f, canAfford ? 0.95 : 0.8);
-                    item.btnBg.setStrokeStyle(2, canAfford ? 0x00ccff : 0x666666, canAfford ? 0.7 : 0.5);
-                }
-            }
+        // Use our cache, but also supports old list style if needed
+        const buttons = this.buildButtons?.length > 0 ? this.buildButtons : this.scene.buildMenu?.list?.filter((x)=>x?.turretConfig) || [];
+        buttons.forEach((btn)=>{
+            if (btn.octagonBg) this.applyBuildBtnStateOctagon(btn);
+            else this.applyBuildBtnState(btn);
         });
     }
     openBuildMenu(pointer) {
-        const T = (0, _settingsJs.CONFIG).TILE_SIZE * this.scene.scaleFactor;
+        const s = this.scene.scaleFactor;
+        const T = (0, _settingsJs.CONFIG).TILE_SIZE * s;
         const tx = Math.floor((pointer.worldX - this.scene.mapStartX) / T);
         const ty = Math.floor((pointer.worldY - this.scene.mapStartY) / T);
         this.scene.selectedTile = {
@@ -5629,336 +8239,514 @@ class UIManager {
             y: ty
         };
         this.scene.selectedTileIsAdjacentToPath = this.scene.mapManager.isAdjacentToPath(tx, ty);
-        const menuWidth = 320 * this.scene.scaleFactor;
-        const menuHeight = 220 * this.scene.scaleFactor;
+        const { w: menuWidth, h: menuHeight } = this.scene._buildMenuSize || {
+            w: 360 * s,
+            h: 310 * s
+        };
         let menuX = pointer.worldX;
         let menuY = pointer.worldY;
-        if (menuX + menuWidth / 2 > this.scene.gameWidth) menuX = this.scene.gameWidth - menuWidth / 2 - 10 * this.scene.scaleFactor;
-        if (menuX - menuWidth / 2 < 0) menuX = menuWidth / 2 + 10 * this.scene.scaleFactor;
-        if (menuY + menuHeight / 2 > this.scene.gameHeight) menuY = this.scene.gameHeight - menuHeight / 2 - 10 * this.scene.scaleFactor;
-        if (menuY - menuHeight / 2 < 0) menuY = menuHeight / 2 + 10 * this.scene.scaleFactor;
+        // Clamp to screen
+        if (menuX + menuWidth / 2 > this.scene.gameWidth) menuX = this.scene.gameWidth - menuWidth / 2 - 10 * s;
+        if (menuX - menuWidth / 2 < 0) menuX = menuWidth / 2 + 10 * s;
+        if (menuY + menuHeight / 2 > this.scene.gameHeight) menuY = this.scene.gameHeight - menuHeight / 2 - 10 * s;
+        if (menuY - menuHeight / 2 < 0) menuY = menuHeight / 2 + 10 * s;
         this.scene.buildMenu.setPosition(menuX - menuWidth / 2, menuY - menuHeight / 2);
         this.scene.buildMenu.setVisible(true);
         this.updateBuildMenuButtons();
     }
+    // ------------------------------------------------------------
+    // UPGRADE MENU (kept close to your logic, but cleaned safety)
+    // ------------------------------------------------------------
     createUpgradeMenu() {
+        const s = this.scene.scaleFactor;
         this.scene.upgradeMenu = this.scene.add.container(0, 0).setVisible(false).setDepth(240);
+        const menuWidth = 320 * s;
+        const menuHeight = 220 * s;
         const uBgGraphics = this.scene.add.graphics();
         uBgGraphics.fillStyle(0x222222, 0.95);
-        uBgGraphics.fillRoundedRect(0, 0, 320 * this.scene.scaleFactor, 220 * this.scene.scaleFactor, 10);
+        uBgGraphics.fillRoundedRect(0, 0, menuWidth, menuHeight, 10);
         uBgGraphics.lineStyle(3, 0xffffff, 0.3);
-        uBgGraphics.strokeRoundedRect(0, 0, 320 * this.scene.scaleFactor, 220 * this.scene.scaleFactor, 10);
-        uBgGraphics.setDepth(240);
+        uBgGraphics.strokeRoundedRect(0, 0, menuWidth, menuHeight, 10);
         this.scene.upgradeMenu.add(uBgGraphics);
         this.scene.upgradeInfoText = null;
-        this.scene.upgradeBtnText = this.scene.add.text(15 * this.scene.scaleFactor, 170 * this.scene.scaleFactor, "AM\xc9LIORER", {
-            fontSize: `${Math.max(14, 18 * this.scene.scaleFactor)}px`,
+        this.scene.upgradeBtnText = this.scene.add.text(15 * s, 170 * s, "AM\xc9LIORER", {
+            fontSize: `${Math.max(14, 18 * s)}px`,
             fill: "#ffffff",
             fontStyle: "bold",
             backgroundColor: "#00aa00",
             padding: {
-                x: 15 * this.scene.scaleFactor,
-                y: 8 * this.scene.scaleFactor
-            }
+                x: 15 * s,
+                y: 8 * s
+            },
+            fontFamily: "Arial"
         }).setDepth(241).setInteractive({
             useHandCursor: true
         }).on("pointerover", ()=>{
-            if (this.scene.selectedTurret && this.scene.selectedTurret.getNextLevelStats()) this.scene.upgradeBtnText.setBackgroundColor("#00cc00");
+            const nextStats = this.scene.selectedTurret?.getNextLevelStats?.();
+            const canAfford = nextStats && this.scene.money >= nextStats.cost;
+            if (nextStats && canAfford) this.scene.upgradeBtnText.setBackgroundColor("#00cc00");
         }).on("pointerout", ()=>{
-            this.scene.upgradeBtnText.setBackgroundColor("#00aa00");
+            const nextStats = this.scene.selectedTurret?.getNextLevelStats?.();
+            const canAfford = nextStats && this.scene.money >= nextStats.cost;
+            const hasNext = !!nextStats;
+            if (hasNext && canAfford) this.scene.upgradeBtnText.setBackgroundColor("#00aa00");
+            else this.scene.upgradeBtnText.setBackgroundColor("#666666");
         }).on("pointerdown", ()=>{
-            if (this.scene.selectedTurret && this.scene.selectedTurret.getNextLevelStats()) this.scene.triggerUpgrade();
-            else {
+            const nextStats = this.scene.selectedTurret?.getNextLevelStats?.();
+            const canAfford = nextStats && this.scene.money >= nextStats.cost;
+            if (nextStats && canAfford) this.scene.triggerUpgrade();
+            else if (!nextStats) {
                 this.scene.upgradeMenu.setVisible(false);
                 this.scene.selectedTurret = null;
-            }
+            } else // Pas assez d'argent
+            this.scene.cameras.main.shake(50, 0.005);
         });
         this.scene.upgradeMenu.add(this.scene.upgradeBtnText);
+        // Icône poubelle pour revendre (en haut à droite)
+        this.scene.trashIcon = this.createTrashIcon(menuWidth, s);
+        this.scene.upgradeMenu.add(this.scene.trashIcon);
+    }
+    createTrashIcon(menuWidth, s) {
+        const trashIcon = this.scene.add.graphics();
+        const trashSize = 20 * s;
+        const trashX = menuWidth - 30 * s;
+        const trashY = 15 * s;
+        const drawTrash = (color = 0xff0000)=>{
+            trashIcon.clear();
+            trashIcon.fillStyle(color, 1);
+            trashIcon.fillRect(trashX - trashSize / 2, trashY - trashSize / 2, trashSize, trashSize * 0.8);
+            trashIcon.fillStyle(0xcc0000, 1);
+            trashIcon.fillRect(trashX - trashSize / 2 + 2 * s, trashY - trashSize / 2 + 2 * s, trashSize - 4 * s, trashSize * 0.6);
+            // Couvercle
+            trashIcon.fillStyle(color, 1);
+            trashIcon.fillRect(trashX - trashSize / 2 - 2 * s, trashY - trashSize / 2 - 3 * s, trashSize + 4 * s, 4 * s);
+            // Poignées
+            trashIcon.fillStyle(0xffffff, 1);
+            trashIcon.fillRect(trashX - trashSize / 2 - 4 * s, trashY - trashSize / 2 + 2 * s, 2 * s, 6 * s);
+            trashIcon.fillRect(trashX + trashSize / 2 + 2 * s, trashY - trashSize / 2 + 2 * s, 2 * s, 6 * s);
+        };
+        drawTrash();
+        trashIcon.setDepth(241);
+        trashIcon.setInteractive(new Phaser.Geom.Rectangle(trashX - trashSize / 2 - 4 * s, trashY - trashSize / 2 - 3 * s, trashSize + 8 * s, trashSize + 6 * s), Phaser.Geom.Rectangle.Contains);
+        trashIcon.setInteractive({
+            useHandCursor: true
+        });
+        trashIcon.on("pointerover", ()=>{
+            drawTrash(0xff4444);
+        });
+        trashIcon.on("pointerout", ()=>{
+            drawTrash();
+        });
+        trashIcon.on("pointerdown", ()=>{
+            if (!this.scene.selectedTurret) return;
+            const totalCost = this.scene.selectedTurret.getTotalCost();
+            const refund = Math.floor(totalCost / 2);
+            // Retirer la tourelle/barracks de la liste
+            if (this.scene.selectedTurret instanceof (0, _barracksJs.Barracks)) {
+                const index = this.scene.barracks.indexOf(this.scene.selectedTurret);
+                if (index !== -1) this.scene.barracks.splice(index, 1);
+            } else {
+                const index = this.scene.turrets.indexOf(this.scene.selectedTurret);
+                if (index !== -1) this.scene.turrets.splice(index, 1);
+            }
+            // Détruire l'objet
+            this.scene.selectedTurret.destroy();
+            // Rembourser
+            this.scene.earnMoney(refund);
+            // Fermer le menu
+            this.scene.upgradeMenu.setVisible(false);
+            this.scene.selectedTurret = null;
+            this.scene.updateToolbarCounts();
+        });
+        return trashIcon;
     }
     openUpgradeMenu(pointer, turret) {
+        const s = this.scene.scaleFactor;
         this.scene.selectedTurret = turret;
-        const menuWidth = 320 * this.scene.scaleFactor;
-        const menuHeight = 220 * this.scene.scaleFactor;
+        const menuWidth = 320 * s;
+        const menuHeight = 220 * s;
         const menuX = Phaser.Math.Clamp(pointer.worldX, menuWidth / 2, this.scene.gameWidth - menuWidth / 2);
         const menuY = Phaser.Math.Clamp(pointer.worldY, menuHeight / 2, this.scene.gameHeight - menuHeight / 2);
         this.scene.upgradeMenu.setPosition(menuX - menuWidth / 2, menuY - menuHeight / 2);
-        if (this.scene.upgradeInfoText) {
+        // Clean previous texts safely
+        if (this.scene.upgradeInfoText?.active) try {
+            this.scene.upgradeInfoText.destroy();
+        } catch (e) {}
+        this.scene.upgradeInfoText = null;
+        if (Array.isArray(this.scene.upgradeTextLines)) this.scene.upgradeTextLines.forEach((obj)=>{
+            if (!obj) return;
             try {
-                if (this.scene.upgradeInfoText.active) this.scene.upgradeInfoText.destroy();
-            } catch (e) {
-                console.warn("Erreur lors de la destruction d'upgradeInfoText:", e);
-            }
-            this.scene.upgradeInfoText = null;
-        }
-        if (this.scene.upgradeTextLines && this.scene.upgradeTextLines.length > 0) {
-            this.scene.upgradeTextLines.forEach((line)=>{
-                if (line) try {
-                    // Retirer du container avant de détruire si possible
-                    if (this.scene.upgradeMenu && this.scene.upgradeMenu.remove) this.scene.upgradeMenu.remove(line);
-                    // Détruire seulement si l'objet est actif
-                    if (line.active !== false && line.destroy) line.destroy();
-                } catch (e) {
-                // Ignorer les erreurs de destruction (objet déjà détruit)
-                }
-            });
-            this.scene.upgradeTextLines = [];
-        } else this.scene.upgradeTextLines = [];
-        const fontSize = Math.max(14, 16 * this.scene.scaleFactor);
-        let yPos = 20 * this.scene.scaleFactor;
-        const lineHeight = 22 * this.scene.scaleFactor;
-        const xPos = 15 * this.scene.scaleFactor;
-        if (turret instanceof (0, _barracksJs.Barracks)) {
-            const level = turret.level || 1;
-            const soldiersCount = turret.config.soldiersCount[level - 1] || 2;
-            const respawnTime = turret.config.respawnTime[level - 1] || 12000;
-            const soldierHp = turret.config.soldierHp[level - 1] || 100;
-            const nextStats = turret.getNextLevelStats();
-            const title = this.scene.add.text(xPos, yPos, `Caserne - Niveau ${level}`, {
-                fontSize: `${fontSize + 2}px`,
-                fill: "#ffffff",
-                fontStyle: "bold"
-            }).setDepth(241);
-            this.scene.upgradeTextLines.push(title);
-            this.scene.upgradeMenu.add(title);
-            yPos += lineHeight * 1.5;
-            if (nextStats) {
-                const nextSoldiers = turret.config.soldiersCount[level] || 3;
-                const nextRespawn = turret.config.respawnTime[level] || 10000;
-                const nextHp = turret.config.soldierHp[level] || 120;
-                const soldiersText = this.scene.add.text(xPos, yPos, `Soldats : ${soldiersCount} > `, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                const soldiersNext = this.scene.add.text(xPos + soldiersText.width, yPos, `${nextSoldiers}`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#00ff00",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(soldiersText, soldiersNext);
-                this.scene.upgradeMenu.add([
-                    soldiersText,
-                    soldiersNext
-                ]);
-                yPos += lineHeight;
-                const respawnText = this.scene.add.text(xPos, yPos, `Respawn : ${(respawnTime / 1000).toFixed(1)}s > `, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                const respawnNext = this.scene.add.text(xPos + respawnText.width, yPos, `${(nextRespawn / 1000).toFixed(1)}s`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#00ff00",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(respawnText, respawnNext);
-                this.scene.upgradeMenu.add([
-                    respawnText,
-                    respawnNext
-                ]);
-                yPos += lineHeight;
-                const hpText = this.scene.add.text(xPos, yPos, `HP Soldat : ${soldierHp} > `, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                const hpNext = this.scene.add.text(xPos + hpText.width, yPos, `${nextHp}`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#00ff00",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(hpText, hpNext);
-                this.scene.upgradeMenu.add([
-                    hpText,
-                    hpNext
-                ]);
-                yPos += lineHeight * 1.5;
-                const costText = this.scene.add.text(xPos, yPos, `Co\xfbt : `, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                const costValue = this.scene.add.text(xPos + costText.width, yPos, `${nextStats.cost}$`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffd700",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(costText, costValue);
-                this.scene.upgradeMenu.add([
-                    costText,
-                    costValue
-                ]);
-            } else {
-                const soldiersText = this.scene.add.text(xPos, yPos, `Soldats : ${soldiersCount}`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(soldiersText);
-                this.scene.upgradeMenu.add(soldiersText);
-                yPos += lineHeight;
-                const respawnText = this.scene.add.text(xPos, yPos, `Respawn : ${(respawnTime / 1000).toFixed(1)}s`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(respawnText);
-                this.scene.upgradeMenu.add(respawnText);
-                yPos += lineHeight;
-                const hpText = this.scene.add.text(xPos, yPos, `HP Soldat : ${soldierHp}`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(hpText);
-                this.scene.upgradeMenu.add(hpText);
-                yPos += lineHeight * 1.5;
-                const maxText = this.scene.add.text(xPos, yPos, `Niveau Maximum`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ff0000",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(maxText);
-                this.scene.upgradeMenu.add(maxText);
-            }
-        } else {
-            const level = turret.level || 1;
-            const nextStats = turret.getNextLevelStats();
-            const title = this.scene.add.text(xPos, yPos, `${turret.config.name} - Niveau ${level}`, {
-                fontSize: `${fontSize + 2}px`,
-                fill: "#ffffff",
-                fontStyle: "bold"
-            }).setDepth(241);
-            this.scene.upgradeTextLines.push(title);
-            this.scene.upgradeMenu.add(title);
-            yPos += lineHeight * 1.5;
-            if (nextStats) {
-                const currentDamage = turret.config.damage || 0;
-                const currentRate = turret.config.rate || 0;
-                const currentRange = turret.config.range || 0;
-                const damageText = this.scene.add.text(xPos, yPos, `D\xe9g\xe2ts : ${currentDamage} > `, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                const damageNext = this.scene.add.text(xPos + damageText.width, yPos, `${nextStats.damage || 0}`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#00ff00",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(damageText, damageNext);
-                this.scene.upgradeMenu.add([
-                    damageText,
-                    damageNext
-                ]);
-                yPos += lineHeight;
-                const rateText = this.scene.add.text(xPos, yPos, `Cadence : ${(currentRate / 1000).toFixed(1)}s > `, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                const rateNext = this.scene.add.text(xPos + rateText.width, yPos, `${((nextStats.rate || 0) / 1000).toFixed(1)}s`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#00ff00",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(rateText, rateNext);
-                this.scene.upgradeMenu.add([
-                    rateText,
-                    rateNext
-                ]);
-                yPos += lineHeight;
-                const rangeText = this.scene.add.text(xPos, yPos, `Port\xe9e : ${currentRange} > `, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                const rangeNext = this.scene.add.text(xPos + rangeText.width, yPos, `${nextStats.range || 0}`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#00ff00",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(rangeText, rangeNext);
-                this.scene.upgradeMenu.add([
-                    rangeText,
-                    rangeNext
-                ]);
-                yPos += lineHeight;
-                if (nextStats.aoe) {
-                    const aoeText = this.scene.add.text(xPos, yPos, `Zone : ${turret.config.aoe || 0} > `, {
-                        fontSize: `${fontSize}px`,
-                        fill: "#ffffff"
-                    }).setDepth(241);
-                    const aoeNext = this.scene.add.text(xPos + aoeText.width, yPos, `${nextStats.aoe}`, {
-                        fontSize: `${fontSize}px`,
-                        fill: "#00ff00",
-                        fontStyle: "bold"
-                    }).setDepth(241);
-                    this.scene.upgradeTextLines.push(aoeText, aoeNext);
-                    this.scene.upgradeMenu.add([
-                        aoeText,
-                        aoeNext
-                    ]);
-                    yPos += lineHeight;
-                }
-                yPos += lineHeight * 0.5;
-                const costText = this.scene.add.text(xPos, yPos, `Co\xfbt : `, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                const costValue = this.scene.add.text(xPos + costText.width, yPos, `${nextStats.cost}$`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffd700",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(costText, costValue);
-                this.scene.upgradeMenu.add([
-                    costText,
-                    costValue
-                ]);
-            } else {
-                const currentDamage = turret.config.damage || 0;
-                const currentRate = turret.config.rate || 0;
-                const currentRange = turret.config.range || 0;
-                const damageText = this.scene.add.text(xPos, yPos, `D\xe9g\xe2ts : ${currentDamage}`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(damageText);
-                this.scene.upgradeMenu.add(damageText);
-                yPos += lineHeight;
-                const rateText = this.scene.add.text(xPos, yPos, `Cadence : ${(currentRate / 1000).toFixed(1)}s`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(rateText);
-                this.scene.upgradeMenu.add(rateText);
-                yPos += lineHeight;
-                const rangeText = this.scene.add.text(xPos, yPos, `Port\xe9e : ${currentRange}`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ffffff"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(rangeText);
-                this.scene.upgradeMenu.add(rangeText);
-                yPos += lineHeight;
-                if (turret.config.aoe) {
-                    const aoeText = this.scene.add.text(xPos, yPos, `Zone : ${turret.config.aoe}`, {
-                        fontSize: `${fontSize}px`,
-                        fill: "#ffffff"
-                    }).setDepth(241);
-                    this.scene.upgradeTextLines.push(aoeText);
-                    this.scene.upgradeMenu.add(aoeText);
-                    yPos += lineHeight;
-                }
-                yPos += lineHeight * 0.5;
-                const maxText = this.scene.add.text(xPos, yPos, `Niveau Maximum`, {
-                    fontSize: `${fontSize}px`,
-                    fill: "#ff0000",
-                    fontStyle: "bold"
-                }).setDepth(241);
-                this.scene.upgradeTextLines.push(maxText);
-                this.scene.upgradeMenu.add(maxText);
-            }
-        }
+                this.scene.upgradeMenu.remove(obj);
+            } catch (e) {}
+            try {
+                if (obj.active !== false && obj.destroy) obj.destroy();
+            } catch (e) {}
+        });
+        this.scene.upgradeTextLines = [];
+        const fontSize = Math.max(14, 16 * s);
+        let yPos = 20 * s;
+        const lineHeight = 22 * s;
+        const xPos = 15 * s;
+        if (turret instanceof (0, _barracksJs.Barracks)) this.renderBarracksUpgrade(turret, xPos, yPos, lineHeight, fontSize);
+        else this.renderTurretUpgrade(turret, xPos, yPos, lineHeight, fontSize);
         const finalNextStats = turret.getNextLevelStats ? turret.getNextLevelStats() : null;
-        this.scene.upgradeBtnText.setPosition(15 * this.scene.scaleFactor, menuHeight - 50 * this.scene.scaleFactor);
-        this.scene.upgradeBtnText.setText(finalNextStats ? "AM\xc9LIORER" : "FERMER");
-        if (finalNextStats) this.scene.upgradeBtnText.setBackgroundColor("#00aa00");
-        else this.scene.upgradeBtnText.setBackgroundColor("#666666");
+        // Vérifier si on a assez d'argent pour l'amélioration
+        const canAfford = finalNextStats && this.scene.money >= finalNextStats.cost;
+        const shouldDisable = !finalNextStats || !canAfford;
+        this.scene.upgradeBtnText.setPosition(15 * s, menuHeight - 50 * s);
+        if (finalNextStats) this.scene.upgradeBtnText.setText(canAfford ? "AM\xc9LIORER" : `AM\xc9LIORER (${finalNextStats.cost}$)`);
+        else this.scene.upgradeBtnText.setText("FERMER");
+        // Désactiver visuellement si on ne peut pas se le permettre
+        if (shouldDisable) {
+            this.scene.upgradeBtnText.setBackgroundColor("#666666");
+            this.scene.upgradeBtnText.setColor("#999999");
+            this.scene.upgradeBtnText.setAlpha(0.6);
+            this.scene.upgradeBtnText.disableInteractive();
+        } else {
+            this.scene.upgradeBtnText.setBackgroundColor("#00aa00");
+            this.scene.upgradeBtnText.setColor("#ffffff");
+            this.scene.upgradeBtnText.setAlpha(1);
+            this.scene.upgradeBtnText.setInteractive({
+                useHandCursor: true
+            });
+        }
         this.scene.upgradeMenu.setVisible(true);
+    }
+    renderBarracksUpgrade(turret, xPos, yPosStart, lineHeight, fontSize) {
+        const s = this.scene.scaleFactor;
+        let yPos = yPosStart;
+        const level = turret.level || 1;
+        const soldiersCount = turret.config.soldiersCount[level - 1] || 2;
+        const respawnTime = turret.config.respawnTime[level - 1] || 12000;
+        const soldierHp = turret.config.soldierHp[level - 1] || 100;
+        const nextStats = turret.getNextLevelStats?.();
+        const title = this.scene.add.text(xPos, yPos, `Caserne - Niveau ${level}`, {
+            fontSize: `${fontSize + 2}px`,
+            fill: "#ffffff",
+            fontStyle: "bold",
+            fontFamily: "Arial"
+        }).setDepth(241);
+        this.scene.upgradeTextLines.push(title);
+        this.scene.upgradeMenu.add(title);
+        yPos += lineHeight * 1.5;
+        if (nextStats) {
+            const nextSoldiers = turret.config.soldiersCount[level] || 3;
+            const nextRespawn = turret.config.respawnTime[level] || 10000;
+            const nextHp = turret.config.soldierHp[level] || 120;
+            yPos = this.addStatLine(xPos, yPos, lineHeight, fontSize, "Soldats", `${soldiersCount} > `, `${nextSoldiers}`);
+            yPos = this.addStatLine(xPos, yPos, lineHeight, fontSize, "Respawn", `${(respawnTime / 1000).toFixed(1)}s > `, `${(nextRespawn / 1000).toFixed(1)}s`);
+            yPos = this.addStatLine(xPos, yPos, lineHeight, fontSize, "HP Soldat", `${soldierHp} > `, `${nextHp}`);
+            yPos += lineHeight * 0.5;
+            const canAfford = this.scene.money >= nextStats.cost;
+            const costText = this.scene.add.text(xPos, yPos, `Co\xfbt : `, {
+                fontSize: `${fontSize}px`,
+                fill: "#ffffff",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            const costValue = this.scene.add.text(xPos + costText.width, yPos, `${nextStats.cost}$`, {
+                fontSize: `${fontSize}px`,
+                fill: canAfford ? "#ffd700" : "#ff4444",
+                fontStyle: "bold",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(costText, costValue);
+            this.scene.upgradeMenu.add([
+                costText,
+                costValue
+            ]);
+        } else {
+            const soldiersText = this.scene.add.text(xPos, yPos, `Soldats : ${soldiersCount}`, {
+                fontSize: `${fontSize}px`,
+                fill: "#ffffff",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(soldiersText);
+            this.scene.upgradeMenu.add(soldiersText);
+            yPos += lineHeight;
+            const respawnText = this.scene.add.text(xPos, yPos, `Respawn : ${(respawnTime / 1000).toFixed(1)}s`, {
+                fontSize: `${fontSize}px`,
+                fill: "#ffffff",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(respawnText);
+            this.scene.upgradeMenu.add(respawnText);
+            yPos += lineHeight;
+            const hpText = this.scene.add.text(xPos, yPos, `HP Soldat : ${soldierHp}`, {
+                fontSize: `${fontSize}px`,
+                fill: "#ffffff",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(hpText);
+            this.scene.upgradeMenu.add(hpText);
+            yPos += lineHeight * 1.5;
+            const maxText = this.scene.add.text(xPos, yPos, `Niveau Maximum`, {
+                fontSize: `${fontSize}px`,
+                fill: "#ff0000",
+                fontStyle: "bold",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(maxText);
+            this.scene.upgradeMenu.add(maxText);
+        }
+    }
+    renderTurretUpgrade(turret, xPos, yPosStart, lineHeight, fontSize) {
+        let yPos = yPosStart;
+        const level = turret.level || 1;
+        const nextStats = turret.getNextLevelStats?.();
+        const title = this.scene.add.text(xPos, yPos, `${turret.config.name} - Niveau ${level}`, {
+            fontSize: `${fontSize + 2}px`,
+            fill: "#ffffff",
+            fontStyle: "bold",
+            fontFamily: "Arial"
+        }).setDepth(241);
+        this.scene.upgradeTextLines.push(title);
+        this.scene.upgradeMenu.add(title);
+        yPos += lineHeight * 1.5;
+        const currentDamage = turret.config.damage || 0;
+        const currentRate = turret.config.rate || 0;
+        const currentRange = turret.config.range || 0;
+        if (nextStats) {
+            yPos = this.addStatLine(xPos, yPos, lineHeight, fontSize, "D\xe9g\xe2ts", `${currentDamage} > `, `${nextStats.damage || 0}`);
+            yPos = this.addStatLine(xPos, yPos, lineHeight, fontSize, "Cadence", `${(currentRate / 1000).toFixed(1)}s > `, `${((nextStats.rate || 0) / 1000).toFixed(1)}s`);
+            yPos = this.addStatLine(xPos, yPos, lineHeight, fontSize, "Port\xe9e", `${currentRange} > `, `${nextStats.range || 0}`);
+            if (nextStats.aoe) yPos = this.addStatLine(xPos, yPos, lineHeight, fontSize, "Zone", `${turret.config.aoe || 0} > `, `${nextStats.aoe}`);
+            yPos += lineHeight * 0.5;
+            const canAfford = this.scene.money >= nextStats.cost;
+            const costText = this.scene.add.text(xPos, yPos, `Co\xfbt : `, {
+                fontSize: `${fontSize}px`,
+                fill: "#ffffff",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            const costValue = this.scene.add.text(xPos + costText.width, yPos, `${nextStats.cost}$`, {
+                fontSize: `${fontSize}px`,
+                fill: canAfford ? "#ffd700" : "#ff4444",
+                fontStyle: "bold",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(costText, costValue);
+            this.scene.upgradeMenu.add([
+                costText,
+                costValue
+            ]);
+        } else {
+            const damageText = this.scene.add.text(xPos, yPos, `D\xe9g\xe2ts : ${currentDamage}`, {
+                fontSize: `${fontSize}px`,
+                fill: "#ffffff",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(damageText);
+            this.scene.upgradeMenu.add(damageText);
+            yPos += lineHeight;
+            const rateText = this.scene.add.text(xPos, yPos, `Cadence : ${(currentRate / 1000).toFixed(1)}s`, {
+                fontSize: `${fontSize}px`,
+                fill: "#ffffff",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(rateText);
+            this.scene.upgradeMenu.add(rateText);
+            yPos += lineHeight;
+            const rangeText = this.scene.add.text(xPos, yPos, `Port\xe9e : ${currentRange}`, {
+                fontSize: `${fontSize}px`,
+                fill: "#ffffff",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(rangeText);
+            this.scene.upgradeMenu.add(rangeText);
+            yPos += lineHeight;
+            if (turret.config.aoe) {
+                const aoeText = this.scene.add.text(xPos, yPos, `Zone : ${turret.config.aoe}`, {
+                    fontSize: `${fontSize}px`,
+                    fill: "#ffffff",
+                    fontFamily: "Arial"
+                }).setDepth(241);
+                this.scene.upgradeTextLines.push(aoeText);
+                this.scene.upgradeMenu.add(aoeText);
+                yPos += lineHeight;
+            }
+            yPos += lineHeight * 0.5;
+            const maxText = this.scene.add.text(xPos, yPos, `Niveau Maximum`, {
+                fontSize: `${fontSize}px`,
+                fill: "#ff0000",
+                fontStyle: "bold",
+                fontFamily: "Arial"
+            }).setDepth(241);
+            this.scene.upgradeTextLines.push(maxText);
+            this.scene.upgradeMenu.add(maxText);
+        }
+    }
+    addStatLine(xPos, yPos, lineHeight, fontSize, label, leftValue, rightValue) {
+        // label is unused in display (kept if you want to reformat later), but we keep the API stable.
+        const leftText = this.scene.add.text(xPos, yPos, `${label} : ${leftValue}`, {
+            fontSize: `${fontSize}px`,
+            fill: "#ffffff",
+            fontFamily: "Arial"
+        }).setDepth(241);
+        const rightText = this.scene.add.text(xPos + leftText.width, yPos, `${rightValue}`, {
+            fontSize: `${fontSize}px`,
+            fill: "#00ff00",
+            fontStyle: "bold",
+            fontFamily: "Arial"
+        }).setDepth(241);
+        this.scene.upgradeTextLines.push(leftText, rightText);
+        this.scene.upgradeMenu.add([
+            leftText,
+            rightText
+        ]);
+        return yPos + lineHeight;
+    }
+    // ------------------------------------------------------------
+    // Small UI helper
+    // ------------------------------------------------------------
+    createPanelBackground(w, h, opts) {
+        const s = this.scene.scaleFactor;
+        const radius = opts.radius ?? 15;
+        const g = this.scene.add.graphics();
+        // Shadow-ish offset
+        g.fillStyle(0x000000, opts.shadowAlpha ?? 0.5);
+        g.fillRoundedRect(4 * s, 4 * s, w, h, radius);
+        // Main fill
+        g.fillStyle(opts.fill ?? 0x0f0f1a, opts.fillAlpha ?? 0.98);
+        g.fillRoundedRect(0, 0, w, h, radius);
+        // Border
+        g.lineStyle(Math.max(3, 4 * s), opts.stroke ?? 0x00ccff, opts.strokeAlpha ?? 1);
+        g.strokeRoundedRect(0, 0, w, h, radius);
+        // Inner border
+        g.lineStyle(2, opts.innerStroke ?? 0x0066aa, opts.innerAlpha ?? 0.6);
+        g.strokeRoundedRect(2 * s, 2 * s, w - 4 * s, h - 4 * s, radius - 2);
+        // Header separator
+        const headerLine = this.scene.add.graphics();
+        headerLine.lineStyle(2, 0x00ccff, 0.8);
+        headerLine.beginPath();
+        headerLine.moveTo(14 * s, opts.headerY ?? 42 * s);
+        headerLine.lineTo(w - 14 * s, opts.headerY ?? 42 * s);
+        headerLine.strokePath();
+        return {
+            bg: g,
+            headerLine
+        };
+    }
+    // ------------------------------------------------------------
+    // TREE REMOVAL CONFIRMATION MENU
+    // ------------------------------------------------------------
+    createTreeRemovalMenu() {
+        const s = this.scene.scaleFactor;
+        this.scene.treeRemovalMenu = this.scene.add.container(0, 0).setVisible(false).setDepth(250);
+        const menuWidth = 280 * s;
+        const menuHeight = 140 * s;
+        const { bg } = this.createPanelBackground(menuWidth, menuHeight, {
+            fill: 0x0f0f1a,
+            fillAlpha: 0.98,
+            shadowAlpha: 0.5,
+            stroke: 0xff6600,
+            strokeAlpha: 1,
+            innerStroke: 0xcc4400,
+            innerAlpha: 0.6,
+            radius: 16,
+            headerY: 0
+        });
+        this.scene.treeRemovalMenu.add(bg);
+        // Texte de confirmation
+        this.scene.treeRemovalText = this.scene.add.text(menuWidth / 2, 35 * s, "", {
+            fontSize: `${Math.max(14, 16 * s)}px`,
+            fill: "#ffffff",
+            fontFamily: "Arial",
+            align: "center",
+            wordWrap: {
+                width: menuWidth - 40 * s
+            }
+        }).setOrigin(0.5).setDepth(251);
+        this.scene.treeRemovalMenu.add(this.scene.treeRemovalText);
+        // Bouton Oui
+        const yesBtn = this.scene.add.text(menuWidth / 2 - 60 * s, 90 * s, "OUI", {
+            fontSize: `${Math.max(14, 16 * s)}px`,
+            fill: "#ffffff",
+            fontStyle: "bold",
+            backgroundColor: "#00aa00",
+            padding: {
+                x: 20 * s,
+                y: 8 * s
+            },
+            fontFamily: "Arial"
+        }).setOrigin(0.5).setDepth(251).setInteractive({
+            useHandCursor: true
+        }).on("pointerover", ()=>yesBtn.setBackgroundColor("#00cc00")).on("pointerout", ()=>yesBtn.setBackgroundColor("#00aa00")).on("pointerdown", ()=>{
+            if (this.scene.treeRemovalTile) {
+                const { tx, ty } = this.scene.treeRemovalTile;
+                if (this.scene.money >= 25) {
+                    this.scene.mapManager.removeTree(tx, ty);
+                    this.scene.earnMoney(-25); // Déduire 25$
+                    this.scene.treeRemovalMenu.setVisible(false);
+                    this.scene.treeRemovalTile = null;
+                } else // Pas assez d'argent
+                this.scene.cameras.main.shake(50, 0.005);
+            }
+        });
+        // Bouton Non
+        const noBtn = this.scene.add.text(menuWidth / 2 + 60 * s, 90 * s, "NON", {
+            fontSize: `${Math.max(14, 16 * s)}px`,
+            fill: "#ffffff",
+            fontStyle: "bold",
+            backgroundColor: "#aa0000",
+            padding: {
+                x: 20 * s,
+                y: 8 * s
+            },
+            fontFamily: "Arial"
+        }).setOrigin(0.5).setDepth(251).setInteractive({
+            useHandCursor: true
+        }).on("pointerover", ()=>noBtn.setBackgroundColor("#cc0000")).on("pointerout", ()=>noBtn.setBackgroundColor("#aa0000")).on("pointerdown", ()=>{
+            this.scene.treeRemovalMenu.setVisible(false);
+            this.scene.treeRemovalTile = null;
+        });
+        this.scene.treeRemovalMenu.add([
+            yesBtn,
+            noBtn
+        ]);
+    }
+    openTreeRemovalConfirmation(pointer, tx, ty) {
+        const s = this.scene.scaleFactor;
+        // Créer le menu s'il n'existe pas
+        if (!this.scene.treeRemovalMenu) this.createTreeRemovalMenu();
+        // Stocker les coordonnées de la tuile
+        this.scene.treeRemovalTile = {
+            tx,
+            ty
+        };
+        const menuWidth = 280 * s;
+        const menuHeight = 140 * s;
+        // Positionner le menu près du pointeur
+        let menuX = Phaser.Math.Clamp(pointer.worldX, menuWidth / 2, this.scene.gameWidth - menuWidth / 2);
+        let menuY = Phaser.Math.Clamp(pointer.worldY, menuHeight / 2, this.scene.gameHeight - menuHeight / 2);
+        this.scene.treeRemovalMenu.setPosition(menuX - menuWidth / 2, menuY - menuHeight / 2);
+        // Mettre à jour le texte
+        const canAfford = this.scene.money >= 25;
+        const costText = canAfford ? "25" : "25 (insuffisant)";
+        this.scene.treeRemovalText.setText([
+            "Voulez-vous enlever",
+            "cet arbre pour",
+            `${costText} pi\xe8ces ?`
+        ]);
+        // Changer la couleur si pas assez d'argent
+        if (canAfford) this.scene.treeRemovalText.setColor("#ffffff");
+        else this.scene.treeRemovalText.setColor("#ff4444");
+        this.scene.treeRemovalMenu.setVisible(true);
     }
 }
 
-},{"../../config/settings.js":"9kTMs","../../config/turrets/index.js":"97rhz","../../objects/Barracks.js":"bSlQd","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["fILKw"], "fILKw", "parcelRequirebaba", {})
+},{"../../config/settings.js":"9kTMs","../../config/turrets/index.js":"97rhz","../../objects/Barracks.js":"bSlQd","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"lqA3P":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "lightning", ()=>lightning);
+const lightning = {
+    key: "lightning",
+    name: "\xc9clair",
+    damage: 200,
+    radius: 80,
+    paralysisDuration: 3500,
+    cooldown: 100000,
+    description: "Sort puissant qui fait tomber un \xe9clair destructeur.\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts massifs (200)\n\u2022 Zone d'effet (touche plusieurs ennemis)\n\u2022 Paralysie les ennemis survivants (3.5s)\n\n\u274C Inconv\xe9nients:\n\u2022 Cooldown tr\xe8s long (100 secondes)\n\u2022 N\xe9cessite un placement pr\xe9cis\n\u2022 Zone d'effet limit\xe9e"
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["fILKw"], "fILKw", "parcelRequirebaba", {})
 
 //# sourceMappingURL=towerdefense.1fcc916e.js.map
