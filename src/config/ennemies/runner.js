@@ -1,11 +1,12 @@
 export const runner = {
   name: "Scout",
-  speed: 260,
-  hp: 110, 
+  speed: 220,
+  hp: 112,
   reward: 30,
   color: 0xffd166, // Jaune/Orange
   damage: 14, // Dégâts par attaque (rapide mais faible)
   attackSpeed: 600, // Vitesse d'attaque en ms
+  scale: 1,
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};

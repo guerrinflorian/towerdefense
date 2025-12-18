@@ -1,11 +1,12 @@
 export const tank = {
   name: "Heavy",
   speed: 38,
-  hp: 2800,
+  hp: 2650,
   reward: 150,
   color: 0x224466, // Bleu acier foncé
   damage: 28, // Dégâts par attaque (très fort)
   attackSpeed: 1200, // Vitesse d'attaque en ms (lent)
+  scale: 1,
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};

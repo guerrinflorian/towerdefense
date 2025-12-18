@@ -1,8 +1,8 @@
 export const machine_gun = {
   key: "machine_gun",
   name: "Mitrailleuse",
-  cost: 100,
-  range: 170,
+  cost: 90,
+  range: 95,
   damage: 10,
   rate: 240,
   color: 0x4488ff,

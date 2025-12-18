@@ -1,11 +1,12 @@
 export const grunt = {
   name: "Grunt",
-  speed: 90,
+  speed: 65,
   hp: 100,
   reward: 20,
   color: 0x558844, // Vert militaire
   damage: 8, // Dégâts par attaque
   attackSpeed: 800, // Vitesse d'attaque en ms
+  scale: 1,
 
   // --- DESSIN DU PERSONNAGE (Vue de profil) ---
   onDraw: (scene, container, color, enemyInstance) => {

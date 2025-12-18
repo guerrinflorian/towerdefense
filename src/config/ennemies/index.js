@@ -3,7 +3,8 @@ import { runner } from "./runner.js";
 import { tank } from "./tank.js";
 import { shield } from "./shield.js";
 import { boss } from "./boss.js";
-import { thrower } from "./thrower.js";
+import { zombie_minion } from "./zombie_minion.js";
+import { witch } from "./witch.js";
 
 export const ENEMIES = {
   grunt,
@@ -11,5 +12,6 @@ export const ENEMIES = {
   tank,
   shield,
   boss,
-  thrower,
+  zombie_minion,
+  witch,
 };
