@@ -5,6 +5,7 @@ import { Barracks } from "../../objects/Barracks.js";
 export class UIManager {
   constructor(scene) {
     this.scene = scene;
+    this.currentTooltip = null; // Tooltip actuellement affiché
 
     // Text lines (upgrade menu)
     this.scene.upgradeTextLines = [];
@@ -53,6 +54,47 @@ export class UIManager {
       .setOrigin(0, 0.5);
     topBar.add(this.scene.txtLives);
 
+    // Affichage de la vague actuelle
+    this.scene.txtWave = this.scene.add
+      .text(350 * s, UI_HEIGHT / 2, "", {
+        fontSize: `${fontSize}px`,
+        fill: "#00ccff",
+        fontStyle: "bold",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0, 0.5);
+    topBar.add(this.scene.txtWave);
+
+    // Bouton Pause/Reprendre (plus à droite pour ne pas écraser la vague)
+    this.scene.pauseBtn = this.scene.add
+      .text(600 * s, UI_HEIGHT / 2, "⏸️ PAUSE", {
+        fontSize: `${smallFontSize}px`,
+        fill: "#ffaa00",
+        backgroundColor: "#333333",
+        padding: { x: 10 * s, y: 5 * s },
+        fontFamily: "Arial",
+      })
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => {
+        if (!this.scene.isPaused) {
+          this.scene.pauseBtn.setColor("#ffcc00");
+        }
+      })
+      .on("pointerout", () => {
+        if (!this.scene.isPaused) {
+          this.scene.pauseBtn.setColor("#ffaa00");
+        }
+      })
+      .on("pointerdown", () => {
+        // Le bouton pause dans la toolbar met toujours en pause
+        if (!this.scene.isPaused) {
+          this.scene.pauseGame();
+        }
+        // Pour reprendre, on utilise le bouton au centre de l'écran
+      });
+    topBar.add(this.scene.pauseBtn);
+
     const quitBtn = this.scene.add
       .text(this.scene.gameWidth - 20 * s, UI_HEIGHT / 2, "QUITTER", {
         fontSize: `${smallFontSize}px`,
@@ -70,16 +112,36 @@ export class UIManager {
 
     this.scene.updateUI();
 
-    // Wave button
+    // Wave button - Positionné à droite, au même niveau que la toolbar
     const btnWidth = 300 * s;
     const btnHeight = 60 * s;
-    const wx = this.scene.gameWidth - 180 * s;
-    const wy =
-      this.scene.mapStartY + 15 * CONFIG.TILE_SIZE * s - btnHeight - 10 * s;
+    const toolbarHeight = 120 * s;
+    const margin = 20 * s;
+    
+    // Calculer la position pour être aligné avec les autres sections
+    const itemSize = 80 * s;
+    const itemSpacing = 90 * s;
+    const spellSectionWidth = itemSize + margin * 2;
+    const turretsSectionWidth = 5 * itemSpacing;
+    const totalWidth = spellSectionWidth + turretsSectionWidth + btnWidth + margin * 4;
+    const startX = (this.scene.gameWidth - totalWidth) / 2;
+    
+    // Positionner à droite, aligné avec les autres sections
+    const waveSectionX = startX + spellSectionWidth + turretsSectionWidth + margin * 3;
+    const wy = this.scene.toolbarOffsetY + toolbarHeight / 2; // Centré verticalement dans la toolbar
+
+    // Section du bouton de vague avec fond
+    this.scene.waveSection = this.scene.add.container(waveSectionX, this.scene.toolbarOffsetY).setDepth(150);
+    const waveSectionBg = this.scene.add.graphics();
+    waveSectionBg.fillStyle(0x000000, 0.9);
+    waveSectionBg.fillRoundedRect(0, 0, btnWidth + margin * 2, toolbarHeight, 10);
+    waveSectionBg.lineStyle(3, 0xffffff, 0.6);
+    waveSectionBg.strokeRoundedRect(0, 0, btnWidth + margin * 2, toolbarHeight, 10);
+    this.scene.waveSection.add(waveSectionBg);
 
     this.scene.waveBtnContainer = this.scene.add
-      .container(wx, wy)
-      .setDepth(100);
+      .container(margin + btnWidth / 2, toolbarHeight / 2)
+      .setDepth(151);
 
     this.scene.waveBtnBg = this.scene.add
       .rectangle(0, 0, btnWidth, btnHeight, 0x000000, 0.8)
@@ -98,7 +160,10 @@ export class UIManager {
       this.scene.waveBtnBg,
       this.scene.waveBtnText,
     ]);
+    
+    this.scene.waveSection.add(this.scene.waveBtnContainer);
 
+    // Interactivité simple sur le bouton
     this.scene.waveBtnBg
       .setInteractive({ useHandCursor: true })
       .on("pointerdown", () => this.scene.startWave());
@@ -106,12 +171,13 @@ export class UIManager {
     // Menus
     this.createBuildMenu();
     this.createUpgradeMenu();
+    // Le menu de confirmation d'arbre sera créé à la demande
   }
 
   // ------------------------------------------------------------
   // BUILD MENU (Right click)
-  // - More readable, more spaced, cost aligned to the right
-  // - Bigger buttons, clearer hover/disabled states
+  // - Simple grid layout with octagonal turret icons
+  // - Names below in small text
   // ------------------------------------------------------------
   createBuildMenu() {
     const s = this.scene.scaleFactor;
@@ -123,9 +189,9 @@ export class UIManager {
       .setVisible(false)
       .setDepth(240);
 
-    const menuWidth = 360 * s;
-    const menuHeight = 310 * s;
-    const pad = 16 * s;
+    const menuWidth = 300 * s;
+    const menuHeight = 250 * s;
+    const pad = 20 * s;
 
     const { bg, headerLine } = this.createPanelBackground(
       menuWidth,
@@ -139,13 +205,13 @@ export class UIManager {
         innerStroke: 0x0066aa,
         innerAlpha: 0.6,
         radius: 16,
-        headerY: 54 * s,
+        headerY: 40 * s,
       }
     );
 
     const title = this.scene.add
-      .text(menuWidth / 2, 28 * s, "CONSTRUIRE", {
-        fontSize: `${Math.max(18, 22 * s)}px`,
+      .text(menuWidth / 2, 20 * s, "CONSTRUIRE", {
+        fontSize: `${Math.max(16, 18 * s)}px`,
         fill: "#00ccff",
         fontStyle: "bold",
         stroke: "#003366",
@@ -155,18 +221,9 @@ export class UIManager {
       .setOrigin(0.5)
       .setDepth(241);
 
-    const hint = this.scene.add
-      .text(menuWidth / 2, 44 * s, "Choisis une tour à placer", {
-        fontSize: `${Math.max(12, 14 * s)}px`,
-        fill: "#a8c7d8",
-        fontFamily: "Arial",
-      })
-      .setOrigin(0.5)
-      .setDepth(241);
+    this.scene.buildMenu.add([bg, headerLine, title]);
 
-    this.scene.buildMenu.add([bg, headerLine, title, hint]);
-
-    const rows = [
+    const turrets = [
       TURRETS.machine_gun,
       TURRETS.sniper,
       TURRETS.cannon,
@@ -174,119 +231,167 @@ export class UIManager {
       TURRETS.barracks,
     ];
 
-    const startY = 76 * s;
-    const rowH = 44 * s; // bigger spacing
-    const btnW = menuWidth - pad * 2;
-    const btnX = pad + btnW / 2;
+    // Grille 3x2 (3 colonnes, 2 lignes) pour mieux accommoder 5 tourelles
+    const cols = 3;
+    const rows = 2;
+    const octagonSize = 45 * s;
+    const spacingX = (menuWidth - pad * 2) / cols;
+    const spacingY = 75 * s;
+    const startX = pad + spacingX / 2;
+    const startY = 55 * s;
 
-    rows.forEach((cfg, i) => {
-      const y = startY + i * rowH;
-      const btn = this.createBuildBtn(btnX, y, btnW, 38 * s, cfg);
+    turrets.forEach((cfg, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = startX + col * spacingX;
+      const y = startY + row * spacingY;
+      
+      const btn = this.createBuildBtnOctagon(x, y, octagonSize, cfg);
       this.scene.buildMenu.add(btn);
       this.buildButtons.push(btn);
     });
-
-    // Footer note
-    const footer = this.scene.add
-      .text(
-        pad,
-        menuHeight - 22 * s,
-        "Astuce : clic droit sur la grille pour ouvrir",
-        {
-          fontSize: `${Math.max(11, 12 * s)}px`,
-          fill: "#6f91a3",
-          fontFamily: "Arial",
-        }
-      )
-      .setOrigin(0, 0.5)
-      .setDepth(241);
-
-    this.scene.buildMenu.add(footer);
 
     // Store menu geometry (used in openBuildMenu clamp)
     this.scene._buildMenuSize = { w: menuWidth, h: menuHeight };
   }
 
-  createBuildBtn(x, y, w, h, turretConfig) {
-    const s = this.scene.scaleFactor;
+  // Fonction pour dessiner un octogone
+  drawOctagon(graphics, x, y, radius, fillColor, fillAlpha, strokeColor, strokeWidth) {
+    graphics.clear();
+    graphics.fillStyle(fillColor, fillAlpha);
+    graphics.lineStyle(strokeWidth, strokeColor, 1);
+    
+    const sides = 8;
+    const angleStep = (Math.PI * 2) / sides;
+    
+    graphics.beginPath();
+    for (let i = 0; i <= sides; i++) {
+      const angle = (i * angleStep) - Math.PI / 2; // Commencer en haut
+      const px = x + Math.cos(angle) * radius;
+      const py = y + Math.sin(angle) * radius;
+      if (i === 0) {
+        graphics.moveTo(px, py);
+      } else {
+        graphics.lineTo(px, py);
+      }
+    }
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.strokePath();
+  }
 
-    const fontName = Math.max(14, 16 * s);
-    const fontCost = Math.max(12, 14 * s);
+  createBuildBtnOctagon(x, y, size, turretConfig) {
+    const s = this.scene.scaleFactor;
+    const radius = size / 2;
 
     const btn = this.scene.add.container(x, y).setDepth(241);
 
-    // Base rectangle
-    const bg = this.scene.add
-      .rectangle(0, 0, w, h, 0x1a1a2e, 0.96)
-      .setStrokeStyle(Math.max(2, 2 * s), 0x00ccff, 0.7);
-
-    // Soft inner highlight line (gives a "button" feel)
-    const deco = this.scene.add.graphics();
-    deco.lineStyle(Math.max(1, 1 * s), 0xffffff, 0.08);
-    deco.strokeRoundedRect(
-      -w / 2 + 3 * s,
-      -h / 2 + 3 * s,
-      w - 6 * s,
-      h - 6 * s,
-      8
+    // Octogone de fond
+    const octagonBg = this.scene.add.graphics();
+    this.drawOctagon(
+      octagonBg,
+      0,
+      0,
+      radius,
+      0x1a1a2e,
+      0.96,
+      0x00ccff,
+      Math.max(2, 2 * s)
     );
 
-    // Left texts
-    const name = this.scene.add
-      .text(-w / 2 + 12 * s, 0, turretConfig.name, {
-        fontSize: `${fontName}px`,
+    // Zone interactive (cercle pour simplifier)
+    const hitArea = this.scene.add.circle(0, 0, radius + 5 * s, 0x000000, 0);
+    hitArea.setInteractive({ useHandCursor: true });
+
+    // Miniature de la tourelle
+    const previewContainer = this.scene.add.container(0, 0);
+    if (this.scene.drawTurretPreview) {
+      this.scene.drawTurretPreview(previewContainer, turretConfig);
+      previewContainer.setScale(0.35 * s); // Plus petit pour rentrer dans l'octogone
+    }
+
+    // Nom en petit en dessous
+    const nameText = this.scene.add
+      .text(0, radius + 8 * s, turretConfig.name, {
+        fontSize: `${Math.max(10, 11 * s)}px`,
         fill: "#ffffff",
-        fontStyle: "bold",
         fontFamily: "Arial",
       })
-      .setOrigin(0, 0.5);
+      .setOrigin(0.5);
 
-    // Right cost aligned
-    const cost = this.scene.add
-      .text(w / 2 - 12 * s, 0, `${turretConfig.cost}$`, {
-        fontSize: `${fontCost}px`,
+    // Prix en très petit
+    const costText = this.scene.add
+      .text(0, radius + 18 * s, `${turretConfig.cost}$`, {
+        fontSize: `${Math.max(9, 10 * s)}px`,
         fill: "#ffd700",
-        fontStyle: "bold",
         fontFamily: "Arial",
       })
-      .setOrigin(1, 0.5);
+      .setOrigin(0.5);
 
-    // Optional small label under name (if you ever add category tags)
-    // const sub = ...
-
-    bg.setInteractive({ useHandCursor: true });
-
-    btn.add([bg, deco, name, cost]);
+    btn.add([octagonBg, hitArea, previewContainer, nameText, costText]);
 
     // Keep refs for refresh
     btn.turretConfig = turretConfig;
-    btn.btnBg = bg;
-    btn.nameText = name;
-    btn.costText = cost;
+    btn.octagonBg = octagonBg;
+    btn.nameText = nameText;
+    btn.costText = costText;
+    btn.previewContainer = previewContainer;
+    btn.hitArea = hitArea;
+    btn.radius = radius; // Stocker le radius pour la mise à jour
 
     // Initial state
-    this.applyBuildBtnState(btn);
+    this.applyBuildBtnStateOctagon(btn);
 
     // Hover states
-    bg.on("pointerover", () => {
-      const canAfford = this.scene.money >= turretConfig.cost;
-      if (!canAfford) return;
+      hitArea.on("pointerover", () => {
+        const canAfford = this.scene.money >= turretConfig.cost;
+        const isBarracksMaxed = turretConfig.key === "barracks" && 
+          this.scene.barracks.length >= this.scene.maxBarracks;
+        
+        if (!canAfford || isBarracksMaxed) return;
 
-      bg.setFillStyle(0x2a2a4e, 1);
-      bg.setStrokeStyle(Math.max(3, 3 * s), 0x00ffff, 1);
-      name.setColor("#ffffff");
-      cost.setColor("#ffff00");
-    });
+        this.drawOctagon(
+          octagonBg,
+          0,
+          0,
+          radius,
+          0x2a2a4e,
+          1,
+          0x00ffff,
+          Math.max(3, 3 * s)
+        );
+        nameText.setColor("#ffffff");
+        costText.setColor("#ffff00");
+        
+        // Afficher le tooltip avec la description
+        if (turretConfig.description) {
+          this.showTurretTooltip(btn, turretConfig.description, hitArea);
+        }
+      });
 
-    bg.on("pointerout", () => {
-      this.applyBuildBtnState(btn);
-    });
+      hitArea.on("pointerout", () => {
+        this.applyBuildBtnStateOctagon(btn);
+        // Cacher le tooltip
+        if (this.currentTooltip) {
+          this.currentTooltip.destroy();
+          this.currentTooltip = null;
+        }
+      });
 
-    bg.on("pointerdown", () => {
+    hitArea.on("pointerdown", () => {
+      // Cacher le tooltip lors du clic
+      if (this.currentTooltip) {
+        this.currentTooltip.destroy();
+        this.currentTooltip = null;
+      }
+      
       if (!this.scene.selectedTile) return;
 
       const canAfford = this.scene.money >= turretConfig.cost;
-      if (!canAfford) {
+      const isBarracksMaxed = turretConfig.key === "barracks" && 
+        this.scene.barracks.length >= this.scene.maxBarracks;
+      
+      if (!canAfford || isBarracksMaxed) {
         this.scene.cameras.main.shake(50, 0.005);
         return;
       }
@@ -298,35 +403,139 @@ export class UIManager {
       );
 
       if (success) this.scene.buildMenu.setVisible(false);
-      this.updateBuildMenuButtons(); // refresh after spending
+      this.updateBuildMenuButtons();
     });
 
     return btn;
   }
-
-  applyBuildBtnState(btnContainer) {
+  
+  // Afficher un tooltip avec la description de la tourelle
+  showTurretTooltip(btnContainer, description, triggerElement) {
     const s = this.scene.scaleFactor;
+    
+    // Détruire l'ancien tooltip s'il existe
+    if (this.currentTooltip) {
+      this.currentTooltip.destroy();
+    }
+    
+    // Calculer la position du tooltip (à droite du bouton)
+    const btnX = btnContainer.x + (this.scene.buildMenu.x || 0);
+    const btnY = btnContainer.y + (this.scene.buildMenu.y || 0);
+    
+    // Créer le tooltip
+    const tooltipContainer = this.scene.add.container(0, 0).setDepth(300);
+    this.currentTooltip = tooltipContainer;
+    
+    // Fond du tooltip
+    const tooltipBg = this.scene.add.graphics();
+    const padding = 15 * s;
+    const maxWidth = 350 * s;
+    const lineHeight = 20 * s;
+    
+    // Calculer la taille du texte
+    const tempText = this.scene.add.text(0, 0, description, {
+      fontSize: `${Math.max(11, 12 * s)}px`,
+      fill: "#ffffff",
+      fontFamily: "Arial",
+      wordWrap: { width: maxWidth - padding * 2 },
+      lineSpacing: 4 * s,
+    });
+    const textWidth = Math.min(tempText.width, maxWidth - padding * 2);
+    const textHeight = tempText.height;
+    tempText.destroy();
+    
+    const tooltipWidth = textWidth + padding * 2;
+    const tooltipHeight = textHeight + padding * 2;
+    
+    // Positionner le tooltip à droite du bouton
+    const tooltipX = btnX + 60 * s;
+    const tooltipY = btnY;
+    
+    // Dessiner le fond
+    tooltipBg.fillStyle(0x000000, 0.95);
+    tooltipBg.fillRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
+    tooltipBg.lineStyle(2, 0x00ccff, 1);
+    tooltipBg.strokeRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
+    
+    // Texte de description
+    const descText = this.scene.add.text(
+      padding,
+      padding,
+      description,
+      {
+        fontSize: `${Math.max(11, 12 * s)}px`,
+        fill: "#ffffff",
+        fontFamily: "Arial",
+        wordWrap: { width: maxWidth - padding * 2 },
+        lineSpacing: 4 * s,
+      }
+    );
+    
+    tooltipContainer.add([tooltipBg, descText]);
+    tooltipContainer.setPosition(tooltipX, tooltipY);
+    
+    // Ajuster la position si le tooltip sort de l'écran
+    if (tooltipX + tooltipWidth > this.scene.gameWidth) {
+      tooltipContainer.setX(btnX - tooltipWidth - 10 * s);
+    }
+    if (tooltipY + tooltipHeight > this.scene.gameHeight) {
+      tooltipContainer.setY(this.scene.gameHeight - tooltipHeight - 10 * s);
+    }
+  }
 
+  applyBuildBtnStateOctagon(btnContainer) {
+    const s = this.scene.scaleFactor;
     const cfg = btnContainer.turretConfig;
     const canAfford = this.scene.money >= cfg.cost;
+    
+    let isDisabled = false;
+    if (cfg.key === "barracks") {
+      isDisabled = this.scene.barracks.length >= this.scene.maxBarracks;
+    }
+    
+    const shouldDisable = !canAfford || isDisabled;
+    const radius = btnContainer.radius || (50 * s / 2);
 
     if (btnContainer.nameText) {
-      btnContainer.nameText.setColor(canAfford ? "#ffffff" : "#666666");
+      btnContainer.nameText.setColor(shouldDisable ? "#666666" : "#ffffff");
+      btnContainer.nameText.setAlpha(shouldDisable ? 0.6 : 1);
     }
     if (btnContainer.costText) {
-      btnContainer.costText.setColor(canAfford ? "#ffd700" : "#ff4444");
+      btnContainer.costText.setColor(shouldDisable ? "#ff4444" : "#ffd700");
+      btnContainer.costText.setAlpha(shouldDisable ? 0.7 : 1);
     }
-    if (btnContainer.btnBg) {
-      btnContainer.btnBg.setFillStyle(
-        canAfford ? 0x1a1a2e : 0x0f0f0f,
-        canAfford ? 0.96 : 0.85
+    if (btnContainer.octagonBg) {
+      const fillColor = shouldDisable ? 0x0f0f0f : 0x1a1a2e;
+      const fillAlpha = shouldDisable ? 0.6 : 0.96;
+      const strokeColor = shouldDisable ? 0x444444 : 0x00ccff;
+      const strokeWidth = Math.max(2, 2 * s);
+      
+      this.drawOctagon(
+        btnContainer.octagonBg,
+        0,
+        0,
+        radius,
+        fillColor,
+        fillAlpha,
+        strokeColor,
+        strokeWidth
       );
-      btnContainer.btnBg.setStrokeStyle(
-        Math.max(2, 2 * s),
-        canAfford ? 0x00ccff : 0x666666,
-        canAfford ? 0.7 : 0.5
-      );
+      btnContainer.octagonBg.setAlpha(shouldDisable ? 0.5 : 1);
+      
+      if (shouldDisable) {
+        btnContainer.hitArea?.disableInteractive();
+      } else {
+        btnContainer.hitArea?.setInteractive({ useHandCursor: true });
+      }
     }
+    if (btnContainer.previewContainer) {
+      btnContainer.previewContainer.setAlpha(shouldDisable ? 0.4 : 1);
+    }
+  }
+
+  applyBuildBtnState(btnContainer) {
+    // Ancienne méthode pour compatibilité, mais on utilise maintenant applyBuildBtnStateOctagon
+    this.applyBuildBtnStateOctagon(btnContainer);
   }
 
   updateBuildMenuButtons() {
@@ -336,7 +545,13 @@ export class UIManager {
         ? this.buildButtons
         : this.scene.buildMenu?.list?.filter((x) => x?.turretConfig) || [];
 
-    buttons.forEach((btn) => this.applyBuildBtnState(btn));
+    buttons.forEach((btn) => {
+      if (btn.octagonBg) {
+        this.applyBuildBtnStateOctagon(btn);
+      } else {
+        this.applyBuildBtnState(btn);
+      }
+    });
   }
 
   openBuildMenu(pointer) {
@@ -416,26 +631,110 @@ export class UIManager {
       .setDepth(241)
       .setInteractive({ useHandCursor: true })
       .on("pointerover", () => {
-        if (this.scene.selectedTurret?.getNextLevelStats?.()) {
+        const nextStats = this.scene.selectedTurret?.getNextLevelStats?.();
+        const canAfford = nextStats && this.scene.money >= nextStats.cost;
+        if (nextStats && canAfford) {
           this.scene.upgradeBtnText.setBackgroundColor("#00cc00");
         }
       })
       .on("pointerout", () => {
-        const hasNext = !!this.scene.selectedTurret?.getNextLevelStats?.();
-        this.scene.upgradeBtnText.setBackgroundColor(
-          hasNext ? "#00aa00" : "#666666"
-        );
+        const nextStats = this.scene.selectedTurret?.getNextLevelStats?.();
+        const canAfford = nextStats && this.scene.money >= nextStats.cost;
+        const hasNext = !!nextStats;
+        if (hasNext && canAfford) {
+          this.scene.upgradeBtnText.setBackgroundColor("#00aa00");
+        } else {
+          this.scene.upgradeBtnText.setBackgroundColor("#666666");
+        }
       })
       .on("pointerdown", () => {
-        if (this.scene.selectedTurret?.getNextLevelStats?.()) {
+        const nextStats = this.scene.selectedTurret?.getNextLevelStats?.();
+        const canAfford = nextStats && this.scene.money >= nextStats.cost;
+        if (nextStats && canAfford) {
           this.scene.triggerUpgrade();
-        } else {
+        } else if (!nextStats) {
           this.scene.upgradeMenu.setVisible(false);
           this.scene.selectedTurret = null;
+        } else {
+          // Pas assez d'argent
+          this.scene.cameras.main.shake(50, 0.005);
         }
       });
 
     this.scene.upgradeMenu.add(this.scene.upgradeBtnText);
+
+    // Icône poubelle pour revendre (en haut à droite)
+    this.scene.trashIcon = this.createTrashIcon(menuWidth, s);
+    this.scene.upgradeMenu.add(this.scene.trashIcon);
+  }
+
+  createTrashIcon(menuWidth, s) {
+    const trashIcon = this.scene.add.graphics();
+    const trashSize = 20 * s;
+    const trashX = menuWidth - 30 * s;
+    const trashY = 15 * s;
+
+    const drawTrash = (color = 0xff0000) => {
+      trashIcon.clear();
+      trashIcon.fillStyle(color, 1);
+      trashIcon.fillRect(trashX - trashSize / 2, trashY - trashSize / 2, trashSize, trashSize * 0.8);
+      trashIcon.fillStyle(0xcc0000, 1);
+      trashIcon.fillRect(trashX - trashSize / 2 + 2 * s, trashY - trashSize / 2 + 2 * s, trashSize - 4 * s, trashSize * 0.6);
+      // Couvercle
+      trashIcon.fillStyle(color, 1);
+      trashIcon.fillRect(trashX - trashSize / 2 - 2 * s, trashY - trashSize / 2 - 3 * s, trashSize + 4 * s, 4 * s);
+      // Poignées
+      trashIcon.fillStyle(0xffffff, 1);
+      trashIcon.fillRect(trashX - trashSize / 2 - 4 * s, trashY - trashSize / 2 + 2 * s, 2 * s, 6 * s);
+      trashIcon.fillRect(trashX + trashSize / 2 + 2 * s, trashY - trashSize / 2 + 2 * s, 2 * s, 6 * s);
+    };
+
+    drawTrash();
+
+    trashIcon.setDepth(241);
+    trashIcon.setInteractive(new Phaser.Geom.Rectangle(trashX - trashSize / 2 - 4 * s, trashY - trashSize / 2 - 3 * s, trashSize + 8 * s, trashSize + 6 * s), Phaser.Geom.Rectangle.Contains);
+    trashIcon.setInteractive({ useHandCursor: true });
+
+    trashIcon.on("pointerover", () => {
+      drawTrash(0xff4444);
+    });
+
+    trashIcon.on("pointerout", () => {
+      drawTrash();
+    });
+
+    trashIcon.on("pointerdown", () => {
+      if (!this.scene.selectedTurret) return;
+
+      const totalCost = this.scene.selectedTurret.getTotalCost();
+      const refund = Math.floor(totalCost / 2);
+
+      // Retirer la tourelle/barracks de la liste
+      if (this.scene.selectedTurret instanceof Barracks) {
+        const index = this.scene.barracks.indexOf(this.scene.selectedTurret);
+        if (index !== -1) {
+          this.scene.barracks.splice(index, 1);
+        }
+      } else {
+        const index = this.scene.turrets.indexOf(this.scene.selectedTurret);
+        if (index !== -1) {
+          this.scene.turrets.splice(index, 1);
+        }
+      }
+
+      // Détruire l'objet
+      this.scene.selectedTurret.destroy();
+
+      // Rembourser
+      this.scene.earnMoney(refund);
+
+      // Fermer le menu
+      this.scene.upgradeMenu.setVisible(false);
+      this.scene.selectedTurret = null;
+      this.scene.updateToolbarCounts();
+    });
+
+    return trashIcon;
   }
 
   openUpgradeMenu(pointer, turret) {
@@ -498,11 +797,31 @@ export class UIManager {
       ? turret.getNextLevelStats()
       : null;
 
+    // Vérifier si on a assez d'argent pour l'amélioration
+    const canAfford = finalNextStats && this.scene.money >= finalNextStats.cost;
+    const shouldDisable = !finalNextStats || !canAfford;
+
     this.scene.upgradeBtnText.setPosition(15 * s, menuHeight - 50 * s);
-    this.scene.upgradeBtnText.setText(finalNextStats ? "AMÉLIORER" : "FERMER");
-    this.scene.upgradeBtnText.setBackgroundColor(
-      finalNextStats ? "#00aa00" : "#666666"
-    );
+    if (finalNextStats) {
+      this.scene.upgradeBtnText.setText(
+        canAfford ? "AMÉLIORER" : `AMÉLIORER (${finalNextStats.cost}$)`
+      );
+    } else {
+      this.scene.upgradeBtnText.setText("FERMER");
+    }
+    
+    // Désactiver visuellement si on ne peut pas se le permettre
+    if (shouldDisable) {
+      this.scene.upgradeBtnText.setBackgroundColor("#666666");
+      this.scene.upgradeBtnText.setColor("#999999");
+      this.scene.upgradeBtnText.setAlpha(0.6);
+      this.scene.upgradeBtnText.disableInteractive();
+    } else {
+      this.scene.upgradeBtnText.setBackgroundColor("#00aa00");
+      this.scene.upgradeBtnText.setColor("#ffffff");
+      this.scene.upgradeBtnText.setAlpha(1);
+      this.scene.upgradeBtnText.setInteractive({ useHandCursor: true });
+    }
 
     this.scene.upgradeMenu.setVisible(true);
   }
@@ -567,6 +886,7 @@ export class UIManager {
 
       yPos += lineHeight * 0.5;
 
+      const canAfford = this.scene.money >= nextStats.cost;
       const costText = this.scene.add
         .text(xPos, yPos, `Coût : `, {
           fontSize: `${fontSize}px`,
@@ -577,7 +897,7 @@ export class UIManager {
       const costValue = this.scene.add
         .text(xPos + costText.width, yPos, `${nextStats.cost}$`, {
           fontSize: `${fontSize}px`,
-          fill: "#ffd700",
+          fill: canAfford ? "#ffd700" : "#ff4444",
           fontStyle: "bold",
           fontFamily: "Arial",
         })
@@ -698,6 +1018,7 @@ export class UIManager {
 
       yPos += lineHeight * 0.5;
 
+      const canAfford = this.scene.money >= nextStats.cost;
       const costText = this.scene.add
         .text(xPos, yPos, `Coût : `, {
           fontSize: `${fontSize}px`,
@@ -708,7 +1029,7 @@ export class UIManager {
       const costValue = this.scene.add
         .text(xPos + costText.width, yPos, `${nextStats.cost}$`, {
           fontSize: `${fontSize}px`,
-          fill: "#ffd700",
+          fill: canAfford ? "#ffd700" : "#ff4444",
           fontStyle: "bold",
           fontFamily: "Arial",
         })
@@ -841,5 +1162,151 @@ export class UIManager {
     headerLine.strokePath();
 
     return { bg: g, headerLine };
+  }
+
+  // ------------------------------------------------------------
+  // TREE REMOVAL CONFIRMATION MENU
+  // ------------------------------------------------------------
+  createTreeRemovalMenu() {
+    const s = this.scene.scaleFactor;
+
+    this.scene.treeRemovalMenu = this.scene.add
+      .container(0, 0)
+      .setVisible(false)
+      .setDepth(250);
+
+    const menuWidth = 280 * s;
+    const menuHeight = 140 * s;
+
+    const { bg } = this.createPanelBackground(menuWidth, menuHeight, {
+      fill: 0x0f0f1a,
+      fillAlpha: 0.98,
+      shadowAlpha: 0.5,
+      stroke: 0xff6600,
+      strokeAlpha: 1,
+      innerStroke: 0xcc4400,
+      innerAlpha: 0.6,
+      radius: 16,
+      headerY: 0,
+    });
+
+    this.scene.treeRemovalMenu.add(bg);
+
+    // Texte de confirmation
+    this.scene.treeRemovalText = this.scene.add
+      .text(menuWidth / 2, 35 * s, "", {
+        fontSize: `${Math.max(14, 16 * s)}px`,
+        fill: "#ffffff",
+        fontFamily: "Arial",
+        align: "center",
+        wordWrap: { width: menuWidth - 40 * s },
+      })
+      .setOrigin(0.5)
+      .setDepth(251);
+
+    this.scene.treeRemovalMenu.add(this.scene.treeRemovalText);
+
+    // Bouton Oui
+    const yesBtn = this.scene.add
+      .text(menuWidth / 2 - 60 * s, 90 * s, "OUI", {
+        fontSize: `${Math.max(14, 16 * s)}px`,
+        fill: "#ffffff",
+        fontStyle: "bold",
+        backgroundColor: "#00aa00",
+        padding: { x: 20 * s, y: 8 * s },
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5)
+      .setDepth(251)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => yesBtn.setBackgroundColor("#00cc00"))
+      .on("pointerout", () => yesBtn.setBackgroundColor("#00aa00"))
+      .on("pointerdown", () => {
+        if (this.scene.treeRemovalTile) {
+          const { tx, ty } = this.scene.treeRemovalTile;
+          if (this.scene.money >= 25) {
+            this.scene.mapManager.removeTree(tx, ty);
+            this.scene.earnMoney(-25); // Déduire 25$
+            this.scene.treeRemovalMenu.setVisible(false);
+            this.scene.treeRemovalTile = null;
+          } else {
+            // Pas assez d'argent
+            this.scene.cameras.main.shake(50, 0.005);
+          }
+        }
+      });
+
+    // Bouton Non
+    const noBtn = this.scene.add
+      .text(menuWidth / 2 + 60 * s, 90 * s, "NON", {
+        fontSize: `${Math.max(14, 16 * s)}px`,
+        fill: "#ffffff",
+        fontStyle: "bold",
+        backgroundColor: "#aa0000",
+        padding: { x: 20 * s, y: 8 * s },
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5)
+      .setDepth(251)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => noBtn.setBackgroundColor("#cc0000"))
+      .on("pointerout", () => noBtn.setBackgroundColor("#aa0000"))
+      .on("pointerdown", () => {
+        this.scene.treeRemovalMenu.setVisible(false);
+        this.scene.treeRemovalTile = null;
+      });
+
+    this.scene.treeRemovalMenu.add([yesBtn, noBtn]);
+  }
+
+  openTreeRemovalConfirmation(pointer, tx, ty) {
+    const s = this.scene.scaleFactor;
+
+    // Créer le menu s'il n'existe pas
+    if (!this.scene.treeRemovalMenu) {
+      this.createTreeRemovalMenu();
+    }
+
+    // Stocker les coordonnées de la tuile
+    this.scene.treeRemovalTile = { tx, ty };
+
+    const menuWidth = 280 * s;
+    const menuHeight = 140 * s;
+
+    // Positionner le menu près du pointeur
+    let menuX = Phaser.Math.Clamp(
+      pointer.worldX,
+      menuWidth / 2,
+      this.scene.gameWidth - menuWidth / 2
+    );
+    let menuY = Phaser.Math.Clamp(
+      pointer.worldY,
+      menuHeight / 2,
+      this.scene.gameHeight - menuHeight / 2
+    );
+
+    this.scene.treeRemovalMenu.setPosition(
+      menuX - menuWidth / 2,
+      menuY - menuHeight / 2
+    );
+
+    // Mettre à jour le texte
+    const canAfford = this.scene.money >= 25;
+    const costText = canAfford ? "25" : "25 (insuffisant)";
+    
+    this.scene.treeRemovalText.setText([
+      "Voulez-vous enlever",
+      "cet arbre pour",
+      `${costText} pièces ?`
+    ]);
+    
+    // Changer la couleur si pas assez d'argent
+    if (canAfford) {
+      this.scene.treeRemovalText.setColor("#ffffff");
+    } else {
+      this.scene.treeRemovalText.setColor("#ff4444");
+    }
+
+    this.scene.treeRemovalMenu.setVisible(true);
   }
 }

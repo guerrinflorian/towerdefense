@@ -202,6 +202,28 @@ export class Turret extends Phaser.GameObjects.Container {
     });
   }
 
+  // Calculer le coût total déboursé (base + améliorations)
+  getTotalCost() {
+    const baseCost = TURRETS[this.config.key]?.cost || 100;
+    let totalCost = baseCost;
+
+    // Calculer les coûts des améliorations
+    if (this.level >= 2) {
+      // Coût upgrade niveau 1 -> 2
+      totalCost += Math.floor(baseCost * 2.5);
+    }
+    if (this.level >= 3) {
+      // Coût upgrade niveau 2 -> 3
+      if (this.config.key === "cannon") {
+        totalCost += Math.floor(baseCost * 10);
+      } else {
+        totalCost += Math.floor(baseCost * 2.5 * 2.2);
+      }
+    }
+
+    return totalCost;
+  }
+
   update(time, enemies) {
     // Si la tourelle a une 'rate' définie, on l'utilise, sinon valeur par défaut
     const rate = this.config.rate || 1000;

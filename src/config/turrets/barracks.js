@@ -7,6 +7,7 @@ export const barracks = {
   rate: 0, // Pas de tir
   color: 0x8b4513, // Marron
   maxLevel: 3,
+  description: "Bâtiment qui produit des soldats pour bloquer les ennemis.\n\n✅ Avantages:\n• Soldats bloquent temporairement les ennemis\n• Les soldats se régénèrent automatiquement\n• Complémentaire aux tourelles\n• Peut être amélioré pour plus de soldats\n\n❌ Inconvénients:\n• Pas de dégâts directs\n• Les soldats peuvent mourir\n• Nécessite un placement stratégique",
 
   // Nombre de soldats par niveau
   soldiersCount: [2, 3, 4],

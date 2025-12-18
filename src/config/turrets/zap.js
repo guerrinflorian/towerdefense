@@ -8,6 +8,7 @@ export const zap = {
   color: 0x00ffff, // Cyan électrique
   maxLevel: 3,
   maxChainTargets: 3, // Nombre max de cibles pour la chaîne (niveau 1)
+  description: "Générateur électrique avec propagation en chaîne.\n\n✅ Avantages:\n• Propagation d'éclair entre ennemis proches\n• Dégâts instantanés\n• Efficace contre les groupes serrés\n\n❌ Inconvénients:\n• Coût très élevé\n• Portée moyenne\n• Moins efficace si ennemis espacés",
 
   // --- DESSIN ÉVOLUTIF (Design Électrique) ---
   onDrawBarrel: (scene, container, color, turret) => {
