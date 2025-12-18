@@ -1,8 +1,8 @@
 export const sniper = {
   key: "sniper",
   name: "Sniper",
-  cost: 300,
-  range: 300, // Très longue portée
+  cost: 270,
+  range: 160, // Très longue portée
   damage: 150, // Dégâts massifs
   rate: 2500, // Tir très lent
   color: 0x44ff44, // Vert fluo (interface)

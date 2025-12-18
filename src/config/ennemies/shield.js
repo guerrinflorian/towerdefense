@@ -6,6 +6,7 @@ export const shield = {
   color: 0x00aabb, // Cyan/Teal
   damage: 12, // Dégâts par attaque
   attackSpeed: 900, // Vitesse d'attaque en ms
+  scale: 1,
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};

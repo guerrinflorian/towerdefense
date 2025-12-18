@@ -1,11 +1,12 @@
 export const boss = {
   name: "DOOM",
-  speed: 20,
-  hp: 28000,
+  speed: 11,
+  hp: 42000,
   reward: 1000,
   color: 0x222222, // Noir/Rouge
   damage: 70, // Dégâts par attaque (très fort)
-  attackSpeed: 1000, // Vitesse d'attaque en ms
+  attackSpeed: 1500, // Vitesse d'attaque en ms
+  scale: 1,
 
   onDraw: (scene, container, color, enemyInstance) => {
     // Pas de jambes pour le boss, il flotte !

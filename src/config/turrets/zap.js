@@ -2,12 +2,12 @@ export const zap = {
   key: "zap",
   name: "Éclair",
   cost: 350,
-  range: 180,
-  damage: 60,
+  range: 120,
+  damage: 50,
   rate: 1800,
   color: 0x00ffff, // Cyan électrique
   maxLevel: 3,
-  maxChainTargets: 4, // Nombre max de cibles pour la chaîne (niveau 1)
+  maxChainTargets: 3, // Nombre max de cibles pour la chaîne (niveau 1)
 
   // --- DESSIN ÉVOLUTIF (Design Électrique) ---
   onDrawBarrel: (scene, container, color, turret) => {
@@ -142,16 +142,17 @@ export const zap = {
     const angle = turret.barrelGroup.rotation;
 
     // Nombre max de cibles selon le niveau
-    const maxChainTargets = level === 1 ? 4 : level === 2 ? 6 : 9;
-    const chainDistance = 100; // 1/2 case = 32 pixels (TILE_SIZE / 2)
+    const maxChainTargets = level === 1 ? 3 : level === 2 ? 5 : 7;
+    const chainDistance = 80; // 1/2 case = 32 pixels donc environ 1.2 cases
 
     // Longueur du canon
-    const barrelLen = level === 1 ? 35 : level === 2 ? 45 : 55;
+    const barrelLen = level === 1 ? 32 : level === 2 ? 40 : 48;
     const tipX = turret.x + Math.cos(angle) * barrelLen;
     const tipY = turret.y + Math.sin(angle) * barrelLen;
 
     // --- EFFET VISUEL INITIAL ---
-    const flashColor = level === 3 ? 0xaa00ff : level === 2 ? 0x00ffff : 0x00aaff;
+    const flashColor =
+      level === 3 ? 0xaa00ff : level === 2 ? 0x00ffff : 0x00aaff;
     const flashSize = level === 3 ? 25 : level === 2 ? 20 : 15;
     const flash = scene.add.circle(tipX, tipY, flashSize, flashColor, 0.9);
     scene.tweens.add({
@@ -190,11 +191,7 @@ export const zap = {
       let minDist = chainDistance;
 
       allEnemies.forEach((enemy) => {
-        if (
-          enemy.active &&
-          !hitEnemies.has(enemy) &&
-          enemy !== currentTarget
-        ) {
+        if (enemy.active && !hitEnemies.has(enemy) && enemy !== currentTarget) {
           const dist = Phaser.Math.Distance.Between(
             currentTarget.x,
             currentTarget.y,
