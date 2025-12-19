@@ -29,9 +29,16 @@ export class Hero extends Phaser.GameObjects.Container {
 
     this.corpseTimerEvent = null;
     this.corpseContainer = null;
+    
+    // --- Régénération automatique ---
+    this.lastDamageTime = scene?.time?.now || 0; // Temps du dernier dégât reçu
+    this.regenTimer = null; // Timer pour la régénération
+    this.regenDelay = 5000; // 5 secondes avant de commencer à régénérer
+    this.regenPercent = 0.03; // 3% de la vie max
+    this.regenInterval = 1000; // Toutes les 1 seconde
 
     // --- Visual / Layout (un peu plus gros + mieux lisible) ---
-    this.baseScale = 1.17; // <- rend le héros un peu plus gros
+    this.baseScale = 1.05; // <- rend le héros un peu plus gros
     this.visualScale = this.baseScale * s;
 
     this.bodyGroup = scene.add.container(0, 0);
@@ -381,6 +388,78 @@ export class Hero extends Phaser.GameObjects.Container {
       // Si on n'est pas en combat, vérifier si on peut engager un ennemi
       this.checkForEnemyEngage();
     }
+    
+    // Gérer la régénération automatique
+    this.handleRegeneration(now);
+  }
+  
+  handleRegeneration(now) {
+    if (!this.isAlive || this.hp >= this.maxHp) {
+      this.stopRegeneration();
+      return;
+    }
+    
+    // Si en combat, arrêter la régénération
+    if (this.blockingEnemy) {
+      this.stopRegeneration();
+      return;
+    }
+    
+    // Vérifier si 5 secondes se sont écoulées depuis le dernier dégât
+    const timeSinceDamage = now - this.lastDamageTime;
+    
+    if (timeSinceDamage >= this.regenDelay) {
+      // Démarrer la régénération si elle n'est pas déjà active
+      if (!this.regenTimer) {
+        this.startRegeneration();
+      }
+    } else {
+      // Pas encore assez de temps, arrêter la régénération si elle est active
+      if (this.regenTimer) {
+        this.stopRegeneration();
+      }
+    }
+  }
+  
+  startRegeneration() {
+    if (this.regenTimer || !this.scene || !this.scene.time) return;
+    if (!this.isAlive || this.hp >= this.maxHp) return;
+    
+    this.regenTimer = this.scene.time.addEvent({
+      delay: this.regenInterval,
+      callback: () => {
+        if (!this.isAlive || this.hp >= this.maxHp) {
+          this.stopRegeneration();
+          return;
+        }
+        
+        // Vérifier si on est toujours hors combat et si assez de temps s'est écoulé
+        const timeSinceDamage = this.scene.time.now - this.lastDamageTime;
+        if (timeSinceDamage < this.regenDelay || this.blockingEnemy) {
+          this.stopRegeneration();
+          return;
+        }
+        
+        // Régénérer 3% de la vie max
+        const healAmount = Math.ceil(this.maxHp * this.regenPercent);
+        const oldHp = this.hp;
+        this.hp = Math.min(this.maxHp, this.hp + healAmount);
+        
+        // Mettre à jour la barre de vie et le tooltip
+        this.drawHealthBar();
+        if (this.hpTooltip) {
+          this.hpTooltip.setText(this.getHpTooltipText());
+        }
+      },
+      loop: true
+    });
+  }
+  
+  stopRegeneration() {
+    if (this.regenTimer) {
+      this.regenTimer.remove();
+      this.regenTimer = null;
+    }
   }
 
   followPath(delta) {
@@ -445,6 +524,9 @@ export class Hero extends Phaser.GameObjects.Container {
 
     // Ne pas vider le chemin automatiquement - permettre le déplacement pendant le combat
     // Le joueur peut toujours donner une nouvelle destination pour partir
+    
+    // Arrêter la régénération quand on entre en combat
+    this.stopRegeneration();
 
     this.tryAttack(this.scene?.time?.now ?? 0);
   }
@@ -590,6 +672,13 @@ export class Hero extends Phaser.GameObjects.Container {
     if (!this.isAlive) return;
 
     this.hp -= amount;
+    
+    // Mettre à jour le temps du dernier dégât
+    this.lastDamageTime = this.scene?.time?.now || 0;
+    
+    // Arrêter la régénération si elle est active
+    this.stopRegeneration();
+    
     this.drawHealthBar();
     
     // Mettre à jour le tooltip si visible
@@ -630,6 +719,7 @@ export class Hero extends Phaser.GameObjects.Container {
     this.hp = 0;
 
     this.hideHpTooltip();
+    this.stopRegeneration();
     this.releaseEnemy();
     this.targetPath = [];
     this.currentPathIndex = 0;
