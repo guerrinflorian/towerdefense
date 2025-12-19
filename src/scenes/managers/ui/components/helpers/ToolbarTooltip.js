@@ -6,20 +6,27 @@ export function showToolbarTooltip(buildToolbar, btnContainer, description) {
     buildToolbar.toolbarTooltip.destroy();
   }
 
-  let btnX, btnY;
+  let btnX = 0;
+  let btnY = 0;
 
-  const isInBuildToolbar =
-    scene.buildToolbar &&
-    (btnContainer.parentContainer === scene.buildToolbar ||
-      (scene.buildToolbar.list &&
-        scene.buildToolbar.list.includes(btnContainer)));
-
-  if (isInBuildToolbar) {
-    btnX = btnContainer.x + scene.buildToolbar.x;
-    btnY = btnContainer.y + scene.buildToolbar.y;
+  if (btnContainer.getWorldTransformMatrix) {
+    const matrix = btnContainer.getWorldTransformMatrix();
+    btnX = matrix.tx;
+    btnY = matrix.ty;
   } else {
-    btnX = btnContainer.x;
-    btnY = btnContainer.y;
+    const isInBuildToolbar =
+      scene.buildToolbar &&
+      (btnContainer.parentContainer === scene.buildToolbar ||
+        (scene.buildToolbar.list &&
+          scene.buildToolbar.list.includes(btnContainer)));
+
+    if (isInBuildToolbar) {
+      btnX = btnContainer.x + scene.buildToolbar.x;
+      btnY = btnContainer.y + scene.buildToolbar.y;
+    } else {
+      btnX = btnContainer.x;
+      btnY = btnContainer.y;
+    }
   }
 
   const tooltipContainer = scene.add.container(0, 0).setDepth(300);

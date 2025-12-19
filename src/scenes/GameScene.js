@@ -124,66 +124,60 @@ export class GameScene extends Phaser.Scene {
     this.baseWidth = this.game.baseWidth || CONFIG.GAME_WIDTH;
     this.baseHeight = this.game.baseHeight || CONFIG.GAME_HEIGHT;
 
-    // Calculer le scale factor pour adapter à l'écran
-    // On veut que tout tienne dans la hauteur disponible
-    const mapWidth = 15 * CONFIG.TILE_SIZE;
-    const mapHeight = 15 * CONFIG.TILE_SIZE;
-    const uiHeight = CONFIG.UI_HEIGHT;
-    const toolbarHeight = 120; // Toolbar plus grande
-    const toolbarMargin = CONFIG.TOOLBAR_MARGIN;
+    const mapSize = 15 * CONFIG.TILE_SIZE;
+    const padding = Math.max(12, Math.min(this.gameWidth, this.gameHeight) * 0.015);
+    const sidebarWidth = Math.max(220, Math.min(340, this.gameWidth * 0.22));
 
-    // Hauteur totale nécessaire
-    const totalHeightNeeded =
-      uiHeight + mapHeight + toolbarMargin + toolbarHeight + toolbarMargin;
+    // Espace central disponible pour la carte carrée
+    const usableWidth = Math.max(this.gameWidth - 2 * sidebarWidth - padding * 2, mapSize);
+    const usableHeight = this.gameHeight - padding * 2;
 
-    // Calculer le scale pour que tout tienne
-    const scaleY = (this.gameHeight - 20) / totalHeightNeeded; // -20 pour marge
-    const scaleX = (this.gameWidth - 20) / mapWidth; // -20 pour marge
+    const scaleByHeight = usableHeight / mapSize;
+    const scaleByWidth = usableWidth / mapSize;
+    this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
 
-    // Utiliser le plus petit pour que tout tienne
-    this.scaleFactor = Math.min(scaleX, scaleY, 1.5); // Limiter à 1.5x max
-
-    // Dimensions réelles avec le scale
-    const mapWidthScaled = mapWidth * this.scaleFactor;
-    const mapHeightScaled = mapHeight * this.scaleFactor;
-    const uiHeightScaled = uiHeight * this.scaleFactor;
-    const toolbarHeightScaled = toolbarHeight * this.scaleFactor;
-    const toolbarMarginScaled = toolbarMargin * this.scaleFactor;
-
-    // Centrer la map horizontalement
-    this.mapOffsetX = (this.gameWidth - mapWidthScaled) / 2;
-
-    // Positionner l'UI en haut
-    this.uiOffsetY = 0;
-
-    // Positionner la map sous l'UI
-    this.mapOffsetY = uiHeightScaled;
-
-    // Positionner la toolbar sous la map (centrée horizontalement aussi)
-    this.toolbarOffsetY =
-      this.mapOffsetY + mapHeightScaled + toolbarMarginScaled;
-
-    // Calculer la largeur exacte de la toolbar pour un centrage parfait
-    const itemSpacing = 90 * this.scaleFactor;
-    const toolbarWidth = 5 * itemSpacing + 40 * this.scaleFactor; // Largeur exacte de la toolbar
-    this.toolbarOffsetX = (this.gameWidth - toolbarWidth) / 2; // Centrer horizontalement
+    this.mapPixelSize = mapSize * this.scaleFactor;
+    this.mapOffsetX =
+      padding + sidebarWidth + (usableWidth - this.mapPixelSize) / 2;
+    this.mapOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
 
     // Stocker les offsets pour utilisation dans createMap
     this.mapStartX = this.mapOffsetX;
     this.mapStartY = this.mapOffsetY;
+
+    // Sidebars verticaux
+    this.toolbarWidth = sidebarWidth;
+    this.toolbarHeight = this.mapPixelSize;
+    this.toolbarOffsetX = padding;
+    this.rightToolbarOffsetX = this.gameWidth - sidebarWidth - padding;
+    this.toolbarOffsetY = this.mapOffsetY;
+
+    // HUD aligné au-dessus de la carte
+    this.hudWidth = this.mapPixelSize;
+    this.hudX = this.mapOffsetX;
+    this.hudY = Math.max(
+      this.mapOffsetY - CONFIG.UI_HEIGHT * this.scaleFactor - padding * 0.3,
+      padding * 0.3
+    );
+
+    this.leftToolbarBounds = {
+      x: this.toolbarOffsetX,
+      y: this.toolbarOffsetY,
+      width: this.toolbarWidth,
+      height: this.toolbarHeight,
+    };
+    this.rightToolbarBounds = {
+      x: this.rightToolbarOffsetX,
+      y: this.toolbarOffsetY,
+      width: this.toolbarWidth,
+      height: this.toolbarHeight,
+    };
   }
 
   // Gérer le redimensionnement
   handleResize() {
-    this.calculateLayout();
-
-    // Repositionner les éléments
-    if (this.buildToolbar) {
-      this.buildToolbar.setPosition(this.toolbarOffsetX, this.toolbarOffsetY);
-    }
-
-    // Mettre à jour les positions des éléments UI
-    // (On pourrait recréer l'UI complètement, mais pour simplifier on ajuste juste)
+    // On reconstruit proprement la scène pour garder un layout carré et centré
+    this.scene.restart({ level: this.levelID });
   }
 
   update(time, delta) {

@@ -5,10 +5,25 @@ export function createTurretButtons(
   turretsSectionWidth,
   toolbarHeight,
   itemSize,
-  itemSpacing
+  itemSpacing,
+  layout = {}
 ) {
   const scene = buildToolbar.scene;
   const toolbarButtons = [];
+
+  const columns =
+    layout.columns && layout.columns > 0 ? layout.columns : turretTypes.length;
+  const verticalSpacing = layout.verticalSpacing || itemSpacing;
+  const horizontalStep =
+    layout.gridWidth && layout.columns
+      ? layout.gridWidth / layout.columns
+      : itemSpacing;
+  const startX =
+    layout.startX !== undefined
+      ? layout.startX
+      : (turretsSectionWidth - columns * horizontalStep) / 2 + horizontalStep / 2;
+  const startY =
+    layout.startY !== undefined ? layout.startY : toolbarHeight / 2;
 
   const turretTypes = [
     { key: "machine_gun", config: TURRETS.machine_gun },
@@ -19,10 +34,10 @@ export function createTurretButtons(
   ];
 
   turretTypes.forEach((item, index) => {
-    const totalWidth = 5 * itemSpacing;
-    const startX = (turretsSectionWidth - totalWidth) / 2 + itemSpacing / 2;
-    const x = startX + index * itemSpacing;
-    const y = toolbarHeight / 2;
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    const x = startX + col * horizontalStep;
+    const y = startY + row * verticalSpacing;
 
     const btnContainer = scene.add.container(x, y);
 
