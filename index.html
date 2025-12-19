@@ -91,6 +91,95 @@
         font-size: 44px;
         margin-bottom: 12px;
       }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .auth-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+      }
+
+      .auth-overlay.hidden {
+        display: none;
+      }
+
+      .auth-card {
+        width: 340px;
+        background: linear-gradient(145deg, #111627, #0b0f1a);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
+        padding: 22px;
+        color: #e8ecff;
+        font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+      }
+
+      .auth-card h2 {
+        margin-bottom: 12px;
+        letter-spacing: 0.5px;
+      }
+
+      .auth-card form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .auth-card label {
+        font-size: 13px;
+        color: #c7d0ff;
+      }
+
+      .auth-card input {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+      }
+
+      .auth-card button {
+        background: linear-gradient(135deg, #007bff, #00c6ff);
+        border: none;
+        color: #fff;
+        padding: 12px;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .auth-card .link {
+        color: #9ab6ff;
+        cursor: pointer;
+      }
+
+      .auth-card .hint {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 8px;
+      }
+
+      .auth-card .error {
+        background: rgba(255, 77, 77, 0.15);
+        border: 1px solid rgba(255, 77, 77, 0.4);
+        color: #ff8a8a;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+      }
+
+      .auth-card.hidden {
+        display: none;
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
   </head>
@@ -104,6 +193,58 @@
         <p>
           Le jeu se joue en mode paysage pour profiter d'une grande carte carrée.
           Passe ton téléphone ou ta tablette à l'horizontale pour continuer.
+        </p>
+      </div>
+    </div>
+
+    <div id="auth-overlay" class="auth-overlay hidden" aria-live="polite">
+      <div class="auth-card" id="login-card">
+        <h2>Connexion</h2>
+        <div id="auth-welcome" class="hint"></div>
+        <div id="auth-error" class="error hidden"></div>
+        <form id="login-form">
+          <div>
+            <label for="identifier">Email ou pseudo</label>
+            <input id="identifier" name="identifier" type="text" required />
+          </div>
+          <div>
+            <label for="password">Mot de passe</label>
+            <input id="password" name="password" type="password" required />
+          </div>
+          <button type="submit">Se connecter</button>
+        </form>
+        <p class="hint">
+          Pas encore de compte ?
+          <a href="#" id="show-register" class="link">Créer un compte</a>
+        </p>
+      </div>
+
+      <div class="auth-card hidden" id="register-card">
+        <h2>Créer un compte</h2>
+        <div id="auth-error-register" class="error hidden"></div>
+        <form id="register-form">
+          <div>
+            <label for="username">Nom d'utilisateur</label>
+            <input id="username" name="username" required />
+          </div>
+          <div>
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required />
+          </div>
+          <div>
+            <label for="password">Mot de passe (8+ caractères)</label>
+            <input
+              id="register-password"
+              name="password"
+              type="password"
+              required
+            />
+          </div>
+          <button type="submit">Créer mon compte</button>
+        </form>
+        <p class="hint">
+          Déjà inscrit ?
+          <a href="#" id="show-login" class="link">Se connecter</a>
         </p>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { CONFIG } from "../config/settings.js";
 const PATH_TYPES = [1, 4, 7];
 
 export class Hero extends Phaser.GameObjects.Container {
-  constructor(scene, tileX, tileY) {
+  constructor(scene, tileX, tileY, stats = {}) {
     const s = scene.scaleFactor || 1;
     const T = CONFIG.TILE_SIZE * s;
 
@@ -14,11 +14,11 @@ export class Hero extends Phaser.GameObjects.Container {
     this.scene = scene;
 
     // --- Stats ---
-    this.maxHp = 230;
+    this.maxHp = stats.max_hp ?? 230;
     this.hp = this.maxHp;
-    this.damage = 25;
-    this.attackInterval = 1200;
-    this.moveSpeed = 100 * s;
+    this.damage = stats.base_damage ?? 25;
+    this.attackInterval = stats.attack_interval_ms ?? 1200;
+    this.moveSpeed = (stats.move_speed ?? 100) * s;
 
     // --- State ---
     this.isAlive = true;
@@ -538,7 +538,7 @@ export class Hero extends Phaser.GameObjects.Container {
     this.lastAttackTime = time;
 
     // Hit
-    this.blockingEnemy.damage(this.damage);
+    this.blockingEnemy.damage(this.damage, { source: "hero" });
 
     // Animations
     this.playAttackAnimation(this.blockingEnemy);

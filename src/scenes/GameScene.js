@@ -10,6 +10,7 @@ import { UIManager } from "./managers/UIManager.js";
 import { InputManager } from "./managers/InputManager.js";
 import { SpellManager } from "./managers/SpellManager.js";
 import { TextureFactory } from "./managers/TextureFactory.js";
+import { recordHeroKill } from "../services/authManager.js";
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -27,6 +28,8 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.levelConfig = JSON.parse(JSON.stringify(src));
     }
+
+    this.heroStats = data.heroStats || null;
 
     this.money = CONFIG.STARTING_MONEY;
     this.lives = CONFIG.STARTING_LIVES;
@@ -118,7 +121,7 @@ export class GameScene extends Phaser.Scene {
     this.soldiers = this.add.group({ runChildUpdate: true });
 
     const heroSpawnTile = this.findHeroSpawnTile();
-    this.hero = new Hero(this, heroSpawnTile.x, heroSpawnTile.y);
+    this.hero = new Hero(this, heroSpawnTile.x, heroSpawnTile.y, this.heroStats);
     this.soldiers.add(this.hero);
 
     this.uiManager.createUI();
@@ -127,6 +130,8 @@ export class GameScene extends Phaser.Scene {
 
     this.inputManager.setHero(this.hero);
     this.inputManager.setupInputHandlers();
+
+    this.events.on("enemy-killed", this.handleEnemyKilled, this);
   }
 
   // Calculer le layout pour centrer correctement
@@ -298,6 +303,12 @@ export class GameScene extends Phaser.Scene {
 
   levelComplete() {
     this.waveManager.levelComplete();
+  }
+
+  handleEnemyKilled(payload) {
+    if (payload?.source === "hero") {
+      recordHeroKill().catch(() => {});
+    }
   }
 
   // =========================================================
@@ -642,6 +653,9 @@ export class GameScene extends Phaser.Scene {
 
   shutdown() {
     // Rendre shutdown() idempotent : safe si appelé plusieurs fois
+    try {
+      this.events?.off("enemy-killed", this.handleEnemyKilled, this);
+    } catch (e) {}
 
     // Nettoyer tous les listeners d'input pour éviter les handlers sur objets détruits
     try {

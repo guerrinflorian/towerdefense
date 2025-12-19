@@ -312,8 +312,10 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
   }
 
-  damage(amount) {
+  damage(amount, metadata = {}) {
     if (this.isInvulnerable || !this.active) return;
+
+    this.lastDamageSource = metadata?.source || null;
 
     this.hp -= amount;
     this.updateHealthBar();
@@ -470,6 +472,12 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
     if (this.stats.onDeath) this.stats.onDeath(this);
     if (this.scene.earnMoney) this.scene.earnMoney(this.stats.reward || 10);
+
+    if (this.scene?.events) {
+      this.scene.events.emit("enemy-killed", {
+        source: this.lastDamageSource || null,
+      });
+    }
 
     this.explode();
     this.destroy();
