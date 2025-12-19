@@ -138,7 +138,7 @@ export class HUD {
     const buttonAreaY = columnHeight - padding - 140 * s;
     const buttonHeight = 50 * s;
     const buttonSpacing = padding * 0.8;
-    const buttonWidth = (columnWidth - padding * 3) / 2;
+    const buttonWidth = columnWidth - padding * 2;
 
     // Bouton Pause
     const pauseBtnX = padding + buttonWidth / 2;
@@ -170,59 +170,6 @@ export class HUD {
         }
       });
     rightPanel.add(this.scene.pauseBtn);
-
-    // Bouton Lancer Vague (sera créé par BuildToolbar mais on le place ici)
-    const waveBtnX = padding * 2 + buttonWidth + buttonWidth / 2;
-    const waveBtnY = buttonAreaY + buttonHeight / 2;
-    const waveButtonWidth = buttonWidth;
-    const waveButtonHeight = buttonHeight;
-
-    this.scene.waveSection = this.scene.add.container(waveBtnX, waveBtnY);
-    const waveSectionBg = this.scene.add.graphics();
-    waveSectionBg.fillStyle(0x0f0f18, 0.9);
-    waveSectionBg.fillRoundedRect(
-      -waveButtonWidth / 2,
-      -waveButtonHeight / 2,
-      waveButtonWidth,
-      waveButtonHeight,
-      10
-    );
-    waveSectionBg.lineStyle(2, 0x00ff99, 0.6);
-    waveSectionBg.strokeRoundedRect(
-      -waveButtonWidth / 2,
-      -waveButtonHeight / 2,
-      waveButtonWidth,
-      waveButtonHeight,
-      10
-    );
-    this.scene.waveSection.add(waveSectionBg);
-
-    this.scene.waveBtnContainer = this.scene.add.container(0, 0).setDepth(201);
-    this.scene.waveBtnBg = this.scene.add
-      .rectangle(0, 0, waveButtonWidth, waveButtonHeight, 0x111422, 0.92)
-      .setStrokeStyle(3 * s, 0x00ff99, 0.8)
-      .setInteractive({ useHandCursor: true });
-
-    this.scene.waveBtnText = this.scene.add
-      .text(0, 0, "▶ LANCER VAGUE 1", {
-        fontSize: `${Math.max(14, 16 * s)}px`,
-        fill: "#ffffff",
-        fontStyle: "bold",
-        fontFamily: "Arial",
-      })
-      .setOrigin(0.5);
-
-    this.scene.waveBtnContainer.add([
-      this.scene.waveBtnBg,
-      this.scene.waveBtnText,
-    ]);
-
-    this.scene.waveSection.add(this.scene.waveBtnContainer);
-    this.scene.waveBtnBg
-      .setInteractive({ useHandCursor: true })
-      .on("pointerdown", () => this.scene.startWave());
-
-    rightPanel.add(this.scene.waveSection);
 
     this.barWidth = columnWidth;
     this.basePadding = padding;

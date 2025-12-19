@@ -1,8 +1,32 @@
 import { Enemy } from "../../objects/Enemy.js";
+import { SpawnWaveControls } from "./SpawnWaveControls.js";
 
 export class WaveManager {
   constructor(scene) {
     this.scene = scene;
+    this.spawnControls = null;
+  }
+
+  initSpawnControls() {
+    this.spawnControls = new SpawnWaveControls(this.scene);
+    this.scene.spawnControls = this.spawnControls;
+    this.spawnControls.create();
+  }
+
+  getNextWaveSummary() {
+    const wave =
+      this.scene.levelConfig?.waves?.[this.scene.currentWaveIndex] || null;
+    if (!wave) return [];
+
+    const counts = {};
+    wave.forEach((group) => {
+      if (!group?.type || !group.count) return;
+      counts[group.type] = (counts[group.type] || 0) + group.count;
+    });
+
+    return Object.entries(counts)
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count);
   }
 
   startWave() {
@@ -29,8 +53,12 @@ export class WaveManager {
 
     // 3. Initialisation de l'état de la vague
     this.scene.isWaveRunning = true;
-    this.scene.waveBtnText.setText("⚠️ EN COURS");
-    this.scene.waveBtnBg.setStrokeStyle(3, 0xffaa00);
+    this.spawnControls?.setLockedState(true);
+    this.spawnControls?.clearCountdown();
+
+    if (!this.scene.isTimerRunning) {
+      this.scene.startSessionTimer();
+    }
 
     const waveGroups =
       this.scene.levelConfig.waves[this.scene.currentWaveIndex];
@@ -118,6 +146,7 @@ export class WaveManager {
     if (this.scene.currentWaveIndex >= this.scene.levelConfig.waves.length) {
       this.levelComplete();
     } else {
+      this.spawnControls?.setLockedState(false);
       // Démarrer le timer automatique de 30 secondes
       this.startNextWaveCountdown();
     }
@@ -130,7 +159,7 @@ export class WaveManager {
     }
 
     this.scene.nextWaveCountdown = 30; // 30 secondes
-    this.updateWaveButtonText();
+    this.spawnControls?.showCountdown(this.scene.nextWaveCountdown);
 
     // Mettre à jour le bouton toutes les secondes
     this.scene.nextWaveAutoTimer = this.scene.time.addEvent({
@@ -141,7 +170,7 @@ export class WaveManager {
         if (this.scene.isPaused) return;
 
         this.scene.nextWaveCountdown--;
-        this.updateWaveButtonText();
+        this.spawnControls?.showCountdown(this.scene.nextWaveCountdown);
 
         // Si le compte à rebours arrive à 0, lancer automatiquement
         if (this.scene.nextWaveCountdown <= 0) {
@@ -157,25 +186,11 @@ export class WaveManager {
     });
   }
 
-  updateWaveButtonText() {
-    if (!this.scene.waveBtnText) return;
-
-    const nextWaveNum = this.scene.currentWaveIndex + 1;
-
-    if (this.scene.nextWaveCountdown > 0) {
-      // Afficher le compte à rebours
-      this.scene.waveBtnText.setText(
-        `▶ VAGUE ${nextWaveNum} (${this.scene.nextWaveCountdown}s)`
-      );
-      this.scene.waveBtnBg.setStrokeStyle(3, 0x00ff00);
-    } else {
-      // État normal
-      this.scene.waveBtnText.setText(`▶ LANCER VAGUE ${nextWaveNum}`);
-      this.scene.waveBtnBg.setStrokeStyle(3, 0x00ff00);
-    }
-  }
-
   levelComplete() {
+    this.spawnControls?.destroy();
+    this.scene.spawnControls = null;
+    this.spawnControls = null;
+
     const currentSaved = parseInt(localStorage.getItem("levelReached")) || 1;
     if (this.scene.levelID >= currentSaved) {
       localStorage.setItem("levelReached", this.scene.levelID + 1);
