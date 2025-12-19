@@ -8,7 +8,6 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.path = path;
     this.typeKey = typeKey;
 
-    // --- INITIALISATION DES STATS ---
     this.stats =
       ENEMIES && ENEMIES[typeKey] ? ENEMIES[typeKey] : ENEMIES?.grunt || {};
 
@@ -20,8 +19,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.attackRange = this.stats.attackRange || 30;
     this.isRanged = this.stats.isRanged || false;
 
-    // --- ÉTATS & MOUVEMENT ---
-    this.progress = 0; // Remplace le follower.t du tween
+    this.progress = 0;
     this.isMoving = false;
     this.facingRight = true;
     this.lastAttackTime = 0;
@@ -29,16 +27,13 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.isBlocked = false;
     this.blockedBy = null;
 
-    // --- LOGIQUE D'ESPACEMENT (LISSÉE) ---
     this.targetPathOffset = (Math.random() - 0.5) * 25;
     this.currentPathOffset = this.targetPathOffset;
     this.separationRadius = 24;
     this.maxPathWidth = 30;
 
-    // Vecteur de direction lissé pour éviter les sauts dans les coins
     this.smoothedDir = new Phaser.Math.Vector2(1, 0);
 
-    // --- CAPACITÉS ---
     this.isParalyzed = false;
     this.isInShell = false;
     this.isInvulnerable = false;
@@ -47,7 +42,6 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.healInterval = this.stats.healInterval || null;
     this.lastSpawnTime = 0;
 
-    // --- VISUEL ---
     this.initVisuals();
 
     this.scene.add.existing(this);
@@ -59,6 +53,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   initVisuals() {
+    if (!this.scene) return;
     const shadow = this.scene.add.ellipse(0, 15, 30, 10, 0x000000, 0.3);
     this.add(shadow);
 
@@ -83,22 +78,33 @@ export class Enemy extends Phaser.GameObjects.Container {
   spawn() {
     this.isMoving = true;
     this.progress = 0;
-    // On calcule la longueur une fois pour l'optimisation
-    this.pathLength = this.path.getLength();
+    if (this.path) {
+      this.pathLength = this.path.getLength();
+    }
   }
 
   update(time, delta) {
-    if (!this.active || this.isParalyzed || this.isInShell) return;
+    // PROTECTION CRITIQUE : Si l'objet est détruit ou la scène inexistante, on arrête tout
+    if (
+      !this.active ||
+      !this.scene ||
+      this.isParalyzed ||
+      this.isInShell ||
+      this.scene.isPaused
+    )
+      return;
 
-    // 1. Logique de mouvement manuelle (plus fluide qu'un tween pour les chemins)
-    if (this.isMoving && !this.isBlocked) {
+    if (this.isMoving && !this.isBlocked && this.path) {
       this.handleMovement(delta);
     }
 
-    // 2. Capacités et combat
     this.handleSpecialAbilities(time);
     this.adjustSpacing(delta);
     this.updateCombat(time);
+
+    if (this.hpTooltip && this.hpTooltip.active) {
+      this.hpTooltip.setPosition(this.x, this.y - 60);
+    }
 
     if (this.stats.onUpdateAnimation) {
       this.stats.onUpdateAnimation(time, this);
@@ -106,8 +112,8 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   handleMovement(delta) {
-    // Calcul de la progression basée sur la vitesse réelle (pixels/sec)
-    // Delta est en ms, donc (vitesse * (delta/1000)) / longueur_totale
+    if (!this.pathLength) return;
+
     const moveStep = (this.speed * (delta / 1000)) / this.pathLength;
     this.progress += moveStep;
 
@@ -117,15 +123,9 @@ export class Enemy extends Phaser.GameObjects.Container {
       return;
     }
 
-    // 1. Position de base sur le chemin
     const point = this.path.getPoint(this.progress);
-
-    // 2. Calcul du vecteur de direction (Tangent)
-    // On utilise getTangent pour avoir un vecteur unitaire précis
     const tangent = this.path.getTangent(this.progress);
 
-    // 3. Lissage de la direction (Interpolation)
-    // Cela empêche le "saut" brusque de la normale dans les angles droits
     this.smoothedDir.x = Phaser.Math.Linear(
       this.smoothedDir.x,
       tangent.x,
@@ -137,18 +137,15 @@ export class Enemy extends Phaser.GameObjects.Container {
       0.15
     );
 
-    // 4. Calcul de la Normale à partir de la direction lissée
     const normX = -this.smoothedDir.y;
     const normY = this.smoothedDir.x;
 
-    // 5. Application de la position avec l'offset latéral
     this.setPosition(
       point.x + normX * this.currentPathOffset,
       point.y + normY * this.currentPathOffset
     );
 
-    // 6. Gestion du Flip visuel (Hystérésis)
-    if (this.stats.shouldRotate !== false) {
+    if (this.stats.shouldRotate !== false && this.bodyGroup) {
       if (this.smoothedDir.x > 0.1 && !this.facingRight) {
         this.facingRight = true;
         this.bodyGroup.setScale(1, 1);
@@ -162,7 +159,13 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   adjustSpacing(delta) {
-    if (!this.scene.enemies || !this.active) return;
+    // PROTECTION : On vérifie si la scène existe AVANT d'accéder à .enemies
+    if (
+      !this.scene ||
+      !this.scene.enemies ||
+      typeof this.scene.enemies.getChildren !== "function"
+    )
+      return;
 
     let avoidanceForce = 0;
     const neighbors = this.scene.enemies.getChildren();
@@ -177,7 +180,6 @@ export class Enemy extends Phaser.GameObjects.Container {
         other.y
       );
       if (dist < this.separationRadius) {
-        // Pousse vers l'extérieur du couloir de manière fluide
         avoidanceForce += (this.x < other.x ? -1 : 1) * 2;
       }
     }
@@ -188,8 +190,6 @@ export class Enemy extends Phaser.GameObjects.Container {
       -this.maxPathWidth,
       this.maxPathWidth
     );
-
-    // Lerp ultra fluide pour le mouvement latéral (évite les vibrations)
     this.currentPathOffset = Phaser.Math.Linear(
       this.currentPathOffset,
       this.targetPathOffset,
@@ -198,18 +198,15 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   reachEnd() {
-    if (this.active) {
-      this.scene.takeDamage();
+    if (this.active && this.scene) {
+      if (this.scene.takeDamage) this.scene.takeDamage();
+      // On utilise destroy() à la fin de la frame pour éviter les erreurs de lecture
       this.destroy();
     }
   }
 
-  // =========================================================
-  //            COMBAT, HP & CAPACITÉS (NETTOYÉ)
-  // =========================================================
-
   damage(amount) {
-    if (this.isInvulnerable || !this.active) return;
+    if (this.isInvulnerable || !this.active || !this.scene) return;
 
     this.hp -= amount;
     this.updateHealthBar();
@@ -233,11 +230,13 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   updateCombat(time) {
+    if (!this.scene) return;
     if (this.isRanged) {
       this.handleRangedCombat(time);
     } else if (this.isBlocked && this.blockedBy) {
       if (time - this.lastAttackTime >= this.attackSpeed) {
-        this.blockedBy.takeDamage(this.attackDamage);
+        if (this.blockedBy.takeDamage)
+          this.blockedBy.takeDamage(this.attackDamage);
         this.lastAttackTime = time;
       }
     }
@@ -253,7 +252,7 @@ export class Enemy extends Phaser.GameObjects.Container {
         this.targetSoldier.y
       );
       if (dist <= this.attackRange) {
-        this.isMoving = false; // On s'arrête pour tirer
+        this.isMoving = false;
         if (time - this.lastAttackTime >= this.attackSpeed) {
           this.attackSoldierRanged(this.targetSoldier);
           this.lastAttackTime = time;
@@ -267,6 +266,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   attackSoldierRanged(soldier) {
+    if (!this.scene) return;
     const proj = this.scene.add
       .circle(this.x, this.y, 4, 0xffffff)
       .setDepth(2000);
@@ -276,19 +276,26 @@ export class Enemy extends Phaser.GameObjects.Container {
       y: soldier.y,
       duration: 300,
       onComplete: () => {
-        if (soldier.active) soldier.takeDamage(this.attackDamage);
+        if (soldier.active && soldier.takeDamage)
+          soldier.takeDamage(this.attackDamage);
         proj.destroy();
       },
     });
   }
 
   findRangedTarget() {
-    if (!this.scene.soldiers) return;
+    if (
+      !this.scene?.soldiers ||
+      typeof this.scene.soldiers.getChildren !== "function"
+    )
+      return;
+
     let closest = null;
     let minDist = this.attackRange;
+
     this.scene.soldiers.getChildren().forEach((s) => {
       const d = Phaser.Math.Distance.Between(this.x, this.y, s.x, s.y);
-      if (s.active && s.isAlive && d < minDist) {
+      if (s.active && (s.isAlive || s.hp > 0) && d < minDist) {
         minDist = d;
         closest = s;
       }
@@ -297,12 +304,18 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   handleSpecialAbilities(time) {
-    // Healer
+    if (!this.scene) return;
+
+    // Si on a un onUpdateAnimation, on laisse la config gérer ses propres sorts
+    // pour éviter les conflits de Cooldown ou de calcul de rayon.
+    if (this.stats.onUpdateAnimation) return;
+
+    // Logique générique pour les ennemis simples
     if (this.healInterval && time - this.lastHealTime >= this.healInterval) {
       this.healNearbyEnemies();
       this.lastHealTime = time;
     }
-    // Spawner
+
     if (
       this.stats.spawnInterval &&
       time - this.lastSpawnTime >= this.stats.spawnInterval
@@ -312,40 +325,48 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
   }
 
-  enterShell() {
-    this.isInShell = true;
-    this.isInvulnerable = true;
-    this.scene.time.delayedCall(this.stats.shellDuration || 3000, () => {
-      this.isInShell = false;
-      this.isInvulnerable = false;
+  healNearbyEnemies() {
+    if (!this.scene?.enemies) return;
+
+    // Correction : on s'assure que le rayon est en pixels (par défaut 100 si non défini)
+    const radius = this.stats.healRadiusPixels || this.stats.healRadius || 100;
+
+    this.scene.enemies.children.each((e) => {
+      if (e !== this && e.active) {
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y);
+        if (dist < radius) {
+          e.hp = Math.min(e.hp + (this.stats.healAmount || 10), e.maxHp);
+          e.updateHealthBar();
+        }
+      }
     });
   }
 
-  healNearbyEnemies() {
-    const radius = this.stats.healRadius || 100;
-    this.scene.enemies.getChildren().forEach((e) => {
-      if (
-        e !== this &&
-        e.active &&
-        Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y) < radius
-      ) {
-        e.hp = Math.min(e.hp + (this.stats.healAmount || 10), e.maxHp);
-        e.updateHealthBar();
+  enterShell() {
+    if (!this.scene) return;
+    this.isInShell = true;
+    this.isInvulnerable = true;
+    this.scene.time.delayedCall(this.stats.shellDuration || 3000, () => {
+      if (this.active) {
+        this.isInShell = false;
+        this.isInvulnerable = false;
       }
     });
   }
 
   spawnMinions() {
-    if (!this.stats.spawnType) return;
+    if (!this.stats.spawnType || !this.scene?.enemies) return;
+
     for (let i = 0; i < (this.stats.spawnCount || 2); i++) {
       const m = new Enemy(this.scene, this.path, this.stats.spawnType);
       m.progress = Math.max(0, this.progress - 0.05);
-      m.spawn();
       this.scene.enemies.add(m);
+      m.spawn();
     }
   }
 
   drawHealthBar() {
+    if (!this.scene) return;
     const width = 40;
     const height = 5;
     if (this.hpBarContainer) this.hpBarContainer.destroy();
@@ -364,6 +385,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   updateHealthBar() {
+    if (!this.hpFill) return;
     const pct = Phaser.Math.Clamp(this.hp / this.maxHp, 0, 1);
     this.hpFill.width = 40 * pct;
     const color = pct < 0.3 ? 0xff0000 : pct < 0.6 ? 0xffa500 : 0x00ff00;
@@ -371,22 +393,22 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   die() {
-    if (this.isBlocked && this.blockedBy) this.blockedBy.releaseEnemy();
+    if (!this.scene) return;
+    if (this.isBlocked && this.blockedBy && this.blockedBy.releaseEnemy) {
+      this.blockedBy.releaseEnemy();
+    }
     if (this.stats.onDeath) this.stats.onDeath(this);
-    this.scene.earnMoney(this.stats.reward || 10);
+    if (this.scene.earnMoney) this.scene.earnMoney(this.stats.reward || 10);
+
     this.explode();
     this.destroy();
   }
 
   explode() {
+    if (!this.scene) return;
+    const color = this.stats.color || 0xffffff;
     for (let i = 0; i < 5; i++) {
-      const p = this.scene.add.rectangle(
-        this.x,
-        this.y,
-        6,
-        6,
-        this.stats.color
-      );
+      const p = this.scene.add.rectangle(this.x, this.y, 6, 6, color);
       this.scene.tweens.add({
         targets: p,
         x: this.x + Phaser.Math.Between(-40, 40),
@@ -400,7 +422,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   showHpTooltip() {
-    if (this.hpTooltip) return;
+    if (this.hpTooltip || !this.scene) return;
     this.hpTooltip = this.scene.add
       .text(this.x, this.y - 60, `${Math.ceil(this.hp)} HP`, {
         fontSize: "14px",

@@ -253,6 +253,13 @@ export class GameScene extends Phaser.Scene {
       if (this.isPaused) {
         return;
       }
+      // Masquer les menus par défaut
+      this.buildMenu.setVisible(false);
+      this.upgradeMenu.setVisible(false);
+      if (this.treeRemovalMenu) {
+        this.treeRemovalMenu.setVisible(false);
+      }
+      this.selectedTurret = null;
 
       // Vérifier si le clic est sur la toolbar
       if (this.isPointerOnToolbar(pointer)) {
@@ -267,14 +274,6 @@ export class GameScene extends Phaser.Scene {
         }
         return;
       }
-
-      // Masquer les menus par défaut
-      this.buildMenu.setVisible(false);
-      this.upgradeMenu.setVisible(false);
-      if (this.treeRemovalMenu) {
-        this.treeRemovalMenu.setVisible(false);
-      }
-      this.selectedTurret = null;
 
       // Clic droit ou long press sur mobile
       if (pointer.rightButtonDown()) {
@@ -485,7 +484,7 @@ export class GameScene extends Phaser.Scene {
       // 0 = Herbe (Constructible), tout le reste (Chemin, Eau, Base) = Non constructible
       const tileType = this.levelConfig.map[ty][tx];
 
-      if (tileType !== 0) {
+      if (tileType !== 0 && tileType !== 6) {
         // C'est un chemin ou un obstacle, on ne fait rien (pas de menu)
         return;
       }
@@ -531,7 +530,7 @@ export class GameScene extends Phaser.Scene {
     // --- CORRECTION ICI ---
     // Vérification stricte du terrain : Si ce n'est pas de l'herbe (0), on refuse tout de suite.
     const tileType = this.levelConfig.map[tileY][tileX];
-    if (tileType !== 0) {
+    if (tileType !== 0 && tileType !== 6) {
       this.cameras.main.shake(50, 0.005);
       return false;
     }
@@ -625,189 +624,33 @@ export class GameScene extends Phaser.Scene {
   // =========================================================
   // GESTION DE LA PAUSE
   // =========================================================
+  // =========================================================
+  // GESTION DE LA PAUSE (VERSION PHASER 3 OPTIMISÉE)
+  // =========================================================
+
+  // --- Dans GameScene.js ---
+
   pauseGame() {
     if (this.isPaused) return;
-
     this.isPaused = true;
 
-    // Le bouton pause dans la toolbar reste inchangé (reste "PAUSE")
+    // 1. Geler le temps (pour les timers de spawn)
+    this.time.paused = true;
 
-    // Mettre en pause tous les timers de spawn des vagues
-    this.pausedTimers = [];
-    if (this.waveSpawnTimers) {
-      this.waveSpawnTimers.forEach((timer) => {
-        if (timer && timer.paused !== undefined) {
-          timer.paused = true;
-          this.pausedTimers.push(timer);
-        }
-      });
-    }
+    // 2. Geler les Tweens (pour les rotations et mouvements par path)
+    this.tweens.pauseAll();
 
-    // Mettre en pause le timer de vérification de fin de vague
-    if (this.endCheckTimer && this.endCheckTimer.paused !== undefined) {
-      this.endCheckTimer.paused = true;
-      this.pausedTimers.push(this.endCheckTimer);
-    }
+    // 3. STOPPER l'update automatique des groupes
+    // Cela empêche Phaser d'appeler enemy.update() sur chaque membre
+    if (this.enemies) this.enemies.active = false;
+    if (this.soldiers) this.soldiers.active = false;
 
-    // Mettre en pause le timer de compte à rebours
-    if (this.nextWaveAutoTimer && this.nextWaveAutoTimer.paused !== undefined) {
-      this.nextWaveAutoTimer.paused = true;
-      this.pausedTimers.push(this.nextWaveAutoTimer);
-    }
+    // 4. Mettre en pause les animations des sprites
+    this.anims.pauseAll();
 
-    // Mettre en pause tous les autres timers
-    if (this.time && this.time.events) {
-      this.time.events.getAll().forEach((event) => {
-        if (
-          event &&
-          !event.paused &&
-          event !== this.endCheckTimer &&
-          event !== this.nextWaveAutoTimer
-        ) {
-          // Vérifier que ce n'est pas déjà dans waveSpawnTimers
-          if (!this.waveSpawnTimers || !this.waveSpawnTimers.includes(event)) {
-            event.paused = true;
-            this.pausedTimers.push(event);
-          }
-        }
-      });
-    }
-
-    // Mettre en pause tous les tweens
-    this.pausedTweens = [];
-    if (this.tweens && this.tweens.getAllTweens) {
-      const allTweens = this.tweens.getAllTweens();
-      allTweens.forEach((tween) => {
-        if (tween && tween.isPlaying && !tween.isPaused) {
-          tween.pause();
-          this.pausedTweens.push(tween);
-        }
-      });
-    }
-
-    // Mettre en pause les ennemis (leurs tweens de mouvement)
-    if (this.enemies) {
-      this.enemies.children.each((enemy) => {
-        if (
-          enemy &&
-          enemy.follower &&
-          enemy.follower.tween &&
-          enemy.follower.tween.isPlaying
-        ) {
-          enemy.follower.tween.pause();
-        }
-      });
-    }
-
-    // Mettre en pause les animations des tourelles
-    if (this.turrets) {
-      this.turrets.forEach((turret) => {
-        if (turret && turret.rotationTween && turret.rotationTween.isPlaying) {
-          turret.rotationTween.pause();
-        }
-      });
-    }
-
-    // Créer le bouton "REPRENDRE" au centre de l'écran
+    // 5. Afficher le bouton
     if (!this.resumeBtn) {
-      const s = this.scaleFactor;
-      const btnWidth = 250 * s;
-      const btnHeight = 60 * s;
-
-      // Container pour le bouton
-      const resumeContainer = this.add
-        .container(this.gameWidth / 2, this.gameHeight / 2)
-        .setDepth(200);
-
-      // Fond du bouton
-      const resumeBg = this.add.graphics();
-      resumeBg.fillStyle(0x333333, 0.95);
-      resumeBg.fillRoundedRect(
-        -btnWidth / 2,
-        -btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        10
-      );
-      resumeBg.lineStyle(3, 0x00ff00, 1);
-      resumeBg.strokeRoundedRect(
-        -btnWidth / 2,
-        -btnHeight / 2,
-        btnWidth,
-        btnHeight,
-        10
-      );
-      resumeContainer.add(resumeBg);
-
-      // Texte du bouton
-      const resumeText = this.add
-        .text(0, 0, "▶️ REPRENDRE", {
-          fontSize: `${Math.max(18, 24 * s)}px`,
-          fill: "#00ff00",
-          fontStyle: "bold",
-          fontFamily: "Arial",
-        })
-        .setOrigin(0.5);
-      resumeContainer.add(resumeText);
-
-      // Rendre le bouton interactif
-      resumeBg.setInteractive(
-        new Phaser.Geom.Rectangle(
-          -btnWidth / 2,
-          -btnHeight / 2,
-          btnWidth,
-          btnHeight
-        ),
-        Phaser.Geom.Rectangle.Contains
-      );
-
-      resumeBg.on("pointerover", () => {
-        resumeBg.clear();
-        resumeBg.fillStyle(0x444444, 0.95);
-        resumeBg.fillRoundedRect(
-          -btnWidth / 2,
-          -btnHeight / 2,
-          btnWidth,
-          btnHeight,
-          10
-        );
-        resumeBg.lineStyle(3, 0x00ff00, 1);
-        resumeBg.strokeRoundedRect(
-          -btnWidth / 2,
-          -btnHeight / 2,
-          btnWidth,
-          btnHeight,
-          10
-        );
-        resumeText.setColor("#00ff88");
-      });
-
-      resumeBg.on("pointerout", () => {
-        resumeBg.clear();
-        resumeBg.fillStyle(0x333333, 0.95);
-        resumeBg.fillRoundedRect(
-          -btnWidth / 2,
-          -btnHeight / 2,
-          btnWidth,
-          btnHeight,
-          10
-        );
-        resumeBg.lineStyle(3, 0x00ff00, 1);
-        resumeBg.strokeRoundedRect(
-          -btnWidth / 2,
-          -btnHeight / 2,
-          btnWidth,
-          btnHeight,
-          10
-        );
-        resumeText.setColor("#00ff00");
-      });
-
-      resumeBg.on("pointerdown", () => {
-        this.resumeGame();
-      });
-
-      this.resumeBtn = resumeContainer;
+      this.createResumeButton();
     } else {
       this.resumeBtn.setVisible(true);
     }
@@ -815,75 +658,76 @@ export class GameScene extends Phaser.Scene {
 
   resumeGame() {
     if (!this.isPaused) return;
-
     this.isPaused = false;
 
-    // Le bouton pause dans la toolbar reste inchangé
+    // 1. Relancer le temps
+    this.time.paused = false;
 
-    // Reprendre tous les timers de spawn des vagues
-    if (this.waveSpawnTimers) {
-      this.waveSpawnTimers.forEach((timer) => {
-        if (timer && timer.paused !== undefined) {
-          timer.paused = false;
-        }
-      });
-    }
+    // 2. Relancer les Tweens
+    this.tweens.resumeAll();
 
-    // Reprendre le timer de vérification de fin de vague
-    if (this.endCheckTimer && this.endCheckTimer.paused !== undefined) {
-      this.endCheckTimer.paused = false;
-    }
+    // 3. RÉACTIVER les groupes
+    if (this.enemies) this.enemies.active = true;
+    if (this.soldiers) this.soldiers.active = true;
 
-    // Reprendre le timer de compte à rebours
-    if (this.nextWaveAutoTimer && this.nextWaveAutoTimer.paused !== undefined) {
-      this.nextWaveAutoTimer.paused = false;
-    }
+    // 4. Relancer les animations
+    this.anims.resumeAll();
 
-    // Reprendre tous les autres timers
-    this.pausedTimers.forEach((timer) => {
-      if (timer && timer.paused !== undefined) {
-        timer.paused = false;
-      }
-    });
-    this.pausedTimers = [];
-
-    // Reprendre tous les tweens
-    this.pausedTweens.forEach((tween) => {
-      if (tween && tween.isPaused) {
-        tween.resume();
-      }
-    });
-    this.pausedTweens = [];
-
-    // Reprendre les ennemis
-    if (this.enemies) {
-      this.enemies.children.each((enemy) => {
-        if (
-          enemy &&
-          enemy.follower &&
-          enemy.follower.tween &&
-          enemy.follower.tween.isPaused &&
-          !enemy.isParalyzed &&
-          !enemy.isInShell
-        ) {
-          enemy.follower.tween.resume();
-        }
-      });
-    }
-
-    // Reprendre les animations des tourelles
-    if (this.turrets) {
-      this.turrets.forEach((turret) => {
-        if (turret && turret.rotationTween && turret.rotationTween.isPaused) {
-          turret.rotationTween.resume();
-        }
-      });
-    }
-
-    // Masquer le bouton reprendre
     if (this.resumeBtn) {
       this.resumeBtn.setVisible(false);
     }
+  }
+
+  // Petite fonction utilitaire pour créer le bouton si besoin
+  createResumeButton() {
+    const s = this.scaleFactor;
+    const btnWidth = 250 * s;
+    const btnHeight = 60 * s;
+
+    this.resumeBtn = this.add
+      .container(this.gameWidth / 2, this.gameHeight / 2)
+      .setDepth(1000);
+
+    const resumeBg = this.add.graphics();
+    resumeBg.fillStyle(0x000000, 0.8);
+    resumeBg.fillRoundedRect(
+      -btnWidth / 2,
+      -btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      10
+    );
+    resumeBg.lineStyle(3, 0x00ff00, 1);
+    resumeBg.strokeRoundedRect(
+      -btnWidth / 2,
+      -btnHeight / 2,
+      btnWidth,
+      btnHeight,
+      10
+    );
+
+    const resumeText = this.add
+      .text(0, 0, "▶️ REPRENDRE", {
+        fontSize: `${Math.max(18, 24 * s)}px`,
+        fill: "#00ff00",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    this.resumeBtn.add([resumeBg, resumeText]);
+
+    // Rendre la zone interactive
+    const hitArea = new Phaser.Geom.Rectangle(
+      -btnWidth / 2,
+      -btnHeight / 2,
+      btnWidth,
+      btnHeight
+    );
+    resumeBg.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
+
+    resumeBg.on("pointerdown", () => this.resumeGame());
+    resumeBg.on("pointerover", () => resumeText.setTint(0x00ff88));
+    resumeBg.on("pointerout", () => resumeText.clearTint());
   }
 
   updateUI() {
@@ -1706,7 +1550,7 @@ export class GameScene extends Phaser.Scene {
         this.levelConfig.map
       ) {
         const tileType = this.levelConfig.map[ty][tx];
-        if (tileType === 0) {
+        if (tileType === 0 || tileType === 6) {
           // Herbe
           // Vérifier qu'il n'y a pas d'arbre ici
           const hasTree =
@@ -1764,7 +1608,7 @@ export class GameScene extends Phaser.Scene {
     for (let y = 0; y < 15; y++) {
       for (let x = 0; x < 15; x++) {
         const tileType = this.levelConfig.map[y][x];
-        if (tileType === 0) {
+        if (tileType === 0 || tileType === 6) {
           // Herbe
           // Vérifier qu'il n'y a pas d'arbre ici
           const hasTree = this.mapManager.hasTree(x, y);
@@ -1810,7 +1654,7 @@ export class GameScene extends Phaser.Scene {
 
     if (tx >= 0 && tx < 15 && ty >= 0 && ty < 15) {
       const tileType = this.levelConfig.map[ty][tx];
-      if (tileType === 0) {
+      if (tileType === 0 || tileType === 6) {
         // Herbe
         // Vérifier qu'il n'y a pas d'arbre ici
         const hasTree = this.mapManager.hasTree(tx, ty);
