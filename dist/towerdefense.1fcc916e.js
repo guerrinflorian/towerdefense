@@ -4740,6 +4740,7 @@ class GameScene extends Phaser.Scene {
         this.selectedTurret = null;
         this.maxBarracks = 5;
         this.upgradeTextLines = []; // Pour stocker les lignes de texte du menu
+        this.spawnControls = null;
         // Réinitialiser toutes les références UI pour éviter les références vers objets détruits
         this.buildToolbar = null;
         this.toolbarButtons = null;
@@ -4761,6 +4762,7 @@ class GameScene extends Phaser.Scene {
         this.pausedTimers = []; // Liste des timers en pause
         this.pausedTweens = []; // Liste des tweens en pause
         this.elapsedTimeMs = 0; // Chronomètre de session
+        this.isTimerRunning = false;
     }
     preload() {
         // Générer les textures seulement si le système est prêt
@@ -4789,6 +4791,7 @@ class GameScene extends Phaser.Scene {
         this.uiManager = new (0, _uimanagerJs.UIManager)(this, this.spellManager, this.inputManager);
         this.inputManager.setUIManager(this.uiManager);
         this.mapManager.createMap();
+        this.waveManager.initSpawnControls();
         this.enemies = this.add.group({
             runChildUpdate: true
         });
@@ -4851,7 +4854,7 @@ class GameScene extends Phaser.Scene {
     update(time, delta) {
         // Si le jeu est en pause, ne rien mettre à jour
         if (this.isPaused) return;
-        this.elapsedTimeMs += delta;
+        if (this.isTimerRunning) this.elapsedTimeMs += delta;
         if (this.uiManager) this.uiManager.updateTimer(this.elapsedTimeMs);
         this.spellManager.update(time, delta);
         this.turrets.forEach((t)=>t.update(time, this.enemies));
@@ -4886,7 +4889,11 @@ class GameScene extends Phaser.Scene {
             this.nextWaveAutoTimer = null;
             this.nextWaveCountdown = 0;
         }
+        this.waveManager.spawnControls?.clearCountdown();
         this.waveManager.startWave();
+    }
+    startSessionTimer() {
+        this.isTimerRunning = true;
     }
     monitorWaveEnd() {
         this.waveManager.monitorWaveEnd();
@@ -5171,6 +5178,12 @@ class GameScene extends Phaser.Scene {
         this.waveBtnContainer = null;
         this.waveBtnBg = null;
         this.waveBtnText = null;
+        try {
+            this.spawnControls?.destroy();
+        } catch (e) {
+        // ignore
+        }
+        this.spawnControls = null;
     }
 }
 
@@ -5201,11 +5214,14 @@ class Enemy extends Phaser.GameObjects.Container {
         this.targetSoldier = null;
         this.isBlocked = false;
         this.blockedBy = null;
-        this.targetPathOffset = (Math.random() - 0.5) * 25;
-        this.currentPathOffset = this.targetPathOffset;
-        this.separationRadius = 24;
-        this.maxPathWidth = 30;
-        this.smoothedDir = new Phaser.Math.Vector2(1, 0);
+        // Système de lanes pour éviter les chevauchements
+        this.laneOffset = (Math.random() - 0.5) * 16; // Offset initial plus petit
+        this.targetLaneOffset = this.laneOffset;
+        this.separationRadius = 28;
+        this.maxLaneWidth = 18; // Réduit pour plus de stabilité
+        // Vitesse de lissage adaptative
+        this.offsetSmoothSpeed = 0.08;
+        this.previousTangent = null;
         this.isParalyzed = false;
         this.isInShell = false;
         this.isInvulnerable = false;
@@ -5236,14 +5252,36 @@ class Enemy extends Phaser.GameObjects.Container {
     spawn() {
         this.isMoving = true;
         this.progress = 0;
-        if (this.path) this.pathLength = this.path.getLength();
+        if (this.path) {
+            this.pathLength = this.path.getLength();
+            // Initialiser la tangente pour éviter les sauts au démarrage
+            this.previousTangent = this.calculateTangent(0);
+        }
+    }
+    calculateTangent(t) {
+        // Calcul manuel de la tangente en échantillonnant deux points proches
+        const epsilon = 0.001;
+        const t1 = Math.max(0, t - epsilon);
+        const t2 = Math.min(1, t + epsilon);
+        const p1 = this.path.getPoint(t1);
+        const p2 = this.path.getPoint(t2);
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len > 0.001) return {
+            x: dx / len,
+            y: dy / len
+        };
+        return {
+            x: 1,
+            y: 0
+        };
     }
     update(time, delta) {
-        // PROTECTION CRITIQUE : Si l'objet est détruit ou la scène inexistante, on arrête tout
         if (!this.active || !this.scene || this.isParalyzed || this.isInShell || this.scene.isPaused) return;
         if (this.isMoving && !this.isBlocked && this.path) this.handleMovement(delta);
         this.handleSpecialAbilities(time);
-        this.adjustSpacing(delta);
+        this.manageLanes(delta);
         this.updateCombat(time);
         if (this.hpTooltip && this.hpTooltip.active) {
             this.hpTooltip.setPosition(this.x, this.y - 60);
@@ -5253,54 +5291,133 @@ class Enemy extends Phaser.GameObjects.Container {
     }
     handleMovement(delta) {
         if (!this.pathLength) return;
-        const moveStep = this.speed * (delta / 1000) / this.pathLength;
-        this.progress += moveStep;
+        const baseStep = this.speed * (delta / 1000) / this.pathLength;
+        let adjustedStep = baseStep;
+        // Ralentissement si ennemi devant (collision frontale)
+        if (this.scene?.enemies) {
+            const neighbors = this.scene.enemies.getChildren();
+            for (const other of neighbors){
+                if (other === this || !other.active) continue;
+                const progressDiff = other.progress - this.progress;
+                const lateralDist = Math.abs(this.laneOffset - other.laneOffset);
+                // Si même lane et proche devant
+                if (progressDiff > 0 && progressDiff < 0.02 && lateralDist < 15) {
+                    adjustedStep *= 0.3;
+                    break;
+                }
+            }
+        }
+        this.progress += adjustedStep;
         if (this.progress >= 1) {
             this.progress = 1;
             this.reachEnd();
             return;
         }
-        const point = this.path.getPoint(this.progress);
-        const tangent = this.path.getTangent(this.progress);
-        this.smoothedDir.x = Phaser.Math.Linear(this.smoothedDir.x, tangent.x, 0.15);
-        this.smoothedDir.y = Phaser.Math.Linear(this.smoothedDir.y, tangent.y, 0.15);
-        const normX = -this.smoothedDir.y;
-        const normY = this.smoothedDir.x;
-        this.setPosition(point.x + normX * this.currentPathOffset, point.y + normY * this.currentPathOffset);
-        if (this.stats.shouldRotate !== false && this.bodyGroup) {
-            if (this.smoothedDir.x > 0.1 && !this.facingRight) {
-                this.facingRight = true;
-                this.bodyGroup.setScale(1, 1);
-            } else if (this.smoothedDir.x < -0.1 && this.facingRight) {
-                this.facingRight = false;
-                this.bodyGroup.setScale(-1, 1);
-            }
-        }
+        // Calcul de position avec lissage intelligent de la tangente
+        this.updatePositionOnPath();
+        this.updateFacingDirection();
         this.setDepth(10 + Math.floor(this.y / 10));
     }
-    adjustSpacing(delta) {
-        // PROTECTION : On vérifie si la scène existe AVANT d'accéder à .enemies
-        if (!this.scene || !this.scene.enemies || typeof this.scene.enemies.getChildren !== "function") return;
-        let avoidanceForce = 0;
+    updatePositionOnPath() {
+        const currentPoint = this.path.getPoint(this.progress);
+        // Calcul de la tangente avec lookahead manuel
+        const lookAheadDist = 0.008;
+        const lookAhead = Math.min(this.progress + lookAheadDist, 1);
+        let tangent;
+        if (lookAhead > this.progress) {
+            const lookAheadPoint = this.path.getPoint(lookAhead);
+            const dx = lookAheadPoint.x - currentPoint.x;
+            const dy = lookAheadPoint.y - currentPoint.y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len > 0.001) tangent = {
+                x: dx / len,
+                y: dy / len
+            };
+            else tangent = this.calculateTangent(this.progress);
+        } else tangent = this.calculateTangent(this.progress);
+        // Lissage de la tangente pour éviter les rotations brusques
+        if (this.previousTangent) {
+            const smoothFactor = 0.3; // Plus petit = plus lisse
+            tangent.x = Phaser.Math.Linear(this.previousTangent.x, tangent.x, smoothFactor);
+            tangent.y = Phaser.Math.Linear(this.previousTangent.y, tangent.y, smoothFactor);
+            // Re-normalisation après lissage
+            const len = Math.sqrt(tangent.x * tangent.x + tangent.y * tangent.y);
+            if (len > 0.001) {
+                tangent.x /= len;
+                tangent.y /= len;
+            }
+        }
+        this.previousTangent = {
+            ...tangent
+        };
+        // Calcul de la normale (perpendiculaire) pour l'offset latéral
+        const normalX = -tangent.y;
+        const normalY = tangent.x;
+        // Application de l'offset lissé progressivement
+        this.laneOffset = Phaser.Math.Linear(this.laneOffset, this.targetLaneOffset, this.offsetSmoothSpeed);
+        // Position finale
+        const finalX = currentPoint.x + normalX * this.laneOffset;
+        const finalY = currentPoint.y + normalY * this.laneOffset;
+        this.setPosition(finalX, finalY);
+    }
+    updateFacingDirection() {
+        if (this.stats.shouldRotate === false || !this.bodyGroup || !this.previousTangent) return;
+        // Utiliser la tangente lissée pour une rotation plus stable
+        const threshold = 0.1; // Seuil plus élevé pour éviter les micro-flips
+        if (this.previousTangent.x > threshold && !this.facingRight) {
+            this.facingRight = true;
+            this.bodyGroup.setScale(1, 1);
+        } else if (this.previousTangent.x < -threshold && this.facingRight) {
+            this.facingRight = false;
+            this.bodyGroup.setScale(-1, 1);
+        }
+    }
+    manageLanes(delta) {
+        if (!this.scene?.enemies) return;
+        let separationForceX = 0;
+        let separationForceY = 0;
+        let count = 0;
         const neighbors = this.scene.enemies.getChildren();
         for (const other of neighbors){
             if (other === this || !other.active) continue;
-            const dist = Phaser.Math.Distance.Between(this.x, this.y, other.x, other.y);
-            if (dist < this.separationRadius) avoidanceForce += (this.x < other.x ? -1 : 1) * 2;
+            const dx = this.x - other.x;
+            const dy = this.y - other.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < this.separationRadius && dist > 0.1) {
+                // Force de répulsion basée sur la distance
+                const strength = (this.separationRadius - dist) / this.separationRadius;
+                separationForceX += dx / dist * strength;
+                separationForceY += dy / dist * strength;
+                count++;
+            }
         }
-        this.targetPathOffset += avoidanceForce * 0.1;
-        this.targetPathOffset = Phaser.Math.Clamp(this.targetPathOffset, -this.maxPathWidth, this.maxPathWidth);
-        this.currentPathOffset = Phaser.Math.Linear(this.currentPathOffset, this.targetPathOffset, 0.05);
+        if (count > 0) {
+            // Moyenne des forces de séparation
+            separationForceX /= count;
+            separationForceY /= count;
+            // Projection de la force de séparation sur l'axe perpendiculaire au chemin
+            if (this.previousTangent) {
+                const normalX = -this.previousTangent.y;
+                const normalY = this.previousTangent.x;
+                // Produit scalaire pour obtenir la composante latérale
+                const lateralForce = separationForceX * normalX + separationForceY * normalY;
+                // Application progressive de la force
+                this.targetLaneOffset += lateralForce * 2.5;
+            }
+        }
+        // Retour progressif vers le centre si pas de conflit
+        if (count === 0) this.targetLaneOffset *= 0.98;
+        // Clamp pour rester dans les limites de la route
+        this.targetLaneOffset = Phaser.Math.Clamp(this.targetLaneOffset, -this.maxLaneWidth, this.maxLaneWidth);
     }
     reachEnd() {
         if (this.active && this.scene) {
             if (this.scene.takeDamage) this.scene.takeDamage(this.playerDamage);
-            // On utilise destroy() à la fin de la frame pour éviter les erreurs de lecture
             this.destroy();
         }
     }
     damage(amount) {
-        if (this.isInvulnerable || !this.active || !this.scene) return;
+        if (this.isInvulnerable || !this.active) return;
         this.hp -= amount;
         this.updateHealthBar();
         this.scene.tweens.add({
@@ -5324,7 +5441,7 @@ class Enemy extends Phaser.GameObjects.Container {
     }
     handleRangedCombat(time) {
         this.findRangedTarget();
-        if (this.targetSoldier?.active && this.targetSoldier?.isAlive) {
+        if (this.targetSoldier?.active && (this.targetSoldier.isAlive || this.targetSoldier.hp > 0)) {
             const dist = Phaser.Math.Distance.Between(this.x, this.y, this.targetSoldier.x, this.targetSoldier.y);
             if (dist <= this.attackRange) {
                 this.isMoving = false;
@@ -5336,7 +5453,6 @@ class Enemy extends Phaser.GameObjects.Container {
         } else this.isMoving = true;
     }
     attackSoldierRanged(soldier) {
-        if (!this.scene) return;
         const proj = this.scene.add.circle(this.x, this.y, 4, 0xffffff).setDepth(2000);
         this.scene.tweens.add({
             targets: proj,
@@ -5350,7 +5466,7 @@ class Enemy extends Phaser.GameObjects.Container {
         });
     }
     findRangedTarget() {
-        if (!this.scene?.soldiers || typeof this.scene.soldiers.getChildren !== "function") return;
+        if (!this.scene?.soldiers) return;
         let closest = null;
         let minDist = this.attackRange;
         this.scene.soldiers.getChildren().forEach((s)=>{
@@ -5363,11 +5479,7 @@ class Enemy extends Phaser.GameObjects.Container {
         this.targetSoldier = closest;
     }
     handleSpecialAbilities(time) {
-        if (!this.scene) return;
-        // Si on a un onUpdateAnimation, on laisse la config gérer ses propres sorts
-        // pour éviter les conflits de Cooldown ou de calcul de rayon.
         if (this.stats.onUpdateAnimation) return;
-        // Logique générique pour les ennemis simples
         if (this.healInterval && time - this.lastHealTime >= this.healInterval) {
             this.healNearbyEnemies();
             this.lastHealTime = time;
@@ -5379,9 +5491,8 @@ class Enemy extends Phaser.GameObjects.Container {
     }
     healNearbyEnemies() {
         if (!this.scene?.enemies) return;
-        // Correction : on s'assure que le rayon est en pixels (par défaut 100 si non défini)
         const radius = this.stats.healRadiusPixels || this.stats.healRadius || 100;
-        this.scene.enemies.children.each((e)=>{
+        this.scene.enemies.getChildren().forEach((e)=>{
             if (e !== this && e.active) {
                 const dist = Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y);
                 if (dist < radius) {
@@ -5392,7 +5503,6 @@ class Enemy extends Phaser.GameObjects.Container {
         });
     }
     enterShell() {
-        if (!this.scene) return;
         this.isInShell = true;
         this.isInvulnerable = true;
         this.scene.time.delayedCall(this.stats.shellDuration || 3000, ()=>{
@@ -5412,7 +5522,6 @@ class Enemy extends Phaser.GameObjects.Container {
         }
     }
     drawHealthBar() {
-        if (!this.scene) return;
         const width = 40;
         const height = 5;
         if (this.hpBarContainer) this.hpBarContainer.destroy();
@@ -5435,15 +5544,13 @@ class Enemy extends Phaser.GameObjects.Container {
         this.refreshHpTooltip();
     }
     die() {
-        if (!this.scene) return;
-        if (this.isBlocked && this.blockedBy && this.blockedBy.releaseEnemy) this.blockedBy.releaseEnemy();
+        if (this.isBlocked && this.blockedBy?.releaseEnemy) this.blockedBy.releaseEnemy();
         if (this.stats.onDeath) this.stats.onDeath(this);
         if (this.scene.earnMoney) this.scene.earnMoney(this.stats.reward || 10);
         this.explode();
         this.destroy();
     }
     explode() {
-        if (!this.scene) return;
         const color = this.stats.color || 0xffffff;
         for(let i = 0; i < 5; i++){
             const p = this.scene.add.rectangle(this.x, this.y, 6, 6, color);
@@ -6902,9 +7009,29 @@ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "WaveManager", ()=>WaveManager);
 var _enemyJs = require("../../objects/Enemy.js");
+var _spawnWaveControlsJs = require("./SpawnWaveControls.js");
 class WaveManager {
     constructor(scene){
         this.scene = scene;
+        this.spawnControls = null;
+    }
+    initSpawnControls() {
+        this.spawnControls = new (0, _spawnWaveControlsJs.SpawnWaveControls)(this.scene);
+        this.scene.spawnControls = this.spawnControls;
+        this.spawnControls.create();
+    }
+    getNextWaveSummary() {
+        const wave = this.scene.levelConfig?.waves?.[this.scene.currentWaveIndex] || null;
+        if (!wave) return [];
+        const counts = {};
+        wave.forEach((group)=>{
+            if (!group?.type || !group.count) return;
+            counts[group.type] = (counts[group.type] || 0) + group.count;
+        });
+        return Object.entries(counts).map(([type, count])=>({
+                type,
+                count
+            })).sort((a, b)=>b.count - a.count);
     }
     startWave() {
         // 1. Vérifications de sécurité
@@ -6924,8 +7051,10 @@ class WaveManager {
         this.scene.waveSpawnTimers = [];
         // 3. Initialisation de l'état de la vague
         this.scene.isWaveRunning = true;
-        this.scene.waveBtnText.setText("\u26A0\uFE0F EN COURS");
-        this.scene.waveBtnBg.setStrokeStyle(3, 0xffaa00);
+        this.spawnControls?.setLockedState(true);
+        this.spawnControls?.clearCountdown();
+        this.spawnControls?.updateWaveRunningState();
+        if (!this.scene.isTimerRunning) this.scene.startSessionTimer();
         const waveGroups = this.scene.levelConfig.waves[this.scene.currentWaveIndex];
         // Calcul du nombre total d'ennemis pour savoir quand la vague finit
         let totalEnemiesInWave = 0;
@@ -6987,14 +7116,18 @@ class WaveManager {
         // Mettre à jour l'affichage de la vague
         this.scene.updateUI();
         if (this.scene.currentWaveIndex >= this.scene.levelConfig.waves.length) this.levelComplete();
-        else // Démarrer le timer automatique de 30 secondes
-        this.startNextWaveCountdown();
+        else {
+            this.spawnControls?.setLockedState(false);
+            this.spawnControls?.updateWaveRunningState();
+            // Démarrer le timer automatique de 30 secondes
+            this.startNextWaveCountdown();
+        }
     }
     startNextWaveCountdown() {
         // Annuler un timer existant si présent
         if (this.scene.nextWaveAutoTimer) this.scene.nextWaveAutoTimer.remove();
         this.scene.nextWaveCountdown = 30; // 30 secondes
-        this.updateWaveButtonText();
+        this.spawnControls?.showCountdown(this.scene.nextWaveCountdown);
         // Mettre à jour le bouton toutes les secondes
         this.scene.nextWaveAutoTimer = this.scene.time.addEvent({
             delay: 1000,
@@ -7003,7 +7136,7 @@ class WaveManager {
                 // Ne pas décrémenter si le jeu est en pause
                 if (this.scene.isPaused) return;
                 this.scene.nextWaveCountdown--;
-                this.updateWaveButtonText();
+                this.spawnControls?.showCountdown(this.scene.nextWaveCountdown);
                 // Si le compte à rebours arrive à 0, lancer automatiquement
                 if (this.scene.nextWaveCountdown <= 0) {
                     if (this.scene.nextWaveAutoTimer) {
@@ -7017,20 +7150,10 @@ class WaveManager {
             }
         });
     }
-    updateWaveButtonText() {
-        if (!this.scene.waveBtnText) return;
-        const nextWaveNum = this.scene.currentWaveIndex + 1;
-        if (this.scene.nextWaveCountdown > 0) {
-            // Afficher le compte à rebours
-            this.scene.waveBtnText.setText(`\u{25B6} VAGUE ${nextWaveNum} (${this.scene.nextWaveCountdown}s)`);
-            this.scene.waveBtnBg.setStrokeStyle(3, 0x00ff00);
-        } else {
-            // État normal
-            this.scene.waveBtnText.setText(`\u{25B6} LANCER VAGUE ${nextWaveNum}`);
-            this.scene.waveBtnBg.setStrokeStyle(3, 0x00ff00);
-        }
-    }
     levelComplete() {
+        this.spawnControls?.destroy();
+        this.scene.spawnControls = null;
+        this.spawnControls = null;
         const currentSaved = parseInt(localStorage.getItem("levelReached")) || 1;
         if (this.scene.levelID >= currentSaved) localStorage.setItem("levelReached", this.scene.levelID + 1);
         const bg = this.scene.add.rectangle(this.scene.gameWidth / 2, this.scene.gameHeight / 2, 500 * this.scene.scaleFactor, 300 * this.scene.scaleFactor, 0x000000, 0.9).setDepth(200);
@@ -7048,7 +7171,269 @@ class WaveManager {
     }
 }
 
-},{"../../objects/Enemy.js":"hW1Gp","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"1XDfq":[function(require,module,exports,__globalThis) {
+},{"../../objects/Enemy.js":"hW1Gp","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./SpawnWaveControls.js":"dP5UP"}],"dP5UP":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "SpawnWaveControls", ()=>SpawnWaveControls);
+var _settingsJs = require("../../config/settings.js");
+class SpawnWaveControls {
+    constructor(scene){
+        this.scene = scene;
+        this.icons = [];
+        this.tooltip = null;
+        this.isLocked = false;
+    }
+    create() {
+        this.destroy();
+        const spawnTiles = this.getSpawnTiles();
+        spawnTiles.forEach((spawn, index)=>{
+            this.icons.push(this.createIcon(spawn, index + 1));
+        });
+    }
+    destroy() {
+        this.hideWavePreview();
+        this.icons.forEach((icon)=>icon.container.destroy());
+        this.icons = [];
+    }
+    getSpawnTiles() {
+        const paths = this.scene.levelConfig?.paths || (this.scene.levelConfig?.path ? [
+            this.scene.levelConfig.path
+        ] : []);
+        const unique = new Map();
+        paths.forEach((points)=>{
+            if (!points?.length) return;
+            const start = points[0];
+            const key = `${start.x},${start.y}`;
+            if (!unique.has(key)) {
+                const next = points[1] || start;
+                const angle = Math.atan2(next.y - start.y, next.x - start.x);
+                unique.set(key, {
+                    tileX: start.x,
+                    tileY: start.y,
+                    angle
+                });
+            }
+        });
+        return Array.from(unique.values());
+    }
+    createIcon(spawn, index) {
+        const s = this.scene.scaleFactor;
+        const T = (0, _settingsJs.CONFIG).TILE_SIZE * s;
+        // Positionnement au centre de la tuile
+        const px = this.scene.mapStartX + spawn.tileX * T + T / 2;
+        const py = this.scene.mapStartY + spawn.tileY * T + T / 2;
+        // Taille réduite (environ 35px au lieu de 45-50px)
+        const size = Math.max(32 * s, T * 0.35);
+        // Profondeur très élevée pour être au-dessus de TOUT (les tuiles sont à depth 0, UI à 200-300)
+        const container = this.scene.add.container(px, py).setDepth(2000);
+        // Cercle de fond style Cyber
+        const bg = this.scene.add.circle(0, 0, size, 0x0b0b12, 0.9);
+        bg.setStrokeStyle(2 * s, 0x00ffc2, 1);
+        // Flèche / Triangle (Pointe vers la droite par défaut)
+        const arrow = this.scene.add.graphics();
+        this.drawArrow(arrow, 0x00ffc2, size * 0.55);
+        arrow.setRotation(spawn.angle);
+        // Petit badge avec le numéro du chemin
+        const badge = this.scene.add.container(-size * 0.75, -size * 0.75);
+        const badgeBg = this.scene.add.circle(0, 0, size * 0.35, 0x00ffc2);
+        const badgeText = this.scene.add.text(0, 0, index, {
+            fontSize: `${11 * s}px`,
+            color: "#000",
+            fontStyle: "bold"
+        }).setOrigin(0.5);
+        badge.add([
+            badgeBg,
+            badgeText
+        ]);
+        // Texte Countdown sous l'icône
+        const countdownText = this.scene.add.text(0, size + 12 * s, "", {
+            fontSize: `${13 * s}px`,
+            color: "#00ffc2",
+            fontStyle: "bold",
+            stroke: "#000",
+            strokeThickness: 2
+        }).setOrigin(0.5);
+        container.add([
+            bg,
+            arrow,
+            badge,
+            countdownText
+        ]);
+        // Zone d'interaction - utiliser un rectangle qui couvre tout le cercle
+        // Le cercle a un rayon de 'size', on crée un rectangle carré qui le couvre complètement
+        const hitSize = size * 2.2; // Assez grand pour couvrir tout le cercle et plus
+        // Définir la taille du container (utilisé par setInteractive sans paramètres)
+        container.setSize(hitSize, hitSize);
+        // Utiliser setInteractive sans paramètres pour utiliser la zone définie par setSize
+        // Cela garantit que la zone est bien centrée sur le container
+        container.setInteractive();
+        if (container.input) container.input.cursor = "pointer";
+        // Forcer le container au-dessus de tous les autres objets
+        container.bringToTop();
+        // EVENTS
+        container.on("pointerover", ()=>{
+            if (this.scene.isWaveRunning) return;
+            container.setScale(1.1);
+            this.drawArrow(arrow, 0xffffff, size * 0.6);
+            this.showWavePreview(container);
+        });
+        container.on("pointermove", ()=>{
+        // Le gestionnaire InputManager vérifie déjà si on est sur un bouton
+        // Pas besoin de stopPropagation (n'existe pas dans Phaser)
+        });
+        container.on("pointerout", ()=>{
+            container.setScale(1.0);
+            this.drawArrow(arrow, 0x00ffc2, size * 0.55);
+            this.hideWavePreview();
+        });
+        container.on("pointerdown", ()=>{
+            if (this.isLocked || this.scene.isWaveRunning) return;
+            this.scene.startWave();
+            this.hideWavePreview();
+        });
+        return {
+            container,
+            bg,
+            arrow,
+            countdownText,
+            size
+        };
+    }
+    drawArrow(graphics, color, sz) {
+        graphics.clear();
+        graphics.fillStyle(color, 1);
+        // Triangle pointant vers la droite (0°)
+        const points = [
+            {
+                x: -sz * 0.4,
+                y: -sz * 0.5
+            },
+            {
+                x: -sz * 0.4,
+                y: sz * 0.5
+            },
+            {
+                x: sz * 0.6,
+                y: 0
+            }
+        ];
+        graphics.fillPoints(points, true);
+    }
+    showWavePreview(anchor) {
+        this.hideWavePreview();
+        const summary = this.scene.waveManager.getNextWaveSummary();
+        if (!summary || summary.length === 0) return;
+        const s = this.scene.scaleFactor;
+        const rowHeight = 55 * s;
+        const width = 180 * s;
+        const height = summary.length * rowHeight + 15 * s;
+        // Obtenir les coordonnées mondiales du container (centre de l'icône)
+        let iconWorldX, iconWorldY;
+        if (anchor.getWorldTransformMatrix) {
+            const matrix = anchor.getWorldTransformMatrix();
+            iconWorldX = matrix.tx;
+            iconWorldY = matrix.ty;
+        } else {
+            // Fallback si getWorldTransformMatrix n'existe pas
+            iconWorldX = anchor.x;
+            iconWorldY = anchor.y;
+        }
+        // Calculer la position Y du tooltip (au-dessus de l'icône)
+        let targetY = iconWorldY - height / 2 - 50 * s;
+        // S'assurer que le tooltip ne dépasse pas le haut de l'écran
+        const minY = height / 2 + 10 * s;
+        if (targetY < minY) // Si trop haut, placer le tooltip en dessous de l'icône
+        targetY = iconWorldY + height / 2 + 50 * s;
+        // S'assurer que le tooltip ne dépasse pas le bas de l'écran
+        const maxY = (this.scene.gameHeight || this.scene.cameras.main.height) - height / 2 - 10 * s;
+        if (targetY > maxY) targetY = maxY;
+        // Clamp la position X pour rester dans l'écran (centré sur l'icône)
+        const targetX = Phaser.Math.Clamp(iconWorldX, width / 2 + 10 * s, (this.scene.gameWidth || this.scene.cameras.main.width) - width / 2 - 10 * s);
+        this.tooltip = this.scene.add.container(targetX, targetY).setDepth(1000);
+        const bg = this.scene.add.graphics();
+        bg.fillStyle(0x0c0c15, 0.95);
+        bg.lineStyle(2 * s, 0x00ffc2, 1);
+        bg.fillRoundedRect(-width / 2, -height / 2, width, height, 10);
+        bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 10);
+        this.tooltip.add(bg);
+        summary.forEach((item, idx)=>{
+            const y = -height / 2 + idx * rowHeight + rowHeight / 2;
+            const preview = this.createEnemyPreview(item.type);
+            preview.setPosition(-width / 2 + 35 * s, y);
+            const txt = this.scene.add.text(-width / 2 + 75 * s, y, `x${item.count}`, {
+                fontSize: `${20 * s}px`,
+                color: "#ffffff",
+                fontStyle: "bold"
+            }).setOrigin(0, 0.5);
+            this.tooltip.add([
+                preview,
+                txt
+            ]);
+        });
+    }
+    createEnemyPreview(typeKey) {
+        const container = this.scene.add.container(0, 0);
+        const s = this.scene.scaleFactor;
+        const enemyDef = (0, _settingsJs.ENEMIES)[typeKey];
+        const circle = this.scene.add.circle(0, 0, 22 * s, 0x1a1a2e).setStrokeStyle(1, 0x00ffc2, 0.5);
+        container.add(circle);
+        if (enemyDef?.onDraw) {
+            const iconG = this.scene.add.container(0, 0);
+            enemyDef.onDraw(this.scene, iconG, enemyDef.color || 0xffffff, {
+                shouldRotate: false
+            });
+            iconG.setScale(0.85 * s); // Ennemis bien visibles
+            container.add(iconG);
+        }
+        return container;
+    }
+    hideWavePreview() {
+        if (this.tooltip) {
+            this.tooltip.destroy(true);
+            this.tooltip = null;
+        }
+    }
+    setLockedState(isLocked) {
+        this.isLocked = isLocked;
+        this.updateWaveRunningState();
+    }
+    updateWaveRunningState() {
+        const isRunning = this.scene.isWaveRunning;
+        this.icons.forEach((icon)=>{
+            if (isRunning) {
+                icon.container.setAlpha(0.05); // Presque invisible pendant la vague
+                icon.container.disableInteractive();
+                icon.countdownText.setText("");
+            } else {
+                icon.container.setAlpha(this.isLocked ? 0.5 : 1);
+                if (!this.isLocked) {
+                    const hitSize = icon.size * 2.2; // Même zone d'interaction qu'à la création
+                    icon.container.setSize(hitSize, hitSize);
+                    // Utiliser setInteractive sans paramètres pour utiliser la zone définie par setSize
+                    icon.container.setInteractive();
+                    if (icon.container.input) icon.container.input.cursor = "pointer";
+                } else icon.container.disableInteractive();
+            }
+        });
+    }
+    clearCountdown() {
+        this.icons.forEach((icon)=>{
+            icon.countdownText.setText("");
+        });
+    }
+    showCountdown(seconds) {
+        if (this.scene.isWaveRunning) return;
+        this.icons.forEach((icon)=>{
+            if (seconds > 0) {
+                icon.countdownText.setText(`${seconds}s`);
+                // Alerte visuelle quand il reste peu de temps
+                icon.countdownText.setColor(seconds <= 5 ? "#ff3333" : "#00ffc2");
+            } else icon.countdownText.setText("");
+        });
+    }
+}
+
+},{"../../config/settings.js":"9kTMs","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"1XDfq":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "UIManager", ()=>UIManager);
@@ -7979,7 +8364,7 @@ class HUD {
         const buttonAreaY = columnHeight - padding - 140 * s;
         const buttonHeight = 50 * s;
         const buttonSpacing = padding * 0.8;
-        const buttonWidth = (columnWidth - padding * 3) / 2;
+        const buttonWidth = columnWidth - padding * 2;
         // Bouton Pause
         const pauseBtnX = padding + buttonWidth / 2;
         const pauseBtnY = buttonAreaY + buttonHeight / 2;
@@ -8003,37 +8388,6 @@ class HUD {
             if (!this.scene.isPaused) this.scene.pauseGame();
         });
         rightPanel.add(this.scene.pauseBtn);
-        // Bouton Lancer Vague (sera créé par BuildToolbar mais on le place ici)
-        const waveBtnX = padding * 2 + buttonWidth + buttonWidth / 2;
-        const waveBtnY = buttonAreaY + buttonHeight / 2;
-        const waveButtonWidth = buttonWidth;
-        const waveButtonHeight = buttonHeight;
-        this.scene.waveSection = this.scene.add.container(waveBtnX, waveBtnY);
-        const waveSectionBg = this.scene.add.graphics();
-        waveSectionBg.fillStyle(0x0f0f18, 0.9);
-        waveSectionBg.fillRoundedRect(-waveButtonWidth / 2, -waveButtonHeight / 2, waveButtonWidth, waveButtonHeight, 10);
-        waveSectionBg.lineStyle(2, 0x00ff99, 0.6);
-        waveSectionBg.strokeRoundedRect(-waveButtonWidth / 2, -waveButtonHeight / 2, waveButtonWidth, waveButtonHeight, 10);
-        this.scene.waveSection.add(waveSectionBg);
-        this.scene.waveBtnContainer = this.scene.add.container(0, 0).setDepth(201);
-        this.scene.waveBtnBg = this.scene.add.rectangle(0, 0, waveButtonWidth, waveButtonHeight, 0x111422, 0.92).setStrokeStyle(3 * s, 0x00ff99, 0.8).setInteractive({
-            useHandCursor: true
-        });
-        this.scene.waveBtnText = this.scene.add.text(0, 0, "\u25B6 LANCER VAGUE 1", {
-            fontSize: `${Math.max(14, 16 * s)}px`,
-            fill: "#ffffff",
-            fontStyle: "bold",
-            fontFamily: "Arial"
-        }).setOrigin(0.5);
-        this.scene.waveBtnContainer.add([
-            this.scene.waveBtnBg,
-            this.scene.waveBtnText
-        ]);
-        this.scene.waveSection.add(this.scene.waveBtnContainer);
-        this.scene.waveBtnBg.setInteractive({
-            useHandCursor: true
-        }).on("pointerdown", ()=>this.scene.startWave());
-        rightPanel.add(this.scene.waveSection);
         this.barWidth = columnWidth;
         this.basePadding = padding;
         this.UI_HEIGHT = columnHeight;
@@ -8542,6 +8896,35 @@ class InputManager {
     }
     setupInputHandlers() {
         this.scene.input.on("pointermove", (pointer)=>{
+            // Vérifier si le pointeur est sur un bouton de vague
+            if (this.scene.spawnControls) {
+                const hitButton = this.scene.spawnControls.icons.some((icon)=>{
+                    if (!icon.container || !icon.container.input || !icon.container.active) return false;
+                    // Obtenir les coordonnées mondiales du container
+                    let containerWorldX, containerWorldY;
+                    if (icon.container.getWorldTransformMatrix) {
+                        const matrix = icon.container.getWorldTransformMatrix();
+                        containerWorldX = matrix.tx;
+                        containerWorldY = matrix.ty;
+                    } else {
+                        containerWorldX = icon.container.x;
+                        containerWorldY = icon.container.y;
+                    }
+                    // Calculer les coordonnées locales
+                    const localX = pointer.worldX - containerWorldX;
+                    const localY = pointer.worldY - containerWorldY;
+                    // Utiliser la taille définie par setSize pour vérifier si on est dans la zone
+                    const hitSize = icon.size * 2.2;
+                    const halfSize = hitSize / 2;
+                    // Vérifier si on est dans le rectangle centré
+                    return localX >= -halfSize && localX <= halfSize && localY >= -halfSize && localY <= halfSize;
+                });
+                if (hitButton) {
+                    // Si on est sur un bouton, ne pas afficher le highlight de tuile
+                    if (this.tileHighlight) this.tileHighlight.setVisible(false);
+                    return;
+                }
+            }
             const T = (0, _settingsJs.CONFIG).TILE_SIZE * this.scene.scaleFactor;
             if (pointer.worldY < this.scene.mapStartY || pointer.worldY > this.scene.mapStartY + 15 * T || pointer.worldX < this.scene.mapStartX || pointer.worldX > this.scene.mapStartX + 15 * T) {
                 if (this.tileHighlight) this.tileHighlight.setVisible(false);

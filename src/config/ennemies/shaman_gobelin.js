@@ -3,7 +3,7 @@ export const shaman_gobelin = {
   speed: 45,
   hp: 1200,
   reward: 120,
-  playerDamage: 4,
+  playerDamage: 2,
   color: 0x8b4513, // Marron
   damage: 12,
   attackSpeed: 1500,
