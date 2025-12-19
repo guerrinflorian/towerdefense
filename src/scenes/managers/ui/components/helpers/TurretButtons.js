@@ -72,6 +72,16 @@ export function createTurretButtons(
       })
       .setOrigin(0.5);
 
+    // Ajouter le nom de la tourelle
+    const nameText = scene.add
+      .text(0, -itemSize / 2 - 8 * scene.scaleFactor, item.config.name || item.key, {
+        fontSize: `${Math.max(11, 13 * scene.scaleFactor)}px`,
+        fill: "#9edcff",
+        fontFamily: "Arial",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
     const updateCount = () => {
       if (!countText || countText.active === false) {
         return;
@@ -126,7 +136,7 @@ export function createTurretButtons(
       }
     };
 
-    btnContainer.add([btnBg, previewContainer, countText, priceText]);
+    btnContainer.add([btnBg, previewContainer, countText, priceText, nameText]);
     scene.buildToolbar.add(btnContainer);
 
     btnBg.on("pointerover", () => {

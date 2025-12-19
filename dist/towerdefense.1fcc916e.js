@@ -214,7 +214,7 @@ var _settingsJs = require("./config/settings.js");
 const config = {
     type: Phaser.AUTO,
     parent: "game-container",
-    // Utiliser toute la taille de la fenêtre
+    // Utiliser la taille de la fenêtre pour remplir tout l'écran
     width: window.innerWidth,
     height: window.innerHeight,
     backgroundColor: "#000000",
@@ -250,7 +250,7 @@ game.baseWidth = (0, _settingsJs.CONFIG).GAME_WIDTH;
 game.baseHeight = (0, _settingsJs.CONFIG).GAME_HEIGHT;
 // Gérer le redimensionnement
 function handleResize() {
-    // Notifier la scène active
+    // Notifier la scène active sans jamais la redémarrer
     if (game.scene.isActive("GameScene")) {
         const scene = game.scene.getScene("GameScene");
         if (scene && scene.handleResize) scene.handleResize();
@@ -798,8 +798,8 @@ const machine_gun = {
     key: "machine_gun",
     name: "Mitrailleuse",
     cost: 90,
-    range: 95,
-    damage: 9,
+    range: 100,
+    damage: 10,
     rate: 290,
     color: 0x4488ff,
     maxLevel: 3,
@@ -3476,7 +3476,7 @@ const LEVEL_1 = {
         // VAGUE 1 : Soldats (La seconde escouade arrive après 10 secondes)
         [
             {
-                count: 22,
+                count: 24,
                 type: "grunt",
                 interval: 1000,
                 startDelay: 0
@@ -3495,6 +3495,12 @@ const LEVEL_1 = {
                 type: "runner",
                 interval: 450,
                 startDelay: 0
+            },
+            {
+                count: 1,
+                type: "shield",
+                interval: 1500,
+                startDelay: 3000
             }
         ],
         // VAGUE 3 : Mixte (Chair à canon d'abord, Boucliers ensuite, Runners en traître)
@@ -3521,7 +3527,7 @@ const LEVEL_1 = {
         // VAGUE 4 : Tank (Escorte progressive)
         [
             {
-                count: 8,
+                count: 12,
                 type: "grunt",
                 interval: 600,
                 startDelay: 0
@@ -3560,7 +3566,7 @@ const LEVEL_1 = {
                 startDelay: 8000
             },
             {
-                count: 6,
+                count: 8,
                 type: "shield",
                 interval: 1500,
                 startDelay: 18000
@@ -3575,13 +3581,13 @@ const LEVEL_1 = {
         // VAGUE 6 : BOSS (Le Final)
         [
             {
-                count: 60,
+                count: 68,
                 type: "grunt",
                 interval: 700,
                 startDelay: 0
             },
             {
-                count: 30,
+                count: 36,
                 type: "runner",
                 interval: 1500,
                 startDelay: 12000
@@ -4816,29 +4822,37 @@ class GameScene extends Phaser.Scene {
         this.baseWidth = this.game.baseWidth || (0, _settingsJs.CONFIG).GAME_WIDTH;
         this.baseHeight = this.game.baseHeight || (0, _settingsJs.CONFIG).GAME_HEIGHT;
         const mapSize = 15 * (0, _settingsJs.CONFIG).TILE_SIZE;
-        const padding = Math.max(12, Math.min(this.gameWidth, this.gameHeight) * 0.015);
-        const sidebarWidth = Math.max(220, Math.min(340, this.gameWidth * 0.22));
-        // Espace central disponible pour la carte carrée (entre les deux sidebars)
-        const leftSidebarEnd = padding + sidebarWidth;
-        const rightSidebarStart = this.gameWidth - sidebarWidth - padding;
-        const centerSpaceWidth = rightSidebarStart - leftSidebarEnd;
+        // Réduire les marges pour maximiser l'espace de la map
+        const padding = Math.max(8, Math.min(this.gameWidth, this.gameHeight) * 0.008);
+        // Largeur minimale et maximale pour les sidebars (pour éviter qu'elles soient trop petites ou trop grandes)
+        const minSidebarWidth = 180;
+        const maxSidebarWidth = 320;
+        const targetSidebarWidth = Math.max(minSidebarWidth, Math.min(maxSidebarWidth, this.gameWidth * 0.15));
+        // Calculer d'abord la taille de la map en fonction de l'espace disponible
         const usableHeight = this.gameHeight - padding * 2;
+        // Espace central estimé (on va l'ajuster après)
+        const estimatedCenterWidth = this.gameWidth - 2 * targetSidebarWidth - 2 * padding;
         const scaleByHeight = usableHeight / mapSize;
-        const scaleByWidth = centerSpaceWidth / mapSize;
+        const scaleByWidth = estimatedCenterWidth / mapSize;
         this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
         this.mapPixelSize = mapSize * this.scaleFactor;
-        // Centrer la map dans l'espace entre les deux sidebars
-        this.mapOffsetX = leftSidebarEnd + (centerSpaceWidth - this.mapPixelSize) / 2;
+        // Centrer la map horizontalement dans l'écran
+        this.mapOffsetX = (this.gameWidth - this.mapPixelSize) / 2;
         this.mapOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
         // Stocker les offsets pour utilisation dans createMap
         this.mapStartX = this.mapOffsetX;
         this.mapStartY = this.mapOffsetY;
-        // Sidebars verticaux
-        this.toolbarWidth = sidebarWidth;
-        this.toolbarHeight = this.mapPixelSize;
+        // Sidebars qui s'étirent jusqu'à la map (pas de largeur fixe)
+        // Sidebar gauche : de padding jusqu'à mapOffsetX
         this.toolbarOffsetX = padding;
-        this.rightToolbarOffsetX = this.gameWidth - sidebarWidth - padding;
-        this.toolbarOffsetY = this.mapOffsetY;
+        this.toolbarWidth = this.mapOffsetX - padding;
+        // Sidebar droite : de (mapOffsetX + mapPixelSize) jusqu'à (gameWidth - padding)
+        this.rightToolbarOffsetX = this.mapOffsetX + this.mapPixelSize;
+        this.rightToolbarWidth = this.gameWidth - padding - this.rightToolbarOffsetX;
+        // Les sidebars prennent toute la hauteur de l'écran pour remplir l'espace
+        this.toolbarHeight = this.gameHeight;
+        // Les sidebars commencent en haut de l'écran (y = 0) pour s'étirer jusqu'en bas
+        this.toolbarOffsetY = 0;
         // HUD maintenant à droite (plus besoin de calculer hudX/hudY en haut)
         // Les valeurs sont calculées automatiquement via rightToolbarOffsetX et toolbarOffsetY
         this.leftToolbarBounds = {
@@ -4850,16 +4864,18 @@ class GameScene extends Phaser.Scene {
         this.rightToolbarBounds = {
             x: this.rightToolbarOffsetX,
             y: this.toolbarOffsetY,
-            width: this.toolbarWidth,
+            width: this.rightToolbarWidth,
             height: this.toolbarHeight
         };
     }
     // Gérer le redimensionnement
     handleResize() {
-        // On reconstruit proprement la scène pour garder un layout carré et centré
-        this.scene.restart({
-            level: this.levelID
-        });
+        // Phaser gère le scaling via FIT : seules les références d'UI doivent rester centrées
+        this.gameWidth = this.scale.width;
+        this.gameHeight = this.scale.height;
+        if (this.uiManager?.hud?.reposition) this.uiManager.hud.reposition();
+        if (this.uiManager?.buildToolbar?.reposition) this.uiManager.buildToolbar.reposition();
+        if (this.resumeBtn) this.resumeBtn.setPosition(this.cameras.main.centerX, this.cameras.main.centerY);
     }
     update(time, delta) {
         // Si le jeu est en pause, ne rien mettre à jour
@@ -5059,10 +5075,28 @@ class GameScene extends Phaser.Scene {
         this.lives = Math.max(0, this.lives - amount);
         this.updateUI();
         this.cameras.main.shake(150, 0.01);
-        if (this.lives <= 0) {
-            alert("PERDU !");
+        if (this.lives <= 0) this.showGameOverNotification();
+    }
+    showGameOverNotification() {
+        // Mettre le jeu en pause
+        this.isPaused = true;
+        const bg = this.add.rectangle(this.cameras.main.centerX, this.cameras.main.centerY, 500 * this.scaleFactor, 300 * this.scaleFactor, 0x000000, 0.9).setDepth(200);
+        const txt = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY - 30 * this.scaleFactor, "PERDU !", {
+            fontSize: `${Math.max(30, 50 * this.scaleFactor)}px`,
+            color: "#ff0000",
+            fontStyle: "bold",
+            fontFamily: "Arial"
+        }).setOrigin(0.5).setDepth(201);
+        const sub = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY + 50 * this.scaleFactor, "Cliquez pour retourner au menu", {
+            fontSize: `${Math.max(16, 24 * this.scaleFactor)}px`,
+            color: "#ffffff",
+            fontFamily: "Arial"
+        }).setOrigin(0.5).setDepth(201);
+        bg.setInteractive({
+            useHandCursor: true
+        }).on("pointerdown", ()=>{
             this.scene.start("MainMenuScene");
-        }
+        });
     }
     earnMoney(amount) {
         this.money += amount;
@@ -5090,7 +5124,11 @@ class GameScene extends Phaser.Scene {
         this.anims.pauseAll();
         // 5. Afficher le bouton
         if (!this.resumeBtn) this.createResumeButton();
-        else this.resumeBtn.setVisible(true);
+        else {
+            // Repositionner au centre au cas où la taille de l'écran a changé
+            this.resumeBtn.setPosition(this.cameras.main.centerX, this.cameras.main.centerY);
+            this.resumeBtn.setVisible(true);
+        }
     }
     resumeGame() {
         if (!this.isPaused) return;
@@ -5111,7 +5149,10 @@ class GameScene extends Phaser.Scene {
         const s = this.scaleFactor;
         const btnWidth = 250 * s;
         const btnHeight = 60 * s;
-        this.resumeBtn = this.add.container(this.gameWidth / 2, this.gameHeight / 2).setDepth(1000);
+        // Utiliser le centre de la caméra pour un centrage parfait
+        const centerX = this.cameras.main.centerX;
+        const centerY = this.cameras.main.centerY;
+        this.resumeBtn = this.add.container(centerX, centerY).setDepth(1000);
         const resumeBg = this.add.graphics();
         resumeBg.fillStyle(0x000000, 0.8);
         resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
@@ -8024,7 +8065,8 @@ class BuildToolbar {
         this.rightBg = null;
     }
     create() {
-        const toolbarY = this.scene.toolbarOffsetY;
+        // Les sidebars commencent en haut (y=0) mais le contenu est aligné avec la map
+        const toolbarY = this.scene.toolbarOffsetY || 0;
         const columnWidth = this.scene.toolbarWidth;
         const columnHeight = this.scene.toolbarHeight;
         const padding = 18 * this.scene.scaleFactor;
@@ -8052,7 +8094,8 @@ class BuildToolbar {
         const turretGridWidth = columnWidth - padding * 2;
         const columns = 2;
         const rows = Math.ceil(5 / columns);
-        const verticalSpacing = Math.min(turretGridHeight / rows, itemSpacing + padding * 0.5);
+        // Augmenter l'espacement vertical pour que ce soit plus beau
+        const verticalSpacing = Math.min(turretGridHeight / rows, itemSpacing + padding * 1.5);
         // S'assurer que buildToolbar pointe vers leftColumn avant de créer les boutons
         this.scene.buildToolbar = this.leftColumn;
         this.toolbarButtons = (0, _turretButtonsJs.createTurretButtons)(this, turretGridWidth, turretGridHeight, itemSize, verticalSpacing, {
@@ -8204,6 +8247,25 @@ class BuildToolbar {
             return pointer.worldX >= b.x && pointer.worldX <= b.x + b.width && pointer.worldY >= b.y && pointer.worldY <= b.y + b.height;
         });
     }
+    reposition() {
+        if (!this.leftColumn || !this.leftBg) return;
+        const columnWidth = this.scene.toolbarWidth;
+        const columnHeight = this.scene.toolbarHeight;
+        this.leftColumn.setPosition(this.scene.toolbarOffsetX, this.scene.toolbarOffsetY);
+        // Redessiner le fond pour la nouvelle largeur/hauteur
+        this.leftBg.clear();
+        this.leftBg.fillStyle(0x0a0a10, 0.92);
+        this.leftBg.fillRoundedRect(0, 0, columnWidth, columnHeight, 14);
+        this.leftBg.lineStyle(2, 0x00ccff, 0.35);
+        this.leftBg.strokeRoundedRect(0, 0, columnWidth, columnHeight, 14);
+        // Mettre à jour le cache des limites pour la détection des clics
+        this.scene.leftToolbarBounds = {
+            x: this.scene.toolbarOffsetX,
+            y: this.scene.toolbarOffsetY,
+            width: columnWidth,
+            height: columnHeight
+        };
+    }
 }
 
 },{"../../../../config/settings.js":"9kTMs","../../../../sorts/lightning.js":"lqA3P","./helpers/TurretButtons.js":"8ZDZv","./helpers/ToolbarTooltip.js":"22DYV","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"lqA3P":[function(require,module,exports,__globalThis) {
@@ -8279,6 +8341,13 @@ function createTurretButtons(buildToolbar, turretsSectionWidth, toolbarHeight, i
             fill: "#ffd700",
             fontStyle: "bold"
         }).setOrigin(0.5);
+        // Ajouter le nom de la tourelle
+        const nameText = scene.add.text(0, -itemSize / 2 - 8 * scene.scaleFactor, item.config.name || item.key, {
+            fontSize: `${Math.max(11, 13 * scene.scaleFactor)}px`,
+            fill: "#9edcff",
+            fontFamily: "Arial",
+            fontStyle: "bold"
+        }).setOrigin(0.5);
         const updateCount = ()=>{
             if (!countText || countText.active === false) return;
             if (!btnBg || btnBg.active === false) return;
@@ -8326,7 +8395,8 @@ function createTurretButtons(buildToolbar, turretsSectionWidth, toolbarHeight, i
             btnBg,
             previewContainer,
             countText,
-            priceText
+            priceText,
+            nameText
         ]);
         scene.buildToolbar.add(btnContainer);
         btnBg.on("pointerover", ()=>{
@@ -8451,13 +8521,15 @@ class HUD {
     }
     create() {
         const s = this.scene.scaleFactor;
-        const columnWidth = this.scene.toolbarWidth;
+        // Utiliser la largeur spécifique de la sidebar droite (qui s'étire jusqu'à la map)
+        const columnWidth = this.scene.rightToolbarWidth || this.scene.toolbarWidth;
         const columnHeight = this.scene.toolbarHeight;
         const padding = 18 * s;
         const fontSize = Math.max(16, 20 * s);
         const smallFontSize = Math.max(12, 16 * s);
         const startX = this.scene.rightToolbarOffsetX;
-        const startY = this.scene.toolbarOffsetY;
+        // Les sidebars commencent en haut (y=0) pour s'étirer sur toute la hauteur
+        const startY = this.scene.toolbarOffsetY || 0;
         // Container principal à droite
         const rightPanel = this.scene.add.container(startX, startY).setDepth(200);
         this.topBar = rightPanel; // Garder la référence pour compatibilité
@@ -8580,7 +8652,8 @@ class HUD {
     reposition() {
         if (!this.topBar || !this.bgBar) return;
         const s = this.scene.scaleFactor;
-        const columnWidth = this.scene.toolbarWidth;
+        // Utiliser la largeur spécifique de la sidebar droite (qui s'étire jusqu'à la map)
+        const columnWidth = this.scene.rightToolbarWidth || this.scene.toolbarWidth;
         const columnHeight = this.scene.toolbarHeight;
         const padding = 18 * s;
         const startX = this.scene.rightToolbarOffsetX;
@@ -9834,8 +9907,14 @@ class Hero extends Phaser.GameObjects.Container {
         this.lastAttackTime = 0;
         this.corpseTimerEvent = null;
         this.corpseContainer = null;
+        // --- Régénération automatique ---
+        this.lastDamageTime = scene?.time?.now || 0; // Temps du dernier dégât reçu
+        this.regenTimer = null; // Timer pour la régénération
+        this.regenDelay = 5000; // 5 secondes avant de commencer à régénérer
+        this.regenPercent = 0.03; // 3% de la vie max
+        this.regenInterval = 1000; // Toutes les 1 seconde
         // --- Visual / Layout (un peu plus gros + mieux lisible) ---
-        this.baseScale = 1.17; // <- rend le héros un peu plus gros
+        this.baseScale = 1.05; // <- rend le héros un peu plus gros
         this.visualScale = this.baseScale * s;
         this.bodyGroup = scene.add.container(0, 0);
         this.add(this.bodyGroup);
@@ -10125,6 +10204,59 @@ class Hero extends Phaser.GameObjects.Container {
             }
         } else // Si on n'est pas en combat, vérifier si on peut engager un ennemi
         this.checkForEnemyEngage();
+        // Gérer la régénération automatique
+        this.handleRegeneration(now);
+    }
+    handleRegeneration(now) {
+        if (!this.isAlive || this.hp >= this.maxHp) {
+            this.stopRegeneration();
+            return;
+        }
+        // Si en combat, arrêter la régénération
+        if (this.blockingEnemy) {
+            this.stopRegeneration();
+            return;
+        }
+        // Vérifier si 5 secondes se sont écoulées depuis le dernier dégât
+        const timeSinceDamage = now - this.lastDamageTime;
+        if (timeSinceDamage >= this.regenDelay) // Démarrer la régénération si elle n'est pas déjà active
+        {
+            if (!this.regenTimer) this.startRegeneration();
+        } else // Pas encore assez de temps, arrêter la régénération si elle est active
+        if (this.regenTimer) this.stopRegeneration();
+    }
+    startRegeneration() {
+        if (this.regenTimer || !this.scene || !this.scene.time) return;
+        if (!this.isAlive || this.hp >= this.maxHp) return;
+        this.regenTimer = this.scene.time.addEvent({
+            delay: this.regenInterval,
+            callback: ()=>{
+                if (!this.isAlive || this.hp >= this.maxHp) {
+                    this.stopRegeneration();
+                    return;
+                }
+                // Vérifier si on est toujours hors combat et si assez de temps s'est écoulé
+                const timeSinceDamage = this.scene.time.now - this.lastDamageTime;
+                if (timeSinceDamage < this.regenDelay || this.blockingEnemy) {
+                    this.stopRegeneration();
+                    return;
+                }
+                // Régénérer 3% de la vie max
+                const healAmount = Math.ceil(this.maxHp * this.regenPercent);
+                const oldHp = this.hp;
+                this.hp = Math.min(this.maxHp, this.hp + healAmount);
+                // Mettre à jour la barre de vie et le tooltip
+                this.drawHealthBar();
+                if (this.hpTooltip) this.hpTooltip.setText(this.getHpTooltipText());
+            },
+            loop: true
+        });
+    }
+    stopRegeneration() {
+        if (this.regenTimer) {
+            this.regenTimer.remove();
+            this.regenTimer = null;
+        }
     }
     followPath(delta) {
         if (!this.targetPath || this.currentPathIndex >= this.targetPath.length) return;
@@ -10175,6 +10307,8 @@ class Hero extends Phaser.GameObjects.Container {
         enemy.blockedBy = this;
         // Ne pas vider le chemin automatiquement - permettre le déplacement pendant le combat
         // Le joueur peut toujours donner une nouvelle destination pour partir
+        // Arrêter la régénération quand on entre en combat
+        this.stopRegeneration();
         this.tryAttack(this.scene?.time?.now ?? 0);
     }
     tryAttack(time) {
@@ -10293,6 +10427,10 @@ class Hero extends Phaser.GameObjects.Container {
     takeDamage(amount) {
         if (!this.isAlive) return;
         this.hp -= amount;
+        // Mettre à jour le temps du dernier dégât
+        this.lastDamageTime = this.scene?.time?.now || 0;
+        // Arrêter la régénération si elle est active
+        this.stopRegeneration();
         this.drawHealthBar();
         // Mettre à jour le tooltip si visible
         if (this.hpTooltip) this.hpTooltip.setText(this.getHpTooltipText());
@@ -10327,6 +10465,7 @@ class Hero extends Phaser.GameObjects.Container {
         this.isAlive = false;
         this.hp = 0;
         this.hideHpTooltip();
+        this.stopRegeneration();
         this.releaseEnemy();
         this.targetPath = [];
         this.currentPathIndex = 0;

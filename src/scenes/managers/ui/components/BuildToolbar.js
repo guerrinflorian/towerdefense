@@ -17,7 +17,8 @@ export class BuildToolbar {
   }
 
   create() {
-    const toolbarY = this.scene.toolbarOffsetY;
+    // Les sidebars commencent en haut (y=0) mais le contenu est aligné avec la map
+    const toolbarY = this.scene.toolbarOffsetY || 0;
     const columnWidth = this.scene.toolbarWidth;
     const columnHeight = this.scene.toolbarHeight;
     const padding = 18 * this.scene.scaleFactor;
@@ -52,9 +53,10 @@ export class BuildToolbar {
     const turretGridWidth = columnWidth - padding * 2;
     const columns = 2;
     const rows = Math.ceil(5 / columns);
+    // Augmenter l'espacement vertical pour que ce soit plus beau
     const verticalSpacing = Math.min(
       turretGridHeight / rows,
-      itemSpacing + padding * 0.5
+      itemSpacing + padding * 1.5
     );
 
     // S'assurer que buildToolbar pointe vers leftColumn avant de créer les boutons

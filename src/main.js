@@ -6,14 +6,14 @@ const config = {
   type: Phaser.AUTO,
   parent: "game-container",
 
-  // Dimensions de base fixes, Phaser se charge de scaler avec FIT
-  width: CONFIG.GAME_WIDTH,
-  height: CONFIG.GAME_HEIGHT,
+  // Utiliser la taille de la fenêtre pour remplir tout l'écran
+  width: window.innerWidth,
+  height: window.innerHeight,
 
   backgroundColor: "#000000",
 
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
 

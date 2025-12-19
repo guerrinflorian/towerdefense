@@ -137,35 +137,46 @@ export class GameScene extends Phaser.Scene {
     this.baseHeight = this.game.baseHeight || CONFIG.GAME_HEIGHT;
 
     const mapSize = 15 * CONFIG.TILE_SIZE;
-    const padding = Math.max(12, Math.min(this.gameWidth, this.gameHeight) * 0.015);
-    const sidebarWidth = Math.max(220, Math.min(340, this.gameWidth * 0.22));
+    // Réduire les marges pour maximiser l'espace de la map
+    const padding = Math.max(8, Math.min(this.gameWidth, this.gameHeight) * 0.008);
+    
+    // Largeur minimale et maximale pour les sidebars (pour éviter qu'elles soient trop petites ou trop grandes)
+    const minSidebarWidth = 180;
+    const maxSidebarWidth = 320;
+    const targetSidebarWidth = Math.max(minSidebarWidth, Math.min(maxSidebarWidth, this.gameWidth * 0.15));
 
-    // Espace central disponible pour la carte carrée (entre les deux sidebars)
-    const leftSidebarEnd = padding + sidebarWidth;
-    const rightSidebarStart = this.gameWidth - sidebarWidth - padding;
-    const centerSpaceWidth = rightSidebarStart - leftSidebarEnd;
+    // Calculer d'abord la taille de la map en fonction de l'espace disponible
     const usableHeight = this.gameHeight - padding * 2;
-
+    // Espace central estimé (on va l'ajuster après)
+    const estimatedCenterWidth = this.gameWidth - 2 * targetSidebarWidth - 2 * padding;
+    
     const scaleByHeight = usableHeight / mapSize;
-    const scaleByWidth = centerSpaceWidth / mapSize;
+    const scaleByWidth = estimatedCenterWidth / mapSize;
     this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
 
     this.mapPixelSize = mapSize * this.scaleFactor;
     
-    // Centrer la map dans l'espace entre les deux sidebars
-    this.mapOffsetX = leftSidebarEnd + (centerSpaceWidth - this.mapPixelSize) / 2;
+    // Centrer la map horizontalement dans l'écran
+    this.mapOffsetX = (this.gameWidth - this.mapPixelSize) / 2;
     this.mapOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
 
     // Stocker les offsets pour utilisation dans createMap
     this.mapStartX = this.mapOffsetX;
     this.mapStartY = this.mapOffsetY;
 
-    // Sidebars verticaux
-    this.toolbarWidth = sidebarWidth;
-    this.toolbarHeight = this.mapPixelSize;
+    // Sidebars qui s'étirent jusqu'à la map (pas de largeur fixe)
+    // Sidebar gauche : de padding jusqu'à mapOffsetX
     this.toolbarOffsetX = padding;
-    this.rightToolbarOffsetX = this.gameWidth - sidebarWidth - padding;
-    this.toolbarOffsetY = this.mapOffsetY;
+    this.toolbarWidth = this.mapOffsetX - padding;
+    
+    // Sidebar droite : de (mapOffsetX + mapPixelSize) jusqu'à (gameWidth - padding)
+    this.rightToolbarOffsetX = this.mapOffsetX + this.mapPixelSize;
+    this.rightToolbarWidth = (this.gameWidth - padding) - this.rightToolbarOffsetX;
+    
+    // Les sidebars prennent toute la hauteur de l'écran pour remplir l'espace
+    this.toolbarHeight = this.gameHeight;
+    // Les sidebars commencent en haut de l'écran (y = 0) pour s'étirer jusqu'en bas
+    this.toolbarOffsetY = 0;
 
     // HUD maintenant à droite (plus besoin de calculer hudX/hudY en haut)
     // Les valeurs sont calculées automatiquement via rightToolbarOffsetX et toolbarOffsetY
@@ -179,7 +190,7 @@ export class GameScene extends Phaser.Scene {
     this.rightToolbarBounds = {
       x: this.rightToolbarOffsetX,
       y: this.toolbarOffsetY,
-      width: this.toolbarWidth,
+      width: this.rightToolbarWidth,
       height: this.toolbarHeight,
     };
   }
@@ -444,9 +455,57 @@ export class GameScene extends Phaser.Scene {
     this.updateUI();
     this.cameras.main.shake(150, 0.01);
     if (this.lives <= 0) {
-      alert("PERDU !");
-      this.scene.start("MainMenuScene");
+      this.showGameOverNotification();
     }
+  }
+
+  showGameOverNotification() {
+    // Mettre le jeu en pause
+    this.isPaused = true;
+
+    const bg = this.add
+      .rectangle(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY,
+        500 * this.scaleFactor,
+        300 * this.scaleFactor,
+        0x000000,
+        0.9
+      )
+      .setDepth(200);
+
+    const txt = this.add
+      .text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY - 30 * this.scaleFactor,
+        "PERDU !",
+        {
+          fontSize: `${Math.max(30, 50 * this.scaleFactor)}px`,
+          color: "#ff0000",
+          fontStyle: "bold",
+          fontFamily: "Arial",
+        }
+      )
+      .setOrigin(0.5)
+      .setDepth(201);
+
+    const sub = this.add
+      .text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY + 50 * this.scaleFactor,
+        "Cliquez pour retourner au menu",
+        {
+          fontSize: `${Math.max(16, 24 * this.scaleFactor)}px`,
+          color: "#ffffff",
+          fontFamily: "Arial",
+        }
+      )
+      .setOrigin(0.5)
+      .setDepth(201);
+
+    bg.setInteractive({ useHandCursor: true }).on("pointerdown", () => {
+      this.scene.start("MainMenuScene");
+    });
   }
 
   earnMoney(amount) {
@@ -485,6 +544,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.resumeBtn) {
       this.createResumeButton();
     } else {
+      // Repositionner au centre au cas où la taille de l'écran a changé
+      this.resumeBtn.setPosition(this.cameras.main.centerX, this.cameras.main.centerY);
       this.resumeBtn.setVisible(true);
     }
   }
@@ -517,8 +578,12 @@ export class GameScene extends Phaser.Scene {
     const btnWidth = 250 * s;
     const btnHeight = 60 * s;
 
+    // Utiliser le centre de la caméra pour un centrage parfait
+    const centerX = this.cameras.main.centerX;
+    const centerY = this.cameras.main.centerY;
+
     this.resumeBtn = this.add
-      .container(this.gameWidth / 2, this.gameHeight / 2)
+      .container(centerX, centerY)
       .setDepth(1000);
 
     const resumeBg = this.add.graphics();
