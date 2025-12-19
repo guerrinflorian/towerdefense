@@ -2,6 +2,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Last Outpost TD</title>
+    <link rel="stylesheet" href="/towerdefense.dfbfc4b5.css">
     <style>* {
   box-sizing: border-box;
   margin: 0;
@@ -26,9 +27,22 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
+  transition: opacity .3s, filter .3s;
   display: flex;
   position: relative;
   overflow: hidden;
+}
+
+body:has(#auth-overlay:not(.hidden)) #game-container, #game-container.blocked {
+  pointer-events: none;
+  user-select: none;
+  opacity: .5;
+  filter: blur(2px);
+}
+
+body:has(#auth-overlay:not(.hidden)) canvas, #game-container.blocked canvas {
+  pointer-events: none;
+  cursor: not-allowed !important;
 }
 
 canvas {
@@ -82,6 +96,10 @@ canvas {
   margin-bottom: 12px;
   font-size: 44px;
 }
+
+.hidden {
+  display: none !important;
+}
 </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
   </head>
@@ -95,6 +113,53 @@ canvas {
         <p>
           Le jeu se joue en mode paysage pour profiter d'une grande carte carrée.
           Passe ton téléphone ou ta tablette à l'horizontale pour continuer.
+        </p>
+      </div>
+    </div>
+
+    <div id="auth-overlay" class="auth-overlay hidden" aria-live="polite">
+      <div class="auth-card" id="login-card">
+        <h2>Connexion</h2>
+        <div id="auth-welcome" class="hint"></div>
+        <div id="auth-error" class="error hidden"></div>
+        <form id="login-form">
+          <div>
+            <label for="identifier">Email ou pseudo</label>
+            <input id="identifier" name="identifier" type="text" required="">
+          </div>
+          <div>
+            <label for="password">Mot de passe</label>
+            <input id="password" name="password" type="password" required="">
+          </div>
+          <button type="submit">Se connecter</button>
+        </form>
+        <p class="hint">
+          Pas encore de compte ?
+          <a href="#" id="show-register" class="link">Créer un compte</a>
+        </p>
+      </div>
+
+      <div class="auth-card hidden" id="register-card">
+        <h2>Créer un compte</h2>
+        <div id="auth-error-register" class="error hidden"></div>
+        <form id="register-form">
+          <div>
+            <label for="username">Nom d'utilisateur</label>
+            <input id="username" name="username" required="">
+          </div>
+          <div>
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required="">
+          </div>
+          <div>
+            <label for="password">Mot de passe (8+ caractères)</label>
+            <input id="register-password" name="password" type="password" required="">
+          </div>
+          <button type="submit">Créer mon compte</button>
+        </form>
+        <p class="hint">
+          Déjà inscrit ?
+          <a href="#" id="show-login" class="link">Se connecter</a>
         </p>
       </div>
     </div>
