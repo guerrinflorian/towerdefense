@@ -231,19 +231,28 @@ export class UpgradeMenu {
       ? turret.getNextLevelStats()
       : null;
 
-    const canAfford = finalNextStats && this.scene.money >= finalNextStats.cost;
-    const shouldDisable = !finalNextStats || !canAfford;
-
     this.scene.upgradeBtnText.setPosition(15 * s, menuHeight - 50 * s);
-    if (finalNextStats) {
+    this.updateUpgradeButtonState();
+
+    this.scene.upgradeMenu.setVisible(true);
+  }
+
+  updateUpgradeButtonState() {
+    const nextStats = this.scene.selectedTurret?.getNextLevelStats?.();
+    const canAfford = nextStats && this.scene.money >= nextStats.cost;
+    const hasNext = !!nextStats;
+
+    if (!this.scene.upgradeBtnText) return;
+
+    if (hasNext) {
       this.scene.upgradeBtnText.setText(
-        canAfford ? "AMÉLIORER" : `AMÉLIORER (${finalNextStats.cost}$)`
+        canAfford ? "AMÉLIORER" : `AMÉLIORER (${nextStats.cost}$)`
       );
     } else {
       this.scene.upgradeBtnText.setText("FERMER");
     }
 
-    if (shouldDisable) {
+    if (!hasNext || !canAfford) {
       this.scene.upgradeBtnText.setBackgroundColor("#666666");
       this.scene.upgradeBtnText.setColor("#999999");
       this.scene.upgradeBtnText.setAlpha(0.6);
@@ -254,7 +263,5 @@ export class UpgradeMenu {
       this.scene.upgradeBtnText.setAlpha(1);
       this.scene.upgradeBtnText.setInteractive({ useHandCursor: true });
     }
-
-    this.scene.upgradeMenu.setVisible(true);
   }
 }

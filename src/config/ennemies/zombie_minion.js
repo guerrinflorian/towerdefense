@@ -3,6 +3,7 @@ export const zombie_minion = {
   speed: 60, // Lent
   hp: 55,
   reward: 5, // Peu de récompense
+  playerDamage: 1,
   color: 0x4a7a2f, // Vert zombie
   damage: 3, // Dégâts faibles
   attackSpeed: 1000,

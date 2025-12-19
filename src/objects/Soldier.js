@@ -50,16 +50,16 @@ export class Soldier extends Phaser.GameObjects.Container {
   
   showHpTooltip() {
     if (!this.active || !this.isAlive) return;
-    
+
     if (this.hpTooltip) {
       this.hpTooltip.destroy();
     }
-    
+
     const fontSize = Math.max(12, 14 * (this.scene.scaleFactor || 1));
     this.hpTooltip = this.scene.add.text(
       this.x,
       this.y - 50,
-      `${Math.max(0, this.hp)} / ${this.maxHp} HP`,
+      this.getHpTooltipText(),
       {
         fontSize: `${fontSize}px`,
         fill: "#ffffff",
@@ -78,7 +78,7 @@ export class Soldier extends Phaser.GameObjects.Container {
       callback: () => {
         if (this.hpTooltip && this.active && this.isAlive) {
           this.hpTooltip.setPosition(this.x, this.y - 50);
-          this.hpTooltip.setText(`${Math.max(0, this.hp)} / ${this.maxHp} HP`);
+          this.hpTooltip.setText(this.getHpTooltipText());
         } else if (this.hpTooltip) {
           this.hideHpTooltip();
         }
@@ -97,7 +97,11 @@ export class Soldier extends Phaser.GameObjects.Container {
       this.tooltipUpdateTimer = null;
     }
   }
-  
+
+  getHpTooltipText() {
+    return `${Math.max(0, Math.ceil(this.hp))} / ${Math.ceil(this.maxHp)} HP`;
+  }
+
   showHighlight() {
     if (this.highlightCircle) {
       this.highlightCircle.destroy();
@@ -606,10 +610,10 @@ export class Soldier extends Phaser.GameObjects.Container {
   // Prendre des dégâts
   takeDamage(amount) {
     this.hp -= amount;
-    
+
     // Mettre à jour le tooltip si visible
     if (this.hpTooltip) {
-      this.hpTooltip.setText(`${this.hp} / ${this.maxHp} HP`);
+      this.hpTooltip.setText(this.getHpTooltipText());
     }
     
     // Flash rouge sur les enfants du bodyGroup

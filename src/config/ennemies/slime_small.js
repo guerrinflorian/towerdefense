@@ -6,6 +6,7 @@ export const slime_small = {
   speed: 50,
   hp: 300,
   reward: 20,
+  playerDamage: 1,
   color: 0x88ff88, // Vert clair
   damage: 8,
   attackSpeed: 800,

@@ -3,6 +3,7 @@ export const bosslvl2 = {
   speed: 12, // Plus rapide que le chevalier, course effrayante
   hp: 90000,
   reward: 2500,
+  playerDamage: 20,
   color: 0x000000,
   damage: 150, 
   attackSpeed: 800, // Attaque très vite (frénétique)
