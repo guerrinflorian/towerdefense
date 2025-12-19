@@ -43,6 +43,7 @@ export class GameScene extends Phaser.Scene {
     this.selectedTurret = null;
     this.maxBarracks = 5;
     this.upgradeTextLines = []; // Pour stocker les lignes de texte du menu
+    this.spawnControls = null;
 
     // Réinitialiser toutes les références UI pour éviter les références vers objets détruits
     this.buildToolbar = null;
@@ -65,6 +66,7 @@ export class GameScene extends Phaser.Scene {
     this.pausedTimers = []; // Liste des timers en pause
     this.pausedTweens = []; // Liste des tweens en pause
     this.elapsedTimeMs = 0; // Chronomètre de session
+    this.isTimerRunning = false;
   }
 
   preload() {
@@ -109,6 +111,7 @@ export class GameScene extends Phaser.Scene {
     this.inputManager.setUIManager(this.uiManager);
 
     this.mapManager.createMap();
+    this.waveManager.initSpawnControls();
     this.enemies = this.add.group({ runChildUpdate: true });
     this.soldiers = this.add.group({ runChildUpdate: true });
     this.uiManager.createUI();
@@ -180,7 +183,11 @@ export class GameScene extends Phaser.Scene {
     if (this.isPaused) {
       return;
     }
-    this.elapsedTimeMs += delta;
+
+    if (this.isTimerRunning) {
+      this.elapsedTimeMs += delta;
+    }
+
     if (this.uiManager) {
       this.uiManager.updateTimer(this.elapsedTimeMs);
     }
@@ -238,7 +245,12 @@ export class GameScene extends Phaser.Scene {
       this.nextWaveAutoTimer = null;
       this.nextWaveCountdown = 0;
     }
+    this.waveManager.spawnControls?.clearCountdown();
     this.waveManager.startWave();
+  }
+
+  startSessionTimer() {
+    this.isTimerRunning = true;
   }
 
   monitorWaveEnd() {
@@ -659,5 +671,12 @@ export class GameScene extends Phaser.Scene {
     this.waveBtnContainer = null;
     this.waveBtnBg = null;
     this.waveBtnText = null;
+
+    try {
+      this.spawnControls?.destroy();
+    } catch (e) {
+      // ignore
+    }
+    this.spawnControls = null;
   }
 }
