@@ -2,6 +2,7 @@ import express from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { query } from "../db.js";
 import { buildPlayerProfile, recordLevelCompletion } from "../utils/profile.js";
+import { upgradeHeroStats } from "../utils/heroUpgrades.js";
 
 const router = express.Router();
 
@@ -16,6 +17,42 @@ router.get("/me", async (req, res) => {
     return res.json(profile);
   } catch (err) {
     console.error("Erreur récupération profil:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.get("/leaderboard", async (_req, res) => {
+  try {
+    const result = await query(
+      `SELECT p.username,
+              lc.level_id AS max_level,
+              lc.lives_remaining,
+              lc.completion_time_ms,
+              lc.created_at
+         FROM players p
+         JOIN LATERAL (
+            SELECT level_id,
+                   lives_remaining,
+                   completion_time_ms,
+                   created_at
+              FROM level_completions lc2
+             WHERE lc2.player_id = p.id
+             ORDER BY level_id DESC,
+                      lives_remaining DESC NULLS LAST,
+                      completion_time_ms ASC NULLS LAST,
+                      created_at ASC
+             LIMIT 1
+         ) lc ON TRUE
+        ORDER BY lc.level_id DESC,
+                 lc.lives_remaining DESC NULLS LAST,
+                 lc.completion_time_ms ASC NULLS LAST,
+                 lc.created_at ASC
+        LIMIT 10`
+    );
+
+    return res.json({ entries: result.rows });
+  } catch (err) {
+    console.error("Erreur leaderboard:", err);
     return res.status(500).json({ error: "Erreur serveur" });
   }
 });
@@ -62,6 +99,35 @@ router.post("/levels/completion", async (req, res) => {
     return res.json({ progress });
   } catch (err) {
     console.error("Erreur enregistrement niveau:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.post("/hero/upgrade", async (req, res) => {
+  const { stat, points } = req.body || {};
+
+  try {
+    const result = await upgradeHeroStats(req.user.id, { stat, points });
+    const profile = await buildPlayerProfile(req.user.id);
+
+    return res.json({
+      message: "Amélioration appliquée",
+      heroStats: result.heroStats,
+      heroPointsAvailable: result.heroPointsAvailable,
+      heroPointConversion: result.heroPointConversion,
+      profile,
+    });
+  } catch (err) {
+    if (err.code === "INVALID_POINTS") {
+      return res.status(400).json({ error: "Nombre de points invalide" });
+    }
+    if (err.code === "INVALID_STAT") {
+      return res.status(400).json({ error: "Statistique inconnue" });
+    }
+    if (err.code === "NOT_ENOUGH_POINTS") {
+      return res.status(400).json({ error: "Points insuffisants" });
+    }
+    console.error("Erreur upgrade héros:", err);
     return res.status(500).json({ error: "Erreur serveur" });
   }
 });
