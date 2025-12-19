@@ -117,26 +117,42 @@ export class UIManager {
     const btnHeight = 60 * s;
     const toolbarHeight = 120 * s;
     const margin = 20 * s;
-    
+
     // Calculer la position pour être aligné avec les autres sections
     const itemSize = 80 * s;
     const itemSpacing = 90 * s;
     const spellSectionWidth = itemSize + margin * 2;
     const turretsSectionWidth = 5 * itemSpacing;
-    const totalWidth = spellSectionWidth + turretsSectionWidth + btnWidth + margin * 4;
+    const totalWidth =
+      spellSectionWidth + turretsSectionWidth + btnWidth + margin * 4;
     const startX = (this.scene.gameWidth - totalWidth) / 2;
-    
+
     // Positionner à droite, aligné avec les autres sections
-    const waveSectionX = startX + spellSectionWidth + turretsSectionWidth + margin * 3;
+    const waveSectionX =
+      startX + spellSectionWidth + turretsSectionWidth + margin * 3;
     const wy = this.scene.toolbarOffsetY + toolbarHeight / 2; // Centré verticalement dans la toolbar
 
     // Section du bouton de vague avec fond
-    this.scene.waveSection = this.scene.add.container(waveSectionX, this.scene.toolbarOffsetY).setDepth(150);
+    this.scene.waveSection = this.scene.add
+      .container(waveSectionX, this.scene.toolbarOffsetY)
+      .setDepth(150);
     const waveSectionBg = this.scene.add.graphics();
     waveSectionBg.fillStyle(0x000000, 0.9);
-    waveSectionBg.fillRoundedRect(0, 0, btnWidth + margin * 2, toolbarHeight, 10);
+    waveSectionBg.fillRoundedRect(
+      0,
+      0,
+      btnWidth + margin * 2,
+      toolbarHeight,
+      10
+    );
     waveSectionBg.lineStyle(3, 0xffffff, 0.6);
-    waveSectionBg.strokeRoundedRect(0, 0, btnWidth + margin * 2, toolbarHeight, 10);
+    waveSectionBg.strokeRoundedRect(
+      0,
+      0,
+      btnWidth + margin * 2,
+      toolbarHeight,
+      10
+    );
     this.scene.waveSection.add(waveSectionBg);
 
     this.scene.waveBtnContainer = this.scene.add
@@ -160,7 +176,7 @@ export class UIManager {
       this.scene.waveBtnBg,
       this.scene.waveBtnText,
     ]);
-    
+
     this.scene.waveSection.add(this.scene.waveBtnContainer);
 
     // Interactivité simple sur le bouton
@@ -184,44 +200,10 @@ export class UIManager {
 
     this.buildButtons = [];
 
-    this.scene.buildMenu = this.scene.add
+    const menu = (this.scene.buildMenu = this.scene.add
       .container(0, 0)
       .setVisible(false)
-      .setDepth(240);
-
-    const menuWidth = 300 * s;
-    const menuHeight = 250 * s;
-    const pad = 20 * s;
-
-    const { bg, headerLine } = this.createPanelBackground(
-      menuWidth,
-      menuHeight,
-      {
-        fill: 0x0f0f1a,
-        fillAlpha: 0.98,
-        shadowAlpha: 0.5,
-        stroke: 0x00ccff,
-        strokeAlpha: 1,
-        innerStroke: 0x0066aa,
-        innerAlpha: 0.6,
-        radius: 16,
-        headerY: 40 * s,
-      }
-    );
-
-    const title = this.scene.add
-      .text(menuWidth / 2, 20 * s, "CONSTRUIRE", {
-        fontSize: `${Math.max(16, 18 * s)}px`,
-        fill: "#00ccff",
-        fontStyle: "bold",
-        stroke: "#003366",
-        strokeThickness: Math.max(2, 2 * s),
-        fontFamily: "Arial",
-      })
-      .setOrigin(0.5)
-      .setDepth(241);
-
-    this.scene.buildMenu.add([bg, headerLine, title]);
+      .setDepth(240));
 
     const turrets = [
       TURRETS.machine_gun,
@@ -231,42 +213,80 @@ export class UIManager {
       TURRETS.barracks,
     ];
 
-    // Grille 3x2 (3 colonnes, 2 lignes) pour mieux accommoder 5 tourelles
-    const cols = 3;
-    const rows = 2;
-    const octagonSize = 45 * s;
-    const spacingX = (menuWidth - pad * 2) / cols;
-    const spacingY = 75 * s;
-    const startX = pad + spacingX / 2;
-    const startY = 55 * s;
+    // --- Layout circulaire ---
+    const pad = 18 * s;
+    const btnSize = 62 * s; // ⬆️ boutons + gros
+    const radius = 105 * s; // ⬅️ un peu plus rapprochés
+    const titleH = 44 * s;
+
+    const menuWidth = pad * 2 + (radius + btnSize / 2) * 2;
+    const menuHeight = pad * 2 + titleH + (radius + btnSize / 2) * 2;
+
+    const cx = menuWidth / 2;
+    const cy = pad + titleH + (menuHeight - pad * 2 - titleH) / 2;
+
+    // --- Titre avec surlignage ---
+    const titleBg = this.scene.add
+      .rectangle(cx, pad + 14 * s, 210 * s, 40 * s, 0x000000, 0.55)
+      .setOrigin(0.5)
+      .setDepth(240);
+
+    const title = this.scene.add
+      .text(cx, pad + 14 * s, "CONSTRUIRE", {
+        fontFamily: "Arial",
+        fontStyle: "bold",
+        fontSize: `${Math.round(30 * s)}px`,
+        fill: "#00ccff",
+        stroke: "#001a2a",
+        strokeThickness: Math.round(4 * s),
+      })
+      .setOrigin(0.5)
+      .setDepth(241);
+
+    menu.add([titleBg, title]);
+
+    // Pentagone
+    const anglesDeg = [-90, -18, 54, 126, 198];
 
     turrets.forEach((cfg, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const x = startX + col * spacingX;
-      const y = startY + row * spacingY;
-      
-      const btn = this.createBuildBtnOctagon(x, y, octagonSize, cfg);
-      this.scene.buildMenu.add(btn);
+      const a = Phaser.Math.DegToRad(anglesDeg[i]);
+      const x = cx + Math.cos(a) * radius;
+      const y = cy + Math.sin(a) * radius;
+
+      const btn = this.createBuildBtnOctagon(x, y, btnSize, cfg, {
+        iconScale: 1.25, // ⬆️ icône
+        textScale: 1.25, // ⬆️ texte
+        labelBg: true, // ⬅️ fond derrière texte
+      });
+
+      menu.add(btn);
       this.buildButtons.push(btn);
     });
 
-    // Store menu geometry (used in openBuildMenu clamp)
     this.scene._buildMenuSize = { w: menuWidth, h: menuHeight };
   }
 
   // Fonction pour dessiner un octogone
-  drawOctagon(graphics, x, y, radius, fillColor, fillAlpha, strokeColor, strokeWidth) {
+  drawOctagon(
+    graphics,
+    x,
+    y,
+    radius,
+    fillColor,
+    fillAlpha,
+    strokeColor,
+    strokeWidth
+  ) {
     graphics.clear();
     graphics.fillStyle(fillColor, fillAlpha);
     graphics.lineStyle(strokeWidth, strokeColor, 1);
-    
+
     const sides = 8;
     const angleStep = (Math.PI * 2) / sides;
-    
+
     graphics.beginPath();
     for (let i = 0; i <= sides; i++) {
-      const angle = (i * angleStep) - Math.PI / 2; // Commencer en haut
+      const angle = i * angleStep - Math.PI / 2; // Commencer en haut
       const px = x + Math.cos(angle) * radius;
       const py = y + Math.sin(angle) * radius;
       if (i === 0) {
@@ -280,13 +300,19 @@ export class UIManager {
     graphics.strokePath();
   }
 
-  createBuildBtnOctagon(x, y, size, turretConfig) {
+  createBuildBtnOctagon(x, y, size, turretConfig, options = {}) {
     const s = this.scene.scaleFactor;
     const radius = size / 2;
 
+    // Options (par défaut : un peu plus gros + labels lisibles)
+    const iconScale = options.iconScale ?? 1.15; // icône + grande
+    const textScale = options.textScale ?? 1.15; // texte + grand
+    const labelBgAlpha = options.labelBgAlpha ?? 0.55;
+    const labelBgRadius = options.labelBgRadius ?? 8 * s;
+
     const btn = this.scene.add.container(x, y).setDepth(241);
 
-    // Octogone de fond
+    // --- Octogone de fond ---
     const octagonBg = this.scene.add.graphics();
     this.drawOctagon(
       octagonBg,
@@ -299,98 +325,165 @@ export class UIManager {
       Math.max(2, 2 * s)
     );
 
-    // Zone interactive (cercle pour simplifier)
-    const hitArea = this.scene.add.circle(0, 0, radius + 5 * s, 0x000000, 0);
+    // --- Zone interactive ---
+    const hitArea = this.scene.add.circle(0, 0, radius + 6 * s, 0x000000, 0);
     hitArea.setInteractive({ useHandCursor: true });
 
-    // Miniature de la tourelle
-    const previewContainer = this.scene.add.container(0, 0);
+    // --- Preview tourelle (plus grande) ---
+    const previewContainer = this.scene.add.container(0, -2 * s);
     if (this.scene.drawTurretPreview) {
       this.scene.drawTurretPreview(previewContainer, turretConfig);
-      previewContainer.setScale(0.35 * s); // Plus petit pour rentrer dans l'octogone
+      previewContainer.setScale(0.4 * s * iconScale); // ⬆️ avant 0.35
     }
 
-    // Nom en petit en dessous
+    // --- Textes (plus gros + mieux espacés) ---
+    const nameY = radius + 12 * s;
+    const costY = radius + 30 * s;
+
     const nameText = this.scene.add
-      .text(0, radius + 8 * s, turretConfig.name, {
-        fontSize: `${Math.max(10, 11 * s)}px`,
+      .text(0, nameY, turretConfig.name, {
+        fontSize: `${Math.round(Math.max(12, 13 * s * textScale))}px`,
         fill: "#ffffff",
         fontFamily: "Arial",
+        fontStyle: "bold",
       })
       .setOrigin(0.5);
 
-    // Prix en très petit
     const costText = this.scene.add
-      .text(0, radius + 18 * s, `${turretConfig.cost}$`, {
-        fontSize: `${Math.max(9, 10 * s)}px`,
+      .text(0, costY, `${turretConfig.cost}$`, {
+        fontSize: `${Math.round(Math.max(11, 12 * s * textScale))}px`,
         fill: "#ffd700",
         fontFamily: "Arial",
+        fontStyle: "bold",
       })
       .setOrigin(0.5);
 
-    btn.add([octagonBg, hitArea, previewContainer, nameText, costText]);
+    // --- Surlignage derrière les textes (auto-size) ---
+    const nameBg = this.scene.add.graphics();
+    const costBg = this.scene.add.graphics();
 
-    // Keep refs for refresh
+    const redrawLabelBg = () => {
+      const padX = 10 * s;
+      const padY = 6 * s;
+
+      // --- Name bg ---
+      const nameW = nameText.width + padX * 2;
+      const nameH = nameText.height + padY * 2;
+
+      nameBg.clear();
+      nameBg.fillStyle(0x000000, labelBgAlpha);
+      nameBg.fillRoundedRect(
+        -nameW / 2,
+        nameY - nameH / 2,
+        nameW,
+        nameH,
+        labelBgRadius
+      );
+
+      // --- Cost bg ---
+      const costW = costText.width + padX * 2;
+      const costH = costText.height + padY * 2;
+
+      costBg.clear();
+      costBg.fillStyle(0x000000, labelBgAlpha);
+      costBg.fillRoundedRect(
+        -costW / 2,
+        costY - costH / 2,
+        costW,
+        costH,
+        labelBgRadius
+      );
+    };
+
+    redrawLabelBg();
+
+    // Ordre d’ajout = backgrounds derrière, textes devant
+    btn.add([
+      octagonBg,
+      hitArea,
+      previewContainer,
+      nameBg,
+      costBg,
+      nameText,
+      costText,
+    ]);
+
+    // --- Refs pour refresh/state ---
     btn.turretConfig = turretConfig;
     btn.octagonBg = octagonBg;
     btn.nameText = nameText;
     btn.costText = costText;
     btn.previewContainer = previewContainer;
     btn.hitArea = hitArea;
-    btn.radius = radius; // Stocker le radius pour la mise à jour
+    btn.radius = radius;
+
+    // NEW refs
+    btn.nameBg = nameBg;
+    btn.costBg = costBg;
+    btn._redrawLabelBg = redrawLabelBg;
 
     // Initial state
     this.applyBuildBtnStateOctagon(btn);
 
-    // Hover states
-      hitArea.on("pointerover", () => {
-        const canAfford = this.scene.money >= turretConfig.cost;
-        const isBarracksMaxed = turretConfig.key === "barracks" && 
-          this.scene.barracks.length >= this.scene.maxBarracks;
-        
-        if (!canAfford || isBarracksMaxed) return;
+    // Hover
+    hitArea.on("pointerover", () => {
+      const canAfford = this.scene.money >= turretConfig.cost;
+      const isBarracksMaxed =
+        turretConfig.key === "barracks" &&
+        this.scene.barracks.length >= this.scene.maxBarracks;
 
-        this.drawOctagon(
-          octagonBg,
-          0,
-          0,
-          radius,
-          0x2a2a4e,
-          1,
-          0x00ffff,
-          Math.max(3, 3 * s)
-        );
-        nameText.setColor("#ffffff");
-        costText.setColor("#ffff00");
-        
-        // Afficher le tooltip avec la description
-        if (turretConfig.description) {
-          this.showTurretTooltip(btn, turretConfig.description, hitArea);
-        }
-      });
+      if (!canAfford || isBarracksMaxed) return;
 
-      hitArea.on("pointerout", () => {
-        this.applyBuildBtnStateOctagon(btn);
-        // Cacher le tooltip
-        if (this.currentTooltip) {
-          this.currentTooltip.destroy();
-          this.currentTooltip = null;
-        }
-      });
+      this.drawOctagon(
+        octagonBg,
+        0,
+        0,
+        radius,
+        0x2a2a4e,
+        1,
+        0x00ffff,
+        Math.max(3, 3 * s)
+      );
 
-    hitArea.on("pointerdown", () => {
-      // Cacher le tooltip lors du clic
+      nameText.setColor("#ffffff");
+      costText.setColor("#ffff00");
+
+      // (Optionnel) surlignage un poil plus visible au hover
+      nameBg.setAlpha(0.7);
+      costBg.setAlpha(0.7);
+
+      if (turretConfig.description) {
+        this.showTurretTooltip(btn, turretConfig.description, hitArea);
+      }
+    });
+
+    hitArea.on("pointerout", () => {
+      this.applyBuildBtnStateOctagon(btn);
+
+      // remettre alpha normal
+      nameBg.setAlpha(1);
+      costBg.setAlpha(1);
+
       if (this.currentTooltip) {
         this.currentTooltip.destroy();
         this.currentTooltip = null;
       }
-      
+    });
+
+    // Click
+    hitArea.on("pointerdown", () => {
+      if (this.currentTooltip) {
+        this.currentTooltip.destroy();
+        this.currentTooltip = null;
+      }
+
       if (!this.scene.selectedTile) return;
 
       const canAfford = this.scene.money >= turretConfig.cost;
-      const isBarracksMaxed = turretConfig.key === "barracks" && 
+      const isBarracksMaxed =
+        turretConfig.key === "barracks" &&
         this.scene.barracks.length >= this.scene.maxBarracks;
-      
+
       if (!canAfford || isBarracksMaxed) {
         this.scene.cameras.main.shake(50, 0.005);
         return;
@@ -408,30 +501,30 @@ export class UIManager {
 
     return btn;
   }
-  
+
   // Afficher un tooltip avec la description de la tourelle
   showTurretTooltip(btnContainer, description, triggerElement) {
     const s = this.scene.scaleFactor;
-    
+
     // Détruire l'ancien tooltip s'il existe
     if (this.currentTooltip) {
       this.currentTooltip.destroy();
     }
-    
+
     // Calculer la position du tooltip (à droite du bouton)
     const btnX = btnContainer.x + (this.scene.buildMenu.x || 0);
     const btnY = btnContainer.y + (this.scene.buildMenu.y || 0);
-    
+
     // Créer le tooltip
     const tooltipContainer = this.scene.add.container(0, 0).setDepth(300);
     this.currentTooltip = tooltipContainer;
-    
+
     // Fond du tooltip
     const tooltipBg = this.scene.add.graphics();
     const padding = 15 * s;
     const maxWidth = 350 * s;
     const lineHeight = 20 * s;
-    
+
     // Calculer la taille du texte
     const tempText = this.scene.add.text(0, 0, description, {
       fontSize: `${Math.max(11, 12 * s)}px`,
@@ -443,37 +536,32 @@ export class UIManager {
     const textWidth = Math.min(tempText.width, maxWidth - padding * 2);
     const textHeight = tempText.height;
     tempText.destroy();
-    
+
     const tooltipWidth = textWidth + padding * 2;
     const tooltipHeight = textHeight + padding * 2;
-    
+
     // Positionner le tooltip à droite du bouton
     const tooltipX = btnX + 60 * s;
     const tooltipY = btnY;
-    
+
     // Dessiner le fond
     tooltipBg.fillStyle(0x000000, 0.95);
     tooltipBg.fillRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
     tooltipBg.lineStyle(2, 0x00ccff, 1);
     tooltipBg.strokeRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
-    
+
     // Texte de description
-    const descText = this.scene.add.text(
-      padding,
-      padding,
-      description,
-      {
-        fontSize: `${Math.max(11, 12 * s)}px`,
-        fill: "#ffffff",
-        fontFamily: "Arial",
-        wordWrap: { width: maxWidth - padding * 2 },
-        lineSpacing: 4 * s,
-      }
-    );
-    
+    const descText = this.scene.add.text(padding, padding, description, {
+      fontSize: `${Math.max(11, 12 * s)}px`,
+      fill: "#ffffff",
+      fontFamily: "Arial",
+      wordWrap: { width: maxWidth - padding * 2 },
+      lineSpacing: 4 * s,
+    });
+
     tooltipContainer.add([tooltipBg, descText]);
     tooltipContainer.setPosition(tooltipX, tooltipY);
-    
+
     // Ajuster la position si le tooltip sort de l'écran
     if (tooltipX + tooltipWidth > this.scene.gameWidth) {
       tooltipContainer.setX(btnX - tooltipWidth - 10 * s);
@@ -487,14 +575,14 @@ export class UIManager {
     const s = this.scene.scaleFactor;
     const cfg = btnContainer.turretConfig;
     const canAfford = this.scene.money >= cfg.cost;
-    
+
     let isDisabled = false;
     if (cfg.key === "barracks") {
       isDisabled = this.scene.barracks.length >= this.scene.maxBarracks;
     }
-    
+
     const shouldDisable = !canAfford || isDisabled;
-    const radius = btnContainer.radius || (50 * s / 2);
+    const radius = btnContainer.radius || (50 * s) / 2;
 
     if (btnContainer.nameText) {
       btnContainer.nameText.setColor(shouldDisable ? "#666666" : "#ffffff");
@@ -509,7 +597,7 @@ export class UIManager {
       const fillAlpha = shouldDisable ? 0.6 : 0.96;
       const strokeColor = shouldDisable ? 0x444444 : 0x00ccff;
       const strokeWidth = Math.max(2, 2 * s);
-      
+
       this.drawOctagon(
         btnContainer.octagonBg,
         0,
@@ -521,7 +609,7 @@ export class UIManager {
         strokeWidth
       );
       btnContainer.octagonBg.setAlpha(shouldDisable ? 0.5 : 1);
-      
+
       if (shouldDisable) {
         btnContainer.hitArea?.disableInteractive();
       } else {
@@ -677,22 +765,55 @@ export class UIManager {
     const drawTrash = (color = 0xff0000) => {
       trashIcon.clear();
       trashIcon.fillStyle(color, 1);
-      trashIcon.fillRect(trashX - trashSize / 2, trashY - trashSize / 2, trashSize, trashSize * 0.8);
+      trashIcon.fillRect(
+        trashX - trashSize / 2,
+        trashY - trashSize / 2,
+        trashSize,
+        trashSize * 0.8
+      );
       trashIcon.fillStyle(0xcc0000, 1);
-      trashIcon.fillRect(trashX - trashSize / 2 + 2 * s, trashY - trashSize / 2 + 2 * s, trashSize - 4 * s, trashSize * 0.6);
+      trashIcon.fillRect(
+        trashX - trashSize / 2 + 2 * s,
+        trashY - trashSize / 2 + 2 * s,
+        trashSize - 4 * s,
+        trashSize * 0.6
+      );
       // Couvercle
       trashIcon.fillStyle(color, 1);
-      trashIcon.fillRect(trashX - trashSize / 2 - 2 * s, trashY - trashSize / 2 - 3 * s, trashSize + 4 * s, 4 * s);
+      trashIcon.fillRect(
+        trashX - trashSize / 2 - 2 * s,
+        trashY - trashSize / 2 - 3 * s,
+        trashSize + 4 * s,
+        4 * s
+      );
       // Poignées
       trashIcon.fillStyle(0xffffff, 1);
-      trashIcon.fillRect(trashX - trashSize / 2 - 4 * s, trashY - trashSize / 2 + 2 * s, 2 * s, 6 * s);
-      trashIcon.fillRect(trashX + trashSize / 2 + 2 * s, trashY - trashSize / 2 + 2 * s, 2 * s, 6 * s);
+      trashIcon.fillRect(
+        trashX - trashSize / 2 - 4 * s,
+        trashY - trashSize / 2 + 2 * s,
+        2 * s,
+        6 * s
+      );
+      trashIcon.fillRect(
+        trashX + trashSize / 2 + 2 * s,
+        trashY - trashSize / 2 + 2 * s,
+        2 * s,
+        6 * s
+      );
     };
 
     drawTrash();
 
     trashIcon.setDepth(241);
-    trashIcon.setInteractive(new Phaser.Geom.Rectangle(trashX - trashSize / 2 - 4 * s, trashY - trashSize / 2 - 3 * s, trashSize + 8 * s, trashSize + 6 * s), Phaser.Geom.Rectangle.Contains);
+    trashIcon.setInteractive(
+      new Phaser.Geom.Rectangle(
+        trashX - trashSize / 2 - 4 * s,
+        trashY - trashSize / 2 - 3 * s,
+        trashSize + 8 * s,
+        trashSize + 6 * s
+      ),
+      Phaser.Geom.Rectangle.Contains
+    );
     trashIcon.setInteractive({ useHandCursor: true });
 
     trashIcon.on("pointerover", () => {
@@ -809,7 +930,7 @@ export class UIManager {
     } else {
       this.scene.upgradeBtnText.setText("FERMER");
     }
-    
+
     // Désactiver visuellement si on ne peut pas se le permettre
     if (shouldDisable) {
       this.scene.upgradeBtnText.setBackgroundColor("#666666");
@@ -1195,7 +1316,7 @@ export class UIManager {
     // Texte de confirmation
     this.scene.treeRemovalText = this.scene.add
       .text(menuWidth / 2, 35 * s, "", {
-        fontSize: `${Math.max(14, 16 * s)}px`,
+        fontSize: `${Math.max(10, 12 * s)}px`,
         fill: "#ffffff",
         fontFamily: "Arial",
         align: "center",
@@ -1209,7 +1330,7 @@ export class UIManager {
     // Bouton Oui
     const yesBtn = this.scene.add
       .text(menuWidth / 2 - 60 * s, 90 * s, "OUI", {
-        fontSize: `${Math.max(14, 16 * s)}px`,
+        fontSize: `${Math.max(10, 12 * s)}px`,
         fill: "#ffffff",
         fontStyle: "bold",
         backgroundColor: "#00aa00",
@@ -1239,7 +1360,7 @@ export class UIManager {
     // Bouton Non
     const noBtn = this.scene.add
       .text(menuWidth / 2 + 60 * s, 90 * s, "NON", {
-        fontSize: `${Math.max(14, 16 * s)}px`,
+        fontSize: `${Math.max(10, 12 * s)}px`,
         fill: "#ffffff",
         fontStyle: "bold",
         backgroundColor: "#aa0000",
@@ -1293,13 +1414,13 @@ export class UIManager {
     // Mettre à jour le texte
     const canAfford = this.scene.money >= 25;
     const costText = canAfford ? "25" : "25 (insuffisant)";
-    
+
     this.scene.treeRemovalText.setText([
       "Voulez-vous enlever",
       "cet arbre pour",
-      `${costText} pièces ?`
+      `${costText} pièces ?`,
     ]);
-    
+
     // Changer la couleur si pas assez d'argent
     if (canAfford) {
       this.scene.treeRemovalText.setColor("#ffffff");

@@ -17,6 +17,7 @@ import { tank } from "../config/ennemies/tank.js";
 import { shield } from "../config/ennemies/shield.js";
 import { bosslvl1 } from "../config/ennemies/bosslvl1.js";
 import { bosslvl2 } from "../config/ennemies/bosslvl2.js";
+import { bosslvl3 } from "../config/ennemies/bosslvl3.js";
 import { witch } from "../config/ennemies/witch.js";
 import { zombie_minion } from "../config/ennemies/zombie_minion.js";
 import { tortue_dragon } from "../config/ennemies/tortue_dragon.js";
@@ -32,6 +33,7 @@ export const ENEMIES = {
   shield,
   bosslvl1,
   bosslvl2,
+  bosslvl3,
   witch,
   zombie_minion,
   tortue_dragon,
