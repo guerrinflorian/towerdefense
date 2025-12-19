@@ -6,61 +6,86 @@ export class WaveManager {
   }
 
   startWave() {
+    // 1. Vérifications de sécurité
     if (this.scene.isWaveRunning) return;
     if (this.scene.currentWaveIndex >= this.scene.levelConfig.waves.length)
       return;
-    
-    // Ne pas démarrer une vague si le jeu est en pause
     if (this.scene.isPaused) return;
 
-    // Annuler le timer automatique si présent
+    // 2. Nettoyage (Timer Auto et Timers de spawn précédents)
     if (this.scene.nextWaveAutoTimer) {
       this.scene.nextWaveAutoTimer.remove();
       this.scene.nextWaveAutoTimer = null;
       this.scene.nextWaveCountdown = 0;
     }
-    
-    // Nettoyer les anciens timers de spawn
-    if (this.scene.waveSpawnTimers) {
-      this.scene.waveSpawnTimers.forEach(timer => {
-        if (timer && timer.remove) timer.remove();
-      });
-      this.scene.waveSpawnTimers = [];
-    }
 
+    if (this.scene.waveSpawnTimers) {
+      this.scene.waveSpawnTimers.forEach((timer) => {
+        if (timer && !timer.hasDestroyed) timer.remove();
+      });
+    }
+    // On réinitialise le tableau pour cette nouvelle vague
+    this.scene.waveSpawnTimers = [];
+
+    // 3. Initialisation de l'état de la vague
     this.scene.isWaveRunning = true;
     this.scene.waveBtnText.setText("⚠️ EN COURS");
     this.scene.waveBtnBg.setStrokeStyle(3, 0xffaa00);
 
     const waveGroups =
       this.scene.levelConfig.waves[this.scene.currentWaveIndex];
+
+    // Calcul du nombre total d'ennemis pour savoir quand la vague finit
     let totalEnemiesInWave = 0;
     let spawnedTotal = 0;
-
     waveGroups.forEach((g) => (totalEnemiesInWave += g.count));
 
+    // 4. Lancement des groupes avec gestion du DÉLAI + INTERVALLE
     waveGroups.forEach((group) => {
-      const spawnTimer = this.scene.time.addEvent({
-        delay: group.interval,
-        repeat: group.count - 1,
+      // Sécurité : si startDelay n'est pas défini dans le JSON, on met 0
+      const delayBeforeStart = group.startDelay || 0;
+
+      // TIMER A : Le délai initial avant que ce groupe ne commence
+      const startDelayTimer = this.scene.time.addEvent({
+        delay: delayBeforeStart,
         callback: () => {
-          // Ne pas spawner si le jeu est en pause
+          // Ce code s'exécute après le délai "startDelay"
+
+          // Si le jeu est en pause au moment exact où le délai finit, on annule
           if (this.scene.isPaused) return;
-          
-          const randomPath = Phaser.Utils.Array.GetRandom(this.scene.paths);
-          const enemy = new Enemy(this.scene, randomPath, group.type);
-          enemy.setDepth(10);
-          enemy.setScale(this.scene.scaleFactor);
-          enemy.spawn();
-          this.scene.enemies.add(enemy);
-          spawnedTotal++;
-          if (spawnedTotal >= totalEnemiesInWave) {
-            this.monitorWaveEnd();
-          }
+
+          // TIMER B : La boucle de spawn des ennemis du groupe
+          const spawnLoopTimer = this.scene.time.addEvent({
+            delay: group.interval,
+            repeat: group.count - 1, // repeat X fois + 1 exécution immédiate = count total
+            callback: () => {
+              // Vérification pause à chaque ennemi
+              if (this.scene.isPaused) return;
+
+              const randomPath = Phaser.Utils.Array.GetRandom(this.scene.paths);
+              const enemy = new Enemy(this.scene, randomPath, group.type);
+
+              enemy.setDepth(10);
+              enemy.setScale(this.scene.scaleFactor);
+              enemy.spawn();
+
+              this.scene.enemies.add(enemy);
+              spawnedTotal++;
+
+              // Vérifier si c'était le tout dernier ennemi de TOUTE la vague
+              if (spawnedTotal >= totalEnemiesInWave) {
+                this.monitorWaveEnd();
+              }
+            },
+          });
+
+          // On ajoute le timer de boucle à la liste pour pouvoir le gérer (pause/fin)
+          this.scene.waveSpawnTimers.push(spawnLoopTimer);
         },
       });
-      // Stocker le timer pour pouvoir le mettre en pause
-      this.scene.waveSpawnTimers.push(spawnTimer);
+
+      // On ajoute le timer de délai à la liste aussi
+      this.scene.waveSpawnTimers.push(startDelayTimer);
     });
   }
 
@@ -71,7 +96,7 @@ export class WaveManager {
       callback: () => {
         // Ne pas vérifier si le jeu est en pause
         if (this.scene.isPaused) return;
-        
+
         if (this.scene.enemies.getLength() === 0) {
           this.finishWave();
         }
@@ -86,7 +111,7 @@ export class WaveManager {
     this.scene.isWaveRunning = false;
     this.scene.currentWaveIndex++;
     this.scene.earnMoney(50 + this.scene.currentWaveIndex * 20);
-    
+
     // Mettre à jour l'affichage de la vague
     this.scene.updateUI();
 
@@ -114,7 +139,7 @@ export class WaveManager {
       callback: () => {
         // Ne pas décrémenter si le jeu est en pause
         if (this.scene.isPaused) return;
-        
+
         this.scene.nextWaveCountdown--;
         this.updateWaveButtonText();
 
@@ -136,7 +161,7 @@ export class WaveManager {
     if (!this.scene.waveBtnText) return;
 
     const nextWaveNum = this.scene.currentWaveIndex + 1;
-    
+
     if (this.scene.nextWaveCountdown > 0) {
       // Afficher le compte à rebours
       this.scene.waveBtnText.setText(

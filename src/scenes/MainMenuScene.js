@@ -6,160 +6,185 @@ export class MainMenuScene extends Phaser.Scene {
     super("MainMenuScene");
   }
 
-  shutdown() {
-    // Rendre shutdown() idempotent : safe si appelé plusieurs fois
-    
-    // Nettoyer tous les événements et objets avant de redémarrer
-    try {
-      if (this.children && this.children.removeAll) {
-        this.children.removeAll(true);
-      }
-    } catch (e) {
-      // Ignorer si déjà détruit
-    }
-    
-    try {
-      if (this.input && this.input.removeAllListeners) {
-        this.input.removeAllListeners();
-      }
-    } catch (e) {
-      // Ignorer si déjà détruit
-    }
-    
-    try {
-      if (this.tweens && this.tweens.killAll) {
-        this.tweens.killAll();
-      }
-    } catch (e) {
-      // Ignorer si déjà détruit
-    }
-    
-    try {
-      if (this.time && this.time.removeAllEvents) {
-        this.time.removeAllEvents();
-      }
-    } catch (e) {
-      // Ignorer si déjà détruit
-    }
-  }
-
-  preload() {
-    // Chargement de l'image de fond
-    // Assure-toi que le fichier existe bien dans ce dossier !
-    try {
-      this.load.image("background_main", "../../src/images/backg.jpg");
-    } catch (e) {
-      console.warn("Image background_main non trouvée, utilisation d'un fond de couleur");
-    }
-  }
-
   create() {
-    // Obtenir les dimensions réelles et le scale
-    this.gameWidth = this.scale.width;
-    this.gameHeight = this.scale.height;
-    this.scaleFactor = this.game.scaleFactor || 1;
-    this.baseWidth = this.game.baseWidth || CONFIG.GAME_WIDTH;
-    this.baseHeight = this.game.baseHeight || CONFIG.GAME_HEIGHT;
-    
-    const cx = this.gameWidth / 2;
-    const cy = this.gameHeight / 2;
+    const { width, height } = this.scale;
+    const cx = width / 2;
 
-    // --- 1. FOND D'ÉCRAN ---
-    // On met une couleur de fond de secours si l'image ne charge pas
-    this.cameras.main.setBackgroundColor("#0f0f1a");
+    // --- 1. CONFIGURATION DES ESPACEMENTS (Ajustable ici) ---
+    const TITLE_Y = 100; // Position du titre
+    const LIST_START_Y = 240; // Où commence la liste (bien plus bas pour éviter le titre)
+    const LIST_BOTTOM_Y = height - 120; // Où s'arrête la liste avant le bouton reset
+    const VIEW_HEIGHT = LIST_BOTTOM_Y - LIST_START_Y;
 
-    // Ajout de l'image
-    // On vérifie si la texture existe pour éviter un crash si tu as oublié le fichier
+    // --- 2. FOND ---
+    this.cameras.main.setBackgroundColor("#05050a");
     if (this.textures.exists("background_main")) {
-      const bg = this.add.image(cx, cy, "background_main");
-
-      // Technique pour faire "cover" (remplir l'écran sans déformer)
-      const scaleX = this.gameWidth / bg.width;
-      const scaleY = this.gameHeight / bg.height;
-      const scale = Math.max(scaleX, scaleY);
-      bg.setScale(scale).setScrollFactor(0);
+      const bg = this.add.image(cx, height / 2, "background_main");
+      const scale = Math.max(width / bg.width, height / bg.height);
+      bg.setScale(scale).setAlpha(0.2).setScrollFactor(0);
     }
 
-    // --- 2. OVERLAY SOMBRE ---
-    // Ajoute un voile noir semi-transparent pour la lisibilité du texte
-    this.add
-      .rectangle(0, 0, this.gameWidth, this.gameHeight, 0x000000, 0.6)
-      .setOrigin(0, 0);
-
-    // --- 3. PARTICLES D'AMBIANCE ---
-    this.createAtmosphere();
-
-    // --- 4. TITRE ---
-    const titleSize = Math.max(40, 90 * this.scaleFactor);
+    // --- 3. TITRE FIXE (Anglais - LAST OUTPOST) ---
     const title = this.add
-      .text(cx, 150 * this.scaleFactor, "LAST OUTPOST", {
-        fontSize: `${titleSize}px`,
-        fontFamily: "Impact, Arial", // Police plus lourde
-        fontStyle: "bold",
+      .text(cx, TITLE_Y, "LAST OUTPOST", {
+        fontFamily: "Impact, sans-serif",
+        fontSize: `${Math.max(45, width * 0.08)}px`,
         color: "#ffffff",
-        stroke: "#000000",
-        strokeThickness: 8 * this.scaleFactor,
-        shadow: {
-          offsetX: 0,
-          offsetY: 10 * this.scaleFactor,
-          color: "#000000",
-          blur: 20 * this.scaleFactor,
-          stroke: true,
-          fill: true,
-        },
-      })
-      .setOrigin(0.5);
-
-    // Animation de "respiration" du titre
-    this.tweens.add({
-      targets: title,
-      scale: 1.05,
-      duration: 2000,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
-
-    // --- 5. BOUTONS DE NIVEAUX ---
-    // Récupérer la progression
-    const levelReached = parseInt(localStorage.getItem("levelReached")) || 1;
-
-    let yPos = 400 * this.scaleFactor;
-    LEVELS_CONFIG.forEach((level) => {
-      const isLocked = level.id > levelReached;
-      this.createLevelButton(level, yPos, isLocked);
-      yPos += 120 * this.scaleFactor; // Plus d'espace entre les boutons
-    });
-
-    // --- 6. BOUTON RESET (Discret en bas) ---
-    const resetBtn = this.add
-      .text(cx, this.gameHeight - 60 * this.scaleFactor, "RÉINITIALISER LA PROGRESSION", {
-        fontSize: `${Math.max(12, 14 * this.scaleFactor)}px`,
-        fontFamily: "Arial",
-        color: "#666666",
+        letterSpacing: 8,
       })
       .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+      .setDepth(100);
+    title.setShadow(0, 5, "#00f2ff", 15, true, true);
 
-    resetBtn.on("pointerover", () => {
-      if (resetBtn && resetBtn.active !== false) {
-        try {
-          resetBtn.setColor("#ff4444");
-        } catch (e) {
-          // Ignorer si le bouton est détruit
-        }
+    // --- 4. GESTION DE LA LISTE SCROLLABLE ---
+    // On crée un conteneur pour les niveaux
+    this.levelContainer = this.add.container(cx, LIST_START_Y);
+
+    const levelReached = parseInt(localStorage.getItem("levelReached")) || 1;
+    let currentY = 50; // On commence à 50 pour que le 1er bouton ne soit pas collé au bord du masque
+    const spacing = 120;
+
+    LEVELS_CONFIG.forEach((level) => {
+      const isLocked = level.id > levelReached;
+      const card = this.createLevelCard(0, currentY, level, isLocked);
+      this.levelContainer.add(card);
+      currentY += spacing;
+    });
+
+    const totalContentHeight = currentY;
+
+    // --- 5. CRÉATION DU MASQUE ---
+    // Le masque définit la zone "fenêtre" où les boutons sont visibles
+    const maskShape = this.make.graphics();
+    maskShape.fillStyle(0xffffff);
+    // On dessine le rectangle de visibilité
+    maskShape.fillRect(0, LIST_START_Y, width, VIEW_HEIGHT);
+    const mask = maskShape.createGeometryMask();
+    this.levelContainer.setMask(mask);
+
+    // --- 6. LOGIQUE DE SCROLL (LIMITES STRICTES) ---
+    const limitTop = LIST_START_Y;
+    const limitBottom =
+      totalContentHeight > VIEW_HEIGHT
+        ? LIST_START_Y - (totalContentHeight - VIEW_HEIGHT)
+        : LIST_START_Y;
+
+    // Interaction Molette
+    this.input.on("wheel", (pointer, gameObjects, deltaX, deltaY) => {
+      this.levelContainer.y -= deltaY;
+      this.clampScroll(limitTop, limitBottom);
+    });
+
+    // Interaction Drag (Tactile/Souris)
+    let dragY = 0;
+    this.input.on("pointerdown", (p) => {
+      dragY = this.levelContainer.y - p.y;
+    });
+    this.input.on("pointermove", (p) => {
+      if (p.isDown) {
+        this.levelContainer.y = p.y + dragY;
+        this.clampScroll(limitTop, limitBottom);
       }
     });
-    resetBtn.on("pointerout", () => {
-      if (resetBtn && resetBtn.active !== false) {
-        try {
-          resetBtn.setColor("#666666");
-        } catch (e) {
-          // Ignorer si le bouton est détruit
-        }
+
+    // --- 7. BOUTON RÉINITIALISER (Bas de page) ---
+    this.createResetButton(height - 50);
+  }
+
+  clampScroll(top, bottom) {
+    if (this.levelContainer.y > top) this.levelContainer.y = top;
+    if (this.levelContainer.y < bottom) this.levelContainer.y = bottom;
+  }
+
+  createLevelCard(x, y, level, isLocked) {
+    const cardWidth = Math.min(this.scale.width * 0.85, 500);
+    const cardHeight = 100;
+    const container = this.add.container(x, y);
+
+    const bg = this.add.graphics();
+    const draw = (over = false) => {
+      bg.clear();
+      bg.fillStyle(isLocked ? 0x1a1a1a : over ? 0x004488 : 0x002244, 0.8);
+      bg.lineStyle(2, isLocked ? 0x333333 : over ? 0x00f2ff : 0x0088ff, 1);
+      bg.fillRoundedRect(
+        -cardWidth / 2,
+        -cardHeight / 2,
+        cardWidth,
+        cardHeight,
+        8
+      );
+      bg.strokeRoundedRect(
+        -cardWidth / 2,
+        -cardHeight / 2,
+        cardWidth,
+        cardHeight,
+        8
+      );
+    };
+    draw();
+
+    const title = this.add.text(
+      -cardWidth / 2 + 20,
+      -20,
+      `NIVEAU ${level.id}`,
+      {
+        fontSize: "18px",
+        fontWeight: "bold",
+        color: isLocked ? "#666" : "#00ccff",
+        fontFamily: "Arial",
       }
-    });
-    resetBtn.on("pointerdown", () => {
+    );
+
+    const name = this.add.text(
+      -cardWidth / 2 + 20,
+      5,
+      level.name.toUpperCase(),
+      {
+        fontSize: "22px",
+        fontWeight: "900",
+        color: isLocked ? "#444" : "#fff",
+        fontFamily: "Arial",
+      }
+    );
+
+    container.add([bg, title, name]);
+
+    if (!isLocked) {
+      const zone = this.add
+        .zone(0, 0, cardWidth, cardHeight)
+        .setInteractive({ useHandCursor: true });
+      container.add(zone);
+      zone.on("pointerover", () => {
+        draw(true);
+        container.setScale(1.02);
+      });
+      zone.on("pointerout", () => {
+        draw(false);
+        container.setScale(1);
+      });
+      zone.on("pointerdown", () =>
+        this.scene.start("GameScene", { level: level.id })
+      );
+    }
+
+    return container;
+  }
+
+  createResetButton(y) {
+    const btn = this.add
+      .text(this.scale.width / 2, y, "RÉINITIALISER LA PROGRESSION", {
+        fontSize: "14px",
+        color: "#555",
+        fontFamily: "Arial",
+        textDecoration: "underline",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100);
+
+    btn.on("pointerover", () => btn.setColor("#ff0000"));
+    btn.on("pointerout", () => btn.setColor("#555"));
+    btn.on("pointerdown", () => {
       if (confirm("Voulez-vous vraiment effacer votre progression ?")) {
         localStorage.clear();
         this.scene.restart();
@@ -168,176 +193,18 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   createAtmosphere() {
-    // Création d'une texture de particule à la volée (petit rond flou)
-    // Ne pas regénérer si elle existe déjà
-    if (!this.textures || !this.make) {
-      console.warn("Système de textures non disponible pour createAtmosphere");
-      return;
+    // Particules simples pour le style
+    if (!this.textures.exists("p")) {
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(0xffffff).fillCircle(2, 2, 2).generateTexture("p", 4, 4);
     }
-    
-    if (!this.textures.exists("particle_dot")) {
-      try {
-        const g = this.make.graphics({ x: 0, y: 0, add: false });
-        if (!g || !g.fillStyle || !g.generateTexture) {
-          console.warn("Impossible de créer l'objet Graphics pour particle_dot");
-          return;
-        }
-        g.fillStyle(0xffffff, 1);
-        g.fillCircle(4, 4, 4);
-        g.generateTexture("particle_dot", 8, 8);
-        // Nettoyer l'objet Graphics après utilisation
-        if (g && g.destroy) {
-          try {
-            g.destroy();
-          } catch (e) {
-            // Ignorer si déjà détruit
-          }
-        }
-      } catch (e) {
-        console.warn("Erreur lors de la création de particle_dot:", e);
-      }
-    }
-
-    const particles = this.add.particles(0, 0, "particle_dot", {
-      x: { min: 0, max: this.gameWidth },
-      y: { min: 0, max: this.gameHeight },
-      lifespan: 4000,
-      speedY: { min: -10, max: -30 }, // Monte doucement
-      scale: { start: 0.2, end: 0 },
-      quantity: 2,
-      alpha: { start: 0.3, end: 0 },
-      blendMode: "ADD",
+    this.add.particles(0, 0, "p", {
+      x: { min: 0, max: this.scale.width },
+      y: { min: 0, max: this.scale.height },
+      alpha: { start: 0.2, end: 0 },
+      scale: { start: 0.5, end: 0 },
+      speedY: { min: -10, max: -2 },
+      lifespan: 3000,
     });
-  }
-
-  createLevelButton(level, y, isLocked) {
-    const w = 500 * this.scaleFactor;
-    const h = 90 * this.scaleFactor;
-    const x = this.gameWidth / 2;
-
-    const container = this.add.container(x, y);
-
-    // --- Design du Bouton ---
-    const bg = this.add.graphics();
-
-    // Fonction pour dessiner le bouton (état normal)
-    const drawButton = (color, alpha, strokeColor) => {
-      if (bg && bg.active !== false) {
-        try {
-          bg.clear();
-          bg.fillStyle(color, alpha);
-          // Forme biseautée ou arrondie
-          bg.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
-          bg.lineStyle(3, strokeColor, 1);
-          bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 10);
-        } catch (e) {
-          console.warn("Erreur lors du dessin du bouton:", e);
-        }
-      }
-    };
-
-    // État initial
-    const baseColor = isLocked ? 0x111111 : 0x004488;
-    const strokeColor = isLocked ? 0x333333 : 0x0088ff;
-    const baseAlpha = isLocked ? 0.5 : 0.8;
-
-    drawButton(baseColor, baseAlpha, strokeColor);
-
-    // --- Texte ---
-    const labelText = isLocked ? `🔒 VÉRROUILLÉ` : `JOUER`;
-
-    // Nom du niveau (En haut)
-    const titleTxt = this.add
-      .text(0, -15 * this.scaleFactor, level.name.toUpperCase(), {
-        fontSize: `${Math.max(20, 32 * this.scaleFactor)}px`,
-        fontFamily: "Arial",
-        fontStyle: "bold",
-        color: isLocked ? "#666" : "#fff",
-      })
-      .setOrigin(0.5);
-
-    // Sous-titre (En bas)
-    const subTxt = this.add
-      .text(0, 20 * this.scaleFactor, labelText, {
-        fontSize: `${Math.max(12, 16 * this.scaleFactor)}px`,
-        fontFamily: "Arial",
-        color: isLocked ? "#444" : "#00ccff", // Bleu néon si débloqué
-      })
-      .setOrigin(0.5);
-
-    container.add([bg, titleTxt, subTxt]);
-
-    // --- Interaction ---
-    if (!isLocked) {
-      const zone = this.add
-        .zone(0, 0, w, h)
-        .setInteractive({ useHandCursor: true });
-      container.add(zone);
-
-      zone.on("pointerover", () => {
-        // Effet Survol : Plus clair, bordure blanche, grossissement
-        if (bg && bg.active !== false) {
-          drawButton(0x0055aa, 0.9, 0xffffff);
-        }
-        if (container && container.active !== false) {
-          this.tweens.add({
-            targets: container,
-            scaleX: 1.05,
-            scaleY: 1.05,
-            duration: 100,
-            ease: "Sine.easeOut",
-          });
-        }
-        if (subTxt && subTxt.active !== false) {
-          try {
-            subTxt.setColor("#ffffff");
-          } catch (e) {
-            // Ignorer si le texte est détruit
-          }
-        }
-      });
-
-      zone.on("pointerout", () => {
-        // Retour normal
-        if (bg && bg.active !== false) {
-          drawButton(baseColor, baseAlpha, strokeColor);
-        }
-        if (container && container.active !== false) {
-          this.tweens.add({
-            targets: container,
-            scaleX: 1,
-            scaleY: 1,
-            duration: 100,
-            ease: "Sine.easeOut",
-          });
-        }
-        if (subTxt && subTxt.active !== false) {
-          try {
-            subTxt.setColor("#00ccff");
-          } catch (e) {
-            // Ignorer si le texte est détruit
-          }
-        }
-      });
-
-      zone.on("pointerdown", () => {
-        // Effet clic puis changement de scène
-        if (container && container.active !== false) {
-          this.tweens.add({
-            targets: container,
-            scaleX: 0.95,
-            scaleY: 0.95,
-            duration: 50,
-            yoyo: true,
-            onComplete: () => {
-              this.scene.start("GameScene", { level: level.id });
-            },
-          });
-        } else {
-          // Si le container est détruit, changer directement de scène
-          this.scene.start("GameScene", { level: level.id });
-        }
-      });
-    }
   }
 }

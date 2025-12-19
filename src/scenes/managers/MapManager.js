@@ -4,18 +4,17 @@ export class MapManager {
   constructor(scene) {
     this.scene = scene;
     this.treePositions = new Set();
-    this.treeContainers = new Map(); // Stocker les containers d'arbres par position
-    this.mountainPositions = new Set(); // Stocker les positions des montagnes
-    this.mountainContainers = new Map(); // Stocker les containers de montagnes par position
+    this.treeContainers = new Map();
+    this.mountainPositions = new Set();
+    this.mountainContainers = new Map();
   }
 
   createMap() {
-    // Vérifier que levelConfig existe et a une map
     if (!this.scene.levelConfig || !this.scene.levelConfig.map) {
       console.error("levelConfig ou map est undefined");
       return;
     }
-    
+
     const mapData = this.scene.levelConfig.map;
     const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
 
@@ -25,64 +24,73 @@ export class MapManager {
         const px = this.scene.mapStartX + x * T;
         const py = this.scene.mapStartY + y * T;
 
-        let key = "tile_grass_1";
+        let key = "tile_grass_1"; // Default
+
+        // --- BIOME VOLCAN (0-5) ---
         if (type === 0)
-          key = (x + y) % 2 === 0 ? "tile_grass_2" : "tile_grass_1";
-        if (type === 1) key = "tile_path";
+          key = (x + y) % 2 === 0 ? "tile_grass_2" : "tile_grass_1"; // Terre brûlée
+        if (type === 1) key = "tile_path"; // Chemin terre/roche
         if (type === 2) key = "tile_base";
-        if (type === 3) key = "tile_water";
+        if (type === 3) key = "tile_water"; // eau
         if (type === 4) key = "tile_bridge";
-        if (type === 5) key = "tile_mountain"; // Nouveau type : montagne
-        if (type === 9) key = "tile_grass_2";
+        if (type === 5) key = "tile_mountain"; // Sol sous la montagne
 
-        // Vérifier que la texture existe avant de l'utiliser
-        if (!this.scene.textures.exists(key)) {
-          console.warn(`Texture manquante: ${key}, utilisation d'une texture de secours`);
-          key = "tile_grass_1"; // Fallback
-        }
+        // --- BIOME NEIGE (6-9) ---
+        if (type === 6) key = "tile_snow_1"; // Sol Neige
+        if (type === 7) key = "tile_snow_path"; // Chemin Glace
+        if (type === 8) key = "tile_ice_water"; // Eau/Glace profonde
+        if (type === 9) key = "tile_snow_1"; // Sol sous la montagne neige
 
-        const tile = this.scene.add.image(px, py, key).setOrigin(0, 0).setDepth(0);
+        const tile = this.scene.add
+          .image(px, py, key)
+          .setOrigin(0, 0)
+          .setDepth(0);
         tile.setScale(this.scene.scaleFactor);
-        if (type === 0) {
+
+        // --- GESTION DES ARBRES ---
+        // On place des arbres sur le type 0 (Morts/Verts) et le type 6 (Sapins enneigés)
+        if (type === 0 || type === 6) {
           const canPlaceBarracks = this.isAdjacentToPath(x, y);
+          // Probabilités d'apparition
           if (!canPlaceBarracks && Math.random() < 0.3) {
-            this.addTree(px, py, x, y);
+            this.addTree(px, py, x, y, type); // On passe le type pour savoir quel arbre dessiner
             this.treePositions.add(`${x},${y}`);
           } else if (canPlaceBarracks && Math.random() < 0.1) {
-            this.addTree(px, py, x, y);
+            this.addTree(px, py, x, y, type);
             this.treePositions.add(`${x},${y}`);
           }
         }
       }
     }
 
-    // Détecter et créer les grandes montagnes (groupes 3x3)
+    // Détecter les montagnes (Type 5 = Volcan, Type 9 = Neige)
     this.detectAndCreateLargeMountains();
 
     this.createPaths();
   }
-  
-  // Détecter les groupes 3x3 de montagnes et créer une grande montagne
+
   detectAndCreateLargeMountains() {
     const mapData = this.scene.levelConfig.map;
     const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
-    const processedTiles = new Set(); // Pour éviter de traiter plusieurs fois les mêmes tiles
-    
-    // Parcourir toutes les tiles
+    const processedTiles = new Set();
+
     for (let y = 0; y < mapData.length - 2; y++) {
       for (let x = 0; x < mapData[y].length - 2; x++) {
-        // Vérifier si c'est le coin supérieur gauche d'un groupe 3x3 de montagnes
-        if (this.is3x3MountainGroup(mapData, x, y, processedTiles)) {
-          // Créer une grande montagne qui couvre les 3x3 tiles
+        // On vérifie quel type de montagne c'est (5 ou 9)
+        const mountainType = mapData[y][x];
+
+        if (
+          (mountainType === 5 || mountainType === 9) &&
+          this.is3x3MountainGroup(mapData, x, y, processedTiles, mountainType)
+        ) {
           const centerX = x + 1;
           const centerY = y + 1;
-          
           const px = this.scene.mapStartX + centerX * T + T / 2;
           const py = this.scene.mapStartY + centerY * T + T / 2;
-          
-          this.addLargeMountain(px, py, centerX, centerY);
-          
-          // Marquer toutes les tiles du groupe 3x3 comme traitées
+
+          // On passe le type à la fonction de création
+          this.addLargeMountain(px, py, centerX, centerY, mountainType);
+
           for (let dy = 0; dy < 3; dy++) {
             for (let dx = 0; dx < 3; dx++) {
               processedTiles.add(`${x + dx},${y + dy}`);
@@ -93,49 +101,58 @@ export class MapManager {
       }
     }
   }
-  
-  // Vérifier si un groupe 3x3 est composé uniquement de montagnes (type 5)
-  is3x3MountainGroup(mapData, startX, startY, processedTiles) {
-    // Vérifier que toutes les 9 tiles sont de type 5 (montagne) et non déjà traitées
+
+  // Modifié pour vérifier un type spécifique (targetType)
+  is3x3MountainGroup(mapData, startX, startY, processedTiles, targetType) {
     for (let dy = 0; dy < 3; dy++) {
       for (let dx = 0; dx < 3; dx++) {
         const x = startX + dx;
         const y = startY + dy;
         const key = `${x},${y}`;
-        
-        // Vérifier les limites
-        if (y < 0 || y >= mapData.length || x < 0 || x >= mapData[y].length) {
+
+        if (y < 0 || y >= mapData.length || x < 0 || x >= mapData[y].length)
           return false;
-        }
-        
-        // Vérifier que ce n'est pas déjà traité
-        if (processedTiles.has(key)) {
-          return false;
-        }
-        
-        // Vérifier que c'est bien une montagne (type 5)
-        if (mapData[y][x] !== 5) {
-          return false;
-        }
+        if (processedTiles.has(key)) return false;
+
+        // Doit être exactement le même type (ne pas mélanger volcan et neige)
+        if (mapData[y][x] !== targetType) return false;
       }
     }
-    
     return true;
   }
-  
-  // Créer une grande montagne visuelle (3x3 tiles)
-  addLargeMountain(px, py, tileX, tileY) {
+
+  // Ajout du paramètre "type" pour changer les couleurs
+  addLargeMountain(px, py, tileX, tileY, type) {
     const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
     const scale = this.scene.scaleFactor;
-    
+
     const mountain = this.scene.add.container(px, py);
-    mountain.setDepth(1); // Au-dessus des tiles mais sous les arbres
-    
+    mountain.setDepth(1);
+
     const g = this.scene.add.graphics();
-    const size = T * 1.5; // Taille de la grande montagne (couvre 3x3)
-    
-    // Base de la montagne (forme triangulaire arrondie plus grande)
-    g.fillStyle(0x6b5b4f); // Marron/gris pour la roche
+    const size = T * 1.5;
+
+    // --- PALETTE DE COULEURS ---
+    let colorBase, colorShadow, colorDetail, colorPeakMain, colorPeakSub;
+
+    if (type === 9) {
+      // THEME NEIGE
+      colorBase = 0xe0e0e0; // Gris très clair / Blanc
+      colorShadow = 0xb0c4de; // Bleu gris ombre
+      colorDetail = 0xa9a9a9; // Gris roche
+      colorPeakMain = 0xffffff; // Blanc pur (Neige éternelle)
+      colorPeakSub = 0xf0f8ff; // AliceBlue
+    } else {
+      // THEME VOLCAN (Type 5)
+      colorBase = 0x6b5b4f;
+      colorShadow = 0x4a3d32;
+      colorDetail = 0x5a4b3f;
+      colorPeakMain = 0x8b7d6f;
+      colorPeakSub = 0x7b6d5f;
+    }
+
+    // Base de la montagne
+    g.fillStyle(colorBase);
     g.beginPath();
     g.moveTo(-size * 0.5, size * 0.3);
     g.lineTo(-size * 0.3, -size * 0.1);
@@ -146,9 +163,9 @@ export class MapManager {
     g.lineTo(-size * 0.4, size * 0.4);
     g.closePath();
     g.fillPath();
-    
-    // Ombre pour la profondeur
-    g.fillStyle(0x4a3d32, 0.6);
+
+    // Ombre
+    g.fillStyle(colorShadow, 0.6);
     g.beginPath();
     g.moveTo(-size * 0.4, size * 0.35);
     g.lineTo(-size * 0.2, size * 0.15);
@@ -159,9 +176,9 @@ export class MapManager {
     g.lineTo(-size * 0.3, size * 0.4);
     g.closePath();
     g.fillPath();
-    
-    // Détails de roche (texture) - plus nombreux pour une grande montagne
-    g.fillStyle(0x5a4b3f, 0.8);
+
+    // Détails de roche
+    g.fillStyle(colorDetail, 0.8);
     for (let i = 0; i < 20; i++) {
       const angle = (i / 20) * Math.PI * 2;
       const dist = (Math.random() * 0.4 + 0.1) * size;
@@ -169,10 +186,9 @@ export class MapManager {
       const y = Math.sin(angle) * dist * 0.5;
       g.fillCircle(x, y, 4 * scale);
     }
-    
-    // Plusieurs sommets pour une montagne plus imposante
-    g.fillStyle(0x8b7d6f);
+
     // Sommet principal
+    g.fillStyle(colorPeakMain);
     g.beginPath();
     g.moveTo(-size * 0.15, -size * 0.35);
     g.lineTo(0, -size * 0.5);
@@ -180,9 +196,10 @@ export class MapManager {
     g.lineTo(0, -size * 0.25);
     g.closePath();
     g.fillPath();
-    
+
     // Sommets secondaires
-    g.fillStyle(0x7b6d5f);
+    g.fillStyle(colorPeakSub);
+    // ... (Même dessin géométrique, juste la couleur change) ...
     g.beginPath();
     g.moveTo(-size * 0.35, -size * 0.2);
     g.lineTo(-size * 0.25, -size * 0.3);
@@ -190,7 +207,7 @@ export class MapManager {
     g.lineTo(-size * 0.2, -size * 0.15);
     g.closePath();
     g.fillPath();
-    
+
     g.beginPath();
     g.moveTo(size * 0.35, -size * 0.2);
     g.lineTo(size * 0.25, -size * 0.3);
@@ -198,22 +215,12 @@ export class MapManager {
     g.lineTo(size * 0.2, -size * 0.15);
     g.closePath();
     g.fillPath();
-    
-    // Grands rochers autour de la base
-    g.fillStyle(0x5a4b3f);
-    g.fillCircle(-size * 0.4, size * 0.25, 6 * scale);
-    g.fillCircle(size * 0.4, size * 0.25, 6 * scale);
-    g.fillCircle(-size * 0.25, size * 0.3, 5 * scale);
-    g.fillCircle(size * 0.25, size * 0.3, 5 * scale);
-    g.fillCircle(0, size * 0.35, 4 * scale);
-    
-    // Bordure pour plus de définition
-    g.lineStyle(3 * scale, 0x4a3d32, 0.5);
+
+    // Bordure
+    g.lineStyle(3 * scale, colorShadow, 0.5);
     g.strokePath();
-    
+
     mountain.add(g);
-    
-    // Stocker le container pour référence
     const key = `${tileX},${tileY}`;
     this.mountainContainers.set(key, mountain);
   }
@@ -222,68 +229,127 @@ export class MapManager {
     const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
     const H = T / 2;
     this.scene.paths = [];
-    const rawPaths = this.scene.levelConfig.paths || [this.scene.levelConfig.path];
-    
+    // Support pour configuration simple ou multiple chemins
+    const rawPaths =
+      this.scene.levelConfig.paths ||
+      (this.scene.levelConfig.path ? [this.scene.levelConfig.path] : []);
+
     rawPaths.forEach((points) => {
       const newPath = new Phaser.Curves.Path();
-      newPath.moveTo(this.scene.mapStartX + points[0].x * T + H, this.scene.mapStartY + points[0].y * T + H);
-      for (let i = 1; i < points.length; i++) {
-        newPath.lineTo(this.scene.mapStartX + points[i].x * T + H, this.scene.mapStartY + points[i].y * T + H);
+      if (points.length > 0) {
+        newPath.moveTo(
+          this.scene.mapStartX + points[0].x * T + H,
+          this.scene.mapStartY + points[0].y * T + H
+        );
+        for (let i = 1; i < points.length; i++) {
+          newPath.lineTo(
+            this.scene.mapStartX + points[i].x * T + H,
+            this.scene.mapStartY + points[i].y * T + H
+          );
+        }
+        this.scene.paths.push(newPath);
       }
-      this.scene.paths.push(newPath);
     });
   }
 
-  addTree(px, py, tileX, tileY) {
+  // Ajout du paramètre "groundType"
+  addTree(px, py, tileX, tileY, groundType) {
     const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
-    const treeX = px + T / 2 + (Math.random() - 0.5) * 15 * this.scene.scaleFactor;
-    const treeY = py + T / 2 + (Math.random() - 0.5) * 15 * this.scene.scaleFactor;
-    
+    // Petit décalage aléatoire
+    const treeX =
+      px + T / 2 + (Math.random() - 0.5) * 15 * this.scene.scaleFactor;
+    const treeY =
+      py + T / 2 + (Math.random() - 0.5) * 15 * this.scene.scaleFactor;
+
     const tree = this.scene.add.container(treeX, treeY);
     tree.setDepth(2);
-    
+
     const g = this.scene.add.graphics();
-    const treeType = Math.floor(Math.random() * 3);
     const scale = this.scene.scaleFactor;
-    
-    if (treeType === 0) {
-      g.fillStyle(0x8b4513);
-      g.fillRect(-2 * scale, 0, 4 * scale, 12 * scale);
-      g.fillStyle(0x2d5016);
-      g.fillCircle(0, -5 * scale, 10 * scale);
-      g.fillStyle(0x3a6b1f);
-      g.fillCircle(0, -5 * scale, 8 * scale);
-      g.fillStyle(0x4a7a2f);
-      g.fillCircle(0, -5 * scale, 6 * scale);
-    } else if (treeType === 1) {
-      g.fillStyle(0x654321);
-      g.fillRect(-3 * scale, 0, 6 * scale, 15 * scale);
-      g.fillStyle(0x1a4d1a);
-      g.fillCircle(-5 * scale, -8 * scale, 8 * scale);
-      g.fillCircle(5 * scale, -8 * scale, 8 * scale);
-      g.fillCircle(0, -12 * scale, 10 * scale);
-      g.fillStyle(0x2d6b2d);
-      g.fillCircle(-5 * scale, -8 * scale, 6 * scale);
-      g.fillCircle(5 * scale, -8 * scale, 6 * scale);
-      g.fillCircle(0, -12 * scale, 8 * scale);
+
+    // Si on est sur de la neige (Type 6), on dessine un Sapin Enneigé
+    if (groundType === 6) {
+      // Tronc
+      g.fillStyle(0x5c4033); // Marron foncé
+      g.fillRect(-2 * scale, 0, 4 * scale, 8 * scale);
+
+      // Feuillage (Triangle de sapin)
+      const darkGreen = 0x1a4d1a;
+      const snowWhite = 0xffffff;
+
+      // Étage bas
+      g.fillStyle(darkGreen);
+      g.fillTriangle(0, -10 * scale, -8 * scale, 0, 8 * scale, 0);
+      // Neige sur étage bas
+      g.fillStyle(snowWhite);
+      g.fillTriangle(
+        0,
+        -10 * scale,
+        -2 * scale,
+        -2 * scale,
+        2 * scale,
+        -2 * scale
+      );
+
+      // Étage milieu
+      g.fillStyle(darkGreen);
+      g.fillTriangle(
+        0,
+        -16 * scale,
+        -6 * scale,
+        -6 * scale,
+        6 * scale,
+        -6 * scale
+      );
+
+      // Étage haut
+      g.fillStyle(darkGreen);
+      g.fillTriangle(
+        0,
+        -20 * scale,
+        -4 * scale,
+        -12 * scale,
+        4 * scale,
+        -12 * scale
+      );
+      // Neige sommet
+      g.fillStyle(snowWhite);
+      g.fillTriangle(
+        0,
+        -20 * scale,
+        -2 * scale,
+        -16 * scale,
+        2 * scale,
+        -16 * scale
+      );
     } else {
-      g.fillStyle(0x5c4033);
-      g.fillRect(-4 * scale, 0, 8 * scale, 18 * scale);
-      g.fillStyle(0x2d5016);
-      g.fillCircle(-8 * scale, -10 * scale, 12 * scale);
-      g.fillCircle(8 * scale, -10 * scale, 12 * scale);
-      g.fillCircle(0, -15 * scale, 14 * scale);
-      g.fillStyle(0x3a6b1f);
-      g.fillCircle(-8 * scale, -10 * scale, 10 * scale);
-      g.fillCircle(8 * scale, -10 * scale, 10 * scale);
-      g.fillCircle(0, -15 * scale, 12 * scale);
-      g.fillStyle(0x4a7a2f);
-      g.fillCircle(0, -15 * scale, 8 * scale);
+      // --- ARBRES CLASSIQUES / MORTS (Biome Volcan Type 0) ---
+      // J'ai gardé ton code existant ici, tu peux le laisser tel quel
+      const treeType = Math.floor(Math.random() * 3);
+      if (treeType === 0) {
+        g.fillStyle(0x8b4513);
+        g.fillRect(-2 * scale, 0, 4 * scale, 12 * scale);
+        g.fillStyle(0x2d5016);
+        g.fillCircle(0, -5 * scale, 10 * scale);
+        g.fillStyle(0x3a6b1f);
+        g.fillCircle(0, -5 * scale, 8 * scale);
+      } else if (treeType === 1) {
+        g.fillStyle(0x654321);
+        g.fillRect(-3 * scale, 0, 6 * scale, 15 * scale);
+        g.fillStyle(0x1a4d1a);
+        g.fillCircle(-5 * scale, -8 * scale, 8 * scale);
+        g.fillCircle(5 * scale, -8 * scale, 8 * scale);
+        g.fillCircle(0, -12 * scale, 10 * scale);
+      } else {
+        g.fillStyle(0x5c4033);
+        g.fillRect(-4 * scale, 0, 8 * scale, 18 * scale);
+        g.fillStyle(0x2d5016);
+        g.fillCircle(-8 * scale, -10 * scale, 12 * scale);
+        g.fillCircle(8 * scale, -10 * scale, 12 * scale);
+      }
     }
-    
+
     tree.add(g);
-    
-    // Stocker le container pour pouvoir le supprimer plus tard
     const key = `${tileX},${tileY}`;
     this.treeContainers.set(key, tree);
   }
@@ -302,17 +368,21 @@ export class MapManager {
 
   isAdjacentToPath(tx, ty) {
     const map = this.scene.levelConfig.map;
+    // On considère 1 et 4 (Volcan) ET 7 (Neige) comme des chemins
+    const pathTypes = [1, 4, 7];
     const directions = [
-      { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 },
+      { x: 0, y: -1 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+      { x: 1, y: 0 },
     ];
-    
+
     for (const dir of directions) {
       const nx = tx + dir.x;
       const ny = ty + dir.y;
-      
+
       if (nx >= 0 && nx < 15 && ny >= 0 && ny < 15) {
-        const tileType = map[ny][nx];
-        if (tileType === 1 || tileType === 4) {
+        if (pathTypes.includes(map[ny][nx])) {
           return true;
         }
       }

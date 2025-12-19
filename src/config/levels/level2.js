@@ -1,5 +1,5 @@
 export const LEVEL_2 = {
-  // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont
+  // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont, 5=Rocher/Decor
   map: [
     [0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 5, 5, 5, 0],
@@ -18,118 +18,94 @@ export const LEVEL_2 = {
     [3, 3, 3, 3, 3, 0, 5, 0, 0, 0, 0, 1, 1, 1, 2], // Fin (Base en 14,14)
   ],
 
-  // LISTE DES CHEMINS CORRIGÉS
+  // LISTE DES CHEMINS (Identiques à ta version corrigée)
   paths: [
     // --- CHEMIN A : Départ HAUT GAUCHE ---
     [
-      { x: 0, y: 2 },  // Départ
-      { x: 8, y: 2 },  // Va à droite
-      { x: 8, y: 5 },  // Descend
+      { x: 0, y: 2 }, // Départ
+      { x: 8, y: 2 }, // Va à droite
+      { x: 8, y: 5 }, // Descend
       { x: 14, y: 5 }, // Va à droite
       { x: 14, y: 8 }, // Descend
       { x: 11, y: 8 }, // Revient vers la gauche (Jonction avec Chemin B)
-      { x: 11, y: 14 },// Descend tout droit vers le bas
-      { x: 14, y: 14 } // Va à droite vers la Base
+      { x: 11, y: 14 }, // Descend tout droit vers le bas
+      { x: 14, y: 14 }, // Va à droite vers la Base
     ],
 
     // --- CHEMIN B : Départ BAS GAUCHE (Le zig-zag) ---
     [
-      { x: 0, y: 8 },  // Départ
-      { x: 2, y: 8 },  // Va à droite
+      { x: 0, y: 8 }, // Départ
+      { x: 2, y: 8 }, // Va à droite
       { x: 2, y: 11 }, // Descend (contourne le vide)
       { x: 4, y: 11 }, // Va à droite
       { x: 4, y: 10 }, // Remonte
       { x: 6, y: 10 }, // Va à droite
-      { x: 6, y: 9 },  // Remonte
-      { x: 8, y: 9 },  // Va à droite
-      { x: 8, y: 8 },  // Remonte (rejoint la ligne principale)
+      { x: 6, y: 9 }, // Remonte
+      { x: 8, y: 9 }, // Va à droite
+      { x: 8, y: 8 }, // Remonte (rejoint la ligne principale)
       { x: 11, y: 8 }, // Va à droite (Jonction avec Chemin A)
-      { x: 11, y: 14 },// Descend tout droit vers le bas
-      { x: 14, y: 14 } // Va à droite vers la Base
+      { x: 11, y: 14 }, // Descend tout droit vers le bas
+      { x: 14, y: 14 }, // Va à droite vers la Base
     ],
   ],
 
+  // CONFIGURATION DES 8 VAGUES (Sans Shaman, Difficile)
   waves: [
-    // VAGUE 1 : Introduction douce - Ennemis de base
+    // VAGUE 1 : Mise en bouche (2 chemins)
     [
-      { count: 15, type: "grunt", interval: 900 },
-      { count: 8, type: "runner", interval: 700 },
+      { count: 12, type: "grunt", interval: 1000, startDelay: 0 },
+      { count: 12, type: "grunt", interval: 1000, startDelay: 6000 }, // Décalage pour forcer la gestion des 2 chemins
+      { count: 5, type: "runner", interval: 800, startDelay: 15000 }, // Les rapides à la fin
     ],
 
-    // VAGUE 2 : Runners rapides et grunts
+    // VAGUE 2 : Le Mur de Boucliers
     [
-      { count: 15, type: "runner", interval: 400 },
-      { count: 30, type: "grunt", interval: 600 },
+      { count: 8, type: "shield", interval: 1500, startDelay: 0 }, // Ils encaissent les premiers tirs
+      { count: 20, type: "runner", interval: 400, startDelay: 5000 }, // Les runners doublent les shields lents
     ],
 
-    // VAGUE 3 : Introduction des shields - Mixte équilibré
+    // VAGUE 3 : Introduction Tortue Dragon (Tanky)
     [
-      { count: 18, type: "grunt", interval: 550 },
-      { count: 15, type: "runner", interval: 450 },
-      { count: 5, type: "shield", interval: 1300 },
+      { count: 25, type: "grunt", interval: 600, startDelay: 0 },
+      { count: 3, type: "tortue_dragon", interval: 3000, startDelay: 10000 }, // Nouvelle unité très résistante
+      { count: 10, type: "runner", interval: 500, startDelay: 18000 },
     ],
 
-    // VAGUE 4 : Tanks et support - Augmentation de la difficulté
+    // VAGUE 4 : L'Escorte Blindée
     [
-      { count: 30, type: "runner", interval: 380 },
-      { count: 25, type: "grunt", interval: 500 },
-      { count: 6, type: "shield", interval: 1200 },
-      { count: 3, type: "tank", interval: 4000 },
+      { count: 30, type: "grunt", interval: 500, startDelay: 0 },
+      { count: 5, type: "tank", interval: 3000, startDelay: 10000 }, // Les tanks classiques
+      { count: 5, type: "shield", interval: 1200, startDelay: 12000 }, // Protection rapprochée
     ],
 
-    // VAGUE 5 : Introduction Tortue-Dragon - Premier nouveau ennemi
+    // VAGUE 5 : Division Cellulaire (Introduction Diviseur)
     [
-      { count: 35, type: "grunt", interval: 450 },
-      { count: 20, type: "runner", interval: 400 },
-      { count: 8, type: "shield", interval: 1100 },
-      { count: 4, type: "tank", interval: 3500 },
-      { count: 2, type: "tortue_dragon", interval: 5000 },
+      { count: 4, type: "diviseur", interval: 4000, startDelay: 0 }, // Si on les tue, ils se divisent
+      { count: 20, type: "runner", interval: 350, startDelay: 8000 }, // Rush pendant que le joueur gère les divisions
+      { count: 15, type: "grunt", interval: 500, startDelay: 12000 },
     ],
 
-    // VAGUE 6 : Shaman Gobelin - Soin des ennemis
+    // VAGUE 6 : Le Combo Lourd
     [
-      { count: 40, type: "grunt", interval: 400 },
-      { count: 25, type: "runner", interval: 350 },
-      { count: 10, type: "shield", interval: 1000 },
-      { count: 5, type: "tank", interval: 3000 },
-      { count: 3, type: "tortue_dragon", interval: 4500 },
-      { count: 2, type: "shaman_gobelin", interval: 6000 },
+      { count: 5, type: "tortue_dragon", interval: 3500, startDelay: 0 }, // Très lent, très costaud
+      { count: 4, type: "tank", interval: 3000, startDelay: 5000 },
+      { count: 6, type: "diviseur", interval: 4000, startDelay: 20000 }, // Arrivent quand les tours sont occupées par les tanks
     ],
 
-    // VAGUE 7 : Diviseur - Les slimes arrivent !
+    // VAGUE 7 : Submersion (Test de DPS)
     [
-      { count: 45, type: "grunt", interval: 380 },
-      { count: 30, type: "runner", interval: 350 },
-      { count: 12, type: "shield", interval: 950 },
-      { count: 6, type: "tank", interval: 2800 },
-      { count: 4, type: "tortue_dragon", interval: 4000 },
-      { count: 3, type: "shaman_gobelin", interval: 5500 },
-      { count: 2, type: "diviseur", interval: 8000 },
+      { count: 50, type: "grunt", interval: 300, startDelay: 0 }, // Flux continu et rapide
+      { count: 15, type: "shield", interval: 1000, startDelay: 5000 },
+      { count: 15, type: "runner", interval: 300, startDelay: 15000 },
+      { count: 5, type: "diviseur", interval: 3000, startDelay: 25000 },
     ],
 
-    // VAGUE 8 : Invasion massive - Tous les ennemis
+    // VAGUE 8 : BOSS FINAL (Boss Lvl 2)
     [
-      { count: 50, type: "grunt", interval: 350 },
-      { count: 35, type: "runner", interval: 320 },
-      { count: 15, type: "shield", interval: 900 },
-      { count: 8, type: "tank", interval: 2500 },
-      { count: 5, type: "tortue_dragon", interval: 3800 },
-      { count: 4, type: "shaman_gobelin", interval: 5000 },
-      { count: 3, type: "diviseur", interval: 7000 },
-      { count: 2, type: "witch", interval: 6000 },
-    ],
-
-    // VAGUE 9 : BOSS FINAL - Boss Level 2 avec armée complète
-    [
-      { count: 60, type: "grunt", interval: 400 },
-      { count: 40, type: "runner", interval: 350 },
-      { count: 18, type: "shield", interval: 850 },
-      { count: 10, type: "tank", interval: 2200 },
-      { count: 6, type: "tortue_dragon", interval: 3500 },
-      { count: 5, type: "shaman_gobelin", interval: 4500 },
-      { count: 4, type: "diviseur", interval: 6000 },
-      { count: 3, type: "witch", interval: 5000 },
-      { count: 1, type: "bosslvl2", interval: 20000 },
+      { count: 30, type: "runner", interval: 350, startDelay: 0 }, // Distraction initiale
+      { count: 8, type: "tortue_dragon", interval: 3000, startDelay: 10000 }, // La garde royale
+      { count: 8, type: "tank", interval: 3000, startDelay: 20000 },
+      { count: 1, type: "bosslvl2", interval: 5000, startDelay: 40000 }, // Le Boss final arrive tard
     ],
   ],
 };

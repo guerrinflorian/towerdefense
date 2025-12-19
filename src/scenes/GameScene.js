@@ -207,7 +207,7 @@ export class GameScene extends Phaser.Scene {
     // Highlight visuel sur la case survolée
     this.input.on("pointermove", (pointer) => {
       const T = CONFIG.TILE_SIZE * this.scaleFactor;
-      
+
       // Vérifier si le pointeur est dans la zone de la map
       if (
         pointer.worldY < this.mapStartY ||
@@ -253,7 +253,7 @@ export class GameScene extends Phaser.Scene {
       if (this.isPaused) {
         return;
       }
-      
+
       // Vérifier si le clic est sur la toolbar
       if (this.isPointerOnToolbar(pointer)) {
         // Ne pas gérer les clics sur la toolbar comme des clics de jeu
@@ -627,11 +627,11 @@ export class GameScene extends Phaser.Scene {
   // =========================================================
   pauseGame() {
     if (this.isPaused) return;
-    
+
     this.isPaused = true;
-    
+
     // Le bouton pause dans la toolbar reste inchangé (reste "PAUSE")
-    
+
     // Mettre en pause tous les timers de spawn des vagues
     this.pausedTimers = [];
     if (this.waveSpawnTimers) {
@@ -642,23 +642,28 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
-    
+
     // Mettre en pause le timer de vérification de fin de vague
     if (this.endCheckTimer && this.endCheckTimer.paused !== undefined) {
       this.endCheckTimer.paused = true;
       this.pausedTimers.push(this.endCheckTimer);
     }
-    
+
     // Mettre en pause le timer de compte à rebours
     if (this.nextWaveAutoTimer && this.nextWaveAutoTimer.paused !== undefined) {
       this.nextWaveAutoTimer.paused = true;
       this.pausedTimers.push(this.nextWaveAutoTimer);
     }
-    
+
     // Mettre en pause tous les autres timers
     if (this.time && this.time.events) {
       this.time.events.getAll().forEach((event) => {
-        if (event && !event.paused && event !== this.endCheckTimer && event !== this.nextWaveAutoTimer) {
+        if (
+          event &&
+          !event.paused &&
+          event !== this.endCheckTimer &&
+          event !== this.nextWaveAutoTimer
+        ) {
           // Vérifier que ce n'est pas déjà dans waveSpawnTimers
           if (!this.waveSpawnTimers || !this.waveSpawnTimers.includes(event)) {
             event.paused = true;
@@ -667,7 +672,7 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
-    
+
     // Mettre en pause tous les tweens
     this.pausedTweens = [];
     if (this.tweens && this.tweens.getAllTweens) {
@@ -679,16 +684,21 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
-    
+
     // Mettre en pause les ennemis (leurs tweens de mouvement)
     if (this.enemies) {
       this.enemies.children.each((enemy) => {
-        if (enemy && enemy.follower && enemy.follower.tween && enemy.follower.tween.isPlaying) {
+        if (
+          enemy &&
+          enemy.follower &&
+          enemy.follower.tween &&
+          enemy.follower.tween.isPlaying
+        ) {
           enemy.follower.tween.pause();
         }
       });
     }
-    
+
     // Mettre en pause les animations des tourelles
     if (this.turrets) {
       this.turrets.forEach((turret) => {
@@ -697,61 +707,106 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
-    
+
     // Créer le bouton "REPRENDRE" au centre de l'écran
     if (!this.resumeBtn) {
       const s = this.scaleFactor;
       const btnWidth = 250 * s;
       const btnHeight = 60 * s;
-      
+
       // Container pour le bouton
-      const resumeContainer = this.add.container(this.gameWidth / 2, this.gameHeight / 2).setDepth(200);
-      
+      const resumeContainer = this.add
+        .container(this.gameWidth / 2, this.gameHeight / 2)
+        .setDepth(200);
+
       // Fond du bouton
       const resumeBg = this.add.graphics();
       resumeBg.fillStyle(0x333333, 0.95);
-      resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+      resumeBg.fillRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        10
+      );
       resumeBg.lineStyle(3, 0x00ff00, 1);
-      resumeBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+      resumeBg.strokeRoundedRect(
+        -btnWidth / 2,
+        -btnHeight / 2,
+        btnWidth,
+        btnHeight,
+        10
+      );
       resumeContainer.add(resumeBg);
-      
+
       // Texte du bouton
-      const resumeText = this.add.text(0, 0, "▶️ REPRENDRE", {
-        fontSize: `${Math.max(18, 24 * s)}px`,
-        fill: "#00ff00",
-        fontStyle: "bold",
-        fontFamily: "Arial",
-      }).setOrigin(0.5);
+      const resumeText = this.add
+        .text(0, 0, "▶️ REPRENDRE", {
+          fontSize: `${Math.max(18, 24 * s)}px`,
+          fill: "#00ff00",
+          fontStyle: "bold",
+          fontFamily: "Arial",
+        })
+        .setOrigin(0.5);
       resumeContainer.add(resumeText);
-      
+
       // Rendre le bouton interactif
       resumeBg.setInteractive(
-        new Phaser.Geom.Rectangle(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight),
+        new Phaser.Geom.Rectangle(
+          -btnWidth / 2,
+          -btnHeight / 2,
+          btnWidth,
+          btnHeight
+        ),
         Phaser.Geom.Rectangle.Contains
       );
-      
+
       resumeBg.on("pointerover", () => {
         resumeBg.clear();
         resumeBg.fillStyle(0x444444, 0.95);
-        resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+        resumeBg.fillRoundedRect(
+          -btnWidth / 2,
+          -btnHeight / 2,
+          btnWidth,
+          btnHeight,
+          10
+        );
         resumeBg.lineStyle(3, 0x00ff00, 1);
-        resumeBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+        resumeBg.strokeRoundedRect(
+          -btnWidth / 2,
+          -btnHeight / 2,
+          btnWidth,
+          btnHeight,
+          10
+        );
         resumeText.setColor("#00ff88");
       });
-      
+
       resumeBg.on("pointerout", () => {
         resumeBg.clear();
         resumeBg.fillStyle(0x333333, 0.95);
-        resumeBg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+        resumeBg.fillRoundedRect(
+          -btnWidth / 2,
+          -btnHeight / 2,
+          btnWidth,
+          btnHeight,
+          10
+        );
         resumeBg.lineStyle(3, 0x00ff00, 1);
-        resumeBg.strokeRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+        resumeBg.strokeRoundedRect(
+          -btnWidth / 2,
+          -btnHeight / 2,
+          btnWidth,
+          btnHeight,
+          10
+        );
         resumeText.setColor("#00ff00");
       });
-      
+
       resumeBg.on("pointerdown", () => {
         this.resumeGame();
       });
-      
+
       this.resumeBtn = resumeContainer;
     } else {
       this.resumeBtn.setVisible(true);
@@ -760,11 +815,11 @@ export class GameScene extends Phaser.Scene {
 
   resumeGame() {
     if (!this.isPaused) return;
-    
+
     this.isPaused = false;
-    
+
     // Le bouton pause dans la toolbar reste inchangé
-    
+
     // Reprendre tous les timers de spawn des vagues
     if (this.waveSpawnTimers) {
       this.waveSpawnTimers.forEach((timer) => {
@@ -773,17 +828,17 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
-    
+
     // Reprendre le timer de vérification de fin de vague
     if (this.endCheckTimer && this.endCheckTimer.paused !== undefined) {
       this.endCheckTimer.paused = false;
     }
-    
+
     // Reprendre le timer de compte à rebours
     if (this.nextWaveAutoTimer && this.nextWaveAutoTimer.paused !== undefined) {
       this.nextWaveAutoTimer.paused = false;
     }
-    
+
     // Reprendre tous les autres timers
     this.pausedTimers.forEach((timer) => {
       if (timer && timer.paused !== undefined) {
@@ -791,7 +846,7 @@ export class GameScene extends Phaser.Scene {
       }
     });
     this.pausedTimers = [];
-    
+
     // Reprendre tous les tweens
     this.pausedTweens.forEach((tween) => {
       if (tween && tween.isPaused) {
@@ -799,16 +854,23 @@ export class GameScene extends Phaser.Scene {
       }
     });
     this.pausedTweens = [];
-    
+
     // Reprendre les ennemis
     if (this.enemies) {
       this.enemies.children.each((enemy) => {
-        if (enemy && enemy.follower && enemy.follower.tween && enemy.follower.tween.isPaused && !enemy.isParalyzed && !enemy.isInShell) {
+        if (
+          enemy &&
+          enemy.follower &&
+          enemy.follower.tween &&
+          enemy.follower.tween.isPaused &&
+          !enemy.isParalyzed &&
+          !enemy.isInShell
+        ) {
           enemy.follower.tween.resume();
         }
       });
     }
-    
+
     // Reprendre les animations des tourelles
     if (this.turrets) {
       this.turrets.forEach((turret) => {
@@ -817,7 +879,7 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
-    
+
     // Masquer le bouton reprendre
     if (this.resumeBtn) {
       this.resumeBtn.setVisible(false);
@@ -827,12 +889,12 @@ export class GameScene extends Phaser.Scene {
   updateUI() {
     if (this.txtMoney) this.txtMoney.setText(`💰 ${this.money}`);
     if (this.txtLives) this.txtLives.setText(`❤️ ${this.lives}`);
-    
+
     // Mettre à jour l'affichage de la vague
     if (this.txtWave) {
       let currentWave = (this.currentWaveIndex || 0) + 1;
       let totalWaves = 0;
-      
+
       // Obtenir le nombre total de vagues
       if (this.levelConfig && this.levelConfig.waves) {
         totalWaves = this.levelConfig.waves.length;
@@ -846,10 +908,10 @@ export class GameScene extends Phaser.Scene {
           totalWaves = this.levelID === 2 ? 9 : 6;
         }
       }
-      
+
       this.txtWave.setText(`🌊 VAGUE ${currentWave}/${totalWaves}`);
     }
-    
+
     this.updateToolbarCounts();
     // Mettre à jour les boutons du menu de construction si visible
     if (this.buildMenu && this.buildMenu.visible) {
@@ -868,33 +930,43 @@ export class GameScene extends Phaser.Scene {
     const itemSpacing = 90 * this.scaleFactor;
     const toolbarHeight = 120 * this.scaleFactor;
     const margin = 20 * this.scaleFactor;
-    
+
     // Calculer les largeurs des sections
     const spellSectionWidth = itemSize + margin * 2; // Section des sorts à gauche
     const turretsSectionWidth = 5 * itemSpacing; // Section des tourelles au milieu
     const waveButtonWidth = 300 * this.scaleFactor; // Bouton de vague à droite
     const waveButtonHeight = 60 * this.scaleFactor;
-    
+
     // Calculer la position de départ pour centrer les tourelles
-    const totalWidth = spellSectionWidth + turretsSectionWidth + waveButtonWidth + margin * 4;
+    const totalWidth =
+      spellSectionWidth + turretsSectionWidth + waveButtonWidth + margin * 4;
     const startX = (this.gameWidth - totalWidth) / 2;
-    
+
     // Section des sorts à gauche
     const spellSectionX = startX + margin;
-    this.spellSection = this.add.container(spellSectionX, toolbarY).setDepth(150);
+    this.spellSection = this.add
+      .container(spellSectionX, toolbarY)
+      .setDepth(150);
     const spellBg = this.add.graphics();
     spellBg.fillStyle(0x000000, 0.9);
     spellBg.fillRoundedRect(0, 0, spellSectionWidth, toolbarHeight, 10);
     spellBg.lineStyle(3, 0xffffff, 0.6);
     spellBg.strokeRoundedRect(0, 0, spellSectionWidth, toolbarHeight, 10);
     this.spellSection.add(spellBg);
-    
+
     // Créer le bouton du sort éclair dans la section des sorts
-    this.createLightningSpellButton(itemSize, itemSize / 2 + margin, toolbarHeight, spellSectionX);
-    
+    this.createLightningSpellButton(
+      itemSize,
+      itemSize / 2 + margin,
+      toolbarHeight,
+      spellSectionX
+    );
+
     // Section des tourelles au milieu
     const turretsSectionX = startX + spellSectionWidth + margin * 2;
-    this.buildToolbar = this.add.container(turretsSectionX, toolbarY).setDepth(150);
+    this.buildToolbar = this.add
+      .container(turretsSectionX, toolbarY)
+      .setDepth(150);
     const toolbarBg = this.add.graphics();
     toolbarBg.fillStyle(0x000000, 0.9);
     toolbarBg.fillRoundedRect(0, 0, turretsSectionWidth, toolbarHeight, 10);
@@ -985,7 +1057,7 @@ export class GameScene extends Phaser.Scene {
 
           // Désactiver visuellement si on ne peut pas se le permettre ou si limite atteinte
           const shouldDisable = !canAfford || isDisabled;
-          
+
           if (shouldDisable) {
             // État désactivé : grisé
             btnBg.setFillStyle(0x1a1a1a, 0.6);
@@ -1018,14 +1090,14 @@ export class GameScene extends Phaser.Scene {
 
       // Tooltip pour la description dans la toolbar
       let toolbarTooltip = null;
-      
+
       btnBg.on("pointerover", () => {
         // Afficher le tooltip avec la description
         if (item.config.description) {
           this.showToolbarTooltip(btnContainer, item.config.description, btnBg);
         }
       });
-      
+
       btnBg.on("pointerout", () => {
         // Cacher le tooltip
         if (this.toolbarTooltip) {
@@ -1071,25 +1143,27 @@ export class GameScene extends Phaser.Scene {
     // Mettre à jour les compteurs
     this.updateToolbarCounts();
   }
-  
+
   // Afficher un tooltip avec la description de la tourelle dans la toolbar
   showToolbarTooltip(btnContainer, description, triggerElement) {
     const s = this.scaleFactor;
-    
+
     // Détruire l'ancien tooltip s'il existe
     if (this.toolbarTooltip) {
       this.toolbarTooltip.destroy();
     }
-    
+
     // Calculer la position du tooltip (au-dessus du bouton)
     // Le btnContainer peut être dans buildToolbar (tourelles) ou directement dans la scène (sort)
     let btnX, btnY;
-    
+
     // Vérifier si le container est dans buildToolbar en vérifiant son parent
-    const isInBuildToolbar = this.buildToolbar && 
-      (btnContainer.parentContainer === this.buildToolbar || 
-       (this.buildToolbar.list && this.buildToolbar.list.includes(btnContainer)));
-    
+    const isInBuildToolbar =
+      this.buildToolbar &&
+      (btnContainer.parentContainer === this.buildToolbar ||
+        (this.buildToolbar.list &&
+          this.buildToolbar.list.includes(btnContainer)));
+
     if (isInBuildToolbar) {
       // Pour les tourelles dans buildToolbar
       btnX = btnContainer.x + this.buildToolbar.x;
@@ -1099,16 +1173,16 @@ export class GameScene extends Phaser.Scene {
       btnX = btnContainer.x;
       btnY = btnContainer.y;
     }
-    
+
     // Créer le tooltip
     const tooltipContainer = this.add.container(0, 0).setDepth(300);
     this.toolbarTooltip = tooltipContainer;
-    
+
     // Fond du tooltip
     const tooltipBg = this.add.graphics();
     const padding = 15 * s;
     const maxWidth = 350 * s;
-    
+
     // Calculer la taille du texte
     const tempText = this.add.text(0, 0, description, {
       fontSize: `${Math.max(11, 12 * s)}px`,
@@ -1120,37 +1194,32 @@ export class GameScene extends Phaser.Scene {
     const textWidth = Math.min(tempText.width, maxWidth - padding * 2);
     const textHeight = tempText.height;
     tempText.destroy();
-    
+
     const tooltipWidth = textWidth + padding * 2;
     const tooltipHeight = textHeight + padding * 2;
-    
+
     // Positionner le tooltip au-dessus du bouton
     const tooltipX = btnX;
     const tooltipY = btnY - tooltipHeight - 10 * s;
-    
+
     // Dessiner le fond
     tooltipBg.fillStyle(0x000000, 0.95);
     tooltipBg.fillRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
     tooltipBg.lineStyle(2, 0x00ccff, 1);
     tooltipBg.strokeRoundedRect(0, 0, tooltipWidth, tooltipHeight, 8);
-    
+
     // Texte de description
-    const descText = this.add.text(
-      padding,
-      padding,
-      description,
-      {
-        fontSize: `${Math.max(11, 12 * s)}px`,
-        fill: "#ffffff",
-        fontFamily: "Arial",
-        wordWrap: { width: maxWidth - padding * 2 },
-        lineSpacing: 4 * s,
-      }
-    );
-    
+    const descText = this.add.text(padding, padding, description, {
+      fontSize: `${Math.max(11, 12 * s)}px`,
+      fill: "#ffffff",
+      fontFamily: "Arial",
+      wordWrap: { width: maxWidth - padding * 2 },
+      lineSpacing: 4 * s,
+    });
+
     tooltipContainer.add([tooltipBg, descText]);
     tooltipContainer.setPosition(tooltipX, tooltipY);
-    
+
     // Ajuster la position si le tooltip sort de l'écran
     if (tooltipX + tooltipWidth > this.gameWidth) {
       tooltipContainer.setX(this.gameWidth - tooltipWidth - 10 * s);
@@ -1165,7 +1234,10 @@ export class GameScene extends Phaser.Scene {
     const x = xOffset;
     const y = toolbarHeight / 2;
 
-    const btnContainer = this.add.container(sectionX + x, this.toolbarOffsetY + y);
+    const btnContainer = this.add.container(
+      sectionX + x,
+      this.toolbarOffsetY + y
+    );
     btnContainer.setDepth(151);
 
     // Fond du bouton
@@ -1198,10 +1270,14 @@ export class GameScene extends Phaser.Scene {
     btnBg.on("pointerover", () => {
       // Afficher le tooltip avec la description
       if (LIGHTNING_SPELL.description) {
-        this.showToolbarTooltip(btnContainer, LIGHTNING_SPELL.description, btnBg);
+        this.showToolbarTooltip(
+          btnContainer,
+          LIGHTNING_SPELL.description,
+          btnBg
+        );
       }
     });
-    
+
     btnBg.on("pointerout", () => {
       // Cacher le tooltip
       if (this.toolbarTooltip) {
@@ -1217,7 +1293,7 @@ export class GameScene extends Phaser.Scene {
         this.toolbarTooltip.destroy();
         this.toolbarTooltip = null;
       }
-      
+
       // Vérifier que le cooldown est terminé et qu'on n'est pas déjà en train de placer
       if (this.lightningCooldown <= 0 && !this.placingSpell) {
         this.startPlacingLightning();
@@ -1232,7 +1308,7 @@ export class GameScene extends Phaser.Scene {
       cooldownMask: cooldownMask,
       cooldownText: cooldownText,
     };
-    
+
     // Initialiser l'affichage
     this.updateLightningSpellButton();
   }
@@ -1241,7 +1317,7 @@ export class GameScene extends Phaser.Scene {
   drawLightningIcon(graphics, x, y, size) {
     graphics.clear();
     graphics.fillStyle(0xffff00, 1);
-    
+
     // Forme d'éclair en zigzag
     graphics.beginPath();
     graphics.moveTo(x, y - size / 2);
@@ -1254,7 +1330,7 @@ export class GameScene extends Phaser.Scene {
     graphics.lineTo(x + size / 6, y - size / 4);
     graphics.closePath();
     graphics.fillPath();
-    
+
     // Bordure
     graphics.lineStyle(2, 0xffffff, 1);
     graphics.strokePath();
@@ -1263,13 +1339,13 @@ export class GameScene extends Phaser.Scene {
   // Démarrer le placement du sort
   startPlacingLightning() {
     this.placingSpell = LIGHTNING_SPELL;
-    
+
     // Créer le preview de la zone
     if (!this.spellPreview) {
       this.spellPreview = this.add.graphics();
       this.spellPreview.setDepth(200);
     }
-    
+
     // Mettre à jour le preview au mouvement de la souris
     this.input.on("pointermove", this.updateSpellPreview, this);
   }
@@ -1322,15 +1398,15 @@ export class GameScene extends Phaser.Scene {
     // 1. Éclair qui tombe du ciel (animation fixe pour être toujours identique)
     const lightningBolt = this.add.graphics();
     lightningBolt.setDepth(300);
-    
+
     // Ligne d'éclair depuis le haut
     const startY = this.mapStartY - 50;
-    
+
     // Éclair principal (zigzag fixe - pas de random pour avoir toujours la même animation)
     lightningBolt.lineStyle(10, 0xffffff, 1);
     lightningBolt.beginPath();
     lightningBolt.moveTo(x, startY);
-    
+
     // Créer un zigzag fixe pour l'éclair (même pattern à chaque fois)
     const steps = 8;
     const stepHeight = (y - startY) / steps;
@@ -1342,7 +1418,7 @@ export class GameScene extends Phaser.Scene {
     }
     lightningBolt.lineTo(x, y);
     lightningBolt.strokePath();
-    
+
     // Éclair secondaire (plus fin, cyan) - pattern fixe aussi
     lightningBolt.lineStyle(4, 0x00ffff, 1);
     lightningBolt.beginPath();
@@ -1355,7 +1431,7 @@ export class GameScene extends Phaser.Scene {
     }
     lightningBolt.lineTo(x, y);
     lightningBolt.strokePath();
-    
+
     // Branches d'éclair latérales (positions fixes)
     const branchOffsets = [
       { x: -25, y: 0.3 },
@@ -1373,7 +1449,7 @@ export class GameScene extends Phaser.Scene {
     // Flash initial
     const flash = this.add.circle(x, y, effectRadius * 1.5, 0xffffff, 1);
     flash.setDepth(301);
-    
+
     this.tweens.add({
       targets: flash,
       scale: 0,
@@ -1392,7 +1468,7 @@ export class GameScene extends Phaser.Scene {
     burnZone.fillCircle(x, y, effectRadius);
     burnZone.lineStyle(2, 0x8b4513, 1);
     burnZone.strokeCircle(x, y, effectRadius);
-    
+
     // Effet de brûlure qui s'estompe
     this.tweens.add({
       targets: burnZone,
@@ -1409,7 +1485,7 @@ export class GameScene extends Phaser.Scene {
           if (dist <= effectRadius) {
             // Dégâts
             enemy.damage(LIGHTNING_SPELL.damage);
-            
+
             // Paralysie seulement si l'ennemi survit
             if (enemy.hp > 0 && enemy.paralyze) {
               enemy.paralyze(LIGHTNING_SPELL.paralysisDuration);
@@ -1425,10 +1501,10 @@ export class GameScene extends Phaser.Scene {
       const dist = Math.random() * effectRadius;
       const px = x + Math.cos(angle) * dist;
       const py = y + Math.sin(angle) * dist;
-      
+
       const particle = this.add.circle(px, py, 3, 0xffff00, 1);
       particle.setDepth(302);
-      
+
       this.tweens.add({
         targets: particle,
         x: px + (Math.random() - 0.5) * 50,
@@ -1453,29 +1529,29 @@ export class GameScene extends Phaser.Scene {
       // Afficher le masque de cooldown
       cooldownMask.setVisible(true);
       cooldownMask.clear();
-      
+
       const itemSize = 80 * this.scaleFactor;
       const radius = itemSize / 2;
-      
+
       // Dessiner un masque circulaire qui se remplit progressivement (de bas en haut)
       cooldownMask.clear();
       cooldownMask.fillStyle(0x000000, 0.7);
-      
+
       if (cooldownPercent > 0) {
         const startAngle = -Math.PI / 2; // Commence en haut
         const endAngle = startAngle + cooldownPercent * Math.PI * 2;
-        
+
         cooldownMask.beginPath();
         cooldownMask.moveTo(0, 0);
         cooldownMask.arc(0, 0, radius, startAngle, endAngle, false);
         cooldownMask.closePath();
         cooldownMask.fillPath();
       }
-      
+
       // Texte de cooldown
       cooldownText.setText(`${remainingSeconds}s`);
       cooldownText.setVisible(true);
-      
+
       // Désactiver le bouton
       bg.setFillStyle(0x1a1a1a, 0.6);
       bg.setStrokeStyle(3, 0x444444);
@@ -1910,6 +1986,74 @@ export class GameScene extends Phaser.Scene {
       g.strokeRect(0, 0, T, T);
     });
 
+    // --- TEXTURES BIOME NEIGE ---
+
+    // tile_snow_1 (Sol Neige - ID 6 & 9)
+    generateIfNotExists("tile_snow_1", () => {
+      // Fond blanc légèrement bleuté (AliceBlue)
+      g.fillStyle(0xf0f8ff, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Texture de neige (petits points gris/bleu clair)
+      g.fillStyle(0xdbe9f4, 0.8);
+      for (let i = 0; i < 40; i++) {
+        const size = Math.random() * 3 + 1;
+        g.fillCircle(Math.random() * T, Math.random() * T, size);
+      }
+    });
+
+    // tile_snow_path (Chemin Glacé - ID 7)
+    generateIfNotExists("tile_snow_path", () => {
+      // Fond glace (PowderBlue)
+      g.fillStyle(0xb0e0e6, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Effet de traces/rayures sur la glace
+      g.lineStyle(1, 0xffffff, 0.6);
+      for (let i = 0; i < 10; i++) {
+        const sx = Math.random() * T;
+        const sy = Math.random() * T;
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.lineTo(
+          sx + (Math.random() - 0.5) * 20,
+          sy + (Math.random() - 0.5) * 20
+        );
+        g.strokePath();
+      }
+
+      // Bordure du chemin (neige tassée)
+      g.fillStyle(0xe0ffff, 0.5);
+      g.fillRect(0, 0, T, 3);
+      g.fillRect(0, T - 3, T, 3);
+      g.fillRect(0, 0, 3, T);
+      g.fillRect(T - 3, 0, 3, T);
+    });
+
+    // tile_ice_water (Eau Gelée / Trou - ID 8)
+    generateIfNotExists("tile_ice_water", () => {
+      // Eau sombre en dessous
+      g.fillStyle(0x4682b4, 1); // SteelBlue
+      g.fillRect(0, 0, T, T);
+
+      // Couche de glace par dessus (semi-transparente)
+      g.fillStyle(0xaaddff, 0.7);
+      g.fillRect(0, 0, T, T);
+
+      // Fissures bleues foncées
+      g.lineStyle(2, 0x2f4f4f, 0.5);
+      g.beginPath();
+      g.moveTo(0, Math.random() * T);
+      g.lineTo(T / 2, T / 2);
+      g.lineTo(T, Math.random() * T);
+      g.strokePath();
+
+      // Reflets blancs
+      g.fillStyle(0xffffff, 0.6);
+      g.fillCircle(T * 0.2, T * 0.2, 3);
+      g.fillCircle(T * 0.7, T * 0.6, 2);
+    });
+
     // Ne pas détruire l'objet Graphics ici car il peut être réutilisé
     // Il sera nettoyé automatiquement par Phaser quand la scène est détruite
   }
@@ -1972,15 +2116,15 @@ export class GameScene extends Phaser.Scene {
 
     // Nettoyer les managers
     try {
-    if (this.mapManager && this.mapManager.treePositions) {
-      this.mapManager.treePositions.clear();
-    }
+      if (this.mapManager && this.mapManager.treePositions) {
+        this.mapManager.treePositions.clear();
+      }
 
-    // Nettoyer le timer de vague automatique
-    if (this.nextWaveAutoTimer) {
-      this.nextWaveAutoTimer.remove();
-      this.nextWaveAutoTimer = null;
-    }
+      // Nettoyer le timer de vague automatique
+      if (this.nextWaveAutoTimer) {
+        this.nextWaveAutoTimer.remove();
+        this.nextWaveAutoTimer = null;
+      }
     } catch (e) {
       // Ignorer si déjà détruit
     }

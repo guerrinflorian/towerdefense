@@ -2,13 +2,14 @@ export const cannon = {
   key: "cannon",
   name: "Mortier",
   cost: 180,
-  range: 135,
-  damage: 90,
+  range: 115,
+  damage: 76,
   rate: 2300, // Note: Pour le Niv 3, le moteur doit passer ce rate à 5000
   color: 0xff8844,
   aoe: 50,
   maxLevel: 3,
-  description: "Artillerie lourde avec dégâts de zone (AOE).\n\n✅ Avantages:\n• Dégâts de zone (touche plusieurs ennemis)\n• Portée longue\n• Efficace contre les groupes\n\n❌ Inconvénients:\n• Cadence de tir lente\n• Projectile en arc (délai d'impact)\n• Moins précis que les autres tourelles",
+  description:
+    "Artillerie lourde avec dégâts de zone (AOE).\n\n✅ Avantages:\n• Dégâts de zone (touche plusieurs ennemis)\n• Portée longue\n• Efficace contre les groupes\n\n❌ Inconvénients:\n• Cadence de tir lente\n• Projectile en arc (délai d'impact)\n• Moins précis que les autres tourelles",
 
   // ============================================================
   // DESSIN DU CANON
@@ -422,9 +423,6 @@ function triggerExplosion(scene, x, y, radius, damage, level) {
   const hitboxBuffer = 8;
   const effectiveRadius = radius + hitboxBuffer;
   const isLvl3 = level === 3;
-
-  // Secousse
-  scene.cameras.main.shake(isLvl3 ? 300 : 150, isLvl3 ? 0.01 : 0.005);
 
   // Trace au sol
   const scorch = scene.add.circle(
