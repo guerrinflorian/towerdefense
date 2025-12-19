@@ -21,54 +21,138 @@ export class HUD {
   create() {
     const s = this.scene.scaleFactor;
 
-    const UI_HEIGHT = CONFIG.UI_HEIGHT * s;
-    const fontSize = Math.max(16, 24 * s);
-    const smallFontSize = Math.max(12, 18 * s);
-    const barWidth = this.scene.hudWidth || this.scene.gameWidth;
+    const columnWidth = this.scene.toolbarWidth;
+    const columnHeight = this.scene.toolbarHeight;
     const padding = 18 * s;
-    const usableWidth = barWidth - padding * 2;
-    const startX = this.scene.hudX || 0;
-    const startY = this.scene.hudY || 0;
+    const fontSize = Math.max(16, 20 * s);
+    const smallFontSize = Math.max(12, 16 * s);
+    const startX = this.scene.rightToolbarOffsetX;
+    const startY = this.scene.toolbarOffsetY;
 
-    const topBar = this.scene.add.container(startX, startY).setDepth(200);
+    // Container principal à droite
+    const rightPanel = this.scene.add.container(startX, startY).setDepth(200);
+    this.topBar = rightPanel; // Garder la référence pour compatibilité
 
-    const bgBar = this.scene.add.graphics();
-    bgBar.fillStyle(0x0f1015, 0.92);
-    bgBar.fillRoundedRect(0, 0, barWidth, UI_HEIGHT, 12);
-    bgBar.lineStyle(2, 0x00ccff, 0.3);
-    bgBar.strokeRoundedRect(0, 0, barWidth, UI_HEIGHT, 12);
-    topBar.add(bgBar);
+    // Fond du panneau
+    const bgPanel = this.scene.add.graphics();
+    bgPanel.fillStyle(0x0f1015, 0.92);
+    bgPanel.fillRoundedRect(0, 0, columnWidth, columnHeight, 14);
+    bgPanel.lineStyle(2, 0x00ccff, 0.35);
+    bgPanel.strokeRoundedRect(0, 0, columnWidth, columnHeight, 14);
+    rightPanel.add(bgPanel);
+    this.bgBar = bgPanel;
 
-    const textConfigs = [
-      { key: "txtMoney", color: "#ffd700", label: "💰", ratio: 0.08 },
-      { key: "txtLives", color: "#ff6666", label: "❤️", ratio: 0.33 },
-      { key: "txtWave", color: "#00ccff", label: "🌊", ratio: 0.58 },
-      { key: "txtTimer", color: "#ffffff", label: "⏱️", ratio: 0.82 },
-    ];
+    // Titre du panneau
+    const title = this.scene.add
+      .text(columnWidth / 2, padding, "INFORMATIONS", {
+        fontSize: `${Math.max(14, 16 * s)}px`,
+        fill: "#9edcff",
+        fontFamily: "Arial",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5, 0);
+    rightPanel.add(title);
 
-    textConfigs.forEach((cfg) => {
-      const x = padding + usableWidth * cfg.ratio;
-      const textObj = this.scene.add
-        .text(x, UI_HEIGHT / 2, "", {
-          fontSize: `${fontSize}px`,
-          fill: cfg.color,
-          fontStyle: "bold",
-          fontFamily: "Arial",
-        })
-        .setOrigin(0.5);
-      topBar.add(textObj);
-      this.scene[cfg.key] = textObj;
-    });
+    // Zone des informations (argent, vies, vague, chrono)
+    const infoStartY = title.y + title.height + padding * 1.5;
+    const infoSpacing = 50 * s;
+    const infoItemHeight = 60 * s;
 
+    // Argent
+    const moneyY = infoStartY;
+    const moneyBg = this.scene.add.graphics();
+    moneyBg.fillStyle(0x1a1a2e, 0.8);
+    moneyBg.fillRoundedRect(padding, moneyY, columnWidth - padding * 2, infoItemHeight, 10);
+    moneyBg.lineStyle(2, 0xffd700, 0.5);
+    moneyBg.strokeRoundedRect(padding, moneyY, columnWidth - padding * 2, infoItemHeight, 10);
+    rightPanel.add(moneyBg);
+
+    this.scene.txtMoney = this.scene.add
+      .text(columnWidth / 2, moneyY + infoItemHeight / 2, "", {
+        fontSize: `${fontSize}px`,
+        fill: "#ffd700",
+        fontStyle: "bold",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5);
+    rightPanel.add(this.scene.txtMoney);
+
+    // Vies
+    const livesY = moneyY + infoItemHeight + padding * 0.8;
+    const livesBg = this.scene.add.graphics();
+    livesBg.fillStyle(0x1a1a2e, 0.8);
+    livesBg.fillRoundedRect(padding, livesY, columnWidth - padding * 2, infoItemHeight, 10);
+    livesBg.lineStyle(2, 0xff6666, 0.5);
+    livesBg.strokeRoundedRect(padding, livesY, columnWidth - padding * 2, infoItemHeight, 10);
+    rightPanel.add(livesBg);
+
+    this.scene.txtLives = this.scene.add
+      .text(columnWidth / 2, livesY + infoItemHeight / 2, "", {
+        fontSize: `${fontSize}px`,
+        fill: "#ff6666",
+        fontStyle: "bold",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5);
+    rightPanel.add(this.scene.txtLives);
+
+    // Vague
+    const waveY = livesY + infoItemHeight + padding * 0.8;
+    const waveBg = this.scene.add.graphics();
+    waveBg.fillStyle(0x1a1a2e, 0.8);
+    waveBg.fillRoundedRect(padding, waveY, columnWidth - padding * 2, infoItemHeight, 10);
+    waveBg.lineStyle(2, 0x00ccff, 0.5);
+    waveBg.strokeRoundedRect(padding, waveY, columnWidth - padding * 2, infoItemHeight, 10);
+    rightPanel.add(waveBg);
+
+    this.scene.txtWave = this.scene.add
+      .text(columnWidth / 2, waveY + infoItemHeight / 2, "", {
+        fontSize: `${fontSize}px`,
+        fill: "#00ccff",
+        fontStyle: "bold",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5);
+    rightPanel.add(this.scene.txtWave);
+
+    // Chrono
+    const timerY = waveY + infoItemHeight + padding * 0.8;
+    const timerBg = this.scene.add.graphics();
+    timerBg.fillStyle(0x1a1a2e, 0.8);
+    timerBg.fillRoundedRect(padding, timerY, columnWidth - padding * 2, infoItemHeight, 10);
+    timerBg.lineStyle(2, 0xffffff, 0.5);
+    timerBg.strokeRoundedRect(padding, timerY, columnWidth - padding * 2, infoItemHeight, 10);
+    rightPanel.add(timerBg);
+
+    this.scene.txtTimer = this.scene.add
+      .text(columnWidth / 2, timerY + infoItemHeight / 2, "", {
+        fontSize: `${fontSize}px`,
+        fill: "#ffffff",
+        fontStyle: "bold",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5);
+    rightPanel.add(this.scene.txtTimer);
+
+    // Zone des boutons en bas
+    const buttonAreaY = columnHeight - padding - 140 * s;
+    const buttonHeight = 50 * s;
+    const buttonSpacing = padding * 0.8;
+    const buttonWidth = (columnWidth - padding * 3) / 2;
+
+    // Bouton Pause
+    const pauseBtnX = padding + buttonWidth / 2;
+    const pauseBtnY = buttonAreaY + buttonHeight / 2;
     this.scene.pauseBtn = this.scene.add
-      .text(barWidth - padding * 2.2, UI_HEIGHT / 2, "⏸️ PAUSE", {
+      .text(pauseBtnX, pauseBtnY, "⏸️ PAUSE", {
         fontSize: `${smallFontSize}px`,
         fill: "#ffaa00",
         backgroundColor: "#1e1e1e",
-        padding: { x: 12 * s, y: 6 * s },
+        padding: { x: 12 * s, y: 8 * s },
         fontFamily: "Arial",
+        fontStyle: "bold",
       })
-      .setOrigin(1, 0.5)
+      .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
       .on("pointerover", () => {
         if (!this.scene.isPaused) {
@@ -85,28 +169,64 @@ export class HUD {
           this.scene.pauseGame();
         }
       });
-    topBar.add(this.scene.pauseBtn);
+    rightPanel.add(this.scene.pauseBtn);
 
-    const quitBtn = this.scene.add
-      .text(barWidth - padding * 0.6, UI_HEIGHT / 2, "QUITTER", {
-        fontSize: `${smallFontSize}px`,
-        fill: "#aaaaaa",
-        backgroundColor: "#1e1e1e",
-        padding: { x: 10 * s, y: 6 * s },
+    // Bouton Lancer Vague (sera créé par BuildToolbar mais on le place ici)
+    const waveBtnX = padding * 2 + buttonWidth + buttonWidth / 2;
+    const waveBtnY = buttonAreaY + buttonHeight / 2;
+    const waveButtonWidth = buttonWidth;
+    const waveButtonHeight = buttonHeight;
+
+    this.scene.waveSection = this.scene.add.container(waveBtnX, waveBtnY);
+    const waveSectionBg = this.scene.add.graphics();
+    waveSectionBg.fillStyle(0x0f0f18, 0.9);
+    waveSectionBg.fillRoundedRect(
+      -waveButtonWidth / 2,
+      -waveButtonHeight / 2,
+      waveButtonWidth,
+      waveButtonHeight,
+      10
+    );
+    waveSectionBg.lineStyle(2, 0x00ff99, 0.6);
+    waveSectionBg.strokeRoundedRect(
+      -waveButtonWidth / 2,
+      -waveButtonHeight / 2,
+      waveButtonWidth,
+      waveButtonHeight,
+      10
+    );
+    this.scene.waveSection.add(waveSectionBg);
+
+    this.scene.waveBtnContainer = this.scene.add.container(0, 0).setDepth(201);
+    this.scene.waveBtnBg = this.scene.add
+      .rectangle(0, 0, waveButtonWidth, waveButtonHeight, 0x111422, 0.92)
+      .setStrokeStyle(3 * s, 0x00ff99, 0.8)
+      .setInteractive({ useHandCursor: true });
+
+    this.scene.waveBtnText = this.scene.add
+      .text(0, 0, "▶ LANCER VAGUE 1", {
+        fontSize: `${Math.max(14, 16 * s)}px`,
+        fill: "#ffffff",
+        fontStyle: "bold",
         fontFamily: "Arial",
       })
-      .setOrigin(1, 0.5)
-      .setInteractive({ useHandCursor: true })
-      .on("pointerover", () => quitBtn.setColor("#ffffff"))
-      .on("pointerout", () => quitBtn.setColor("#aaaaaa"))
-      .on("pointerdown", () => this.scene.scene.start("MainMenuScene"));
-    topBar.add(quitBtn);
+      .setOrigin(0.5);
 
-    this.topBar = topBar;
-    this.bgBar = bgBar;
-    this.barWidth = barWidth;
+    this.scene.waveBtnContainer.add([
+      this.scene.waveBtnBg,
+      this.scene.waveBtnText,
+    ]);
+
+    this.scene.waveSection.add(this.scene.waveBtnContainer);
+    this.scene.waveBtnBg
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => this.scene.startWave());
+
+    rightPanel.add(this.scene.waveSection);
+
+    this.barWidth = columnWidth;
     this.basePadding = padding;
-    this.UI_HEIGHT = UI_HEIGHT;
+    this.UI_HEIGHT = columnHeight;
     this.fontSize = fontSize;
     this.smallFontSize = smallFontSize;
 
@@ -118,41 +238,22 @@ export class HUD {
     if (!this.topBar || !this.bgBar) return;
 
     const s = this.scene.scaleFactor;
-    const barWidth = this.scene.hudWidth || this.scene.gameWidth;
-    const UI_HEIGHT = CONFIG.UI_HEIGHT * s;
+    const columnWidth = this.scene.toolbarWidth;
+    const columnHeight = this.scene.toolbarHeight;
     const padding = 18 * s;
-    const usableWidth = barWidth - padding * 2;
+    const startX = this.scene.rightToolbarOffsetX;
+    const startY = this.scene.toolbarOffsetY;
 
-    this.topBar.setPosition(this.scene.hudX || 0, this.scene.hudY || 0);
+    this.topBar.setPosition(startX, startY);
 
     this.bgBar.clear();
     this.bgBar.fillStyle(0x0f1015, 0.92);
-    this.bgBar.fillRoundedRect(0, 0, barWidth, UI_HEIGHT, 12);
-    this.bgBar.lineStyle(2, 0x00ccff, 0.3);
-    this.bgBar.strokeRoundedRect(0, 0, barWidth, UI_HEIGHT, 12);
+    this.bgBar.fillRoundedRect(0, 0, columnWidth, columnHeight, 14);
+    this.bgBar.lineStyle(2, 0x00ccff, 0.35);
+    this.bgBar.strokeRoundedRect(0, 0, columnWidth, columnHeight, 14);
 
-    const textObjects = [
-      this.scene.txtMoney,
-      this.scene.txtLives,
-      this.scene.txtWave,
-      this.scene.txtTimer,
-    ];
-    const ratios = [0.08, 0.33, 0.58, 0.82];
-    textObjects.forEach((txt, index) => {
-      if (txt) {
-        txt.setPosition(
-          padding + usableWidth * ratios[index],
-          UI_HEIGHT / 2
-        );
-      }
-    });
-
-    if (this.scene.pauseBtn) {
-      this.scene.pauseBtn.setPosition(
-        barWidth - padding * 2.2,
-        UI_HEIGHT / 2
-      );
-    }
+    // Les positions des éléments sont calculées relativement au container
+    // donc elles restent correctes même après repositionnement
   }
 
   update(money, lives, currentWave, totalWaves) {
@@ -160,7 +261,7 @@ export class HUD {
     if (this.scene.txtLives) this.scene.txtLives.setText(`❤️ ${lives}`);
 
     if (this.scene.txtWave) {
-      this.scene.txtWave.setText(`🌊 VAGUE ${currentWave}/${totalWaves}`);
+      this.scene.txtWave.setText(`🌊 ${currentWave}/${totalWaves}`);
     }
   }
 
