@@ -261,4 +261,31 @@ export class BuildToolbar {
       );
     });
   }
+
+  reposition() {
+    if (!this.leftColumn || !this.leftBg) return;
+
+    const columnWidth = this.scene.toolbarWidth;
+    const columnHeight = this.scene.toolbarHeight;
+
+    this.leftColumn.setPosition(
+      this.scene.toolbarOffsetX,
+      this.scene.toolbarOffsetY
+    );
+
+    // Redessiner le fond pour la nouvelle largeur/hauteur
+    this.leftBg.clear();
+    this.leftBg.fillStyle(0x0a0a10, 0.92);
+    this.leftBg.fillRoundedRect(0, 0, columnWidth, columnHeight, 14);
+    this.leftBg.lineStyle(2, 0x00ccff, 0.35);
+    this.leftBg.strokeRoundedRect(0, 0, columnWidth, columnHeight, 14);
+
+    // Mettre à jour le cache des limites pour la détection des clics
+    this.scene.leftToolbarBounds = {
+      x: this.scene.toolbarOffsetX,
+      y: this.scene.toolbarOffsetY,
+      width: columnWidth,
+      height: columnHeight,
+    };
+  }
 }

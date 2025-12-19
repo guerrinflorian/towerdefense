@@ -186,8 +186,52 @@ export class GameScene extends Phaser.Scene {
 
   // Gérer le redimensionnement
   handleResize() {
-    // On reconstruit proprement la scène pour garder un layout carré et centré
-    this.scene.restart({ level: this.levelID });
+    // Mettre à jour les dimensions internes pour les prochains placements UI/texte
+    this.gameWidth = this.scale.width;
+    this.gameHeight = this.scale.height;
+
+    // Recalculer uniquement les métriques de layout qui dépendent de la taille de l'écran
+    // sans recréer la scène ni modifier le scaleFactor (pour garder la map et les entités en place)
+    const padding = Math.max(
+      12,
+      Math.min(this.gameWidth, this.gameHeight) * 0.015
+    );
+    const sidebarWidth = Math.max(
+      220,
+      Math.min(340, this.gameWidth * 0.22)
+    );
+    this.toolbarWidth = sidebarWidth;
+    this.toolbarHeight = 15 * CONFIG.TILE_SIZE * this.scaleFactor;
+    this.toolbarOffsetX = padding;
+    this.rightToolbarOffsetX = this.gameWidth - sidebarWidth - padding;
+    // Garder le même Y d'origine pour éviter tout décalage brutal de la map
+    this.toolbarOffsetY = this.mapOffsetY ?? padding;
+
+    this.leftToolbarBounds = {
+      x: this.toolbarOffsetX,
+      y: this.toolbarOffsetY,
+      width: this.toolbarWidth,
+      height: this.toolbarHeight,
+    };
+    this.rightToolbarBounds = {
+      x: this.rightToolbarOffsetX,
+      y: this.toolbarOffsetY,
+      width: this.toolbarWidth,
+      height: this.toolbarHeight,
+    };
+
+    // Replacer les éléments UI afin qu'ils restent ancrés aux bords
+    if (this.uiManager?.hud?.reposition) {
+      this.uiManager.hud.reposition();
+    }
+    if (this.uiManager?.buildToolbar?.reposition) {
+      this.uiManager.buildToolbar.reposition();
+    }
+
+    // Recentrer le bouton de reprise si visible
+    if (this.resumeBtn) {
+      this.resumeBtn.setPosition(this.gameWidth / 2, this.gameHeight / 2);
+    }
   }
 
   update(time, delta) {
