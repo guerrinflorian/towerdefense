@@ -1,5 +1,7 @@
 import { Enemy } from "../../objects/Enemy.js";
 import { SpawnWaveControls } from "./SpawnWaveControls.js";
+import { CONFIG } from "../../config/settings.js";
+import { recordLevelCompletion } from "../../services/authManager.js";
 
 export class WaveManager {
   constructor(scene) {
@@ -193,10 +195,17 @@ export class WaveManager {
     this.scene.spawnControls = null;
     this.spawnControls = null;
 
-    const currentSaved = parseInt(localStorage.getItem("levelReached")) || 1;
-    if (this.scene.levelID >= currentSaved) {
-      localStorage.setItem("levelReached", this.scene.levelID + 1);
-    }
+    const completionPayload = {
+      levelId: this.scene.levelID,
+      completionTimeMs: Math.round(this.scene.elapsedTimeMs || 0),
+      livesRemaining: this.scene.lives,
+      wavesCompleted: this.scene.currentWaveIndex + 1,
+      moneyEarned: this.scene.money,
+      starsEarned: this.scene.lives === CONFIG.STARTING_LIVES ? 3 : 1,
+      isPerfectRun: this.scene.lives === CONFIG.STARTING_LIVES,
+    };
+
+    recordLevelCompletion(completionPayload).catch(() => {});
 
     const bg = this.scene.add
       .rectangle(
