@@ -17,6 +17,14 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
 
+  fps: {
+    target: 60,
+    min: 30,
+    forceSetTimeOut: true,
+    pauseOnBlur: false,
+    pauseOnHidden: false,
+  },
+
   input: { 
     activePointers: 3,
     smoothFactor: 0,

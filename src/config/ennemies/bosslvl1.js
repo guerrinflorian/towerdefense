@@ -3,6 +3,7 @@ export const bosslvl1 = {
   speed: 11,
   hp: 42000,
   reward: 1000,
+  playerDamage: 20,
   color: 0x222222, // Noir/Rouge
   damage: 70, // Dégâts par attaque (très fort)
   attackSpeed: 1500, // Vitesse d'attaque en ms

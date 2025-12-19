@@ -3,6 +3,7 @@ export const tortue_dragon = {
   speed: 35,
   hp: 2800,
   reward: 200,
+  playerDamage: 6,
   color: 0x4a5d23, // Vert foncé carapace
   damage: 25,
   attackSpeed: 1000,

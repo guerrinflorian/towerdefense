@@ -6,6 +6,7 @@ export const slime_medium = {
   speed: 40,
   hp: 800,
   reward: 50,
+  playerDamage: 2,
   color: 0x44ff44, // Vert moyen
   damage: 12,
   attackSpeed: 1000,

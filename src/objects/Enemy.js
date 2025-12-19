@@ -15,6 +15,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.maxHp = this.hp;
     this.speed = this.stats.speed || 50;
     this.attackDamage = this.stats.damage || 10;
+    this.playerDamage = this.stats.playerDamage || 1;
     this.attackSpeed = this.stats.attackSpeed || 1000;
     this.attackRange = this.stats.attackRange || 30;
     this.isRanged = this.stats.isRanged || false;
@@ -104,6 +105,7 @@ export class Enemy extends Phaser.GameObjects.Container {
 
     if (this.hpTooltip && this.hpTooltip.active) {
       this.hpTooltip.setPosition(this.x, this.y - 60);
+      this.refreshHpTooltip();
     }
 
     if (this.stats.onUpdateAnimation) {
@@ -199,7 +201,7 @@ export class Enemy extends Phaser.GameObjects.Container {
 
   reachEnd() {
     if (this.active && this.scene) {
-      if (this.scene.takeDamage) this.scene.takeDamage();
+      if (this.scene.takeDamage) this.scene.takeDamage(this.playerDamage);
       // On utilise destroy() à la fin de la frame pour éviter les erreurs de lecture
       this.destroy();
     }
@@ -390,6 +392,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.hpFill.width = 40 * pct;
     const color = pct < 0.3 ? 0xff0000 : pct < 0.6 ? 0xffa500 : 0x00ff00;
     this.hpFill.fillColor = color;
+    this.refreshHpTooltip();
   }
 
   die() {
@@ -424,7 +427,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   showHpTooltip() {
     if (this.hpTooltip || !this.scene) return;
     this.hpTooltip = this.scene.add
-      .text(this.x, this.y - 60, `${Math.ceil(this.hp)} HP`, {
+      .text(this.x, this.y - 60, this.getHpTooltipText(), {
         fontSize: "14px",
         backgroundColor: "#000",
         padding: 3,
@@ -437,6 +440,18 @@ export class Enemy extends Phaser.GameObjects.Container {
     if (this.hpTooltip) {
       this.hpTooltip.destroy();
       this.hpTooltip = null;
+    }
+  }
+
+  getHpTooltipText() {
+    return `${Math.max(0, Math.ceil(this.hp))} / ${Math.ceil(
+      this.maxHp
+    )} HP`;
+  }
+
+  refreshHpTooltip() {
+    if (this.hpTooltip) {
+      this.hpTooltip.setText(this.getHpTooltipText());
     }
   }
 

@@ -3,6 +3,7 @@ export const tank = {
   speed: 38,
   hp: 2650,
   reward: 140,
+  playerDamage: 6,
   color: 0x224466, // Bleu acier foncé
   damage: 28, // Dégâts par attaque (très fort)
   attackSpeed: 1200, // Vitesse d'attaque en ms (lent)
