@@ -13,22 +13,22 @@
         padding: 0;
         box-sizing: border-box;
       }
-
-      html, body {
+      html,
+      body {
         width: 100%;
         height: 100%;
         background-color: #050505;
         overflow: hidden;
         touch-action: none;
-        
-        /* Permet d'empiler le jeu et tes éventuels autres éléments */
+
         display: flex;
-        flex-direction: column; 
+        flex-direction: column;
       }
 
       /* Le conteneur du jeu */
       #game-container {
-        flex: 1; 
+        position: relative;
+        flex: 1;
         width: 100%;
         height: 100%;
         position: relative;
@@ -44,7 +44,52 @@
         display: block;
         margin: 0 !important;
         padding: 0;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      #orientation-warning {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: radial-gradient(circle at 30% 30%, #1a1a1a 0, #050505 55%);
+        color: #ffffff;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+      }
+
+      #orientation-warning.visible {
+        display: flex;
+      }
+
+      #orientation-warning .card {
+        max-width: 460px;
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: linear-gradient(145deg, rgba(32, 32, 32, 0.95), rgba(12, 12, 12, 0.95));
+        box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45);
+        padding: 24px;
+      }
+
+      #orientation-warning h1 {
+        font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+        font-size: 20px;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+      }
+
+      #orientation-warning p {
+        font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+        line-height: 1.6;
+        color: #cfcfcf;
+      }
+
+      #orientation-warning .icon {
+        font-size: 44px;
+        margin-bottom: 12px;
       }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
@@ -52,6 +97,33 @@
   <body>
     <div id="game-container"></div>
 
+    <div id="orientation-warning" aria-live="polite">
+      <div class="card">
+        <div class="icon">📱↔️</div>
+        <h1>Tourne ton écran</h1>
+        <p>
+          Le jeu se joue en mode paysage pour profiter d'une grande carte carrée.
+          Passe ton téléphone ou ta tablette à l'horizontale pour continuer.
+        </p>
+      </div>
+    </div>
+
     <script type="module" src="./src/main.js"></script>
+    <script>
+      const warning = document.getElementById("orientation-warning");
+
+      function toggleOrientationWarning() {
+        const isPortrait = window.innerHeight > window.innerWidth;
+        if (warning) {
+          warning.classList.toggle("visible", isPortrait);
+        }
+      }
+
+      toggleOrientationWarning();
+      window.addEventListener("resize", toggleOrientationWarning);
+      window.addEventListener("orientationchange", () => {
+        setTimeout(toggleOrientationWarning, 150);
+      });
+    </script>
   </body>
 </html>
