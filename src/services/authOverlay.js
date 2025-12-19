@@ -7,122 +7,114 @@ import {
   registerUser,
 } from "./authManager.js";
 
-const overlay = document.getElementById("auth-overlay");
-const loginForm = document.getElementById("login-form");
-const registerForm = document.getElementById("register-form");
-const switchToRegister = document.getElementById("show-register");
-const switchToLogin = document.getElementById("show-login");
-const loginErrorBox = document.getElementById("auth-error");
-const registerErrorBox = document.getElementById("auth-error-register");
-const authWelcome = document.getElementById("auth-welcome");
+// --- Sélecteurs ---
+const UI = {
+  overlay: document.getElementById("auth-overlay"),
+  login: {
+    form: document.getElementById("login-form"),
+    card: document.getElementById("login-card"),
+    error: document.getElementById("auth-error"),
+    switchBtn: document.getElementById("show-login"),
+  },
+  register: {
+    form: document.getElementById("register-form"),
+    card: document.getElementById("register-card"),
+    error: document.getElementById("auth-error-register"),
+    switchBtn: document.getElementById("show-register"),
+  },
+  welcome: document.getElementById("auth-welcome"),
+};
 
-function showOverlay() {
-  overlay?.classList.remove("hidden");
-}
+// --- Utilitaires UI ---
+const toggleVisible = (el, isVisible) => el?.classList.toggle("hidden", !isVisible);
 
-function hideOverlay() {
-  overlay?.classList.add("hidden");
-}
+const toggleGameBlock = (block) => {
+  const gameContainer = document.getElementById("game-container");
+  if (gameContainer) {
+    gameContainer.classList.toggle("blocked", block);
+  }
+};
 
+const updateError = (errorBox, message = "") => {
+  if (!errorBox) return;
+  errorBox.textContent = message;
+  toggleVisible(errorBox, !!message);
+};
+
+const clearAllErrors = () => {
+  updateError(UI.login.error);
+  updateError(UI.register.error);
+};
+
+// --- Actions ---
 function renderWelcome() {
-  if (!authWelcome) return;
+  if (!UI.welcome) return;
   const profile = getProfile();
-  if (profile?.player) {
-    authWelcome.textContent = `Connecté en tant que ${profile.player.username}`;
-  } else {
-    authWelcome.textContent = "";
-  }
+  UI.welcome.textContent = profile?.player ? `Connecté en tant que ${profile.player.username}` : "";
 }
 
-function displayError(message, { isRegister } = {}) {
-  const target = isRegister ? registerErrorBox : loginErrorBox;
-  if (!target) return;
-  if (message) {
-    target.textContent = message;
-    target.classList.remove("hidden");
-  } else {
-    target.textContent = "";
-    target.classList.add("hidden");
-  }
-}
-
-async function handleLogin(event) {
+async function processAuth(action, event, errorBox) {
   event.preventDefault();
-  displayError("");
-  const formData = new FormData(loginForm);
-  const identifier = formData.get("identifier");
-  const password = formData.get("password");
+  updateError(errorBox, ""); // Reset erreur
+
+  const data = Object.fromEntries(new FormData(event.target));
 
   try {
-    await loginUser({ identifier, password });
+    await action(data);
     renderWelcome();
-    hideOverlay();
+    toggleVisible(UI.overlay, false);
+    toggleGameBlock(false);
     window.dispatchEvent(new CustomEvent("auth:profile-updated"));
   } catch (error) {
-    displayError(handleAuthError(error));
+    updateError(errorBox, handleAuthError(error));
   }
 }
 
-async function handleRegister(event) {
-  event.preventDefault();
-  displayError("", { isRegister: true });
-  const formData = new FormData(registerForm);
-  const username = formData.get("username");
-  const email = formData.get("email");
-  const password = formData.get("password");
-
-  try {
-    await registerUser({ username, email, password });
-    renderWelcome();
-    hideOverlay();
-    window.dispatchEvent(new CustomEvent("auth:profile-updated"));
-  } catch (error) {
-    displayError(handleAuthError(error), { isRegister: true });
-  }
+function switchForm(showRegister) {
+  toggleVisible(UI.login.card, !showRegister);
+  toggleVisible(UI.register.card, showRegister);
+  clearAllErrors();
 }
 
-function toggleForms(showRegisterForm) {
-  document
-    .getElementById("login-card")
-    ?.classList.toggle("hidden", showRegisterForm);
-  document
-    .getElementById("register-card")
-    ?.classList.toggle("hidden", !showRegisterForm);
-  displayError("");
-  displayError("", { isRegister: true });
-}
-
+// --- API Publique ---
 export function setupAuthOverlay() {
-  if (loginForm) loginForm.addEventListener("submit", handleLogin);
-  if (registerForm) registerForm.addEventListener("submit", handleRegister);
-  switchToRegister?.addEventListener("click", (e) => {
-    e.preventDefault();
-    toggleForms(true);
-  });
-  switchToLogin?.addEventListener("click", (e) => {
-    e.preventDefault();
-    toggleForms(false);
-  });
+  // Events Submits
+  UI.login.form?.addEventListener("submit", (e) => processAuth(loginUser, e, UI.login.error));
+  UI.register.form?.addEventListener("submit", (e) => processAuth(registerUser, e, UI.register.error));
 
+  // Events Toggle
+  UI.register.switchBtn?.addEventListener("click", (e) => (e.preventDefault(), switchForm(true)));
+  UI.login.switchBtn?.addEventListener("click", (e) => (e.preventDefault(), switchForm(false)));
+
+  // État Initial
   if (!isAuthenticated()) {
-    showOverlay();
+    toggleVisible(UI.overlay, true);
+    toggleGameBlock(true);
   } else {
     ensureProfileLoaded()
-      .then(() => hideOverlay())
-      .catch(() => showOverlay());
+      .then(() => {
+        toggleVisible(UI.overlay, false);
+        toggleGameBlock(false);
+      })
+      .catch(() => {
+        toggleVisible(UI.overlay, true);
+        toggleGameBlock(true);
+      });
   }
 
   renderWelcome();
 }
 
-export function requireAuth() {
+export const requireAuth = () => {
   if (!isAuthenticated()) {
-    showOverlay();
+    toggleVisible(UI.overlay, true);
+    toggleGameBlock(true);
     return false;
   }
   return true;
-}
+};
 
-export function showAuth() {
-  showOverlay();
-}
+export const showAuth = () => {
+  toggleVisible(UI.overlay, true);
+  toggleGameBlock(true);
+};
