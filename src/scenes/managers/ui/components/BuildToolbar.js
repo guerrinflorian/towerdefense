@@ -10,94 +10,72 @@ export class BuildToolbar {
     this.inputManager = inputManager;
     this.toolbarButtons = [];
     this.toolbarTooltip = null;
+    this.leftColumn = null;
+    this.rightColumn = null;
+    this.leftBg = null;
+    this.rightBg = null;
   }
 
   create() {
     const toolbarY = this.scene.toolbarOffsetY;
-    const itemSize = 80 * this.scene.scaleFactor;
-    const itemSpacing = 90 * this.scene.scaleFactor;
-    const toolbarHeight = 120 * this.scene.scaleFactor;
-    const margin = 20 * this.scene.scaleFactor;
+    const columnWidth = this.scene.toolbarWidth;
+    const columnHeight = this.scene.toolbarHeight;
+    const padding = 18 * this.scene.scaleFactor;
+    const itemSize = 82 * this.scene.scaleFactor;
+    const itemSpacing = Math.max(110 * this.scene.scaleFactor, itemSize + 24);
 
-    const spellSectionWidth = itemSize + margin * 2;
-    const turretsSectionWidth = 5 * itemSpacing;
-    const waveButtonWidth = 300 * this.scene.scaleFactor;
-    const waveButtonHeight = 60 * this.scene.scaleFactor;
-
-    const totalWidth =
-      spellSectionWidth + turretsSectionWidth + waveButtonWidth + margin * 4;
-    const startX = (this.scene.gameWidth - totalWidth) / 2;
-
-    const spellSectionX = startX + margin;
-    this.scene.spellSection = this.scene.add
-      .container(spellSectionX, toolbarY)
+    // Colonne gauche : sorts + contrôles de vague
+    this.leftColumn = this.scene.add
+      .container(this.scene.toolbarOffsetX, toolbarY)
       .setDepth(150);
-    const spellBg = this.scene.add.graphics();
-    spellBg.fillStyle(0x000000, 0.9);
-    spellBg.fillRoundedRect(0, 0, spellSectionWidth, toolbarHeight, 10);
-    spellBg.lineStyle(3, 0xffffff, 0.6);
-    spellBg.strokeRoundedRect(0, 0, spellSectionWidth, toolbarHeight, 10);
-    this.scene.spellSection.add(spellBg);
+    this.leftBg = this.scene.add.graphics();
+    this.leftBg.fillStyle(0x0a0a10, 0.92);
+    this.leftBg.fillRoundedRect(0, 0, columnWidth, columnHeight, 14);
+    this.leftBg.lineStyle(2, 0x00ccff, 0.35);
+    this.leftBg.strokeRoundedRect(0, 0, columnWidth, columnHeight, 14);
+    this.leftColumn.add(this.leftBg);
 
-    this.createLightningSpellButton(
-      itemSize,
-      itemSize / 2 + margin,
-      toolbarHeight,
-      spellSectionX
-    );
+    const leftTitle = this.scene.add
+      .text(padding, padding, "ACTIONS", {
+        fontSize: `${Math.max(14, 16 * this.scene.scaleFactor)}px`,
+        fill: "#9edcff",
+        fontFamily: "Arial",
+        fontStyle: "bold",
+      })
+      .setOrigin(0, 0);
+    this.leftColumn.add(leftTitle);
 
-    const turretsSectionX = startX + spellSectionWidth + margin * 2;
-    this.scene.buildToolbar = this.scene.add
-      .container(turretsSectionX, toolbarY)
-      .setDepth(150);
-    const toolbarBg = this.scene.add.graphics();
-    toolbarBg.fillStyle(0x000000, 0.9);
-    toolbarBg.fillRoundedRect(0, 0, turretsSectionWidth, toolbarHeight, 10);
-    toolbarBg.lineStyle(3, 0xffffff, 0.6);
-    toolbarBg.strokeRoundedRect(0, 0, turretsSectionWidth, toolbarHeight, 10);
-    this.scene.buildToolbar.add(toolbarBg);
+    const waveButtonWidth = columnWidth - padding * 2;
+    const waveButtonHeight = 66 * this.scene.scaleFactor;
+    const waveAreaY = leftTitle.y + leftTitle.height + padding * 0.8;
 
-    this.toolbarButtons = createTurretButtons(
-      this,
-      turretsSectionWidth,
-      toolbarHeight,
-      itemSize,
-      itemSpacing
-    );
-
-    const waveSectionX =
-      startX + spellSectionWidth + turretsSectionWidth + margin * 3;
-    const wy = this.scene.toolbarOffsetY + toolbarHeight / 2;
-
-    this.scene.waveSection = this.scene.add
-      .container(waveSectionX, this.scene.toolbarOffsetY)
-      .setDepth(150);
+    this.scene.waveSection = this.scene.add.container(padding, waveAreaY);
     const waveSectionBg = this.scene.add.graphics();
-    waveSectionBg.fillStyle(0x000000, 0.9);
+    waveSectionBg.fillStyle(0x0f0f18, 0.9);
     waveSectionBg.fillRoundedRect(
       0,
       0,
-      waveButtonWidth + margin * 2,
-      toolbarHeight,
-      10
+      waveButtonWidth,
+      waveButtonHeight,
+      12
     );
-    waveSectionBg.lineStyle(3, 0xffffff, 0.6);
+    waveSectionBg.lineStyle(2, 0x00ff99, 0.4);
     waveSectionBg.strokeRoundedRect(
       0,
       0,
-      waveButtonWidth + margin * 2,
-      toolbarHeight,
-      10
+      waveButtonWidth,
+      waveButtonHeight,
+      12
     );
     this.scene.waveSection.add(waveSectionBg);
 
     this.scene.waveBtnContainer = this.scene.add
-      .container(margin + waveButtonWidth / 2, toolbarHeight / 2)
+      .container(waveButtonWidth / 2, waveButtonHeight / 2)
       .setDepth(151);
 
     this.scene.waveBtnBg = this.scene.add
-      .rectangle(0, 0, waveButtonWidth, waveButtonHeight, 0x000000, 0.8)
-      .setStrokeStyle(3 * this.scene.scaleFactor, 0x00ff00);
+      .rectangle(0, 0, waveButtonWidth, waveButtonHeight, 0x111422, 0.92)
+      .setStrokeStyle(3 * this.scene.scaleFactor, 0x00ff99, 0.8);
 
     this.scene.waveBtnText = this.scene.add
       .text(0, 0, "▶ LANCER VAGUE 1", {
@@ -119,6 +97,78 @@ export class BuildToolbar {
       .setInteractive({ useHandCursor: true })
       .on("pointerdown", () => this.scene.startWave());
 
+    this.leftColumn.add(this.scene.waveSection);
+
+    const spellAreaY = waveAreaY + waveButtonHeight + padding * 1.2;
+    const spellPanelHeight = itemSize + padding * 1.2;
+
+    this.scene.spellSection = this.scene.add
+      .container(padding, spellAreaY)
+      .setDepth(150);
+    const spellBg = this.scene.add.graphics();
+    spellBg.fillStyle(0x0f0f18, 0.9);
+    spellBg.fillRoundedRect(0, 0, waveButtonWidth, spellPanelHeight, 12);
+    spellBg.lineStyle(2, 0x7dd6ff, 0.35);
+    spellBg.strokeRoundedRect(0, 0, waveButtonWidth, spellPanelHeight, 12);
+    this.scene.spellSection.add(spellBg);
+
+    const lightningY = spellPanelHeight / 2;
+    this.createLightningSpellButton({
+      itemSize,
+      posX: waveButtonWidth / 2,
+      posY: lightningY,
+      targetContainer: this.scene.spellSection,
+    });
+
+    this.leftColumn.add(this.scene.spellSection);
+
+    // Colonne droite : tourelles
+    this.scene.buildToolbar = this.scene.add
+      .container(this.scene.rightToolbarOffsetX, toolbarY)
+      .setDepth(150);
+    this.rightBg = this.scene.add.graphics();
+    this.rightBg.fillStyle(0x0a0a10, 0.92);
+    this.rightBg.fillRoundedRect(0, 0, columnWidth, columnHeight, 14);
+    this.rightBg.lineStyle(2, 0x00ccff, 0.35);
+    this.rightBg.strokeRoundedRect(0, 0, columnWidth, columnHeight, 14);
+    this.scene.buildToolbar.add(this.rightBg);
+
+    const towerTitle = this.scene.add
+      .text(padding, padding, "TOURELLES", {
+        fontSize: `${Math.max(14, 16 * this.scene.scaleFactor)}px`,
+        fill: "#9edcff",
+        fontFamily: "Arial",
+        fontStyle: "bold",
+      })
+      .setOrigin(0, 0);
+    this.scene.buildToolbar.add(towerTitle);
+
+    const gridStartY = towerTitle.y + towerTitle.height + padding * 0.8;
+    const gridHeight = columnHeight - gridStartY - padding;
+    const gridWidth = columnWidth - padding * 2;
+    const columns = 2;
+    const rows = Math.ceil(5 / columns);
+    const verticalSpacing = Math.min(
+      gridHeight / rows,
+      itemSpacing + padding * 0.5
+    );
+
+    this.toolbarButtons = createTurretButtons(
+      this,
+      gridWidth,
+      gridHeight,
+      itemSize,
+      verticalSpacing,
+      {
+        startX: padding + gridWidth / (columns * 2),
+        startY: gridStartY + itemSize / 2,
+        columns: columns,
+        padding,
+        gridWidth,
+        verticalSpacing,
+      }
+    );
+
     this.updateToolbarCounts();
   }
 
@@ -126,14 +176,12 @@ export class BuildToolbar {
     showToolbarTooltip(this, btnContainer, description);
   }
 
-  createLightningSpellButton(itemSize, xOffset, toolbarHeight, sectionX) {
-    const x = xOffset;
-    const y = toolbarHeight / 2;
+  createLightningSpellButton({ itemSize, posX, posY, targetContainer }) {
+    const x = posX;
+    const y = posY;
+    const container = targetContainer || this.scene.spellSection;
 
-    const btnContainer = this.scene.add.container(
-      sectionX + x,
-      this.scene.toolbarOffsetY + y
-    );
+    const btnContainer = this.scene.add.container(x, y);
     btnContainer.setDepth(151);
 
     const btnBg = this.scene.add.rectangle(
@@ -196,6 +244,10 @@ export class BuildToolbar {
       cooldownMask: cooldownMask,
       cooldownText: cooldownText,
     });
+
+    if (container) {
+      container.add(btnContainer);
+    }
   }
 
   drawTurretPreview(container, config) {
@@ -249,13 +301,16 @@ export class BuildToolbar {
   }
 
   isPointerOnToolbar(pointer) {
-    if (!this.scene.buildToolbar) return false;
+    const bounds = [this.scene.leftToolbarBounds, this.scene.rightToolbarBounds];
 
-    const toolbarY = this.scene.toolbarOffsetY;
-    const toolbarHeight = 120 * this.scene.scaleFactor;
-
-    return (
-      pointer.worldY >= toolbarY && pointer.worldY <= toolbarY + toolbarHeight
-    );
+    return bounds.some((b) => {
+      if (!b) return false;
+      return (
+        pointer.worldX >= b.x &&
+        pointer.worldX <= b.x + b.width &&
+        pointer.worldY >= b.y &&
+        pointer.worldY <= b.y + b.height
+      );
+    });
   }
 }
