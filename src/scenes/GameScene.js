@@ -123,6 +123,7 @@ export class GameScene extends Phaser.Scene {
 
     this.uiManager.createUI();
     this.uiManager.updateTimer(this.elapsedTimeMs);
+    this.updateUI(); // Initialiser l'affichage des vagues
 
     this.inputManager.setHero(this.hero);
     this.inputManager.setupInputHandlers();
@@ -139,17 +140,20 @@ export class GameScene extends Phaser.Scene {
     const padding = Math.max(12, Math.min(this.gameWidth, this.gameHeight) * 0.015);
     const sidebarWidth = Math.max(220, Math.min(340, this.gameWidth * 0.22));
 
-    // Espace central disponible pour la carte carrée
-    const usableWidth = Math.max(this.gameWidth - 2 * sidebarWidth - padding * 2, mapSize);
+    // Espace central disponible pour la carte carrée (entre les deux sidebars)
+    const leftSidebarEnd = padding + sidebarWidth;
+    const rightSidebarStart = this.gameWidth - sidebarWidth - padding;
+    const centerSpaceWidth = rightSidebarStart - leftSidebarEnd;
     const usableHeight = this.gameHeight - padding * 2;
 
     const scaleByHeight = usableHeight / mapSize;
-    const scaleByWidth = usableWidth / mapSize;
+    const scaleByWidth = centerSpaceWidth / mapSize;
     this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
 
     this.mapPixelSize = mapSize * this.scaleFactor;
-    this.mapOffsetX =
-      padding + sidebarWidth + (usableWidth - this.mapPixelSize) / 2;
+    
+    // Centrer la map dans l'espace entre les deux sidebars
+    this.mapOffsetX = leftSidebarEnd + (centerSpaceWidth - this.mapPixelSize) / 2;
     this.mapOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
 
     // Stocker les offsets pour utilisation dans createMap

@@ -3,8 +3,8 @@ export const sniper = {
   name: "Sniper",
   cost: 270,
   range: 160, // Très longue portée
-  damage: 150, // Dégâts massifs
-  rate: 2500, // Tir très lent
+  damage: 158, // Dégâts massifs
+  rate: 2200, // Tir très lent
   color: 0x44ff44, // Vert fluo (interface)
   maxLevel: 3,
   description: "Tourelle de précision avec dégâts massifs et très longue portée.\n\n✅ Avantages:\n• Dégâts énormes par tir\n• Portée exceptionnelle\n• Idéal contre les ennemis résistants\n\n❌ Inconvénients:\n• Cadence de tir très lente\n• Coût élevé\n• Moins efficace contre les groupes",

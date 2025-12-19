@@ -521,7 +521,7 @@ const grunt = {
     speed: 62,
     hp: 100,
     reward: 15,
-    playerDamage: 2,
+    playerDamage: 1,
     color: 0x558844,
     damage: 8,
     attackSpeed: 800,
@@ -612,11 +612,11 @@ parcelHelpers.export(exports, "runner", ()=>runner);
 const runner = {
     name: "Scout",
     speed: 205,
-    hp: 112,
+    hp: 105,
     reward: 20,
-    playerDamage: 2,
+    playerDamage: 1,
     color: 0xffd166,
-    damage: 14,
+    damage: 8,
     attackSpeed: 600,
     scale: 1,
     onDraw: (scene, container, color, enemyInstance)=>{
@@ -670,7 +670,7 @@ const tank = {
     speed: 38,
     hp: 2650,
     reward: 140,
-    playerDamage: 6,
+    playerDamage: 4,
     color: 0x224466,
     damage: 28,
     attackSpeed: 1200,
@@ -732,7 +732,7 @@ const shield = {
     speed: 65,
     hp: 550,
     reward: 65,
-    playerDamage: 4,
+    playerDamage: 2,
     color: 0x00aabb,
     damage: 12,
     attackSpeed: 900,
@@ -799,8 +799,8 @@ const machine_gun = {
     name: "Mitrailleuse",
     cost: 90,
     range: 95,
-    damage: 10,
-    rate: 240,
+    damage: 9,
+    rate: 290,
     color: 0x4488ff,
     maxLevel: 3,
     description: "Tourelle polyvalente avec cadence de tir tr\xe8s \xe9lev\xe9e.\n\n\u2705 Avantages:\n\u2022 Cadence de tir rapide\n\u2022 D\xe9g\xe2ts constants\n\u2022 Port\xe9e correcte\n\n\u274C Inconv\xe9nients:\n\u2022 D\xe9g\xe2ts par tir faibles\n\u2022 Moins efficace contre les ennemis blind\xe9s",
@@ -931,8 +931,8 @@ const sniper = {
     name: "Sniper",
     cost: 270,
     range: 160,
-    damage: 150,
-    rate: 2500,
+    damage: 158,
+    rate: 2200,
     color: 0x44ff44,
     maxLevel: 3,
     description: "Tourelle de pr\xe9cision avec d\xe9g\xe2ts massifs et tr\xe8s longue port\xe9e.\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts \xe9normes par tir\n\u2022 Port\xe9e exceptionnelle\n\u2022 Id\xe9al contre les ennemis r\xe9sistants\n\n\u274C Inconv\xe9nients:\n\u2022 Cadence de tir tr\xe8s lente\n\u2022 Co\xfbt \xe9lev\xe9\n\u2022 Moins efficace contre les groupes",
@@ -1108,8 +1108,8 @@ const cannon = {
     key: "cannon",
     name: "Mortier",
     cost: 180,
-    range: 115,
-    damage: 76,
+    range: 110,
+    damage: 72,
     rate: 2300,
     color: 0xff8844,
     aoe: 50,
@@ -2395,7 +2395,7 @@ const tortue_dragon = {
     speed: 35,
     hp: 2800,
     reward: 200,
-    playerDamage: 6,
+    playerDamage: 4,
     color: 0x4a5d23,
     damage: 25,
     attackSpeed: 1000,
@@ -2541,7 +2541,7 @@ const shaman_gobelin = {
     speed: 45,
     hp: 1200,
     reward: 120,
-    playerDamage: 4,
+    playerDamage: 2,
     color: 0x8b4513,
     damage: 12,
     attackSpeed: 1500,
@@ -4707,6 +4707,7 @@ var _indexJs = require("../config/levels/index.js");
 var _enemyJs = require("../objects/Enemy.js");
 var _turretJs = require("../objects/Turret.js");
 var _barracksJs = require("../objects/Barracks.js");
+var _heroJs = require("../objects/Hero.js");
 var _mapManagerJs = require("./managers/MapManager.js");
 var _waveManagerJs = require("./managers/WaveManager.js");
 var _uimanagerJs = require("./managers/UIManager.js");
@@ -4741,6 +4742,7 @@ class GameScene extends Phaser.Scene {
         this.maxBarracks = 5;
         this.upgradeTextLines = []; // Pour stocker les lignes de texte du menu
         this.spawnControls = null;
+        this.hero = null;
         // Réinitialiser toutes les références UI pour éviter les références vers objets détruits
         this.buildToolbar = null;
         this.toolbarButtons = null;
@@ -4798,8 +4800,13 @@ class GameScene extends Phaser.Scene {
         this.soldiers = this.add.group({
             runChildUpdate: true
         });
+        const heroSpawnTile = this.findHeroSpawnTile();
+        this.hero = new (0, _heroJs.Hero)(this, heroSpawnTile.x, heroSpawnTile.y);
+        this.soldiers.add(this.hero);
         this.uiManager.createUI();
         this.uiManager.updateTimer(this.elapsedTimeMs);
+        this.updateUI(); // Initialiser l'affichage des vagues
+        this.inputManager.setHero(this.hero);
         this.inputManager.setupInputHandlers();
     }
     // Calculer le layout pour centrer correctement
@@ -4811,14 +4818,17 @@ class GameScene extends Phaser.Scene {
         const mapSize = 15 * (0, _settingsJs.CONFIG).TILE_SIZE;
         const padding = Math.max(12, Math.min(this.gameWidth, this.gameHeight) * 0.015);
         const sidebarWidth = Math.max(220, Math.min(340, this.gameWidth * 0.22));
-        // Espace central disponible pour la carte carrée
-        const usableWidth = Math.max(this.gameWidth - 2 * sidebarWidth - padding * 2, mapSize);
+        // Espace central disponible pour la carte carrée (entre les deux sidebars)
+        const leftSidebarEnd = padding + sidebarWidth;
+        const rightSidebarStart = this.gameWidth - sidebarWidth - padding;
+        const centerSpaceWidth = rightSidebarStart - leftSidebarEnd;
         const usableHeight = this.gameHeight - padding * 2;
         const scaleByHeight = usableHeight / mapSize;
-        const scaleByWidth = usableWidth / mapSize;
+        const scaleByWidth = centerSpaceWidth / mapSize;
         this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
         this.mapPixelSize = mapSize * this.scaleFactor;
-        this.mapOffsetX = padding + sidebarWidth + (usableWidth - this.mapPixelSize) / 2;
+        // Centrer la map dans l'espace entre les deux sidebars
+        this.mapOffsetX = leftSidebarEnd + (centerSpaceWidth - this.mapPixelSize) / 2;
         this.mapOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
         // Stocker les offsets pour utilisation dans createMap
         this.mapStartX = this.mapOffsetX;
@@ -4907,6 +4917,66 @@ class GameScene extends Phaser.Scene {
     // =========================================================
     // GESTION CLICS & MENUS
     // =========================================================
+    findHeroSpawnTile() {
+        const map = this.levelConfig.map || [];
+        const pathTypes = [
+            1,
+            4,
+            7
+        ];
+        let baseTile = null;
+        for(let y = 0; y < map.length; y++){
+            for(let x = 0; x < map[y].length; x++)if (map[y][x] === 2) {
+                baseTile = {
+                    x,
+                    y
+                };
+                break;
+            }
+            if (baseTile) break;
+        }
+        if (baseTile) {
+            const dirs = [
+                {
+                    x: 1,
+                    y: 0
+                },
+                {
+                    x: -1,
+                    y: 0
+                },
+                {
+                    x: 0,
+                    y: 1
+                },
+                {
+                    x: 0,
+                    y: -1
+                }
+            ];
+            for (const d of dirs){
+                const nx = baseTile.x + d.x;
+                const ny = baseTile.y + d.y;
+                if (ny >= 0 && ny < map.length && nx >= 0 && nx < map[ny].length) {
+                    if (pathTypes.includes(map[ny][nx])) return {
+                        x: nx,
+                        y: ny
+                    };
+                }
+            }
+        }
+        if (this.levelConfig.paths?.[0]?.length) {
+            const lastPoint = this.levelConfig.paths[0][this.levelConfig.paths[0].length - 1];
+            return {
+                x: lastPoint.x,
+                y: lastPoint.y
+            };
+        }
+        return {
+            x: 0,
+            y: 0
+        };
+    }
     // Vérifier si une case est adjacente à un chemin
     isAdjacentToPath(tx, ty) {
         return this.mapManager.isAdjacentToPath(tx, ty);
@@ -5121,6 +5191,14 @@ class GameScene extends Phaser.Scene {
         }
         // Nettoyer les groupes - VÉRIFIER QUE children EXISTE AVANT clear()
         try {
+            if (this.hero) {
+                try {
+                    if (this.hero.corpseTimerEvent) this.hero.corpseTimerEvent.remove();
+                    if (this.hero.corpseContainer) this.hero.corpseContainer.destroy();
+                    this.hero.destroy();
+                } catch (e) {}
+                this.hero = null;
+            }
             if (this.enemies && this.enemies.children && this.enemies.children.size !== undefined) this.enemies.clear(true, true);
         } catch (e) {
         // Ignorer si le groupe est déjà détruit (children devient undefined)
@@ -5187,7 +5265,7 @@ class GameScene extends Phaser.Scene {
     }
 }
 
-},{"../config/settings.js":"9kTMs","../config/levels/index.js":"8fcfE","../objects/Enemy.js":"hW1Gp","../objects/Turret.js":"lbJGU","../objects/Barracks.js":"bSlQd","./managers/MapManager.js":"bYbwC","./managers/WaveManager.js":"bbCRa","./managers/UIManager.js":"1XDfq","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./managers/InputManager.js":"9HXrx","./managers/SpellManager.js":"WA9IR","./managers/TextureFactory.js":"bSv7j"}],"hW1Gp":[function(require,module,exports,__globalThis) {
+},{"../config/settings.js":"9kTMs","../config/levels/index.js":"8fcfE","../objects/Enemy.js":"hW1Gp","../objects/Turret.js":"lbJGU","../objects/Barracks.js":"bSlQd","./managers/MapManager.js":"bYbwC","./managers/WaveManager.js":"bbCRa","./managers/UIManager.js":"1XDfq","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./managers/InputManager.js":"9HXrx","./managers/SpellManager.js":"WA9IR","./managers/TextureFactory.js":"bSv7j","../objects/Hero.js":"bdQ7o"}],"hW1Gp":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Enemy", ()=>Enemy);
@@ -5214,21 +5292,28 @@ class Enemy extends Phaser.GameObjects.Container {
         this.targetSoldier = null;
         this.isBlocked = false;
         this.blockedBy = null;
-        // Système de lanes pour éviter les chevauchements
-        this.laneOffset = (Math.random() - 0.5) * 16; // Offset initial plus petit
+        // Système de lanes plus réactif - pas de collision, juste évitement visuel
+        this.laneOffset = (Math.random() - 0.5) * 12;
         this.targetLaneOffset = this.laneOffset;
-        this.separationRadius = 28;
-        this.maxLaneWidth = 18; // Réduit pour plus de stabilité
-        // Vitesse de lissage adaptative
-        this.offsetSmoothSpeed = 0.08;
+        this.avoidanceRadius = 32; // Distance à partir de laquelle on commence à éviter
+        this.minDistance = 20; // Distance minimale souhaitée entre ennemis
+        this.maxLaneWidth = 20;
+        // Vitesses de réaction
+        this.laneChangeSpeed = 0.15; // Plus rapide pour éviter les blocages
+        this.tangentSmoothSpeed = 0.35;
         this.previousTangent = null;
         this.isParalyzed = false;
+        this.paralysisTimer = null;
+        this.paralysisPosition = null; // Position où l'ennemi a été paralysé
         this.isInShell = false;
         this.isInvulnerable = false;
         this.shellThreshold = this.stats.shellThreshold || null;
         this.lastHealTime = 0;
         this.healInterval = this.stats.healInterval || null;
         this.lastSpawnTime = 0;
+        // Pour la variation de vitesse fluide
+        this.speedMultiplier = 1.0;
+        this.targetSpeedMultiplier = 1.0;
         this.initVisuals();
         this.scene.add.existing(this);
         this.setSize(32, 32);
@@ -5254,13 +5339,11 @@ class Enemy extends Phaser.GameObjects.Container {
         this.progress = 0;
         if (this.path) {
             this.pathLength = this.path.getLength();
-            // Initialiser la tangente pour éviter les sauts au démarrage
             this.previousTangent = this.calculateTangent(0);
         }
     }
     calculateTangent(t) {
-        // Calcul manuel de la tangente en échantillonnant deux points proches
-        const epsilon = 0.001;
+        const epsilon = 0.002;
         const t1 = Math.max(0, t - epsilon);
         const t2 = Math.min(1, t + epsilon);
         const p1 = this.path.getPoint(t1);
@@ -5278,10 +5361,17 @@ class Enemy extends Phaser.GameObjects.Container {
         };
     }
     update(time, delta) {
-        if (!this.active || !this.scene || this.isParalyzed || this.isInShell || this.scene.isPaused) return;
+        if (!this.active || !this.scene || this.isInShell || this.scene.isPaused) return;
+        // Si paralysé, maintenir la position et ne rien faire d'autre
+        if (this.isParalyzed) {
+            if (this.paralysisPosition) // Forcer l'ennemi à rester à sa position de paralysie
+            this.setPosition(this.paralysisPosition.x, this.paralysisPosition.y);
+            return;
+        }
+        // Toujours calculer l'évitement, même si bloqué par un soldat
+        this.calculateAvoidance(delta);
         if (this.isMoving && !this.isBlocked && this.path) this.handleMovement(delta);
         this.handleSpecialAbilities(time);
-        this.manageLanes(delta);
         this.updateCombat(time);
         if (this.hpTooltip && this.hpTooltip.active) {
             this.hpTooltip.setPosition(this.x, this.y - 60);
@@ -5289,39 +5379,68 @@ class Enemy extends Phaser.GameObjects.Container {
         }
         if (this.stats.onUpdateAnimation) this.stats.onUpdateAnimation(time, this);
     }
-    handleMovement(delta) {
-        if (!this.pathLength) return;
-        const baseStep = this.speed * (delta / 1000) / this.pathLength;
-        let adjustedStep = baseStep;
-        // Ralentissement si ennemi devant (collision frontale)
-        if (this.scene?.enemies) {
-            const neighbors = this.scene.enemies.getChildren();
-            for (const other of neighbors){
-                if (other === this || !other.active) continue;
-                const progressDiff = other.progress - this.progress;
-                const lateralDist = Math.abs(this.laneOffset - other.laneOffset);
-                // Si même lane et proche devant
-                if (progressDiff > 0 && progressDiff < 0.02 && lateralDist < 15) {
-                    adjustedStep *= 0.3;
-                    break;
+    calculateAvoidance(delta) {
+        if (!this.scene?.enemies) return;
+        let avoidanceLeft = 0;
+        let avoidanceRight = 0;
+        let slowDown = false;
+        const neighbors = this.scene.enemies.getChildren();
+        for (const other of neighbors){
+            if (other === this || !other.active) continue;
+            const dx = this.x - other.x;
+            const dy = this.y - other.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            // Si trop proche, on s'écarte sur les côtés
+            if (dist < this.avoidanceRadius && dist > 0.1) {
+                // Calculer de quel côté l'autre ennemi se trouve
+                if (this.previousTangent) {
+                    const normalX = -this.previousTangent.y;
+                    const normalY = this.previousTangent.x;
+                    // Produit scalaire pour savoir si c'est à gauche ou droite
+                    const side = dx * normalX + dy * normalY;
+                    const strength = (this.avoidanceRadius - dist) / this.avoidanceRadius;
+                    if (side > 0) avoidanceRight += strength;
+                    else avoidanceLeft += strength;
                 }
+                // Ralentir si collision frontale imminente
+                const progressDiff = other.progress - this.progress;
+                if (progressDiff > 0 && progressDiff < 0.015 && dist < this.minDistance) slowDown = true;
             }
         }
-        this.progress += adjustedStep;
+        // Décision d'évitement : aller du côté opposé
+        if (avoidanceLeft > avoidanceRight) this.targetLaneOffset += avoidanceLeft * 3.0;
+        else if (avoidanceRight > avoidanceLeft) this.targetLaneOffset -= avoidanceRight * 3.0;
+        // Retour progressif au centre si pas d'évitement nécessaire
+        if (avoidanceLeft === 0 && avoidanceRight === 0) this.targetLaneOffset *= 0.95;
+        // Ajustement de vitesse fluide pour éviter les blocages
+        if (slowDown) this.targetSpeedMultiplier = 0.4;
+        else this.targetSpeedMultiplier = 1.0;
+        // Lissage de la vitesse
+        this.speedMultiplier = Phaser.Math.Linear(this.speedMultiplier, this.targetSpeedMultiplier, 0.1);
+        // Clamp de l'offset
+        this.targetLaneOffset = Phaser.Math.Clamp(this.targetLaneOffset, -this.maxLaneWidth, this.maxLaneWidth);
+        // Application progressive de l'offset
+        this.laneOffset = Phaser.Math.Linear(this.laneOffset, this.targetLaneOffset, this.laneChangeSpeed);
+    }
+    handleMovement(delta) {
+        if (!this.pathLength) return;
+        // Vitesse de base modulée par le multiplicateur fluide
+        const effectiveSpeed = this.speed * this.speedMultiplier;
+        const step = effectiveSpeed * (delta / 1000) / this.pathLength;
+        this.progress += step;
         if (this.progress >= 1) {
             this.progress = 1;
             this.reachEnd();
             return;
         }
-        // Calcul de position avec lissage intelligent de la tangente
         this.updatePositionOnPath();
         this.updateFacingDirection();
         this.setDepth(10 + Math.floor(this.y / 10));
     }
     updatePositionOnPath() {
         const currentPoint = this.path.getPoint(this.progress);
-        // Calcul de la tangente avec lookahead manuel
-        const lookAheadDist = 0.008;
+        // Lookahead pour anticiper les virages
+        const lookAheadDist = 0.01;
         const lookAhead = Math.min(this.progress + lookAheadDist, 1);
         let tangent;
         if (lookAhead > this.progress) {
@@ -5335,12 +5454,11 @@ class Enemy extends Phaser.GameObjects.Container {
             };
             else tangent = this.calculateTangent(this.progress);
         } else tangent = this.calculateTangent(this.progress);
-        // Lissage de la tangente pour éviter les rotations brusques
+        // Lissage de la tangente
         if (this.previousTangent) {
-            const smoothFactor = 0.3; // Plus petit = plus lisse
-            tangent.x = Phaser.Math.Linear(this.previousTangent.x, tangent.x, smoothFactor);
-            tangent.y = Phaser.Math.Linear(this.previousTangent.y, tangent.y, smoothFactor);
-            // Re-normalisation après lissage
+            tangent.x = Phaser.Math.Linear(this.previousTangent.x, tangent.x, this.tangentSmoothSpeed);
+            tangent.y = Phaser.Math.Linear(this.previousTangent.y, tangent.y, this.tangentSmoothSpeed);
+            // Re-normalisation
             const len = Math.sqrt(tangent.x * tangent.x + tangent.y * tangent.y);
             if (len > 0.001) {
                 tangent.x /= len;
@@ -5350,20 +5468,17 @@ class Enemy extends Phaser.GameObjects.Container {
         this.previousTangent = {
             ...tangent
         };
-        // Calcul de la normale (perpendiculaire) pour l'offset latéral
+        // Normale pour l'offset latéral
         const normalX = -tangent.y;
         const normalY = tangent.x;
-        // Application de l'offset lissé progressivement
-        this.laneOffset = Phaser.Math.Linear(this.laneOffset, this.targetLaneOffset, this.offsetSmoothSpeed);
-        // Position finale
+        // Position finale avec offset
         const finalX = currentPoint.x + normalX * this.laneOffset;
         const finalY = currentPoint.y + normalY * this.laneOffset;
         this.setPosition(finalX, finalY);
     }
     updateFacingDirection() {
         if (this.stats.shouldRotate === false || !this.bodyGroup || !this.previousTangent) return;
-        // Utiliser la tangente lissée pour une rotation plus stable
-        const threshold = 0.1; // Seuil plus élevé pour éviter les micro-flips
+        const threshold = 0.15;
         if (this.previousTangent.x > threshold && !this.facingRight) {
             this.facingRight = true;
             this.bodyGroup.setScale(1, 1);
@@ -5371,44 +5486,6 @@ class Enemy extends Phaser.GameObjects.Container {
             this.facingRight = false;
             this.bodyGroup.setScale(-1, 1);
         }
-    }
-    manageLanes(delta) {
-        if (!this.scene?.enemies) return;
-        let separationForceX = 0;
-        let separationForceY = 0;
-        let count = 0;
-        const neighbors = this.scene.enemies.getChildren();
-        for (const other of neighbors){
-            if (other === this || !other.active) continue;
-            const dx = this.x - other.x;
-            const dy = this.y - other.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < this.separationRadius && dist > 0.1) {
-                // Force de répulsion basée sur la distance
-                const strength = (this.separationRadius - dist) / this.separationRadius;
-                separationForceX += dx / dist * strength;
-                separationForceY += dy / dist * strength;
-                count++;
-            }
-        }
-        if (count > 0) {
-            // Moyenne des forces de séparation
-            separationForceX /= count;
-            separationForceY /= count;
-            // Projection de la force de séparation sur l'axe perpendiculaire au chemin
-            if (this.previousTangent) {
-                const normalX = -this.previousTangent.y;
-                const normalY = this.previousTangent.x;
-                // Produit scalaire pour obtenir la composante latérale
-                const lateralForce = separationForceX * normalX + separationForceY * normalY;
-                // Application progressive de la force
-                this.targetLaneOffset += lateralForce * 2.5;
-            }
-        }
-        // Retour progressif vers le centre si pas de conflit
-        if (count === 0) this.targetLaneOffset *= 0.98;
-        // Clamp pour rester dans les limites de la route
-        this.targetLaneOffset = Phaser.Math.Clamp(this.targetLaneOffset, -this.maxLaneWidth, this.maxLaneWidth);
     }
     reachEnd() {
         if (this.active && this.scene) {
@@ -5585,7 +5662,43 @@ class Enemy extends Phaser.GameObjects.Container {
     refreshHpTooltip() {
         if (this.hpTooltip) this.hpTooltip.setText(this.getHpTooltipText());
     }
+    paralyze(duration) {
+        if (!this.active || !this.scene) return;
+        // Annuler toute paralysie précédente
+        if (this.paralysisTimer) {
+            this.paralysisTimer.remove();
+            this.paralysisTimer = null;
+        }
+        // Sauvegarder la position actuelle où l'ennemi est paralysé
+        this.paralysisPosition = {
+            x: this.x,
+            y: this.y
+        };
+        // Mettre l'ennemi en état de paralysie
+        this.isParalyzed = true;
+        // Arrêter le mouvement
+        this.isMoving = false;
+        // Si l'ennemi était bloqué par un soldat, le libérer
+        if (this.isBlocked && this.blockedBy) {
+            this.isBlocked = false;
+            if (this.blockedBy.releaseEnemy) this.blockedBy.releaseEnemy();
+            this.blockedBy = null;
+        }
+        // Créer un timer pour libérer l'ennemi après la durée spécifiée
+        this.paralysisTimer = this.scene.time.delayedCall(duration, ()=>{
+            if (this.active) {
+                this.isParalyzed = false;
+                this.paralysisPosition = null;
+                this.isMoving = true; // Reprendre le mouvement
+                this.paralysisTimer = null;
+            }
+        });
+    }
     destroy(fromScene) {
+        if (this.paralysisTimer) {
+            this.paralysisTimer.remove();
+            this.paralysisTimer = null;
+        }
         this.hideHpTooltip();
         super.destroy(fromScene);
     }
@@ -6154,6 +6267,12 @@ class Soldier extends Phaser.GameObjects.Container {
         this.isAlive = true;
         this.combatTimer = null;
         this.combatAnimationState = 0; // Pour l'animation de combat
+        // Régénération de PV
+        this.lastCombatTime = 0; // Temps du dernier combat
+        this.regenTimer = null; // Timer pour la régénération
+        this.regenDelay = 3000; // 3 secondes avant de commencer à régénérer
+        this.regenAmount = 10; // 10 PV par seconde
+        this.regenInterval = 1000; // Toutes les secondes
         // Position sur le chemin
         this.pathPosition = null;
         this.pathIndex = 0;
@@ -6477,6 +6596,10 @@ class Soldier extends Phaser.GameObjects.Container {
     // Démarrer le combat
     startCombat(enemy) {
         if (this.combatTimer || !this.scene || !this.scene.time) return;
+        // Mettre à jour le temps du dernier combat
+        this.lastCombatTime = this.scene.time.now;
+        // Arrêter la régénération si elle est active
+        this.stopRegeneration();
         this.combatGraphics.setVisible(true);
         // Animation de combat continue
         this.combatTimer = this.scene.time.addEvent({
@@ -6600,10 +6723,48 @@ class Soldier extends Phaser.GameObjects.Container {
         }
         this.combatGraphics.setVisible(false);
         this.combatGraphics.clear();
+        // Mettre à jour le temps du dernier combat pour démarrer le délai de régénération
+        this.lastCombatTime = this.scene.time.now;
+    }
+    // Démarrer la régénération
+    startRegeneration() {
+        if (this.regenTimer || !this.scene || !this.scene.time) return;
+        if (!this.isAlive || this.hp >= this.maxHp) return;
+        this.regenTimer = this.scene.time.addEvent({
+            delay: this.regenInterval,
+            callback: ()=>{
+                if (!this.isAlive || this.hp >= this.maxHp) {
+                    this.stopRegeneration();
+                    return;
+                }
+                // Vérifier si on est toujours hors combat
+                const timeSinceCombat = this.scene.time.now - this.lastCombatTime;
+                if (timeSinceCombat < this.regenDelay) // Pas encore assez de temps depuis le dernier combat
+                return;
+                // Régénérer 10 PV
+                const oldHp = this.hp;
+                this.hp = Math.min(this.maxHp, this.hp + this.regenAmount);
+                // Mettre à jour la barre de vie et le tooltip
+                this.updateHealthBar();
+                if (this.hpTooltip) this.hpTooltip.setText(this.getHpTooltipText());
+            },
+            loop: true
+        });
+    }
+    // Arrêter la régénération
+    stopRegeneration() {
+        if (this.regenTimer) {
+            this.regenTimer.remove();
+            this.regenTimer = null;
+        }
     }
     // Prendre des dégâts
     takeDamage(amount) {
         this.hp -= amount;
+        // Mettre à jour le temps du dernier combat
+        this.lastCombatTime = this.scene.time.now;
+        // Arrêter la régénération si elle est active
+        this.stopRegeneration();
         // Mettre à jour le tooltip si visible
         if (this.hpTooltip) this.hpTooltip.setText(this.getHpTooltipText());
         // Flash rouge sur les enfants du bodyGroup
@@ -6631,6 +6792,7 @@ class Soldier extends Phaser.GameObjects.Container {
         if (!this.isAlive) return;
         this.isAlive = false;
         this.stopCombat();
+        this.stopRegeneration();
         this.releaseEnemy();
         // Animation de mort
         if (this.scene && this.scene.tweens) this.scene.tweens.add({
@@ -6676,8 +6838,9 @@ class Soldier extends Phaser.GameObjects.Container {
         }
     }
     update() {
+        if (!this.isAlive || !this.scene) return;
         // Vérifier si un ennemi passe à proximité
-        if (this.isAlive && !this.blockingEnemy) {
+        if (!this.blockingEnemy) {
             const enemies = this.scene.enemies.getChildren();
             for (const enemy of enemies)// Ne pas bloquer les ennemis à distance (throwers)
             if (enemy.active && !enemy.isBlocked && !enemy.isRanged) {
@@ -6688,6 +6851,15 @@ class Soldier extends Phaser.GameObjects.Container {
                 }
             }
         }
+        // Gérer la régénération de PV
+        if (!this.blockingEnemy && this.hp < this.maxHp) {
+            const timeSinceCombat = this.scene.time.now - this.lastCombatTime;
+            // Si 3 secondes se sont écoulées depuis le dernier combat, démarrer la régénération
+            if (timeSinceCombat >= this.regenDelay) {
+                if (!this.regenTimer) this.startRegeneration();
+            }
+        } else // En combat, arrêter la régénération
+        if (this.regenTimer) this.stopRegeneration();
     }
 }
 
@@ -7470,12 +7642,21 @@ class UIManager {
     updateUI() {
         const currentWave = (this.scene.currentWaveIndex || 0) + 1;
         let totalWaves = 0;
-        if (this.scene.levelConfig && this.scene.levelConfig.waves) totalWaves = this.scene.levelConfig.waves.length;
+        // Essayer d'abord avec levelConfig
+        if (this.scene.levelConfig && this.scene.levelConfig.waves && Array.isArray(this.scene.levelConfig.waves)) totalWaves = this.scene.levelConfig.waves.length;
         else {
+            // Fallback: chercher dans LEVELS_CONFIG
             const levelData = (0, _indexJs.LEVELS_CONFIG).find((l)=>l.id === this.scene.levelID);
-            if (levelData && levelData.data && levelData.data.waves) totalWaves = levelData.data.waves.length;
-            else totalWaves = this.scene.levelID === 2 ? 9 : 6;
+            if (levelData && levelData.data && levelData.data.waves && Array.isArray(levelData.data.waves)) totalWaves = levelData.data.waves.length;
+            else {
+                // Fallback final selon le levelID
+                if (this.scene.levelID === 3) totalWaves = 10;
+                else if (this.scene.levelID === 2) totalWaves = 8;
+                else totalWaves = 6; // Level 1 par défaut
+            }
         }
+        // S'assurer que totalWaves est au moins 1
+        if (totalWaves < 1) totalWaves = 1;
         if (this.hud) {
             this.hud.update(this.scene.money, this.scene.lives, currentWave, totalWaves);
             this.hud.updateTimer(this.scene.elapsedTimeMs || 0);
@@ -8036,7 +8217,7 @@ const lightning = {
     radius: 45,
     paralysisDuration: 3500,
     cooldown: 100000,
-    description: "Sort puissant qui fait tomber un \xe9clair destructeur.\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts massifs (200)\n\u2022 Zone d'effet (touche plusieurs ennemis)\n\u2022 Paralysie les ennemis survivants (3.5s)\n\n\u274C Inconv\xe9nients:\n\u2022 Cooldown tr\xe8s long (100 secondes)\n\u2022 N\xe9cessite un placement pr\xe9cis\n\u2022 Zone d'effet limit\xe9e"
+    description: "Sort puissant qui fait tomber un \xe9clair destructeur.\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts massifs (350)\n\u2022 Zone d'effet (touche plusieurs ennemis)\n\u2022 Paralysie les ennemis survivants (3.5s)\n\n\u274C Inconv\xe9nients:\n\u2022 Cooldown tr\xe8s long (100 secondes)\n\u2022 N\xe9cessite un placement pr\xe9cis\n\u2022 Zone d'effet limit\xe9e"
 };
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8ZDZv":[function(require,module,exports,__globalThis) {
@@ -8889,10 +9070,14 @@ class InputManager {
         this.tileHighlight = null;
         this.longPressTimer = null;
         this.longPressDelay = 500;
+        this.hero = null;
     }
     setUIManager(uiManager) {
         this.uiManager = uiManager;
         this.dragHandler.uiManager = uiManager;
+    }
+    setHero(hero) {
+        this.hero = hero;
     }
     setupInputHandlers() {
         this.scene.input.on("pointermove", (pointer)=>{
@@ -9011,7 +9196,21 @@ class InputManager {
         }
         this.uiManager.openBuildMenu(pointer);
     }
-    handleNormalClick(pointer) {}
+    handleNormalClick(pointer) {
+        // Ne pas déplacer le héros si on est en train de placer un sort
+        if (this.spellManager && this.spellManager.isPlacingSpell()) return;
+        const T = (0, _settingsJs.CONFIG).TILE_SIZE * this.scene.scaleFactor;
+        if (pointer.worldY < this.scene.mapStartY || pointer.worldY > this.scene.mapStartY + 15 * T || pointer.worldX < this.scene.mapStartX || pointer.worldX > this.scene.mapStartX + 15 * T) return;
+        const tx = Math.floor((pointer.worldX - this.scene.mapStartX) / T);
+        const ty = Math.floor((pointer.worldY - this.scene.mapStartY) / T);
+        if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) return;
+        const tileType = this.scene.levelConfig.map[ty][tx];
+        // Commande du héros par clic gauche sur un chemin
+        if (this.hero && this.isPathTile(tileType)) {
+            this.hero.setDestination(tx, ty);
+            return;
+        }
+    }
     isPointerOnToolbar(pointer) {
         return this.uiManager.isPointerOnToolbar(pointer);
     }
@@ -9023,6 +9222,9 @@ class InputManager {
     }
     cancelDrag() {
         this.dragHandler.cancelDrag();
+    }
+    isPathTile(tileType) {
+        return tileType === 1 || tileType === 4 || tileType === 7;
     }
 }
 
@@ -9600,6 +9802,611 @@ class TextureFactory {
     }
 }
 
-},{"../../config/settings.js":"9kTMs","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["fILKw"], "fILKw", "parcelRequirebaba", {})
+},{"../../config/settings.js":"9kTMs","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bdQ7o":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "Hero", ()=>Hero);
+var _settingsJs = require("../config/settings.js");
+const PATH_TYPES = [
+    1,
+    4,
+    7
+];
+class Hero extends Phaser.GameObjects.Container {
+    constructor(scene, tileX, tileY){
+        const s = scene.scaleFactor || 1;
+        const T = (0, _settingsJs.CONFIG).TILE_SIZE * s;
+        const startX = scene.mapStartX + tileX * T + T / 2;
+        const startY = scene.mapStartY + tileY * T + T / 2;
+        super(scene, startX, startY);
+        this.scene = scene;
+        // --- Stats ---
+        this.maxHp = 230;
+        this.hp = this.maxHp;
+        this.damage = 25;
+        this.attackInterval = 1200;
+        this.moveSpeed = 100 * s;
+        // --- State ---
+        this.isAlive = true;
+        this.blockingEnemy = null;
+        this.targetPath = [];
+        this.currentPathIndex = 0;
+        this.lastAttackTime = 0;
+        this.corpseTimerEvent = null;
+        this.corpseContainer = null;
+        // --- Visual / Layout (un peu plus gros + mieux lisible) ---
+        this.baseScale = 1.17; // <- rend le héros un peu plus gros
+        this.visualScale = this.baseScale * s;
+        this.bodyGroup = scene.add.container(0, 0);
+        this.add(this.bodyGroup);
+        // Épée séparée pour mieux animer
+        this.swordGroup = scene.add.container(0, 0);
+        this.add(this.swordGroup);
+        // Effets
+        this.hpBar = this.scene.add.graphics();
+        this.add(this.hpBar);
+        this.swordTrail = this.scene.add.graphics();
+        this.swordTrail.setDepth(3);
+        this.add(this.swordTrail);
+        this.hitSpark = this.scene.add.graphics();
+        this.hitSpark.setDepth(4);
+        this.add(this.hitSpark);
+        // Draw
+        this.drawBody();
+        this.drawSword();
+        this.drawHealthBar();
+        scene.add.existing(this);
+        // Hitbox (un chouïa plus grosse aussi)
+        this.setDepth(40);
+        this.setSize(56, 56);
+        this.setScale(this.visualScale);
+        // Tooltip HP - définir une zone interactive
+        this.hpTooltip = null;
+        this.setInteractive({
+            useHandCursor: false
+        });
+        this.on("pointerover", ()=>{
+            if (this.active && this.isAlive) this.showHpTooltip();
+        });
+        this.on("pointerout", ()=>this.hideHpTooltip());
+    }
+    // -----------------------------
+    // Drawing
+    // -----------------------------
+    drawBody() {
+        const s = this.scene.scaleFactor || 1;
+        const k = this.baseScale; // appliqué déjà par setScale, mais utile pour proportions internes
+        this.bodyGroup.removeAll(true);
+        const g = this.scene.add.graphics();
+        // Ombre au sol (ça donne du volume)
+        g.fillStyle(0x000000, 0.18);
+        g.fillEllipse(0, 18 * s * k, 26 * s * k, 10 * s * k);
+        // Cape (plus stylée)
+        g.fillStyle(0x151526, 0.92);
+        g.fillEllipse(-2 * s * k, 8 * s * k, 22 * s * k, 30 * s * k);
+        g.fillStyle(0x0d0d18, 0.35);
+        g.fillEllipse(-6 * s * k, 10 * s * k, 14 * s * k, 24 * s * k);
+        // Armure (corps)
+        g.fillStyle(0x505050, 1);
+        g.fillRoundedRect(-12 * s * k, -18 * s * k, 24 * s * k, 34 * s * k, 7 * s * k);
+        g.lineStyle(2 * s * k, 0x242424, 1);
+        g.strokeRoundedRect(-12 * s * k, -18 * s * k, 24 * s * k, 34 * s * k, 7 * s * k);
+        // Plastron (détail)
+        g.lineStyle(2 * s * k, 0x6a6a6a, 0.6);
+        g.beginPath();
+        g.moveTo(0, -16 * s * k);
+        g.lineTo(0, 10 * s * k);
+        g.strokePath();
+        // Épaulières
+        g.fillStyle(0x7a7a7a, 1);
+        g.fillCircle(-11 * s * k, -12 * s * k, 7 * s * k);
+        g.fillCircle(11 * s * k, -12 * s * k, 7 * s * k);
+        g.lineStyle(2 * s * k, 0x2a2a2a, 0.9);
+        g.strokeCircle(-11 * s * k, -12 * s * k, 7 * s * k);
+        g.strokeCircle(11 * s * k, -12 * s * k, 7 * s * k);
+        // Ceinture
+        g.fillStyle(0x8b5a2b, 1);
+        g.fillRoundedRect(-12 * s * k, 6 * s * k, 24 * s * k, 5 * s * k, 2 * s * k);
+        g.fillStyle(0xd2b48c, 0.9);
+        g.fillRect(-2 * s * k, 6 * s * k, 4 * s * k, 5 * s * k);
+        // Tête
+        g.fillStyle(0xffd4a3, 1);
+        g.fillCircle(0, -24 * s * k, 8 * s * k);
+        // Casque / cheveux
+        g.fillStyle(0x2b2b2b, 1);
+        g.fillRoundedRect(-10 * s * k, -33 * s * k, 20 * s * k, 8 * s * k, 3 * s * k);
+        // Petit “regard” (vite fait mais ça donne de la vie)
+        g.fillStyle(0x111111, 0.9);
+        g.fillCircle(-3.2 * s * k, -24 * s * k, 1.1 * s * k);
+        g.fillCircle(3.2 * s * k, -24 * s * k, 1.1 * s * k);
+        this.bodyGroup.add(g);
+    }
+    drawSword() {
+        const s = this.scene.scaleFactor || 1;
+        const k = this.baseScale;
+        this.swordGroup.removeAll(true);
+        // Pivot de l’épée (pour animer comme un vrai swing)
+        this.swordPivot = this.scene.add.container(12 * s * k, -4 * s * k);
+        this.swordPivot.setRotation(-0.3);
+        const sword = this.scene.add.graphics();
+        // Lame (avec petit highlight)
+        sword.fillStyle(0xd6d6d6, 1);
+        sword.fillRoundedRect(0, -2 * s * k, 22 * s * k, 5 * s * k, 2 * s * k);
+        sword.fillStyle(0xffffff, 0.75);
+        sword.fillRoundedRect(0, -2 * s * k, 22 * s * k, 2.2 * s * k, 2 * s * k);
+        // Pointe
+        sword.fillStyle(0xcfcfcf, 1);
+        sword.fillTriangle(22 * s * k, -2 * s * k, 28 * s * k, 0.5 * s * k, 22 * s * k, 3 * s * k);
+        // Garde
+        sword.fillStyle(0x6b3d18, 1);
+        sword.fillRoundedRect(-4 * s * k, -4.2 * s * k, 6 * s * k, 9 * s * k, 2 * s * k);
+        // Poignée
+        sword.fillStyle(0x8b4513, 1);
+        sword.fillRoundedRect(-8 * s * k, -2.5 * s * k, 5 * s * k, 6 * s * k, 2 * s * k);
+        sword.fillStyle(0x3b2210, 0.55);
+        sword.fillRect(-7.2 * s * k, -2.2 * s * k, 3.5 * s * k, 0.8 * s * k);
+        sword.fillRect(-7.2 * s * k, -0.6 * s * k, 3.5 * s * k, 0.8 * s * k);
+        sword.fillRect(-7.2 * s * k, 1.0 * s * k, 3.5 * s * k, 0.8 * s * k);
+        // Pommeau
+        sword.fillStyle(0xbdbdbd, 1);
+        sword.fillCircle(-9.2 * s * k, 0.5 * s * k, 2.2 * s * k);
+        this.swordPivot.add(sword);
+        this.swordGroup.add(this.swordPivot);
+    }
+    drawHealthBar() {
+        const s = this.scene.scaleFactor || 1;
+        const k = this.baseScale;
+        const pct = Phaser.Math.Clamp(this.hp / this.maxHp, 0, 1);
+        const width = 56 * s * k;
+        const height = 7 * s * k;
+        const y = -50 * s * k;
+        this.hpBar.clear();
+        // Fond
+        this.hpBar.fillStyle(0x000000, 0.75);
+        this.hpBar.fillRoundedRect(-width / 2, y, width, height, 3 * s * k);
+        // Bord plus visible
+        this.hpBar.lineStyle(2 * s * k, 0xffffff, 0.4);
+        this.hpBar.strokeRoundedRect(-width / 2, y, width, height, 3 * s * k);
+        // Barre
+        const col = pct < 0.3 ? 0xff3b30 : pct < 0.6 ? 0xffc107 : 0x4caf50;
+        this.hpBar.fillStyle(col, 1);
+        this.hpBar.fillRoundedRect(-width / 2 + 1.2 * s * k, y + 1.2 * s * k, (width - 2.4 * s * k) * pct, height - 2.4 * s * k, 3 * s * k);
+    }
+    showHpTooltip() {
+        if (!this.active || !this.isAlive) return;
+        if (this.hpTooltip) this.hpTooltip.destroy();
+        const fontSize = Math.max(14, 16 * (this.scene.scaleFactor || 1));
+        this.hpTooltip = this.scene.add.text(this.x, this.y - 70, this.getHpTooltipText(), {
+            fontSize: `${fontSize}px`,
+            fill: "#ffffff",
+            fontStyle: "bold",
+            backgroundColor: "#000000",
+            padding: {
+                x: 10,
+                y: 6
+            }
+        }).setOrigin(0.5).setDepth(300);
+        // Mettre à jour la position du tooltip en continu
+        if (this.tooltipUpdateTimer) this.tooltipUpdateTimer.remove();
+        this.tooltipUpdateTimer = this.scene.time.addEvent({
+            delay: 50,
+            callback: ()=>{
+                if (this.hpTooltip && this.active && this.isAlive) {
+                    this.hpTooltip.setPosition(this.x, this.y - 70);
+                    this.hpTooltip.setText(this.getHpTooltipText());
+                } else if (this.hpTooltip) this.hideHpTooltip();
+            },
+            loop: true
+        });
+    }
+    hideHpTooltip() {
+        if (this.hpTooltip) {
+            this.hpTooltip.destroy();
+            this.hpTooltip = null;
+        }
+        if (this.tooltipUpdateTimer) {
+            this.tooltipUpdateTimer.remove();
+            this.tooltipUpdateTimer = null;
+        }
+    }
+    getHpTooltipText() {
+        return `${Math.max(0, Math.ceil(this.hp))} / ${Math.ceil(this.maxHp)} HP`;
+    }
+    // -----------------------------
+    // Grid / Pathfinding
+    // -----------------------------
+    getCurrentTile() {
+        const T = (0, _settingsJs.CONFIG).TILE_SIZE * (this.scene.scaleFactor || 1);
+        const tx = Math.floor((this.x - this.scene.mapStartX) / T);
+        const ty = Math.floor((this.y - this.scene.mapStartY) / T);
+        return {
+            x: Phaser.Math.Clamp(tx, 0, 14),
+            y: Phaser.Math.Clamp(ty, 0, 14)
+        };
+    }
+    isPathTile(tx, ty) {
+        const row = this.scene.levelConfig.map[ty];
+        if (!row) return false;
+        return PATH_TYPES.includes(row[tx]);
+    }
+    findPath(start, goal) {
+        if (!this.isPathTile(goal.x, goal.y)) return null;
+        const key = (p)=>`${p.x},${p.y}`;
+        const queue = [
+            start
+        ];
+        const cameFrom = new Map();
+        cameFrom.set(key(start), null);
+        const dirs = [
+            {
+                x: 1,
+                y: 0
+            },
+            {
+                x: -1,
+                y: 0
+            },
+            {
+                x: 0,
+                y: 1
+            },
+            {
+                x: 0,
+                y: -1
+            }
+        ];
+        while(queue.length > 0){
+            const current = queue.shift();
+            if (current.x === goal.x && current.y === goal.y) break;
+            for (const d of dirs){
+                const nx = current.x + d.x;
+                const ny = current.y + d.y;
+                if (nx < 0 || nx > 14 || ny < 0 || ny > 14) continue;
+                if (!this.isPathTile(nx, ny)) continue;
+                const nk = key({
+                    x: nx,
+                    y: ny
+                });
+                if (!cameFrom.has(nk)) {
+                    cameFrom.set(nk, current);
+                    queue.push({
+                        x: nx,
+                        y: ny
+                    });
+                }
+            }
+        }
+        if (!cameFrom.has(key(goal))) return null;
+        const path = [];
+        let cur = goal;
+        while(cur){
+            path.push(cur);
+            cur = cameFrom.get(key(cur));
+        }
+        return path.reverse();
+    }
+    setDestination(tileX, tileY) {
+        if (!this.isAlive) return false;
+        const start = this.getCurrentTile();
+        const path = this.findPath(start, {
+            x: tileX,
+            y: tileY
+        });
+        if (!path || path.length === 0) return false;
+        const T = (0, _settingsJs.CONFIG).TILE_SIZE * (this.scene.scaleFactor || 1);
+        this.targetPath = path.map((p)=>({
+                x: this.scene.mapStartX + p.x * T + T / 2,
+                y: this.scene.mapStartY + p.y * T + T / 2
+            }));
+        this.currentPathIndex = 0;
+        // Si on donne une nouvelle destination pendant le combat, libérer l'ennemi
+        if (this.blockingEnemy) this.releaseEnemy();
+        return true;
+    }
+    // -----------------------------
+    // Update / Movement / Combat
+    // -----------------------------
+    update(time, delta) {
+        const now = time ?? this.scene?.time?.now ?? 0;
+        const dt = delta ?? this.scene?.game?.loop?.delta ?? 16;
+        if (!this.isAlive || this.scene.isPaused) return;
+        // Toujours permettre le déplacement, même en combat
+        this.followPath(dt);
+        // Gérer le combat si on a un ennemi bloqué
+        if (this.blockingEnemy) {
+            if (!this.blockingEnemy.active || this.blockingEnemy.hp <= 0) this.releaseEnemy();
+            else {
+                // Vérifier la distance avec l'ennemi - si on s'est trop éloigné, le libérer
+                const dist = Phaser.Math.Distance.Between(this.x, this.y, this.blockingEnemy.x, this.blockingEnemy.y);
+                if (dist > 50) // Si on s'est éloigné de plus de 50 pixels, libérer l'ennemi
+                this.releaseEnemy();
+                else // Sinon, continuer à attaquer
+                this.tryAttack(now);
+            }
+        } else // Si on n'est pas en combat, vérifier si on peut engager un ennemi
+        this.checkForEnemyEngage();
+    }
+    followPath(delta) {
+        if (!this.targetPath || this.currentPathIndex >= this.targetPath.length) return;
+        const target = this.targetPath[this.currentPathIndex];
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
+        if (dist < 2) {
+            this.currentPathIndex++;
+            return;
+        }
+        const step = this.moveSpeed * delta / 1000;
+        const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
+        // Petit “bobbing” de marche (subtil)
+        const s = this.scene.scaleFactor || 1;
+        const k = this.baseScale;
+        const bob = Math.sin((this.scene.time.now || 0) / 90) * 0.35 * s * k;
+        this.bodyGroup.y = bob;
+        this.swordGroup.y = bob;
+        const dx = Math.cos(angle) * Math.min(step, dist);
+        const dy = Math.sin(angle) * Math.min(step, dist);
+        this.x += dx;
+        this.y += dy;
+        this.setDepth(40 + Math.floor(this.y / 10));
+        // Oriente légèrement l’épée selon le mouvement (sans faire tourner tout le perso)
+        if (this.swordPivot) {
+            const desired = Phaser.Math.Clamp(angle, -Math.PI, Math.PI);
+            const tilt = Phaser.Math.Clamp(Math.sin(desired) * 0.18, -0.25, 0.25);
+            this.swordPivot.rotation = Phaser.Math.Linear(this.swordPivot.rotation, tilt - 0.25, 0.12);
+        }
+    }
+    checkForEnemyEngage() {
+        if (!this.scene?.enemies) return;
+        const enemies = this.scene.enemies.getChildren();
+        let closest = null;
+        let minDist = 32;
+        for (const enemy of enemies){
+            if (!enemy.active || enemy.isBlocked || enemy.isRanged) continue;
+            const d = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+            if (d < minDist) {
+                minDist = d;
+                closest = enemy;
+            }
+        }
+        if (closest) this.blockEnemy(closest);
+    }
+    blockEnemy(enemy) {
+        this.blockingEnemy = enemy;
+        enemy.isBlocked = true;
+        enemy.blockedBy = this;
+        // Ne pas vider le chemin automatiquement - permettre le déplacement pendant le combat
+        // Le joueur peut toujours donner une nouvelle destination pour partir
+        this.tryAttack(this.scene?.time?.now ?? 0);
+    }
+    tryAttack(time) {
+        if (time - this.lastAttackTime < this.attackInterval) return;
+        if (!this.blockingEnemy || !this.blockingEnemy.active) return;
+        this.lastAttackTime = time;
+        // Hit
+        this.blockingEnemy.damage(this.damage);
+        // Animations
+        this.playAttackAnimation(this.blockingEnemy);
+    }
+    playAttackAnimation(enemy) {
+        if (!enemy || !enemy.active) return;
+        const s = this.scene.scaleFactor || 1;
+        const k = this.baseScale;
+        const angleToEnemy = Phaser.Math.Angle.Between(this.x, this.y, enemy.x, enemy.y);
+        // 1) Swing d'épée basé sur un pivot -> plus “propre” et punchy
+        if (this.swordPivot) {
+            // Pré-armement puis coup
+            const pre = -0.95;
+            const hit = 0.75;
+            this.swordPivot.rotation = pre;
+            this.scene.tweens.add({
+                targets: this.swordPivot,
+                rotation: hit,
+                duration: 140,
+                ease: "Cubic.easeOut",
+                yoyo: true,
+                hold: 0,
+                onComplete: ()=>{
+                    // revient à une pose neutre
+                    this.scene.tweens.add({
+                        targets: this.swordPivot,
+                        rotation: -0.25,
+                        duration: 120,
+                        ease: "Cubic.easeOut"
+                    });
+                }
+            });
+        }
+        // 2) Arc trail (beaucoup plus stylé) : double arc + petit glow
+        this.swordTrail.clear();
+        // Arc principal
+        this.swordTrail.lineStyle(8 * s * k, 0xffd166, 0.55);
+        this.swordTrail.beginPath();
+        this.swordTrail.arc(0, 0, 30 * s * k, angleToEnemy - 1.15, angleToEnemy + 0.55);
+        this.swordTrail.strokePath();
+        // Highlight
+        this.swordTrail.lineStyle(4 * s * k, 0xffffff, 0.38);
+        this.swordTrail.beginPath();
+        this.swordTrail.arc(0, 0, 29 * s * k, angleToEnemy - 1.05, angleToEnemy + 0.45);
+        this.swordTrail.strokePath();
+        this.swordTrail.alpha = 1;
+        this.scene.tweens.add({
+            targets: this.swordTrail,
+            alpha: 0,
+            duration: 170,
+            ease: "Quad.easeOut",
+            onComplete: ()=>this.swordTrail.clear()
+        });
+        // 3) Petit impact sparkle côté ennemi (ça fait “hit confirm”)
+        this.spawnHitSpark(angleToEnemy);
+        // 4) Recul du corps + petite torsion
+        this.scene.tweens.add({
+            targets: this.bodyGroup,
+            x: -Math.cos(angleToEnemy) * 2.2 * s * k,
+            y: Math.sin(angleToEnemy) * 1.2 * s * k,
+            duration: 90,
+            yoyo: true,
+            ease: "Quad.easeOut",
+            onComplete: ()=>{
+                this.bodyGroup.x = 0;
+                this.bodyGroup.y = 0;
+            }
+        });
+        this.scene.tweens.add({
+            targets: this.bodyGroup,
+            rotation: 0.18 * Math.sign(Math.cos(angleToEnemy)),
+            duration: 110,
+            yoyo: true,
+            ease: "Quad.easeOut",
+            onComplete: ()=>this.bodyGroup.rotation = 0
+        });
+    }
+    spawnHitSpark(angle) {
+        const s = this.scene.scaleFactor || 1;
+        const k = this.baseScale;
+        // Spark à la “position” de l'impact (dans le repère local du hero)
+        const r = 26 * s * k;
+        const px = Math.cos(angle) * r;
+        const py = Math.sin(angle) * r;
+        this.hitSpark.clear();
+        this.hitSpark.alpha = 1;
+        // Étoile simple (traits)
+        this.hitSpark.lineStyle(3.5 * s * k, 0xffffff, 0.9);
+        this.hitSpark.beginPath();
+        this.hitSpark.moveTo(px - 6 * s * k, py);
+        this.hitSpark.lineTo(px + 6 * s * k, py);
+        this.hitSpark.moveTo(px, py - 6 * s * k);
+        this.hitSpark.lineTo(px, py + 6 * s * k);
+        this.hitSpark.strokePath();
+        // Petit halo
+        this.hitSpark.fillStyle(0xffd166, 0.45);
+        this.hitSpark.fillCircle(px, py, 4.5 * s * k);
+        this.scene.tweens.add({
+            targets: this.hitSpark,
+            alpha: 0,
+            duration: 120,
+            ease: "Quad.easeOut",
+            onComplete: ()=>this.hitSpark.clear()
+        });
+    }
+    // -----------------------------
+    // Damage / Death / Respawn
+    // -----------------------------
+    takeDamage(amount) {
+        if (!this.isAlive) return;
+        this.hp -= amount;
+        this.drawHealthBar();
+        // Mettre à jour le tooltip si visible
+        if (this.hpTooltip) this.hpTooltip.setText(this.getHpTooltipText());
+        this.flashDamage();
+        if (this.hp <= 0) this.die();
+    }
+    flashDamage() {
+        // Comme on dessine en Graphics, on fait un flash via alpha (simple et clean)
+        this.scene.tweens.add({
+            targets: [
+                this.bodyGroup,
+                this.swordGroup
+            ],
+            alpha: 0.2,
+            duration: 60,
+            yoyo: true,
+            repeat: 1,
+            onComplete: ()=>{
+                this.bodyGroup.alpha = 1;
+                this.swordGroup.alpha = 1;
+            }
+        });
+    }
+    releaseEnemy() {
+        if (this.blockingEnemy) {
+            this.blockingEnemy.isBlocked = false;
+            this.blockingEnemy.blockedBy = null;
+        }
+        this.blockingEnemy = null;
+    }
+    die() {
+        this.isAlive = false;
+        this.hp = 0;
+        this.hideHpTooltip();
+        this.releaseEnemy();
+        this.targetPath = [];
+        this.currentPathIndex = 0;
+        // petite “pop” avant de disparaître
+        this.scene.tweens.add({
+            targets: this,
+            scale: this.visualScale * 1.05,
+            duration: 80,
+            yoyo: true,
+            onComplete: ()=>{
+                this.setVisible(false);
+                this.spawnCorpse();
+            }
+        });
+    }
+    spawnCorpse() {
+        const s = this.scene.scaleFactor || 1;
+        const k = this.baseScale;
+        this.corpseContainer = this.scene.add.container(this.x, this.y).setDepth(45);
+        const blood = this.scene.add.graphics();
+        blood.fillStyle(0x8b0000, 0.82);
+        blood.fillEllipse(0, 10 * s * k, 30 * s * k, 13 * s * k);
+        const body = this.scene.add.graphics();
+        body.fillStyle(0x5a5a5a, 1);
+        body.fillRoundedRect(-14 * s * k, -18 * s * k, 28 * s * k, 36 * s * k, 7 * s * k);
+        body.fillStyle(0x2d2d2d, 1);
+        body.fillCircle(0, -22 * s * k, 8 * s * k);
+        const timerText = this.scene.add.text(0, -48 * s * k, "20", {
+            fontSize: `${Math.max(14, 16 * s * k)}px`,
+            color: "#ffdddd",
+            fontStyle: "bold",
+            stroke: "#000",
+            strokeThickness: Math.max(2, 3 * s * k)
+        }).setOrigin(0.5);
+        this.corpseContainer.add([
+            blood,
+            body,
+            timerText
+        ]);
+        let remaining = 20;
+        this.corpseTimerEvent = this.scene.time.addEvent({
+            delay: 1000,
+            repeat: 19,
+            callback: ()=>{
+                remaining -= 1;
+                timerText.setText(`${remaining}`);
+                if (remaining <= 0) this.respawn();
+            }
+        });
+    }
+    respawn() {
+        if (this.corpseTimerEvent) {
+            this.corpseTimerEvent.remove();
+            this.corpseTimerEvent = null;
+        }
+        if (this.corpseContainer) {
+            this.corpseContainer.destroy();
+            this.corpseContainer = null;
+        }
+        this.hp = this.maxHp;
+        this.isAlive = true;
+        this.drawHealthBar();
+        this.setVisible(true);
+        // Respawn “Back” propre
+        this.setScale(0);
+        this.scene.tweens.add({
+            targets: this,
+            scale: this.visualScale,
+            duration: 240,
+            ease: "Back.easeOut",
+            onComplete: ()=>{
+                // reset alpha/rotations au cas où
+                this.alpha = 1;
+                this.bodyGroup.rotation = 0;
+                if (this.swordPivot) this.swordPivot.rotation = -0.25;
+            }
+        });
+    }
+}
+
+},{"../config/settings.js":"9kTMs","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["fILKw"], "fILKw", "parcelRequirebaba", {})
 
 //# sourceMappingURL=towerdefense.1fcc916e.js.map

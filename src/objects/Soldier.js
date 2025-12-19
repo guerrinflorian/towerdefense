@@ -13,6 +13,13 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.combatTimer = null;
     this.combatAnimationState = 0; // Pour l'animation de combat
     
+    // Régénération de PV
+    this.lastCombatTime = 0; // Temps du dernier combat
+    this.regenTimer = null; // Timer pour la régénération
+    this.regenDelay = 3000; // 3 secondes avant de commencer à régénérer
+    this.regenAmount = 10; // 10 PV par seconde
+    this.regenInterval = 1000; // Toutes les secondes
+    
     // Position sur le chemin
     this.pathPosition = null;
     this.pathIndex = 0;
@@ -437,6 +444,12 @@ export class Soldier extends Phaser.GameObjects.Container {
   startCombat(enemy) {
     if (this.combatTimer || !this.scene || !this.scene.time) return;
     
+    // Mettre à jour le temps du dernier combat
+    this.lastCombatTime = this.scene.time.now;
+    
+    // Arrêter la régénération si elle est active
+    this.stopRegeneration();
+    
     this.combatGraphics.setVisible(true);
     
     // Animation de combat continue
@@ -605,11 +618,62 @@ export class Soldier extends Phaser.GameObjects.Container {
     }
     this.combatGraphics.setVisible(false);
     this.combatGraphics.clear();
+    
+    // Mettre à jour le temps du dernier combat pour démarrer le délai de régénération
+    this.lastCombatTime = this.scene.time.now;
+  }
+  
+  // Démarrer la régénération
+  startRegeneration() {
+    if (this.regenTimer || !this.scene || !this.scene.time) return;
+    if (!this.isAlive || this.hp >= this.maxHp) return;
+    
+    this.regenTimer = this.scene.time.addEvent({
+      delay: this.regenInterval,
+      callback: () => {
+        if (!this.isAlive || this.hp >= this.maxHp) {
+          this.stopRegeneration();
+          return;
+        }
+        
+        // Vérifier si on est toujours hors combat
+        const timeSinceCombat = this.scene.time.now - this.lastCombatTime;
+        if (timeSinceCombat < this.regenDelay) {
+          // Pas encore assez de temps depuis le dernier combat
+          return;
+        }
+        
+        // Régénérer 10 PV
+        const oldHp = this.hp;
+        this.hp = Math.min(this.maxHp, this.hp + this.regenAmount);
+        
+        // Mettre à jour la barre de vie et le tooltip
+        this.updateHealthBar();
+        if (this.hpTooltip) {
+          this.hpTooltip.setText(this.getHpTooltipText());
+        }
+      },
+      loop: true
+    });
+  }
+  
+  // Arrêter la régénération
+  stopRegeneration() {
+    if (this.regenTimer) {
+      this.regenTimer.remove();
+      this.regenTimer = null;
+    }
   }
   
   // Prendre des dégâts
   takeDamage(amount) {
     this.hp -= amount;
+    
+    // Mettre à jour le temps du dernier combat
+    this.lastCombatTime = this.scene.time.now;
+    
+    // Arrêter la régénération si elle est active
+    this.stopRegeneration();
 
     // Mettre à jour le tooltip si visible
     if (this.hpTooltip) {
@@ -652,6 +716,7 @@ export class Soldier extends Phaser.GameObjects.Container {
     
     this.isAlive = false;
     this.stopCombat();
+    this.stopRegeneration();
     this.releaseEnemy();
     
     // Animation de mort
@@ -708,8 +773,10 @@ export class Soldier extends Phaser.GameObjects.Container {
   }
   
   update() {
+    if (!this.isAlive || !this.scene) return;
+    
     // Vérifier si un ennemi passe à proximité
-    if (this.isAlive && !this.blockingEnemy) {
+    if (!this.blockingEnemy) {
       const enemies = this.scene.enemies.getChildren();
       for (const enemy of enemies) {
         // Ne pas bloquer les ennemis à distance (throwers)
@@ -720,6 +787,23 @@ export class Soldier extends Phaser.GameObjects.Container {
             break;
           }
         }
+      }
+    }
+    
+    // Gérer la régénération de PV
+    if (!this.blockingEnemy && this.hp < this.maxHp) {
+      const timeSinceCombat = this.scene.time.now - this.lastCombatTime;
+      
+      // Si 3 secondes se sont écoulées depuis le dernier combat, démarrer la régénération
+      if (timeSinceCombat >= this.regenDelay) {
+        if (!this.regenTimer) {
+          this.startRegeneration();
+        }
+      }
+    } else {
+      // En combat, arrêter la régénération
+      if (this.regenTimer) {
+        this.stopRegeneration();
       }
     }
   }
