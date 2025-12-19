@@ -1,12 +1,23 @@
 import { CONFIG } from "../config/settings.js";
 import { LEVELS_CONFIG } from "../config/levels/index.js";
+import {
+  ensureProfileLoaded,
+  getHeroStats,
+  getUnlockedLevel,
+  isAuthenticated,
+  logout,
+} from "../services/authManager.js";
+import { showAuth } from "../services/authOverlay.js";
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
     super("MainMenuScene");
+    this.levelReached = 1;
   }
 
   create() {
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
+
     const { width, height } = this.scale;
     const cx = width / 2;
 
@@ -40,12 +51,12 @@ export class MainMenuScene extends Phaser.Scene {
     // On crée un conteneur pour les niveaux
     this.levelContainer = this.add.container(cx, LIST_START_Y);
 
-    const levelReached = parseInt(localStorage.getItem("levelReached")) || 1;
+    this.levelReached = getUnlockedLevel();
     let currentY = 50; // On commence à 50 pour que le 1er bouton ne soit pas collé au bord du masque
     const spacing = 120;
 
     LEVELS_CONFIG.forEach((level) => {
-      const isLocked = level.id > levelReached;
+      const isLocked = level.id > this.levelReached;
       const card = this.createLevelCard(0, currentY, level, isLocked);
       this.levelContainer.add(card);
       currentY += spacing;
@@ -87,8 +98,22 @@ export class MainMenuScene extends Phaser.Scene {
       }
     });
 
-    // --- 7. BOUTON RÉINITIALISER (Bas de page) ---
-    this.createResetButton(height - 50);
+    // --- 7. BOUTON DECONNEXION (Bas de page) ---
+    this.createLogoutButton(height - 50);
+
+    this.profileUpdatedHandler = () => {
+      this.levelReached = getUnlockedLevel();
+      this.refreshLevelLocks();
+    };
+    window.addEventListener("auth:profile-updated", this.profileUpdatedHandler);
+
+    ensureProfileLoaded().then(() => {
+      const updatedLevel = getUnlockedLevel();
+      if (updatedLevel !== this.levelReached) {
+        this.levelReached = updatedLevel;
+        this.refreshLevelLocks();
+      }
+    });
   }
 
   clampScroll(top, bottom) {
@@ -162,19 +187,26 @@ export class MainMenuScene extends Phaser.Scene {
         draw(false);
         container.setScale(1);
       });
-      zone.on("pointerdown", () =>
-        this.scene.start("GameScene", { level: level.id })
-      );
+      zone.on("pointerdown", () => {
+        if (!isAuthenticated()) {
+          showAuth();
+          return;
+        }
+        this.scene.start("GameScene", {
+          level: level.id,
+          heroStats: getHeroStats(),
+        });
+      });
     }
 
     return container;
   }
 
-  createResetButton(y) {
+  createLogoutButton(y) {
     const btn = this.add
-      .text(this.scale.width / 2, y, "RÉINITIALISER LA PROGRESSION", {
+      .text(this.scale.width / 2, y, "Se déconnecter", {
         fontSize: "14px",
-        color: "#555",
+        color: "#cccccc",
         fontFamily: "Arial",
         textDecoration: "underline",
       })
@@ -183,13 +215,24 @@ export class MainMenuScene extends Phaser.Scene {
       .setDepth(100);
 
     btn.on("pointerover", () => btn.setColor("#ff0000"));
-    btn.on("pointerout", () => btn.setColor("#555"));
+    btn.on("pointerout", () => btn.setColor("#cccccc"));
     btn.on("pointerdown", () => {
-      if (confirm("Voulez-vous vraiment effacer votre progression ?")) {
-        localStorage.clear();
-        this.scene.restart();
-      }
+      logout();
+      this.levelReached = 1;
+      this.refreshLevelLocks();
+      showAuth();
     });
+  }
+
+  refreshLevelLocks() {
+    this.scene.restart();
+  }
+
+  shutdown() {
+    if (this.profileUpdatedHandler) {
+      window.removeEventListener("auth:profile-updated", this.profileUpdatedHandler);
+      this.profileUpdatedHandler = null;
+    }
   }
 
   createAtmosphere() {

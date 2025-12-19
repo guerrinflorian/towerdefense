@@ -1,6 +1,8 @@
 import { MainMenuScene } from "./scenes/MainMenuScene.js";
 import { GameScene } from "./scenes/GameScene.js";
 import { CONFIG } from "./config/settings.js";
+import { setupAuthOverlay } from "./services/authOverlay.js";
+import { ensureProfileLoaded } from "./services/authManager.js";
 
 const config = {
   type: Phaser.AUTO,
@@ -38,27 +40,37 @@ const config = {
   },
 };
 
-const game = new Phaser.Game(config);
+setupAuthOverlay();
 
-// Stocker les infos de taille dans le jeu pour y accéder depuis les scènes
-game.baseWidth = CONFIG.GAME_WIDTH;
-game.baseHeight = CONFIG.GAME_HEIGHT;
+let game = null;
 
-// Gérer le redimensionnement
-function handleResize() {
-  // Notifier la scène active sans jamais la redémarrer
-  if (game.scene.isActive("GameScene")) {
-    const scene = game.scene.getScene("GameScene");
-    if (scene && scene.handleResize) {
-      scene.handleResize();
+ensureProfileLoaded()
+  .catch(() => {
+    // L'overlay demandera une reconnexion si besoin
+  })
+  .finally(() => {
+    game = new Phaser.Game(config);
+
+    // Stocker les infos de taille dans le jeu pour y accéder depuis les scènes
+    game.baseWidth = CONFIG.GAME_WIDTH;
+    game.baseHeight = CONFIG.GAME_HEIGHT;
+
+    // Gérer le redimensionnement
+    function handleResize() {
+      // Notifier la scène active sans jamais la redémarrer
+      if (game.scene.isActive("GameScene")) {
+        const scene = game.scene.getScene("GameScene");
+        if (scene && scene.handleResize) {
+          scene.handleResize();
+        }
+      }
     }
-  }
-}
 
-window.addEventListener("resize", handleResize);
-window.addEventListener("orientationchange", () => {
-  setTimeout(handleResize, 100);
-});
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", () => {
+      setTimeout(handleResize, 100);
+    });
+  });
 
 // Empêcher le double-tap zoom sur mobile
 let lastTouchEnd = 0;
