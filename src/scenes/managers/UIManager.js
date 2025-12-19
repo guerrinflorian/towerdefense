@@ -57,17 +57,31 @@ export class UIManager {
 
     if (this.hud) {
       this.hud.update(this.scene.money, this.scene.lives, currentWave, totalWaves);
+      this.hud.updateTimer(this.scene.elapsedTimeMs || 0);
     }
 
     this.updateToolbarCounts();
     if (this.buildMenu && this.scene.buildMenu && this.scene.buildMenu.visible) {
       this.buildMenu.updateBuildMenuButtons();
     }
+    if (
+      this.upgradeMenu &&
+      this.scene.upgradeMenu &&
+      this.scene.upgradeMenu.visible
+    ) {
+      this.upgradeMenu.updateUpgradeButtonState();
+    }
   }
 
   updateToolbarCounts() {
     if (this.buildToolbar) {
       this.buildToolbar.updateToolbarCounts();
+    }
+  }
+
+  updateTimer(elapsedMs) {
+    if (this.hud) {
+      this.hud.updateTimer(elapsedMs);
     }
   }
 

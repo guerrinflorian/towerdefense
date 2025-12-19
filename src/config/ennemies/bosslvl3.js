@@ -3,6 +3,7 @@ export const bosslvl3 = {
   speed: 8, // Très lent (c'est un tank ultime)
   hp: 180000, // Une barre de vie colossale
   reward: 5000,
+  playerDamage: 20,
   color: 0xff4400, // Orange lave
   damage: 500, // One-shot presque tout
   attackSpeed: 2000, // Frappe lentement mais fort

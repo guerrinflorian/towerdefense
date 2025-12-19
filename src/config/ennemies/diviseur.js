@@ -6,6 +6,7 @@ export const diviseur = {
   speed: 30,
   hp: 3500,
   reward: 180,
+  playerDamage: 4,
   color: 0x00ff00, // Vert slime
   damage: 20,
   attackSpeed: 1200,
