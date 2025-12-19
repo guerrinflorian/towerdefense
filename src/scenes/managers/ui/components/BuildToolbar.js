@@ -24,7 +24,7 @@ export class BuildToolbar {
     const itemSize = 82 * this.scene.scaleFactor;
     const itemSpacing = Math.max(110 * this.scene.scaleFactor, itemSize + 24);
 
-    // Colonne gauche : sorts + contrôles de vague
+    // Colonne gauche : tourelles en haut, sorts en dessous
     this.leftColumn = this.scene.add
       .container(this.scene.toolbarOffsetX, toolbarY)
       .setDepth(150);
@@ -35,104 +35,7 @@ export class BuildToolbar {
     this.leftBg.strokeRoundedRect(0, 0, columnWidth, columnHeight, 14);
     this.leftColumn.add(this.leftBg);
 
-    const leftTitle = this.scene.add
-      .text(padding, padding, "ACTIONS", {
-        fontSize: `${Math.max(14, 16 * this.scene.scaleFactor)}px`,
-        fill: "#9edcff",
-        fontFamily: "Arial",
-        fontStyle: "bold",
-      })
-      .setOrigin(0, 0);
-    this.leftColumn.add(leftTitle);
-
-    const waveButtonWidth = columnWidth - padding * 2;
-    const waveButtonHeight = 66 * this.scene.scaleFactor;
-    const waveAreaY = leftTitle.y + leftTitle.height + padding * 0.8;
-
-    this.scene.waveSection = this.scene.add.container(padding, waveAreaY);
-    const waveSectionBg = this.scene.add.graphics();
-    waveSectionBg.fillStyle(0x0f0f18, 0.9);
-    waveSectionBg.fillRoundedRect(
-      0,
-      0,
-      waveButtonWidth,
-      waveButtonHeight,
-      12
-    );
-    waveSectionBg.lineStyle(2, 0x00ff99, 0.4);
-    waveSectionBg.strokeRoundedRect(
-      0,
-      0,
-      waveButtonWidth,
-      waveButtonHeight,
-      12
-    );
-    this.scene.waveSection.add(waveSectionBg);
-
-    this.scene.waveBtnContainer = this.scene.add
-      .container(waveButtonWidth / 2, waveButtonHeight / 2)
-      .setDepth(151);
-
-    this.scene.waveBtnBg = this.scene.add
-      .rectangle(0, 0, waveButtonWidth, waveButtonHeight, 0x111422, 0.92)
-      .setStrokeStyle(3 * this.scene.scaleFactor, 0x00ff99, 0.8);
-
-    this.scene.waveBtnText = this.scene.add
-      .text(0, 0, "▶ LANCER VAGUE 1", {
-        fontSize: `${Math.max(16, 22 * this.scene.scaleFactor)}px`,
-        fill: "#ffffff",
-        fontStyle: "bold",
-        fontFamily: "Arial",
-      })
-      .setOrigin(0.5);
-
-    this.scene.waveBtnContainer.add([
-      this.scene.waveBtnBg,
-      this.scene.waveBtnText,
-    ]);
-
-    this.scene.waveSection.add(this.scene.waveBtnContainer);
-
-    this.scene.waveBtnBg
-      .setInteractive({ useHandCursor: true })
-      .on("pointerdown", () => this.scene.startWave());
-
-    this.leftColumn.add(this.scene.waveSection);
-
-    const spellAreaY = waveAreaY + waveButtonHeight + padding * 1.2;
-    const spellPanelHeight = itemSize + padding * 1.2;
-
-    this.scene.spellSection = this.scene.add
-      .container(padding, spellAreaY)
-      .setDepth(150);
-    const spellBg = this.scene.add.graphics();
-    spellBg.fillStyle(0x0f0f18, 0.9);
-    spellBg.fillRoundedRect(0, 0, waveButtonWidth, spellPanelHeight, 12);
-    spellBg.lineStyle(2, 0x7dd6ff, 0.35);
-    spellBg.strokeRoundedRect(0, 0, waveButtonWidth, spellPanelHeight, 12);
-    this.scene.spellSection.add(spellBg);
-
-    const lightningY = spellPanelHeight / 2;
-    this.createLightningSpellButton({
-      itemSize,
-      posX: waveButtonWidth / 2,
-      posY: lightningY,
-      targetContainer: this.scene.spellSection,
-    });
-
-    this.leftColumn.add(this.scene.spellSection);
-
-    // Colonne droite : tourelles
-    this.scene.buildToolbar = this.scene.add
-      .container(this.scene.rightToolbarOffsetX, toolbarY)
-      .setDepth(150);
-    this.rightBg = this.scene.add.graphics();
-    this.rightBg.fillStyle(0x0a0a10, 0.92);
-    this.rightBg.fillRoundedRect(0, 0, columnWidth, columnHeight, 14);
-    this.rightBg.lineStyle(2, 0x00ccff, 0.35);
-    this.rightBg.strokeRoundedRect(0, 0, columnWidth, columnHeight, 14);
-    this.scene.buildToolbar.add(this.rightBg);
-
+    // Titre TOURELLES
     const towerTitle = this.scene.add
       .text(padding, padding, "TOURELLES", {
         fontSize: `${Math.max(14, 16 * this.scene.scaleFactor)}px`,
@@ -141,33 +44,78 @@ export class BuildToolbar {
         fontStyle: "bold",
       })
       .setOrigin(0, 0);
-    this.scene.buildToolbar.add(towerTitle);
+    this.leftColumn.add(towerTitle);
 
-    const gridStartY = towerTitle.y + towerTitle.height + padding * 0.8;
-    const gridHeight = columnHeight - gridStartY - padding;
-    const gridWidth = columnWidth - padding * 2;
+    // Zone des tourelles
+    const turretGridStartY = towerTitle.y + towerTitle.height + padding * 0.8;
+    const turretGridHeight = columnHeight * 0.65; // 65% de la hauteur pour les tourelles
+    const turretGridWidth = columnWidth - padding * 2;
     const columns = 2;
     const rows = Math.ceil(5 / columns);
     const verticalSpacing = Math.min(
-      gridHeight / rows,
+      turretGridHeight / rows,
       itemSpacing + padding * 0.5
     );
 
+    // S'assurer que buildToolbar pointe vers leftColumn avant de créer les boutons
+    this.scene.buildToolbar = this.leftColumn;
+
     this.toolbarButtons = createTurretButtons(
       this,
-      gridWidth,
-      gridHeight,
+      turretGridWidth,
+      turretGridHeight,
       itemSize,
       verticalSpacing,
       {
-        startX: padding + gridWidth / (columns * 2),
-        startY: gridStartY + itemSize / 2,
+        startX: padding + turretGridWidth / (columns * 2),
+        startY: turretGridStartY + itemSize / 2,
         columns: columns,
         padding,
-        gridWidth,
+        gridWidth: turretGridWidth,
         verticalSpacing,
       }
     );
+
+    // Titre SORTS
+    const spellTitleY = turretGridStartY + turretGridHeight + padding * 1.2;
+    const spellTitle = this.scene.add
+      .text(padding, spellTitleY, "SORTS", {
+        fontSize: `${Math.max(14, 16 * this.scene.scaleFactor)}px`,
+        fill: "#9edcff",
+        fontFamily: "Arial",
+        fontStyle: "bold",
+      })
+      .setOrigin(0, 0);
+    this.leftColumn.add(spellTitle);
+
+    // Zone des sorts
+    const spellAreaY = spellTitle.y + spellTitle.height + padding * 0.8;
+    const spellPanelHeight = itemSize + padding * 1.2;
+    const spellPanelWidth = columnWidth - padding * 2;
+
+    this.scene.spellSection = this.scene.add
+      .container(padding, spellAreaY)
+      .setDepth(150);
+    const spellBg = this.scene.add.graphics();
+    spellBg.fillStyle(0x0f0f18, 0.9);
+    spellBg.fillRoundedRect(0, 0, spellPanelWidth, spellPanelHeight, 12);
+    spellBg.lineStyle(2, 0x7dd6ff, 0.35);
+    spellBg.strokeRoundedRect(0, 0, spellPanelWidth, spellPanelHeight, 12);
+    this.scene.spellSection.add(spellBg);
+
+    const lightningY = spellPanelHeight / 2;
+    this.createLightningSpellButton({
+      itemSize,
+      posX: spellPanelWidth / 2,
+      posY: lightningY,
+      targetContainer: this.scene.spellSection,
+    });
+
+    this.leftColumn.add(this.scene.spellSection);
+
+    // Plus besoin de la colonne droite (elle est maintenant dans HUD)
+    // On garde juste la référence pour compatibilité
+    this.rightBg = this.leftBg;
 
     this.updateToolbarCounts();
   }

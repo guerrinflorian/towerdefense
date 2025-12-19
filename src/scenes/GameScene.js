@@ -152,13 +152,8 @@ export class GameScene extends Phaser.Scene {
     this.rightToolbarOffsetX = this.gameWidth - sidebarWidth - padding;
     this.toolbarOffsetY = this.mapOffsetY;
 
-    // HUD aligné au-dessus de la carte
-    this.hudWidth = this.mapPixelSize;
-    this.hudX = this.mapOffsetX;
-    this.hudY = Math.max(
-      this.mapOffsetY - CONFIG.UI_HEIGHT * this.scaleFactor - padding * 0.3,
-      padding * 0.3
-    );
+    // HUD maintenant à droite (plus besoin de calculer hudX/hudY en haut)
+    // Les valeurs sont calculées automatiquement via rightToolbarOffsetX et toolbarOffsetY
 
     this.leftToolbarBounds = {
       x: this.toolbarOffsetX,
