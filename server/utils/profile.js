@@ -1,5 +1,6 @@
 import { pool, query } from "../db.js";
 import { HERO_BASE_STATS } from "../constants.js";
+import { getHeroPointConversion } from "./heroUpgrades.js";
 
 async function ensureHeroStats(playerId) {
   const existing = await query(
@@ -50,16 +51,14 @@ export async function buildPlayerProfile(playerId) {
     }
 
     const heroStats = await ensureHeroStats(playerId);
-    const conversionRes = await client.query(
-      "SELECT id, hp_per_point, damage_per_point, move_speed_per_point FROM hero_point_conversion ORDER BY id LIMIT 1"
-    );
+    const heroPointConversion = await getHeroPointConversion(client);
 
     const progress = await getProgress(playerId);
 
     return {
       player: playerRes.rows[0],
       heroStats,
-      heroPointConversion: conversionRes.rows[0] || null,
+      heroPointConversion,
       progress,
     };
   } finally {

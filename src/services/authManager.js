@@ -29,6 +29,14 @@ export function getHeroStats() {
   return currentProfile?.heroStats || null;
 }
 
+export function getHeroPointConversion() {
+  return currentProfile?.heroPointConversion || null;
+}
+
+export function getHeroPointsAvailable() {
+  return currentProfile?.player?.hero_points_available ?? 0;
+}
+
 export function getPlayer() {
   return currentProfile?.player || null;
 }
@@ -101,6 +109,20 @@ export async function recordLevelCompletion(payload) {
   if (currentProfile?.progress) {
     currentProfile.progress = response.data.progress;
   }
+  return response.data;
+}
+
+export async function upgradeHero(stat, points) {
+  if (!isAuthenticated()) return null;
+  const response = await apiClient.post("/api/player/hero/upgrade", {
+    stat,
+    points,
+  });
+
+  if (response.data?.profile) {
+    currentProfile = response.data.profile;
+  }
+
   return response.data;
 }
 
