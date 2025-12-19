@@ -46,7 +46,9 @@ game.baseHeight = CONFIG.GAME_HEIGHT;
 
 // Gérer le redimensionnement
 function handleResize() {
-  // Notifier la scène active
+  game.scale.resize(window.innerWidth, window.innerHeight);
+
+  // Notifier la scène active sans jamais la redémarrer
   if (game.scene.isActive("GameScene")) {
     const scene = game.scene.getScene("GameScene");
     if (scene && scene.handleResize) {
