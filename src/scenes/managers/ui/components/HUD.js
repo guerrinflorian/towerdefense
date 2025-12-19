@@ -1,5 +1,14 @@
 import { CONFIG } from "../../../../config/settings.js";
 
+const formatMsToTimer = (ms) => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+};
+
 export class HUD {
   constructor(scene) {
     this.scene = scene;
@@ -51,8 +60,18 @@ export class HUD {
       .setOrigin(0, 0.5);
     topBar.add(this.scene.txtWave);
 
+    this.scene.txtTimer = this.scene.add
+      .text(520 * s, UI_HEIGHT / 2, "", {
+        fontSize: `${fontSize}px`,
+        fill: "#ffffff",
+        fontStyle: "bold",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0, 0.5);
+    topBar.add(this.scene.txtTimer);
+
     this.scene.pauseBtn = this.scene.add
-      .text(600 * s, UI_HEIGHT / 2, "⏸️ PAUSE", {
+      .text(700 * s, UI_HEIGHT / 2, "⏸️ PAUSE", {
         fontSize: `${smallFontSize}px`,
         fill: "#ffaa00",
         backgroundColor: "#333333",
@@ -94,6 +113,7 @@ export class HUD {
     topBar.add(quitBtn);
 
     this.update(this.scene.money, this.scene.lives, 1, 1);
+    this.updateTimer(0);
   }
 
   update(money, lives, currentWave, totalWaves) {
@@ -102,6 +122,12 @@ export class HUD {
 
     if (this.scene.txtWave) {
       this.scene.txtWave.setText(`🌊 VAGUE ${currentWave}/${totalWaves}`);
+    }
+  }
+
+  updateTimer(elapsedMs) {
+    if (this.scene.txtTimer) {
+      this.scene.txtTimer.setText(`⏱️ ${formatMsToTimer(elapsedMs)}`);
     }
   }
 }

@@ -3,6 +3,7 @@ export const witch = {
   speed: 28, // Très lent
   hp: 800,
   reward: 150,
+  playerDamage: 4,
   color: 0x6a1b9a, // Violet/Pourpre
   damage: 15,
   attackSpeed: 1200,

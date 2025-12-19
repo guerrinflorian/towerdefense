@@ -64,6 +64,7 @@ export class GameScene extends Phaser.Scene {
     this.resumeBtn = null; // Bouton reprendre au centre de l'écran
     this.pausedTimers = []; // Liste des timers en pause
     this.pausedTweens = []; // Liste des tweens en pause
+    this.elapsedTimeMs = 0; // Chronomètre de session
   }
 
   preload() {
@@ -111,6 +112,7 @@ export class GameScene extends Phaser.Scene {
     this.enemies = this.add.group({ runChildUpdate: true });
     this.soldiers = this.add.group({ runChildUpdate: true });
     this.uiManager.createUI();
+    this.uiManager.updateTimer(this.elapsedTimeMs);
 
     this.inputManager.setupInputHandlers();
   }
@@ -188,6 +190,10 @@ export class GameScene extends Phaser.Scene {
     // Si le jeu est en pause, ne rien mettre à jour
     if (this.isPaused) {
       return;
+    }
+    this.elapsedTimeMs += delta;
+    if (this.uiManager) {
+      this.uiManager.updateTimer(this.elapsedTimeMs);
     }
     this.spellManager.update(time, delta);
 
@@ -367,8 +373,8 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  takeDamage() {
-    this.lives--;
+  takeDamage(amount = 1) {
+    this.lives = Math.max(0, this.lives - amount);
     this.updateUI();
     this.cameras.main.shake(150, 0.01);
     if (this.lives <= 0) {
