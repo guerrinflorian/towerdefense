@@ -3,16 +3,21 @@ import { LEVELS_CONFIG } from "../config/levels/index.js";
 import {
   ensureProfileLoaded,
   getHeroStats,
+  getHeroPointsAvailable,
+  getHeroPointConversion,
   getUnlockedLevel,
   isAuthenticated,
   logout,
+  upgradeHero,
 } from "../services/authManager.js";
 import { showAuth } from "../services/authOverlay.js";
+import { fetchLeaderboard } from "../services/leaderboardService.js";
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
     super("MainMenuScene");
     this.levelReached = 1;
+    this.leaderboardEntries = [];
   }
 
   create() {
@@ -47,7 +52,10 @@ export class MainMenuScene extends Phaser.Scene {
       .setDepth(100);
     title.setShadow(0, 5, "#00f2ff", 15, true, true);
 
-    // --- 4. GESTION DE LA LISTE SCROLLABLE ---
+    // --- 4. LEADERBOARD (haut droite) ---
+    this.createLeaderboard(width, TITLE_Y + 20);
+
+    // --- 5. GESTION DE LA LISTE SCROLLABLE ---
     // On crée un conteneur pour les niveaux
     this.levelContainer = this.add.container(cx, LIST_START_Y);
 
@@ -64,7 +72,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     const totalContentHeight = currentY;
 
-    // --- 5. CRÉATION DU MASQUE ---
+    // --- 6. CRÉATION DU MASQUE ---
     // Le masque définit la zone "fenêtre" où les boutons sont visibles
     const maskShape = this.make.graphics();
     maskShape.fillStyle(0xffffff);
@@ -73,7 +81,7 @@ export class MainMenuScene extends Phaser.Scene {
     const mask = maskShape.createGeometryMask();
     this.levelContainer.setMask(mask);
 
-    // --- 6. LOGIQUE DE SCROLL (LIMITES STRICTES) ---
+    // --- 7. LOGIQUE DE SCROLL (LIMITES STRICTES) ---
     const limitTop = LIST_START_Y;
     const limitBottom =
       totalContentHeight > VIEW_HEIGHT
@@ -98,12 +106,16 @@ export class MainMenuScene extends Phaser.Scene {
       }
     });
 
-    // --- 7. BOUTON DECONNEXION (Bas de page) ---
+    // --- 8. BOUTON DECONNEXION (Bas de page) ---
     this.createLogoutButton(height - 50);
+
+    // --- 9. PANEL AMELIORATION HERO ---
+    this.createHeroUpgradePanel();
 
     this.profileUpdatedHandler = () => {
       this.levelReached = getUnlockedLevel();
       this.refreshLevelLocks();
+      this.populateHeroPanel();
     };
     window.addEventListener("auth:profile-updated", this.profileUpdatedHandler);
 
@@ -113,6 +125,8 @@ export class MainMenuScene extends Phaser.Scene {
         this.levelReached = updatedLevel;
         this.refreshLevelLocks();
       }
+      this.loadLeaderboard();
+      this.populateHeroPanel();
     });
   }
 
@@ -232,6 +246,234 @@ export class MainMenuScene extends Phaser.Scene {
     if (this.profileUpdatedHandler) {
       window.removeEventListener("auth:profile-updated", this.profileUpdatedHandler);
       this.profileUpdatedHandler = null;
+    }
+  }
+
+  async loadLeaderboard() {
+    try {
+      const entries = await fetchLeaderboard();
+      this.leaderboardEntries = entries;
+      this.renderLeaderboard();
+    } catch (err) {
+      console.error("Erreur leaderboard", err);
+    }
+  }
+
+  createLeaderboard(width, y) {
+    const container = this.add.container(width - 180, y);
+    container.setDepth(200);
+    this.leaderboardContainer = container;
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0a1a2a, 0.7);
+    bg.lineStyle(2, 0x00bfff, 0.8);
+    bg.fillRoundedRect(-160, 0, 320, 260, 12);
+    bg.strokeRoundedRect(-160, 0, 320, 260, 12);
+    container.add(bg);
+
+    const title = this.add.text(0, 14, "LEADERBOARD", {
+      fontSize: "20px",
+      fontFamily: "Impact, sans-serif",
+      color: "#00eaff",
+      align: "center",
+    })
+      .setOrigin(0.5, 0)
+      .setShadow(0, 3, "#000", 8);
+    container.add(title);
+
+    const headers = this.add.text(-150, 50, "Lv  | Joueur", {
+      fontSize: "12px",
+      color: "#7dd0ff",
+      fontFamily: "Arial",
+    });
+    container.add(headers);
+
+    this.leaderboardText = this.add.text(-150, 70, "Chargement...", {
+      fontSize: "12px",
+      color: "#ffffff",
+      fontFamily: "Courier New, monospace",
+      lineSpacing: 4,
+    });
+    container.add(this.leaderboardText);
+
+    const refresh = this.add.text(140, 16, "↻", {
+      fontSize: "18px",
+      fontFamily: "Arial",
+      color: "#00eaff",
+    })
+      .setOrigin(0.5, 0)
+      .setInteractive({ useHandCursor: true });
+    refresh.on("pointerdown", () => this.loadLeaderboard());
+    refresh.on("pointerover", () => refresh.setColor("#ffffff"));
+    refresh.on("pointerout", () => refresh.setColor("#00eaff"));
+    container.add(refresh);
+  }
+
+  renderLeaderboard() {
+    if (!this.leaderboardText) return;
+    if (!this.leaderboardEntries || this.leaderboardEntries.length === 0) {
+      this.leaderboardText.setText("Aucune donnée");
+      return;
+    }
+
+    const lines = this.leaderboardEntries.map((entry, idx) => {
+      const rank = idx + 1;
+      const name = entry.username?.slice(0, 12) || "-";
+      const level = entry.max_level || 1;
+      const lives = entry.lives_remaining ?? "-";
+      const time = entry.completion_time_ms
+        ? `${Math.round(entry.completion_time_ms / 1000)}s`
+        : "-";
+      return `${rank.toString().padStart(2, " ")}. Lv${level} | ${name.padEnd(12, " ")}  ♥${lives}  ⏱ ${time}`;
+    });
+
+    this.leaderboardText.setText(lines.join("\n"));
+  }
+
+  createHeroUpgradePanel() {
+    const { width, height } = this.scale;
+    const panelWidth = 320;
+    const panel = this.add.container(width - panelWidth - 30, height * 0.45);
+    panel.setDepth(180);
+    this.heroPanel = panel;
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x101820, 0.82);
+    bg.lineStyle(2, 0x00bfff, 0.8);
+    bg.fillRoundedRect(0, 0, panelWidth, 260, 12);
+    bg.strokeRoundedRect(0, 0, panelWidth, 260, 12);
+    panel.add(bg);
+
+    const title = this.add.text(panelWidth / 2, 12, "HÉROS", {
+      fontFamily: "Impact, sans-serif",
+      fontSize: "20px",
+      color: "#00eaff",
+    })
+      .setOrigin(0.5, 0)
+      .setShadow(0, 3, "#000", 8);
+    panel.add(title);
+
+    // Avatar stylisé
+    const avatar = this.add.graphics();
+    avatar.fillStyle(0x27384a, 1);
+    avatar.fillRoundedRect(14, 44, 90, 90, 10);
+    avatar.lineStyle(2, 0x00eaff, 0.8);
+    avatar.strokeRoundedRect(14, 44, 90, 90, 10);
+    avatar.fillStyle(0xcfd8dc, 1);
+    avatar.fillCircle(59, 80, 16);
+    avatar.fillStyle(0x90a4ae, 1);
+    avatar.fillRect(45, 98, 28, 28);
+    panel.add(avatar);
+
+    const statStartX = 120;
+    const statStartY = 48;
+    const statSpacing = 48;
+
+    this.heroStatLabels = {};
+    const stats = [
+      { key: "hp", label: "PV", color: 0x4caf50 },
+      { key: "damage", label: "Dégâts", color: 0xf57c00 },
+      { key: "move_speed", label: "Vitesse", color: 0x29b6f6 },
+    ];
+
+    stats.forEach((stat, idx) => {
+      const y = statStartY + idx * statSpacing;
+
+      const label = this.add.text(statStartX, y, `${stat.label}: 0`, {
+        fontSize: "14px",
+        fontFamily: "Arial",
+        color: "#ffffff",
+      });
+      panel.add(label);
+      this.heroStatLabels[stat.key] = label;
+
+      const barBg = this.add.graphics();
+      barBg.fillStyle(0x0d1b28, 0.9);
+      barBg.fillRoundedRect(statStartX, y + 18, 170, 12, 6);
+      panel.add(barBg);
+
+      const bar = this.add.graphics();
+      bar.fillStyle(stat.color, 1);
+      bar.fillRoundedRect(statStartX + 1, y + 19, 80, 10, 5);
+      panel.add(bar);
+      this.heroStatLabels[`${stat.key}Bar`] = bar;
+
+      const btn = this.add.text(panelWidth - 24, y + 6, "+", {
+        fontSize: "22px",
+        fontFamily: "Arial",
+        color: "#00eaff",
+      })
+        .setOrigin(0.5, 0)
+        .setInteractive({ useHandCursor: true });
+      btn.on("pointerdown", () => this.handleUpgrade(stat.key));
+      btn.on("pointerover", () => btn.setColor("#ffffff"));
+      btn.on("pointerout", () => btn.setColor("#00eaff"));
+      panel.add(btn);
+    });
+
+    this.pointsText = this.add.text(panelWidth / 2, 210, "Points: 0", {
+      fontSize: "14px",
+      fontFamily: "Arial",
+      color: "#7dd0ff",
+    }).setOrigin(0.5);
+    panel.add(this.pointsText);
+
+    this.costText = this.add.text(panelWidth / 2, 232, "Coût: 1 pt", {
+      fontSize: "12px",
+      fontFamily: "Arial",
+      color: "#cccccc",
+    }).setOrigin(0.5);
+    panel.add(this.costText);
+  }
+
+  populateHeroPanel() {
+    if (!this.heroPanel) return;
+    const stats = getHeroStats();
+    const available = getHeroPointsAvailable();
+    const conversion = getHeroPointConversion();
+
+    if (!stats) {
+      this.pointsText?.setText("Connectez-vous pour améliorer votre héros");
+      return;
+    }
+
+    const statDefs = {
+      hp: stats.max_hp,
+      damage: stats.base_damage,
+      move_speed: stats.move_speed,
+    };
+
+    Object.entries(statDefs).forEach(([key, value]) => {
+      const label = this.heroStatLabels?.[key];
+      const bar = this.heroStatLabels?.[`${key}Bar`];
+      if (label) label.setText(`${key === "hp" ? "PV" : key === "damage" ? "Dégâts" : "Vitesse"}: ${value}`);
+      if (bar) {
+        const pct = Phaser.Math.Clamp(value / 400, 0.1, 1);
+        bar.scaleX = pct;
+      }
+    });
+
+    const hpCost = conversion?.hp_per_point || 1;
+    const dmgCost = conversion?.damage_per_point || 1;
+    const speedCost = conversion?.move_speed_per_point || 1;
+
+    this.pointsText?.setText(`Points dispo: ${available}`);
+    this.costText?.setText(
+      `+PV (${hpCost}), +Dégâts (${dmgCost}), +Vitesse (${speedCost}) par point`
+    );
+  }
+
+  async handleUpgrade(statKey) {
+    if (!isAuthenticated()) {
+      showAuth();
+      return;
+    }
+
+    try {
+      await upgradeHero(statKey, 1);
+      this.populateHeroPanel();
+    } catch (err) {
+      console.error("Upgrade héros", err);
     }
   }
 
