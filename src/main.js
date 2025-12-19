@@ -5,15 +5,15 @@ import { CONFIG } from "./config/settings.js";
 const config = {
   type: Phaser.AUTO,
   parent: "game-container",
-  
-  // Utiliser toute la taille de la fenêtre
-  width: window.innerWidth,
-  height: window.innerHeight,
-  
+
+  // Dimensions de base fixes, Phaser se charge de scaler avec FIT
+  width: CONFIG.GAME_WIDTH,
+  height: CONFIG.GAME_HEIGHT,
+
   backgroundColor: "#000000",
-  
+
   scale: {
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
 
@@ -46,7 +46,7 @@ game.baseHeight = CONFIG.GAME_HEIGHT;
 
 // Gérer le redimensionnement
 function handleResize() {
-  // Notifier la scène active
+  // Notifier la scène active sans jamais la redémarrer
   if (game.scene.isActive("GameScene")) {
     const scene = game.scene.getScene("GameScene");
     if (scene && scene.handleResize) {

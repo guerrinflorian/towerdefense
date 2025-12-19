@@ -186,8 +186,20 @@ export class GameScene extends Phaser.Scene {
 
   // Gérer le redimensionnement
   handleResize() {
-    // On reconstruit proprement la scène pour garder un layout carré et centré
-    this.scene.restart({ level: this.levelID });
+    // Phaser gère le scaling via FIT : seules les références d'UI doivent rester centrées
+    this.gameWidth = this.scale.width;
+    this.gameHeight = this.scale.height;
+
+    if (this.uiManager?.hud?.reposition) {
+      this.uiManager.hud.reposition();
+    }
+    if (this.uiManager?.buildToolbar?.reposition) {
+      this.uiManager.buildToolbar.reposition();
+    }
+
+    if (this.resumeBtn) {
+      this.resumeBtn.setPosition(this.cameras.main.centerX, this.cameras.main.centerY);
+    }
   }
 
   update(time, delta) {
