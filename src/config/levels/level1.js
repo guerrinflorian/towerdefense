@@ -52,7 +52,7 @@ export const LEVEL_1 = {
   waves: [
     // VAGUE 1 : Soldats (La seconde escouade arrive après 10 secondes)
     [
-      { count: 22, type: "witch", interval: 1000, startDelay: 0 },
+      { count: 22, type: "grunt", interval: 1000, startDelay: 0 },
       { count: 15, type: "grunt", interval: 1000, startDelay: 10000 }, // Arrivent quand les premiers sont loin
     ],
 
