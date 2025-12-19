@@ -1,8 +1,8 @@
 export const grunt = {
   name: "Grunt",
-  speed: 65,
+  speed: 62,
   hp: 100,
-  reward: 20,
+  reward: 15,
   color: 0x558844, // Vert militaire
   damage: 8, // Dégâts par attaque
   attackSpeed: 800, // Vitesse d'attaque en ms

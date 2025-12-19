@@ -29,27 +29,27 @@ export class Barracks extends Phaser.GameObjects.Container {
 
     this.setSize(64, 64);
     this.setInteractive();
-    
+
     // Highlight des soldats au hover
     this.on("pointerover", () => this.highlightSoldiers());
     this.on("pointerout", () => this.unhighlightSoldiers());
 
     scene.add.existing(this);
   }
-  
+
   highlightSoldiers() {
     if (this.soldiers) {
-      this.soldiers.forEach(soldier => {
+      this.soldiers.forEach((soldier) => {
         if (soldier && soldier.active && soldier.isAlive) {
           soldier.showHighlight();
         }
       });
     }
   }
-  
+
   unhighlightSoldiers() {
     if (this.soldiers) {
-      this.soldiers.forEach(soldier => {
+      this.soldiers.forEach((soldier) => {
         if (soldier && soldier.active) {
           soldier.hideHighlight();
         }
@@ -128,7 +128,7 @@ export class Barracks extends Phaser.GameObjects.Container {
     this.drawBarrel();
 
     // Mettre à jour le niveau des soldats existants
-    this.soldiers.forEach(soldier => {
+    this.soldiers.forEach((soldier) => {
       if (soldier && soldier.active) {
         soldier.updateLevel(this.level);
         soldier.maxHp = this.config.soldierHp[this.level - 1];
@@ -136,7 +136,7 @@ export class Barracks extends Phaser.GameObjects.Container {
         soldier.updateHealthBar();
       }
     });
-    
+
     // Recréer les soldats avec le nouveau niveau (pour ajouter les nouveaux)
     this.deploySoldiers();
 
@@ -168,7 +168,7 @@ export class Barracks extends Phaser.GameObjects.Container {
   // Déployer les soldats
   deploySoldiers() {
     // Supprimer les anciens soldats
-    this.soldiers.forEach(soldier => {
+    this.soldiers.forEach((soldier) => {
       if (soldier && soldier.active) {
         soldier.destroy();
       }
@@ -183,20 +183,27 @@ export class Barracks extends Phaser.GameObjects.Container {
     const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
     // Utiliser mapStartX et mapStartY au lieu de MAP_OFFSET
     const mapStartX = this.scene.mapStartX || 0;
-    const mapStartY = this.scene.mapStartY || (120 * (this.scene.scaleFactor || 1));
+    const mapStartY =
+      this.scene.mapStartY || 120 * (this.scene.scaleFactor || 1);
 
     // Trouver toutes les positions de chemin valides près du bâtiment
     const validPathPositions = [];
-    
+
     // Chercher dans un rayon autour du bâtiment
     for (let y = 0; y < map.length; y++) {
       for (let x = 0; x < map[y].length; x++) {
         const tileType = map[y][x];
-        if (tileType === 1 || tileType === 4) { // Chemin ou pont
+        if (tileType === 1 || tileType === 4 || tileType === 7) {
+          // Chemin ou pont
           const tileX = mapStartX + x * T + T / 2;
           const tileY = mapStartY + y * T + T / 2;
-          const dist = Phaser.Math.Distance.Between(this.x, this.y, tileX, tileY);
-          
+          const dist = Phaser.Math.Distance.Between(
+            this.x,
+            this.y,
+            tileX,
+            tileY
+          );
+
           // Dans un rayon de 150 pixels
           if (dist <= 150 * (this.scene.scaleFactor || 1)) {
             validPathPositions.push({ x: tileX, y: tileY, dist: dist });
@@ -204,58 +211,68 @@ export class Barracks extends Phaser.GameObjects.Container {
         }
       }
     }
-    
+
     // Trier par distance
     validPathPositions.sort((a, b) => a.dist - b.dist);
-    
+
     // Espacer les soldats pour éviter qu'ils soient au même endroit
     const usedPositions = [];
     const minDistance = 30 * (this.scene.scaleFactor || 1); // Distance minimale entre soldats (augmentée)
-    
+
     // Vérifier aussi les soldats des autres casernes
     const allExistingSoldiers = [];
     if (this.scene.soldiers) {
-      this.scene.soldiers.getChildren().forEach(soldier => {
+      this.scene.soldiers.getChildren().forEach((soldier) => {
         if (soldier && soldier.active && soldier.isAlive) {
           allExistingSoldiers.push({ x: soldier.x, y: soldier.y });
         }
       });
     }
-    
+
     // Créer les soldats sur les positions valides les plus proches
     for (let i = 0; i < count && i < validPathPositions.length; i++) {
       let pos = validPathPositions[i];
       let attempts = 0;
       const maxAttempts = 20;
-      
+
       // Chercher une position qui respecte la distance minimale
       while (attempts < maxAttempts) {
         let tooClose = false;
-        
+
         // Vérifier avec les positions déjà utilisées dans cette caserne
         for (const used of usedPositions) {
-          const dist = Phaser.Math.Distance.Between(pos.x, pos.y, used.x, used.y);
+          const dist = Phaser.Math.Distance.Between(
+            pos.x,
+            pos.y,
+            used.x,
+            used.y
+          );
           if (dist < minDistance) {
             tooClose = true;
             break;
           }
         }
-        
+
         // Vérifier avec les soldats des autres casernes
         if (!tooClose) {
           for (const existing of allExistingSoldiers) {
-            const dist = Phaser.Math.Distance.Between(pos.x, pos.y, existing.x, existing.y);
+            const dist = Phaser.Math.Distance.Between(
+              pos.x,
+              pos.y,
+              existing.x,
+              existing.y
+            );
             if (dist < minDistance) {
               tooClose = true;
               break;
             }
           }
         }
-        
+
         if (!tooClose) {
           break; // Position valide trouvée
         }
-        
+
         // Chercher une position alternative
         attempts++;
         if (attempts < maxAttempts) {
@@ -264,7 +281,7 @@ export class Barracks extends Phaser.GameObjects.Container {
           const offset = minDistance * 0.9;
           const newX = validPathPositions[i].x + Math.cos(angle) * offset;
           const newY = validPathPositions[i].y + Math.sin(angle) * offset;
-          
+
           // Vérifier que c'est toujours sur un chemin
           if (this.isPositionOnPath(newX, newY)) {
             pos = { x: newX, y: newY, dist: validPathPositions[i].dist };
@@ -276,64 +293,74 @@ export class Barracks extends Phaser.GameObjects.Container {
           }
         }
       }
-      
+
       // Si toujours trop proche après tous les essais, chercher dans les positions suivantes
       if (attempts >= maxAttempts) {
         let found = false;
         for (let j = i + 1; j < validPathPositions.length && j < i + 10; j++) {
           const testPos = validPathPositions[j];
           let valid = true;
-          
+
           for (const used of usedPositions) {
-            const dist = Phaser.Math.Distance.Between(testPos.x, testPos.y, used.x, used.y);
+            const dist = Phaser.Math.Distance.Between(
+              testPos.x,
+              testPos.y,
+              used.x,
+              used.y
+            );
             if (dist < minDistance) {
               valid = false;
               break;
             }
           }
-          
+
           if (valid) {
             for (const existing of allExistingSoldiers) {
-              const dist = Phaser.Math.Distance.Between(testPos.x, testPos.y, existing.x, existing.y);
+              const dist = Phaser.Math.Distance.Between(
+                testPos.x,
+                testPos.y,
+                existing.x,
+                existing.y
+              );
               if (dist < minDistance) {
                 valid = false;
                 break;
               }
             }
           }
-          
+
           if (valid) {
             pos = testPos;
             found = true;
             break;
           }
         }
-        
+
         // Si aucune position valide trouvée, utiliser quand même avec un décalage minimal
         if (!found) {
           pos = {
             x: validPathPositions[i].x + (Math.random() - 0.5) * 15,
             y: validPathPositions[i].y + (Math.random() - 0.5) * 15,
-            dist: validPathPositions[i].dist
+            dist: validPathPositions[i].dist,
           };
         }
       }
-      
+
       usedPositions.push({ x: pos.x, y: pos.y });
-      
+
       const soldier = new Soldier(this.scene, pos.x, pos.y, this);
       soldier.level = this.level; // Définir le niveau
       soldier.drawBody(); // Redessiner avec le bon niveau
       soldier.setScale(this.scene.scaleFactor || 1);
-      
+
       // Mettre à jour les stats selon le niveau
       soldier.maxHp = this.config.soldierHp[this.level - 1];
       soldier.hp = soldier.maxHp;
       soldier.updateHealthBar();
-      
+
       // S'assurer que le soldat est bien positionné sur le chemin
       soldier.deployToPath(this.scene.paths);
-      
+
       // Animation d'apparition
       soldier.setScale(0);
       this.scene.tweens.add({
@@ -347,20 +374,21 @@ export class Barracks extends Phaser.GameObjects.Container {
       this.scene.soldiers.add(soldier);
     }
   }
-  
+
   // Vérifier si une position est sur un chemin
   isPositionOnPath(x, y) {
     const CONFIG = { TILE_SIZE: 64 };
     const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
     // Utiliser mapStartX et mapStartY au lieu de MAP_OFFSET
     const mapStartX = this.scene.mapStartX || 0;
-    const mapStartY = this.scene.mapStartY || (120 * (this.scene.scaleFactor || 1));
-    
+    const mapStartY =
+      this.scene.mapStartY || 120 * (this.scene.scaleFactor || 1);
+
     const tx = Math.floor((x - mapStartX) / T);
     const ty = Math.floor((y - mapStartY) / T);
-    
+
     if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) return false;
-    
+
     const map = this.scene.levelConfig.map;
     const tileType = map[ty][tx];
     return tileType === 1 || tileType === 4;
@@ -372,7 +400,7 @@ export class Barracks extends Phaser.GameObjects.Container {
     if (index !== -1) {
       // Retirer de la liste active
       this.soldiers.splice(index, 1);
-      
+
       // Ajouter à la liste des morts pour respawn
       this.deadSoldiers.push({
         soldier: soldier,
@@ -396,10 +424,10 @@ export class Barracks extends Phaser.GameObjects.Container {
         dead.soldier.maxHp = this.config.soldierHp[this.level - 1];
         dead.soldier.hp = dead.soldier.maxHp;
         dead.soldier.updateHealthBar();
-        
+
         // Redéployer sur le chemin
         dead.soldier.deployToPath(this.scene.paths);
-        
+
         // Remettre dans la liste active
         this.soldiers.push(dead.soldier);
 

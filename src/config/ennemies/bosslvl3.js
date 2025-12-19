@@ -1,7 +1,7 @@
 export const bosslvl3 = {
   name: "OMEGA-TITAN",
-  speed: 6, // Très lent (c'est un tank ultime)
-  hp: 250000, // Une barre de vie colossale
+  speed: 8, // Très lent (c'est un tank ultime)
+  hp: 180000, // Une barre de vie colossale
   reward: 5000,
   color: 0xff4400, // Orange lave
   damage: 500, // One-shot presque tout

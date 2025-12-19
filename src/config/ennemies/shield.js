@@ -2,7 +2,7 @@ export const shield = {
   name: "Aegis",
   speed: 65,
   hp: 550,
-  reward: 70,
+  reward: 65,
   color: 0x00aabb, // Cyan/Teal
   damage: 12, // Dégâts par attaque
   attackSpeed: 900, // Vitesse d'attaque en ms
