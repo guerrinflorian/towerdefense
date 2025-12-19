@@ -55,6 +55,7 @@ export class WaveManager {
     this.scene.isWaveRunning = true;
     this.spawnControls?.setLockedState(true);
     this.spawnControls?.clearCountdown();
+    this.spawnControls?.updateWaveRunningState();
 
     if (!this.scene.isTimerRunning) {
       this.scene.startSessionTimer();
@@ -147,6 +148,7 @@ export class WaveManager {
       this.levelComplete();
     } else {
       this.spawnControls?.setLockedState(false);
+      this.spawnControls?.updateWaveRunningState();
       // Démarrer le timer automatique de 30 secondes
       this.startNextWaveCountdown();
     }

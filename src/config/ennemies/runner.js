@@ -3,7 +3,7 @@ export const runner = {
   speed: 205,
   hp: 112,
   reward: 20,
-  playerDamage: 2,
+  playerDamage: 1,
   color: 0xffd166, // Jaune/Orange
   damage: 14, // Dégâts par attaque (rapide mais faible)
   attackSpeed: 600, // Vitesse d'attaque en ms

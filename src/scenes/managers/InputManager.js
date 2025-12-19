@@ -19,6 +19,44 @@ export class InputManager {
 
   setupInputHandlers() {
     this.scene.input.on("pointermove", (pointer) => {
+      // Vérifier si le pointeur est sur un bouton de vague
+      if (this.scene.spawnControls) {
+        const hitButton = this.scene.spawnControls.icons.some(icon => {
+          if (!icon.container || !icon.container.input || !icon.container.active) return false;
+          
+          // Obtenir les coordonnées mondiales du container
+          let containerWorldX, containerWorldY;
+          if (icon.container.getWorldTransformMatrix) {
+            const matrix = icon.container.getWorldTransformMatrix();
+            containerWorldX = matrix.tx;
+            containerWorldY = matrix.ty;
+          } else {
+            containerWorldX = icon.container.x;
+            containerWorldY = icon.container.y;
+          }
+          
+          // Calculer les coordonnées locales
+          const localX = pointer.worldX - containerWorldX;
+          const localY = pointer.worldY - containerWorldY;
+          
+          // Utiliser la taille définie par setSize pour vérifier si on est dans la zone
+          const hitSize = icon.size * 2.2;
+          const halfSize = hitSize / 2;
+          
+          // Vérifier si on est dans le rectangle centré
+          return localX >= -halfSize && localX <= halfSize && 
+                 localY >= -halfSize && localY <= halfSize;
+        });
+        
+        if (hitButton) {
+          // Si on est sur un bouton, ne pas afficher le highlight de tuile
+          if (this.tileHighlight) {
+            this.tileHighlight.setVisible(false);
+          }
+          return;
+        }
+      }
+
       const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
 
       if (
