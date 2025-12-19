@@ -44,15 +44,29 @@ export class UIManager {
     const currentWave = (this.scene.currentWaveIndex || 0) + 1;
     let totalWaves = 0;
 
-    if (this.scene.levelConfig && this.scene.levelConfig.waves) {
+    // Essayer d'abord avec levelConfig
+    if (this.scene.levelConfig && this.scene.levelConfig.waves && Array.isArray(this.scene.levelConfig.waves)) {
       totalWaves = this.scene.levelConfig.waves.length;
     } else {
+      // Fallback: chercher dans LEVELS_CONFIG
       const levelData = LEVELS_CONFIG.find((l) => l.id === this.scene.levelID);
-      if (levelData && levelData.data && levelData.data.waves) {
+      if (levelData && levelData.data && levelData.data.waves && Array.isArray(levelData.data.waves)) {
         totalWaves = levelData.data.waves.length;
       } else {
-        totalWaves = this.scene.levelID === 2 ? 9 : 6;
+        // Fallback final selon le levelID
+        if (this.scene.levelID === 3) {
+          totalWaves = 10;
+        } else if (this.scene.levelID === 2) {
+          totalWaves = 8;
+        } else {
+          totalWaves = 6; // Level 1 par défaut
+        }
       }
+    }
+
+    // S'assurer que totalWaves est au moins 1
+    if (totalWaves < 1) {
+      totalWaves = 1;
     }
 
     if (this.hud) {

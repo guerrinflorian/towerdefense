@@ -2,8 +2,8 @@ export const cannon = {
   key: "cannon",
   name: "Mortier",
   cost: 180,
-  range: 115,
-  damage: 76,
+  range: 110,
+  damage: 72,
   rate: 2300, // Note: Pour le Niv 3, le moteur doit passer ce rate à 5000
   color: 0xff8844,
   aoe: 50,

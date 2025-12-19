@@ -27,23 +27,31 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.isBlocked = false;
     this.blockedBy = null;
 
-    // Système de lanes pour éviter les chevauchements
-    this.laneOffset = (Math.random() - 0.5) * 16; // Offset initial plus petit
+    // Système de lanes plus réactif - pas de collision, juste évitement visuel
+    this.laneOffset = (Math.random() - 0.5) * 12;
     this.targetLaneOffset = this.laneOffset;
-    this.separationRadius = 28;
-    this.maxLaneWidth = 18; // Réduit pour plus de stabilité
-
-    // Vitesse de lissage adaptative
-    this.offsetSmoothSpeed = 0.08;
+    this.avoidanceRadius = 32; // Distance à partir de laquelle on commence à éviter
+    this.minDistance = 20; // Distance minimale souhaitée entre ennemis
+    this.maxLaneWidth = 20;
+    
+    // Vitesses de réaction
+    this.laneChangeSpeed = 0.15; // Plus rapide pour éviter les blocages
+    this.tangentSmoothSpeed = 0.35;
     this.previousTangent = null;
 
     this.isParalyzed = false;
+    this.paralysisTimer = null;
+    this.paralysisPosition = null; // Position où l'ennemi a été paralysé
     this.isInShell = false;
     this.isInvulnerable = false;
     this.shellThreshold = this.stats.shellThreshold || null;
     this.lastHealTime = 0;
     this.healInterval = this.stats.healInterval || null;
     this.lastSpawnTime = 0;
+
+    // Pour la variation de vitesse fluide
+    this.speedMultiplier = 1.0;
+    this.targetSpeedMultiplier = 1.0;
 
     this.initVisuals();
 
@@ -77,14 +85,12 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.progress = 0;
     if (this.path) {
       this.pathLength = this.path.getLength();
-      // Initialiser la tangente pour éviter les sauts au démarrage
       this.previousTangent = this.calculateTangent(0);
     }
   }
 
   calculateTangent(t) {
-    // Calcul manuel de la tangente en échantillonnant deux points proches
-    const epsilon = 0.001;
+    const epsilon = 0.002;
     const t1 = Math.max(0, t - epsilon);
     const t2 = Math.min(1, t + epsilon);
     
@@ -102,14 +108,25 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   update(time, delta) {
-    if (!this.active || !this.scene || this.isParalyzed || this.isInShell || this.scene.isPaused) return;
+    if (!this.active || !this.scene || this.isInShell || this.scene.isPaused) return;
+
+    // Si paralysé, maintenir la position et ne rien faire d'autre
+    if (this.isParalyzed) {
+      if (this.paralysisPosition) {
+        // Forcer l'ennemi à rester à sa position de paralysie
+        this.setPosition(this.paralysisPosition.x, this.paralysisPosition.y);
+      }
+      return;
+    }
+
+    // Toujours calculer l'évitement, même si bloqué par un soldat
+    this.calculateAvoidance(delta);
 
     if (this.isMoving && !this.isBlocked && this.path) {
       this.handleMovement(delta);
     }
 
     this.handleSpecialAbilities(time);
-    this.manageLanes(delta);
     this.updateCombat(time);
 
     if (this.hpTooltip && this.hpTooltip.active) {
@@ -122,30 +139,97 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
   }
 
-  handleMovement(delta) {
-    if (!this.pathLength) return;
+  calculateAvoidance(delta) {
+    if (!this.scene?.enemies) return;
 
-    const baseStep = (this.speed * (delta / 1000)) / this.pathLength;
-    let adjustedStep = baseStep;
+    let avoidanceLeft = 0;
+    let avoidanceRight = 0;
+    let slowDown = false;
+    
+    const neighbors = this.scene.enemies.getChildren();
+    
+    for (const other of neighbors) {
+      if (other === this || !other.active) continue;
 
-    // Ralentissement si ennemi devant (collision frontale)
-    if (this.scene?.enemies) {
-      const neighbors = this.scene.enemies.getChildren();
-      for (const other of neighbors) {
-        if (other === this || !other.active) continue;
-        
+      const dx = this.x - other.x;
+      const dy = this.y - other.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Si trop proche, on s'écarte sur les côtés
+      if (dist < this.avoidanceRadius && dist > 0.1) {
+        // Calculer de quel côté l'autre ennemi se trouve
+        if (this.previousTangent) {
+          const normalX = -this.previousTangent.y;
+          const normalY = this.previousTangent.x;
+          
+          // Produit scalaire pour savoir si c'est à gauche ou droite
+          const side = dx * normalX + dy * normalY;
+          const strength = (this.avoidanceRadius - dist) / this.avoidanceRadius;
+          
+          if (side > 0) {
+            avoidanceRight += strength;
+          } else {
+            avoidanceLeft += strength;
+          }
+        }
+
+        // Ralentir si collision frontale imminente
         const progressDiff = other.progress - this.progress;
-        const lateralDist = Math.abs(this.laneOffset - other.laneOffset);
-        
-        // Si même lane et proche devant
-        if (progressDiff > 0 && progressDiff < 0.02 && lateralDist < 15) {
-          adjustedStep *= 0.3;
-          break;
+        if (progressDiff > 0 && progressDiff < 0.015 && dist < this.minDistance) {
+          slowDown = true;
         }
       }
     }
 
-    this.progress += adjustedStep;
+    // Décision d'évitement : aller du côté opposé
+    if (avoidanceLeft > avoidanceRight) {
+      this.targetLaneOffset += avoidanceLeft * 3.0;
+    } else if (avoidanceRight > avoidanceLeft) {
+      this.targetLaneOffset -= avoidanceRight * 3.0;
+    }
+
+    // Retour progressif au centre si pas d'évitement nécessaire
+    if (avoidanceLeft === 0 && avoidanceRight === 0) {
+      this.targetLaneOffset *= 0.95;
+    }
+
+    // Ajustement de vitesse fluide pour éviter les blocages
+    if (slowDown) {
+      this.targetSpeedMultiplier = 0.4;
+    } else {
+      this.targetSpeedMultiplier = 1.0;
+    }
+
+    // Lissage de la vitesse
+    this.speedMultiplier = Phaser.Math.Linear(
+      this.speedMultiplier,
+      this.targetSpeedMultiplier,
+      0.1
+    );
+
+    // Clamp de l'offset
+    this.targetLaneOffset = Phaser.Math.Clamp(
+      this.targetLaneOffset,
+      -this.maxLaneWidth,
+      this.maxLaneWidth
+    );
+
+    // Application progressive de l'offset
+    this.laneOffset = Phaser.Math.Linear(
+      this.laneOffset,
+      this.targetLaneOffset,
+      this.laneChangeSpeed
+    );
+  }
+
+  handleMovement(delta) {
+    if (!this.pathLength) return;
+
+    // Vitesse de base modulée par le multiplicateur fluide
+    const effectiveSpeed = this.speed * this.speedMultiplier;
+    const step = (effectiveSpeed * (delta / 1000)) / this.pathLength;
+
+    this.progress += step;
 
     if (this.progress >= 1) {
       this.progress = 1;
@@ -153,7 +237,6 @@ export class Enemy extends Phaser.GameObjects.Container {
       return;
     }
 
-    // Calcul de position avec lissage intelligent de la tangente
     this.updatePositionOnPath();
     this.updateFacingDirection();
     this.setDepth(10 + Math.floor(this.y / 10));
@@ -162,8 +245,8 @@ export class Enemy extends Phaser.GameObjects.Container {
   updatePositionOnPath() {
     const currentPoint = this.path.getPoint(this.progress);
     
-    // Calcul de la tangente avec lookahead manuel
-    const lookAheadDist = 0.008;
+    // Lookahead pour anticiper les virages
+    const lookAheadDist = 0.01;
     const lookAhead = Math.min(this.progress + lookAheadDist, 1);
     
     let tangent;
@@ -182,13 +265,12 @@ export class Enemy extends Phaser.GameObjects.Container {
       tangent = this.calculateTangent(this.progress);
     }
 
-    // Lissage de la tangente pour éviter les rotations brusques
+    // Lissage de la tangente
     if (this.previousTangent) {
-      const smoothFactor = 0.3; // Plus petit = plus lisse
-      tangent.x = Phaser.Math.Linear(this.previousTangent.x, tangent.x, smoothFactor);
-      tangent.y = Phaser.Math.Linear(this.previousTangent.y, tangent.y, smoothFactor);
+      tangent.x = Phaser.Math.Linear(this.previousTangent.x, tangent.x, this.tangentSmoothSpeed);
+      tangent.y = Phaser.Math.Linear(this.previousTangent.y, tangent.y, this.tangentSmoothSpeed);
       
-      // Re-normalisation après lissage
+      // Re-normalisation
       const len = Math.sqrt(tangent.x * tangent.x + tangent.y * tangent.y);
       if (len > 0.001) {
         tangent.x /= len;
@@ -198,18 +280,11 @@ export class Enemy extends Phaser.GameObjects.Container {
     
     this.previousTangent = { ...tangent };
 
-    // Calcul de la normale (perpendiculaire) pour l'offset latéral
+    // Normale pour l'offset latéral
     const normalX = -tangent.y;
     const normalY = tangent.x;
 
-    // Application de l'offset lissé progressivement
-    this.laneOffset = Phaser.Math.Linear(
-      this.laneOffset, 
-      this.targetLaneOffset, 
-      this.offsetSmoothSpeed
-    );
-
-    // Position finale
+    // Position finale avec offset
     const finalX = currentPoint.x + normalX * this.laneOffset;
     const finalY = currentPoint.y + normalY * this.laneOffset;
     
@@ -219,8 +294,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   updateFacingDirection() {
     if (this.stats.shouldRotate === false || !this.bodyGroup || !this.previousTangent) return;
 
-    // Utiliser la tangente lissée pour une rotation plus stable
-    const threshold = 0.1; // Seuil plus élevé pour éviter les micro-flips
+    const threshold = 0.15;
     
     if (this.previousTangent.x > threshold && !this.facingRight) {
       this.facingRight = true;
@@ -229,62 +303,6 @@ export class Enemy extends Phaser.GameObjects.Container {
       this.facingRight = false;
       this.bodyGroup.setScale(-1, 1);
     }
-  }
-
-  manageLanes(delta) {
-    if (!this.scene?.enemies) return;
-
-    let separationForceX = 0;
-    let separationForceY = 0;
-    let count = 0;
-
-    const neighbors = this.scene.enemies.getChildren();
-
-    for (const other of neighbors) {
-      if (other === this || !other.active) continue;
-
-      const dx = this.x - other.x;
-      const dy = this.y - other.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < this.separationRadius && dist > 0.1) {
-        // Force de répulsion basée sur la distance
-        const strength = (this.separationRadius - dist) / this.separationRadius;
-        separationForceX += (dx / dist) * strength;
-        separationForceY += (dy / dist) * strength;
-        count++;
-      }
-    }
-
-    if (count > 0) {
-      // Moyenne des forces de séparation
-      separationForceX /= count;
-      separationForceY /= count;
-
-      // Projection de la force de séparation sur l'axe perpendiculaire au chemin
-      if (this.previousTangent) {
-        const normalX = -this.previousTangent.y;
-        const normalY = this.previousTangent.x;
-        
-        // Produit scalaire pour obtenir la composante latérale
-        const lateralForce = separationForceX * normalX + separationForceY * normalY;
-        
-        // Application progressive de la force
-        this.targetLaneOffset += lateralForce * 2.5;
-      }
-    }
-
-    // Retour progressif vers le centre si pas de conflit
-    if (count === 0) {
-      this.targetLaneOffset *= 0.98;
-    }
-
-    // Clamp pour rester dans les limites de la route
-    this.targetLaneOffset = Phaser.Math.Clamp(
-      this.targetLaneOffset, 
-      -this.maxLaneWidth, 
-      this.maxLaneWidth
-    );
   }
 
   reachEnd() {
@@ -497,7 +515,49 @@ export class Enemy extends Phaser.GameObjects.Container {
     if (this.hpTooltip) this.hpTooltip.setText(this.getHpTooltipText());
   }
 
+  paralyze(duration) {
+    if (!this.active || !this.scene) return;
+    
+    // Annuler toute paralysie précédente
+    if (this.paralysisTimer) {
+      this.paralysisTimer.remove();
+      this.paralysisTimer = null;
+    }
+    
+    // Sauvegarder la position actuelle où l'ennemi est paralysé
+    this.paralysisPosition = { x: this.x, y: this.y };
+    
+    // Mettre l'ennemi en état de paralysie
+    this.isParalyzed = true;
+    
+    // Arrêter le mouvement
+    this.isMoving = false;
+    
+    // Si l'ennemi était bloqué par un soldat, le libérer
+    if (this.isBlocked && this.blockedBy) {
+      this.isBlocked = false;
+      if (this.blockedBy.releaseEnemy) {
+        this.blockedBy.releaseEnemy();
+      }
+      this.blockedBy = null;
+    }
+    
+    // Créer un timer pour libérer l'ennemi après la durée spécifiée
+    this.paralysisTimer = this.scene.time.delayedCall(duration, () => {
+      if (this.active) {
+        this.isParalyzed = false;
+        this.paralysisPosition = null;
+        this.isMoving = true; // Reprendre le mouvement
+        this.paralysisTimer = null;
+      }
+    });
+  }
+
   destroy(fromScene) {
+    if (this.paralysisTimer) {
+      this.paralysisTimer.remove();
+      this.paralysisTimer = null;
+    }
     this.hideHpTooltip();
     super.destroy(fromScene);
   }

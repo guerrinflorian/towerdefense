@@ -220,12 +220,6 @@ export class InputManager {
 
     const tileType = this.scene.levelConfig.map[ty][tx];
 
-    // Commande du héros par clic droit sur un chemin
-    if (this.hero && this.isPathTile(tileType)) {
-      this.hero.setDestination(tx, ty);
-      return;
-    }
-
     if (tileType !== 0 && tileType !== 6) {
       return;
     }
@@ -238,7 +232,36 @@ export class InputManager {
     this.uiManager.openBuildMenu(pointer);
   }
 
-  handleNormalClick(pointer) {}
+  handleNormalClick(pointer) {
+    // Ne pas déplacer le héros si on est en train de placer un sort
+    if (this.spellManager && this.spellManager.isPlacingSpell()) {
+      return;
+    }
+
+    const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
+
+    if (
+      pointer.worldY < this.scene.mapStartY ||
+      pointer.worldY > this.scene.mapStartY + 15 * T ||
+      pointer.worldX < this.scene.mapStartX ||
+      pointer.worldX > this.scene.mapStartX + 15 * T
+    ) {
+      return;
+    }
+
+    const tx = Math.floor((pointer.worldX - this.scene.mapStartX) / T);
+    const ty = Math.floor((pointer.worldY - this.scene.mapStartY) / T);
+
+    if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) return;
+
+    const tileType = this.scene.levelConfig.map[ty][tx];
+
+    // Commande du héros par clic gauche sur un chemin
+    if (this.hero && this.isPathTile(tileType)) {
+      this.hero.setDestination(tx, ty);
+      return;
+    }
+  }
 
   isPointerOnToolbar(pointer) {
     return this.uiManager.isPointerOnToolbar(pointer);
