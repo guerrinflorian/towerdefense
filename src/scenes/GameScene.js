@@ -3,6 +3,7 @@ import { LEVELS_CONFIG } from "../config/levels/index.js";
 import { Enemy } from "../objects/Enemy.js";
 import { Turret } from "../objects/Turret.js";
 import { Barracks } from "../objects/Barracks.js";
+import { Hero } from "../objects/Hero.js";
 import { MapManager } from "./managers/MapManager.js";
 import { WaveManager } from "./managers/WaveManager.js";
 import { UIManager } from "./managers/UIManager.js";
@@ -44,6 +45,7 @@ export class GameScene extends Phaser.Scene {
     this.maxBarracks = 5;
     this.upgradeTextLines = []; // Pour stocker les lignes de texte du menu
     this.spawnControls = null;
+    this.hero = null;
 
     // Réinitialiser toutes les références UI pour éviter les références vers objets détruits
     this.buildToolbar = null;
@@ -114,9 +116,15 @@ export class GameScene extends Phaser.Scene {
     this.waveManager.initSpawnControls();
     this.enemies = this.add.group({ runChildUpdate: true });
     this.soldiers = this.add.group({ runChildUpdate: true });
+
+    const heroSpawnTile = this.findHeroSpawnTile();
+    this.hero = new Hero(this, heroSpawnTile.x, heroSpawnTile.y);
+    this.soldiers.add(this.hero);
+
     this.uiManager.createUI();
     this.uiManager.updateTimer(this.elapsedTimeMs);
 
+    this.inputManager.setHero(this.hero);
     this.inputManager.setupInputHandlers();
   }
 
@@ -268,6 +276,47 @@ export class GameScene extends Phaser.Scene {
   // =========================================================
   // GESTION CLICS & MENUS
   // =========================================================
+
+  findHeroSpawnTile() {
+    const map = this.levelConfig.map || [];
+    const pathTypes = [1, 4, 7];
+    let baseTile = null;
+    for (let y = 0; y < map.length; y++) {
+      for (let x = 0; x < map[y].length; x++) {
+        if (map[y][x] === 2) {
+          baseTile = { x, y };
+          break;
+        }
+      }
+      if (baseTile) break;
+    }
+
+    if (baseTile) {
+      const dirs = [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 },
+      ];
+      for (const d of dirs) {
+        const nx = baseTile.x + d.x;
+        const ny = baseTile.y + d.y;
+        if (ny >= 0 && ny < map.length && nx >= 0 && nx < map[ny].length) {
+          if (pathTypes.includes(map[ny][nx])) {
+            return { x: nx, y: ny };
+          }
+        }
+      }
+    }
+
+    if (this.levelConfig.paths?.[0]?.length) {
+      const lastPoint =
+        this.levelConfig.paths[0][this.levelConfig.paths[0].length - 1];
+      return { x: lastPoint.x, y: lastPoint.y };
+    }
+
+    return { x: 0, y: 0 };
+  }
 
   // Vérifier si une case est adjacente à un chemin
   isAdjacentToPath(tx, ty) {
@@ -585,6 +634,15 @@ export class GameScene extends Phaser.Scene {
 
     // Nettoyer les groupes - VÉRIFIER QUE children EXISTE AVANT clear()
     try {
+      if (this.hero) {
+        try {
+          if (this.hero.corpseTimerEvent) this.hero.corpseTimerEvent.remove();
+          if (this.hero.corpseContainer) this.hero.corpseContainer.destroy();
+          this.hero.destroy();
+        } catch (e) {}
+        this.hero = null;
+      }
+
       if (
         this.enemies &&
         this.enemies.children &&

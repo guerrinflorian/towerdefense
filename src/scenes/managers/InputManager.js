@@ -10,11 +10,16 @@ export class InputManager {
     this.tileHighlight = null;
     this.longPressTimer = null;
     this.longPressDelay = 500;
+    this.hero = null;
   }
 
   setUIManager(uiManager) {
     this.uiManager = uiManager;
     this.dragHandler.uiManager = uiManager;
+  }
+
+  setHero(hero) {
+    this.hero = hero;
   }
 
   setupInputHandlers() {
@@ -214,6 +219,13 @@ export class InputManager {
     }
 
     const tileType = this.scene.levelConfig.map[ty][tx];
+
+    // Commande du héros par clic droit sur un chemin
+    if (this.hero && this.isPathTile(tileType)) {
+      this.hero.setDestination(tx, ty);
+      return;
+    }
+
     if (tileType !== 0 && tileType !== 6) {
       return;
     }
@@ -242,5 +254,9 @@ export class InputManager {
 
   cancelDrag() {
     this.dragHandler.cancelDrag();
+  }
+
+  isPathTile(tileType) {
+    return tileType === 1 || tileType === 4 || tileType === 7;
   }
 }
