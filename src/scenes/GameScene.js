@@ -4,6 +4,7 @@ import { Enemy } from "../objects/Enemy.js";
 import { Turret } from "../objects/Turret.js";
 import { Barracks } from "../objects/Barracks.js";
 import { Hero } from "../objects/Hero.js";
+import { GoldCoin } from "../objects/GoldCoin.js";
 import { MapManager } from "./managers/MapManager.js";
 import { WaveManager } from "./managers/WaveManager.js";
 import { UIManager } from "./managers/UIManager.js";
@@ -40,6 +41,7 @@ export class GameScene extends Phaser.Scene {
     this.isWaveRunning = false;
     this.enemies = null;
     this.soldiers = null;
+    this.coins = null;
     this.nextWaveAutoTimer = null; // Timer pour le lancement automatique
     this.nextWaveCountdown = 0; // Compte à rebours en secondes
     this.waveSpawnTimers = []; // Liste des timers de spawn des ennemis
@@ -123,6 +125,7 @@ export class GameScene extends Phaser.Scene {
     this.waveManager.initSpawnControls();
     this.enemies = this.add.group({ runChildUpdate: true });
     this.soldiers = this.add.group({ runChildUpdate: true });
+    this.coins = this.add.group({ runChildUpdate: false });
 
     const heroSpawnTile = this.findHeroSpawnTile();
     this.hero = new Hero(this, heroSpawnTile.x, heroSpawnTile.y, this.heroStats);
@@ -245,6 +248,9 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    this.updateCoins(time, delta);
+    this.checkHeroCoinPickup();
+
     if (this.inputManager) {
       this.inputManager.update(time, delta);
     }
@@ -313,6 +319,10 @@ export class GameScene extends Phaser.Scene {
   handleEnemyKilled(payload) {
     if (payload?.source === "hero") {
       this.heroKillCount += 1;
+    }
+
+    if (payload && Math.random() < 0.25) {
+      this.spawnCoinDrop(payload.x, payload.y);
     }
   }
 
@@ -803,6 +813,35 @@ export class GameScene extends Phaser.Scene {
 
   drawTurretPreview(container, config) {
     this.uiManager.buildToolbar.drawTurretPreview(container, config);
+  }
+
+  spawnCoinDrop(x, y) {
+    if (!this.coins) return;
+    const dropX = Number.isFinite(x) ? x : this.cameras.main.centerX;
+    const dropY = Number.isFinite(y) ? y : this.cameras.main.centerY;
+    const amount = Phaser.Math.Between(2, 12);
+    const coin = new GoldCoin(this, dropX, dropY, amount);
+    this.coins.add(coin);
+  }
+
+  updateCoins(time, delta) {
+    if (!this.coins) return;
+    this.coins.children.each((coin) => {
+      if (coin?.update) {
+        coin.update(time, delta);
+      }
+    });
+  }
+
+  checkHeroCoinPickup() {
+    if (!this.hero || !this.coins) return;
+    this.coins.children.each((coin) => {
+      if (!coin?.active || coin.isCollected) return;
+      const dist = Phaser.Math.Distance.Between(this.hero.x, this.hero.y, coin.x, coin.y);
+      if (dist <= coin.pickupRadius) {
+        coin.collect();
+      }
+    });
   }
 
   shutdown() {
