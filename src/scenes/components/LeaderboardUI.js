@@ -4,21 +4,34 @@ import {
   fetchHeroLeaderboard,
   fetchLevelLeaderboards,
 } from "../../services/leaderboardService.js";
+import { isAuthenticated } from "../../services/authManager.js";
 
+/**
+ * UI du Classement - Style Cyberpunk / Sci-Fi
+ * Entièrement localisé en Français
+ */
 export class LeaderboardUI extends Phaser.GameObjects.Container {
   constructor(scene, x, y) {
     super(scene, x, y);
 
-    this.config = {
-      width: 540,
-      height: 450,
-      accentColor: 0x00eaff,
-      rowHeight: 32,
+    // --- CONFIGURATION STYLE ---
+    this.uiConfig = {
+      width: 560,
+      height: 500,
+      colors: {
+        bg: 0x0d1b2a,
+        accent: 0x00eaff,
+        textBlue: 0x7dd0ff,
+        gold: 0xffd700,
+        white: 0xffffff,
+      },
+      rowHeight: 34,
       maxEntries: 8,
     };
 
+    // --- ÉTAT ---
     this.viewModes = ["hero", "global", "level"];
-    this.currentModeIndex = 1; // Start on "global"
+    this.currentModeIndex = 1; 
     this.currentLevelIndex = 0;
     this.levelLeaderboards = [];
     this.levelLeaderboardMap = new Map();
@@ -36,102 +49,83 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   }
 
   setupLayout() {
-    const { width, height, accentColor } = this.config;
+    const { width, height, colors } = this.uiConfig;
 
-    // --- 1. PANNEAU DE FOND ---
+    // 1. FOND PRINCIPAL
     const bg = this.scene.add.graphics();
-    bg.fillStyle(0x000000, 0.5);
-    bg.fillRoundedRect(10, 10, width, height, 15);
-    bg.fillStyle(0x0d1b2a, 0.95);
-    bg.lineStyle(2, accentColor, 1);
-    bg.fillRoundedRect(0, 0, width, height, 15);
-    bg.strokeRoundedRect(0, 0, width, height, 15);
-    bg.lineStyle(1, accentColor, 0.4);
-    bg.lineBetween(15, 55, width - 15, 55);
+    // Ombre
+    bg.fillStyle(0x000000, 0.4).fillRoundedRect(10, 10, width, height, 15);
+    // Fond
+    bg.fillStyle(colors.bg, 0.95).lineStyle(2, colors.accent, 1);
+    bg.fillRoundedRect(0, 0, width, height, 15).strokeRoundedRect(0, 0, width, height, 15);
+    // Ligne de séparation titre
+    bg.lineStyle(1, colors.accent, 0.4).lineBetween(15, 55, width - 15, 55);
     this.add(bg);
 
-    // --- 2. NAVIGATION DES MODES ---
-    const navStyle = {
-      fontSize: "20px",
+    // 2. NAVIGATION DES MODES (Haut)
+    const navStyle = { fontSize: "22px", fontFamily: "Impact, sans-serif", color: "#7dd0ff" };
+    
+    this.btnPrevMode = this.scene.add.text(20, 28, "◀", navStyle).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+    this.btnNextMode = this.scene.add.text(width - 70, 28, "▶", navStyle).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    
+    this.title = this.scene.add.text(width / 2, 28, "", {
+      fontSize: "22px",
       fontFamily: "Impact, sans-serif",
-      color: "#7dd0ff",
-    };
+      color: "#ffffff",
+      letterSpacing: 1,
+    }).setOrigin(0.5).setShadow(0, 0, "#00eaff", 10);
 
-    this.leftArrow = this.scene.add
-      .text(20, 28, "◀", navStyle)
-      .setInteractive({ useHandCursor: true });
-    this.rightArrow = this.scene.add
-      .text(width - 60, 28, "▶", navStyle)
-      .setInteractive({ useHandCursor: true });
-    this.add(this.leftArrow);
-    this.add(this.rightArrow);
+    this.refreshBtn = this.scene.add.text(width - 30, 28, "↻", {
+      fontSize: "26px", color: "#00eaff", fontStyle: "bold"
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    this.leftArrow.on("pointerdown", () => this.switchMode(-1));
-    this.rightArrow.on("pointerdown", () => this.switchMode(1));
+    this.add([this.btnPrevMode, this.btnNextMode, this.title, this.refreshBtn]);
 
-    // --- 3. TITRE ---
-    this.title = this.scene.add
-      .text(width / 2, 18, "", {
-        fontSize: "20px",
-        fontFamily: "Impact, sans-serif",
-        color: "#ffffff",
-        letterSpacing: 1,
-      })
-      .setOrigin(0.5, 0)
-      .setShadow(0, 0, "#00eaff", 10);
-    this.add(this.title);
+    // 3. BARRE DE SELECTION DES NIVEAUX (Plus espacée et structurée)
+    // On crée un conteneur dédié pour la navigation de niveau
+    this.levelNavContainer = this.scene.add.container(0, 75);
+    
+    const levelBg = this.scene.add.graphics();
+    levelBg.fillStyle(0xffffff, 0.05).fillRoundedRect(20, 0, width - 40, 40, 10);
+    this.levelNavContainer.add(levelBg);
 
-    // --- 4. BOUTON REFRESH ---
-    this.refreshBtn = this.scene.add
-      .text(width - 30, 28, "↻", {
-        fontSize: "26px",
-        color: accentColor,
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+    const levelNavStyle = { fontSize: "14px", color: "#9ae8ff", fontFamily: "Orbitron", fontWeight: "bold" };
+    
+    this.btnPrevLvl = this.scene.add.text(45, 20, "⟸ NIVEAU PRÉCÉDENT", { ...levelNavStyle, fontSize: "11px" })
+      .setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+    
+    this.levelNavLabel = this.scene.add.text(width / 2, 20, "", levelNavStyle)
+      .setOrigin(0.5).setShadow(0,0, "#00eaff", 5);
+    
+    this.btnNextLvl = this.scene.add.text(width - 45, 20, "NIVEAU SUIVANT ⟹", { ...levelNavStyle, fontSize: "11px" })
+      .setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+
+    this.levelNavContainer.add([this.btnPrevLvl, this.levelNavLabel, this.btnNextLvl]);
+    this.add(this.levelNavContainer);
+
+    // 4. ZONE DE DONNÉES
+    this.headerContainer = this.scene.add.container(0, 130);
+    this.listContainer = this.scene.add.container(0, 155);
+    this.statusText = this.scene.add.text(width / 2, height / 2 + 50, "", {
+      fontSize: "14px", color: "#ffffff", fontFamily: "Courier New"
+    }).setOrigin(0.5);
+
+    this.add([this.headerContainer, this.listContainer, this.statusText]);
+
+    // --- ÉVÉNEMENTS ---
+    this.btnPrevMode.on("pointerdown", () => this.switchMode(-1));
+    this.btnNextMode.on("pointerdown", () => this.switchMode(1));
+    this.btnPrevLvl.on("pointerdown", () => this.changeLevel(-1));
+    this.btnNextLvl.on("pointerdown", () => this.changeLevel(1));
     this.refreshBtn.on("pointerdown", () => this.handleRefresh());
-    this.add(this.refreshBtn);
-
-    // --- 5. NAVIGATION DES NIVEAUX (VISIBLE UNIQUEMENT EN MODE NIVEAU) ---
-    const levelNavStyle = { fontSize: "12px", color: "#9ae8ff", fontFamily: "Orbitron" };
-    this.levelNav = this.scene.add.container(width / 2, 50);
-    this.levelNavLeft = this.scene.add
-      .text(-90, 0, "⟸", levelNavStyle)
-      .setInteractive({ useHandCursor: true });
-    this.levelNavLabel = this.scene.add.text(0, 0, "", levelNavStyle).setOrigin(0.5, 0.5);
-    this.levelNavRight = this.scene.add
-      .text(90, 0, "⟹", levelNavStyle)
-      .setInteractive({ useHandCursor: true });
-    this.levelNav.add([this.levelNavLeft, this.levelNavLabel, this.levelNavRight]);
-    this.levelNavLeft.on("pointerdown", () => this.changeLevel(-1));
-    this.levelNavRight.on("pointerdown", () => this.changeLevel(1));
-    this.add(this.levelNav);
-
-    // --- 6. EN-TÊTE DES COLONNES ---
-    this.headerContainer = this.scene.add.container(0, 0);
-    this.add(this.headerContainer);
-
-    // --- 7. LISTE DES ENTRÉES ---
-    this.listContainer = this.scene.add.container(0, 95);
-    this.add(this.listContainer);
-
-    this.statusText = this.scene.add
-      .text(width / 2, height / 2 + 30, "", {
-        fontSize: "14px",
-        color: "#ffffff",
-        fontFamily: "Courier New",
-      })
-      .setOrigin(0.5);
-    this.add(this.statusText);
   }
+
+  // --- LOGIQUE DE NAVIGATION ---
 
   switchMode(delta) {
     const total = this.viewModes.length;
     this.currentModeIndex = (this.currentModeIndex + delta + total) % total;
-    if (this.currentMode === "level") {
-      this.currentLevelIndex = 0;
-    }
+    if (this.currentMode === "level") this.currentLevelIndex = 0;
     this.updateModeUI();
     this.loadData();
   }
@@ -146,76 +140,162 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
   updateModeUI() {
     this.title.setText(this.getTitleText());
-    this.levelNav.setVisible(this.currentMode === "level");
-    this.updateLevelNavLabel();
+    
+    // Afficher/Cacher la barre de sélection de niveau
+    const isLevelMode = this.currentMode === "level";
+    this.levelNavContainer.setVisible(isLevelMode);
+    
+    // Ajuster la position du tableau si on est en mode niveau ou non
+    this.headerContainer.setY(isLevelMode ? 130 : 80);
+    this.listContainer.setY(isLevelMode ? 155 : 105);
+
+    if (isLevelMode) {
+      const lvl = LEVELS_CONFIG[this.currentLevelIndex];
+      this.levelNavLabel.setText(lvl ? `${lvl.id} • ${lvl.name.toUpperCase()}` : "NIVEAU INCONNU");
+    }
+    
     this.drawHeaders();
   }
 
   getTitleText() {
-    if (this.currentMode === "hero") return "🦸 CLASSEMENT HÉROS";
-    if (this.currentMode === "level") {
-      const lvl = LEVELS_CONFIG[this.currentLevelIndex];
-      if (lvl) {
-        return `🗺️ CLASSEMENT NIVEAU ${lvl.id} • ${lvl.name.toUpperCase()}`;
-      }
-      return "🗺️ CLASSEMENT NIVEAU";
+    switch (this.currentMode) {
+      case "hero": return "🦸 CLASSEMENT DES HÉROS";
+      case "level": return "🗺️ RECORDS PAR MISSION";
+      default: return "📊 CLASSEMENT GÉNÉRAL";
     }
-    return "📊 CLASSEMENT GLOBAL";
   }
 
-  updateLevelNavLabel() {
-    if (!this.levelNav.visible) return;
-    const lvl = LEVELS_CONFIG[this.currentLevelIndex];
-    const label = lvl ? `NIVEAU ${lvl.id} — ${lvl.name}` : "NIVEAU";
-    this.levelNavLabel.setText(label);
-  }
+  // --- RENDU DU TABLEAU ---
 
   getColumns() {
-    const { width } = this.config;
+    const { width } = this.uiConfig;
     if (this.currentMode === "hero") {
       return [
-        { key: "rank", label: "RANG", x: 20, align: "left" },
-        { key: "player", label: "JOUEUR", x: 80, align: "left" },
-        { key: "hp", label: "PV", x: 220, align: "left" },
-        { key: "dmg", label: "DÉGÂTS", x: 310, align: "left" },
-        { key: "speed", label: "VITESSE", x: 400, align: "left" },
+        { key: "rank", label: "RG", x: 20 },
+        { key: "player", label: "JOUEUR", x: 70 },
+        { key: "hp", label: "PV", x: 210 },
+        { key: "dmg", label: "DÉGÂTS", x: 290 },
+        { key: "speed", label: "VIT.", x: 380 },
         { key: "score", label: "TOTAL", x: width - 20, align: "right" },
       ];
     }
     if (this.currentMode === "level") {
       return [
-        { key: "rank", label: "RANG", x: 20, align: "left" },
-        { key: "player", label: "JOUEUR", x: 150, align: "left" },
-        { key: "hearts", label: "VIES PERDUES", x: 310, align: "left" },
+        { key: "rank", label: "RG", x: 20 },
+        { key: "player", label: "PILOTE", x: 120 },
+        { key: "hearts", label: "VIES PERDUES", x: 280 },
         { key: "time", label: "TEMPS", x: width - 110, align: "right" },
         { key: "date", label: "DATE", x: width - 20, align: "right" },
       ];
     }
     return [
-      { key: "rank", label: "RANG", x: 20, align: "left" },
-      { key: "player", label: "JOUEUR", x: 75, align: "left" },
-      { key: "lvl", label: "NIV MAX", x: 200, align: "left" },
-      { key: "hearts", label: "COEURS PERDUS", x: 320, align: "left" },
-      { key: "time", label: "TEMPS CUMULÉ", x: width - 20, align: "right" },
+      { key: "rank", label: "RG", x: 20 },
+      { key: "player", label: "JOUEUR", x: 75 },
+      { key: "lvl", label: "NIV. MAX", x: 200 },
+      { key: "hearts", label: "COEURS PERDUS", x: 320 },
+      { key: "time", label: "TEMPS TOTAL", x: width - 20, align: "right" },
     ];
   }
 
   drawHeaders() {
-    const hStyle = { fontSize: "11px", color: "#7dd0ff", fontWeight: "bold", fontFamily: "Orbitron, Arial" };
+    const hStyle = { fontSize: "11px", color: "#7dd0ff", fontWeight: "bold", fontFamily: "Orbitron" };
     this.headerContainer.removeAll(true);
     this.activeColumns = this.getColumns();
     this.activeColumns.forEach((col) => {
-      const txt = this.scene.add.text(col.x, 65, col.label, hStyle);
+      const txt = this.scene.add.text(col.x, 0, col.label, hStyle);
       if (col.align === "right") txt.setOrigin(1, 0);
       this.headerContainer.add(txt);
     });
   }
 
-  async handleRefresh() {
-    if (this.currentMode === "level") {
-      this.levelLeaderboards = [];
-      this.levelLeaderboardMap.clear();
+  // --- CHARGEMENT DES DONNÉES ---
+
+  async loadData() {
+    try {
+      this.listContainer.removeAll(true);
+      
+      // Vérifier si l'utilisateur est authentifié avant de charger les données
+      if (!isAuthenticated()) {
+        this.statusText.setText("CONNEXION REQUISE");
+        return;
+      }
+      
+      this.statusText.setText("SYNCHRONISATION AVEC LE SERVEUR...");
+
+      let entries = [];
+
+      if (this.currentMode === "hero") {
+        entries = await fetchHeroLeaderboard();
+      } else if (this.currentMode === "level") {
+        if (this.levelLeaderboards.length === 0) {
+          const levels = await fetchLevelLeaderboards();
+          this.levelLeaderboards = levels;
+          this.levelLeaderboardMap = new Map(levels.map(l => [l.levelId, l.entries || []]));
+        }
+        const levelId = LEVELS_CONFIG[this.state?.currentLevelIndex || this.currentLevelIndex]?.id;
+        entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
+      } else {
+        entries = await fetchGlobalLeaderboard();
+      }
+
+      this.statusText.setText(entries.length === 0 ? "AUCUNE DONNÉE TROUVÉE" : "");
+      this.renderEntries(entries);
+    } catch (err) {
+      console.error(err);
+      this.statusText.setText("ERREUR DE CONNEXION");
     }
+  }
+
+  renderEntries(entries) {
+    entries.slice(0, this.uiConfig.maxEntries).forEach((entry, idx) => {
+      const y = idx * this.uiConfig.rowHeight;
+      const isTop1 = idx === 0;
+      const color = isTop1 ? "#ffd700" : "#ffffff";
+      const row = this.scene.add.container(0, y);
+
+      // Fond de ligne alterné
+      const rowBg = this.scene.add.graphics();
+      rowBg.fillStyle(0xffffff, idx % 2 === 0 ? 0.04 : 0);
+      rowBg.fillRect(10, -5, this.uiConfig.width - 20, 30);
+      row.add(rowBg);
+
+      // Création des cellules dynamiques
+      this.activeColumns.forEach(col => {
+        let value = "";
+        switch(col.key) {
+          case "rank": value = (idx + 1).toString().padStart(2, "0"); break;
+          case "player": value = (entry.username || "Anonyme").substring(0, 14); break;
+          case "time": value = this.formatTime(entry.completion_time_ms || entry.total_time_ms); break;
+          case "date": value = this.formatDate(entry.created_at); break;
+          case "score": value = Math.round(entry.hero_score || 0).toLocaleString(); break;
+          case "hearts": value = entry.lives_lost ?? entry.total_lives_lost ?? 0; break;
+          case "hp": value = entry.max_hp || 0; break;
+          case "dmg": value = Math.round(entry.base_damage || 0); break;
+          case "speed": value = entry.move_speed || 0; break;
+          case "lvl": value = entry.max_level || 0; break;
+        }
+
+        const cell = this.scene.add.text(col.x, 0, value, {
+          fontSize: "13px",
+          fontFamily: "Arial",
+          color: (col.key === "time" || col.key === "score") ? "#00eaff" : color,
+          fontWeight: isTop1 || col.key === "rank" ? "bold" : "normal"
+        });
+
+        if (col.align === "right") cell.setOrigin(1, 0);
+        row.add(cell);
+      });
+
+      this.animateRow(row, idx);
+      this.listContainer.add(row);
+    });
+  }
+
+  // --- UTILITAIRES ---
+
+  handleRefresh() {
+    this.levelLeaderboards = [];
+    this.levelLeaderboardMap.clear();
     this.scene.tweens.add({
       targets: this.refreshBtn,
       angle: 360,
@@ -227,153 +307,9 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     });
   }
 
-  async loadData() {
-    try {
-      this.listContainer.removeAll(true);
-      this.statusText.setText("CHARGEMENT DES DONNÉES...");
-
-      if (this.currentMode === "hero") {
-        const entries = await fetchHeroLeaderboard();
-        this.statusText.setText("");
-        this.renderHeroEntries(entries);
-        return;
-      }
-
-      if (this.currentMode === "level") {
-        if (!this.levelLeaderboards.length) {
-          const levels = await fetchLevelLeaderboards();
-          this.levelLeaderboards = levels;
-          this.levelLeaderboardMap = new Map(levels.map((lvl) => [lvl.levelId, lvl.entries || []]));
-        }
-        const levelId = LEVELS_CONFIG[this.currentLevelIndex]?.id;
-        const entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
-        this.statusText.setText("");
-        this.renderLevelEntries(entries);
-        return;
-      }
-
-      const entries = await fetchGlobalLeaderboard();
-      this.statusText.setText("");
-      this.renderGlobalEntries(entries);
-    } catch (err) {
-      this.statusText.setText("ERREUR DE SYNCHRONISATION");
-    }
-  }
-
-  renderHeroEntries(entries) {
-    if (!entries || entries.length === 0) {
-      this.statusText.setText("AUCUN HÉROS RÉPERTORIÉ");
-      return;
-    }
-    entries.slice(0, this.config.maxEntries).forEach((entry, idx) => {
-      const y = idx * this.config.rowHeight;
-      const isFirst = idx === 0;
-      const color = isFirst ? "#ffd700" : "#ffffff";
-      const row = this.scene.add.container(0, y);
-      this.addRowBackground(row, idx);
-
-      const rankTxt = this.createCellText("rank", (idx + 1).toString().padStart(2, "0"), color);
-      const nameTxt = this.createCellText("player", (entry.username || "Inconnu").substring(0, 14), color);
-      const hpTxt = this.createCellText("hp", `${entry.max_hp || 0}`, color);
-      const dmgTxt = this.createCellText("dmg", `${Math.round(entry.base_damage || 0)}`, color);
-      const speedTxt = this.createCellText("speed", `${entry.move_speed || 0}`, color);
-      const scoreTxt = this.createCellText("score", `${Math.round(entry.hero_score || 0)}`, "#00eaff", true);
-
-      row.add([rankTxt, nameTxt, hpTxt, dmgTxt, speedTxt, scoreTxt]);
-      this.animateRow(row, idx);
-      this.listContainer.add(row);
-    });
-  }
-
-  renderLevelEntries(entries) {
-    const levelLabel = LEVELS_CONFIG[this.currentLevelIndex]
-      ? `Niveau ${LEVELS_CONFIG[this.currentLevelIndex].id}`
-      : "Ce niveau";
-    if (!entries || entries.length === 0) {
-      this.statusText.setText(`AUCUN ENREGISTREMENT POUR ${levelLabel.toUpperCase()}`);
-      return;
-    }
-    entries.slice(0, this.config.maxEntries).forEach((entry, idx) => {
-      const y = idx * this.config.rowHeight;
-      const isFirst = idx === 0;
-      const color = isFirst ? "#ffd700" : "#ffffff";
-      const row = this.scene.add.container(0, y);
-      this.addRowBackground(row, idx);
-
-      const rankTxt = this.createCellText("rank", (idx + 1).toString().padStart(2, "0"), color);
-      const nameTxt = this.createCellText("player", (entry.username || "Inconnu").substring(0, 14), color);
-      const heartsTxt = this.createCellText("hearts", `${entry.lives_lost ?? 0}`, color);
-      const timeTxt = this.createCellText("time", this.formatTime(entry.completion_time_ms), "#00eaff", true);
-      const dateTxt = this.createCellText("date", this.formatDate(entry.created_at), "#7dd0ff", true);
-
-      row.add([rankTxt, nameTxt, heartsTxt, timeTxt, dateTxt]);
-      this.animateRow(row, idx);
-      this.listContainer.add(row);
-    });
-  }
-
-  renderGlobalEntries(entries) {
-    if (!entries || entries.length === 0) {
-      this.statusText.setText("AUCUN SURVIVANT RÉPERTORIÉ");
-      return;
-    }
-
-    entries.slice(0, this.config.maxEntries).forEach((entry, idx) => {
-      const y = idx * this.config.rowHeight;
-      const isFirst = idx === 0;
-      const color = isFirst ? "#ffd700" : "#ffffff";
-      const row = this.scene.add.container(0, y);
-      this.addRowBackground(row, idx);
-
-      const rankTxt = this.createCellText("rank", (idx + 1).toString().padStart(2, "0"), color);
-      const nameTxt = this.createCellText("player", (entry.username || "Inconnu").substring(0, 12), color);
-      const lvlTxt = this.createCellText("lvl", `${entry.max_level || 0}`, color);
-      const heartsTxt = this.createHeartCell(entry.total_lives_lost || 0, color);
-      const timeTxt = this.createCellText("time", this.formatTime(entry.total_time_ms), "#00eaff", true);
-
-      row.add([rankTxt, nameTxt, lvlTxt, heartsTxt, timeTxt]);
-      this.animateRow(row, idx);
-      this.listContainer.add(row);
-    });
-  }
-
-  addRowBackground(row, idx) {
-    const rowBg = this.scene.add.graphics();
-    rowBg.fillStyle(0xffffff, idx % 2 === 0 ? 0.03 : 0);
-    rowBg.fillRect(10, -5, this.config.width - 20, 28);
-    row.add(rowBg);
-  }
-
-  createCellText(key, value, color = "#ffffff", alignRight = false) {
-    const col = this.activeColumns.find((c) => c.key === key) || { x: 0 };
-    const txt = this.scene.add.text(col.x, 0, value, {
-      fontSize: "13px",
-      fontFamily: "Arial",
-      color,
-      fontWeight: key === "rank" ? "bold" : "normal",
-    });
-    if (alignRight || col.align === "right") {
-      txt.setOrigin(1, 0);
-    }
-    return txt;
-  }
-
-  createHeartCell(heartsCount, color) {
-    const col = this.activeColumns.find((c) => c.key === "hearts") || { x: 0 };
-    const heartsContainer = this.scene.add.container(col.x, 0);
-    const heartIcon = this.scene.add.text(0, -1, "❤️", { fontSize: "12px" });
-    const heartValue = this.scene.add.text(18, 0, `${heartsCount}`, {
-      fontSize: "12px",
-      fontFamily: "Arial",
-      color,
-    });
-    heartsContainer.add([heartIcon, heartValue]);
-    return heartsContainer;
-  }
-
   animateRow(row, idx) {
     row.alpha = 0;
-    row.x = -15;
+    row.x = -10;
     this.scene.tweens.add({
       targets: row,
       alpha: 1,
@@ -386,16 +322,12 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   formatTime(ms) {
     if (!ms || ms <= 0) return "0:00";
     const sec = Math.floor(ms / 1000);
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
+    return `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, "0")}`;
   }
 
   formatDate(date) {
-    if (!date) return "-";
+    if (!date) return "--/--";
     const d = new Date(date);
-    const day = d.getDate().toString().padStart(2, "0");
-    const month = (d.getMonth() + 1).toString().padStart(2, "0");
-    return `${day}/${month}`;
+    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
   }
 }

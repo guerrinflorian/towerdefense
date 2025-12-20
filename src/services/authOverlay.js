@@ -65,6 +65,14 @@ async function processAuth(action, event, errorBox) {
     toggleVisible(UI.overlay, false);
     toggleGameBlock(false);
     window.dispatchEvent(new CustomEvent("auth:profile-updated"));
+    
+    // S'assurer qu'on est sur MainMenuScene après connexion
+    if (window.game && window.game.scene) {
+      const currentScene = window.game.scene.getScenes(true)[0];
+      if (currentScene && currentScene.scene.key !== "MainMenuScene") {
+        window.game.scene.start("MainMenuScene");
+      }
+    }
   } catch (error) {
     updateError(errorBox, handleAuthError(error));
   }
