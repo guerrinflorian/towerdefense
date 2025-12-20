@@ -67,7 +67,9 @@ export class GameScene extends Phaser.Scene {
     this.toolbarTooltip = null; // Tooltip pour la toolbar
     this.isPaused = false; // État de pause
     this.pauseBtn = null; // Bouton pause
+    this.quitBtn = null; // Bouton quitter
     this.resumeBtn = null; // Bouton reprendre au centre de l'écran
+    this.quitConfirmationContainer = null; // Container de confirmation de quitter
     this.pausedTimers = []; // Liste des timers en pause
     this.pausedTweens = []; // Liste des tweens en pause
     this.elapsedTimeMs = 0; // Chronomètre de session
@@ -652,6 +654,143 @@ export class GameScene extends Phaser.Scene {
     resumeBg.on("pointerdown", () => this.resumeGame());
     resumeBg.on("pointerover", () => resumeText.setTint(0x00ff88));
     resumeBg.on("pointerout", () => resumeText.clearTint());
+  }
+
+  showQuitConfirmation() {
+    // Si une confirmation est déjà affichée, ne pas en créer une autre
+    if (this.quitConfirmationContainer) {
+      return;
+    }
+
+    const s = this.scaleFactor;
+    const centerX = this.cameras.main.centerX;
+    const centerY = this.cameras.main.centerY;
+    const dialogWidth = 400 * s;
+    const dialogHeight = 200 * s;
+
+    // Container principal de la confirmation
+    this.quitConfirmationContainer = this.add
+      .container(centerX, centerY)
+      .setDepth(2000);
+
+    // Fond semi-transparent
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.7);
+    overlay.fillRect(
+      -this.cameras.main.width / 2,
+      -this.cameras.main.height / 2,
+      this.cameras.main.width,
+      this.cameras.main.height
+    );
+    this.quitConfirmationContainer.add(overlay);
+
+    // Fond de la boîte de dialogue
+    const dialogBg = this.add.graphics();
+    dialogBg.fillStyle(0x1a1a2e, 0.95);
+    dialogBg.fillRoundedRect(
+      -dialogWidth / 2,
+      -dialogHeight / 2,
+      dialogWidth,
+      dialogHeight,
+      15
+    );
+    dialogBg.lineStyle(3, 0xff4444, 1);
+    dialogBg.strokeRoundedRect(
+      -dialogWidth / 2,
+      -dialogHeight / 2,
+      dialogWidth,
+      dialogHeight,
+      15
+    );
+    this.quitConfirmationContainer.add(dialogBg);
+
+    // Texte de confirmation
+    const confirmText = this.add
+      .text(0, -40, "Êtes-vous sûr de vouloir\nquitter la partie ?", {
+        fontSize: `${Math.max(16, 20 * s)}px`,
+        fill: "#ffffff",
+        fontFamily: "Arial",
+        fontStyle: "bold",
+        align: "center",
+      })
+      .setOrigin(0.5);
+    this.quitConfirmationContainer.add(confirmText);
+
+    // Bouton Oui
+    const yesBtn = this.add
+      .text(-80, 40, "OUI", {
+        fontSize: `${Math.max(14, 18 * s)}px`,
+        fill: "#ff4444",
+        backgroundColor: "#2a1a1a",
+        padding: { x: 20 * s, y: 10 * s },
+        fontFamily: "Arial",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => yesBtn.setColor("#ff6666"))
+      .on("pointerout", () => yesBtn.setColor("#ff4444"))
+      .on("pointerdown", () => {
+        this.quitGame();
+      });
+    this.quitConfirmationContainer.add(yesBtn);
+
+    // Bouton Non
+    const noBtn = this.add
+      .text(80, 40, "NON", {
+        fontSize: `${Math.max(14, 18 * s)}px`,
+        fill: "#00ccff",
+        backgroundColor: "#1a1a2a",
+        padding: { x: 20 * s, y: 10 * s },
+        fontFamily: "Arial",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => noBtn.setColor("#00eaff"))
+      .on("pointerout", () => noBtn.setColor("#00ccff"))
+      .on("pointerdown", () => {
+        this.closeQuitConfirmation();
+      });
+    this.quitConfirmationContainer.add(noBtn);
+
+    // Fermer en cliquant sur l'overlay (mais pas sur la boîte)
+    overlay.setInteractive(
+      new Phaser.Geom.Rectangle(
+        -this.cameras.main.width / 2,
+        -this.cameras.main.height / 2,
+        this.cameras.main.width,
+        this.cameras.main.height
+      ),
+      Phaser.Geom.Rectangle.Contains
+    );
+    overlay.on("pointerdown", (pointer) => {
+      // Ne fermer que si on clique sur l'overlay, pas sur la boîte
+      const dialogRect = new Phaser.Geom.Rectangle(
+        centerX - dialogWidth / 2,
+        centerY - dialogHeight / 2,
+        dialogWidth,
+        dialogHeight
+      );
+      if (!dialogRect.contains(pointer.x, pointer.y)) {
+        this.closeQuitConfirmation();
+      }
+    });
+  }
+
+  closeQuitConfirmation() {
+    if (this.quitConfirmationContainer) {
+      this.quitConfirmationContainer.destroy();
+      this.quitConfirmationContainer = null;
+    }
+  }
+
+  quitGame() {
+    // Nettoyer les ressources
+    this.closeQuitConfirmation();
+    
+    // Retourner au menu principal
+    this.scene.start("MainMenuScene");
   }
 
   updateUI() {

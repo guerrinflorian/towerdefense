@@ -173,6 +173,30 @@ export class HUD {
       });
     rightPanel.add(this.scene.pauseBtn);
 
+    // Bouton Quitter (juste en dessous du bouton pause)
+    const quitBtnY = pauseBtnY + buttonHeight + buttonSpacing;
+    this.scene.quitBtn = this.scene.add
+      .text(pauseBtnX, quitBtnY, "🚪 QUITTER", {
+        fontSize: `${smallFontSize}px`,
+        fill: "#ff4444",
+        backgroundColor: "#1e1e1e",
+        padding: { x: 12 * s, y: 8 * s },
+        fontFamily: "Arial",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => {
+        this.scene.quitBtn.setColor("#ff6666");
+      })
+      .on("pointerout", () => {
+        this.scene.quitBtn.setColor("#ff4444");
+      })
+      .on("pointerdown", () => {
+        this.scene.showQuitConfirmation();
+      });
+    rightPanel.add(this.scene.quitBtn);
+
     this.barWidth = columnWidth;
     this.basePadding = padding;
     this.UI_HEIGHT = columnHeight;

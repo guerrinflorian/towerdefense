@@ -270,8 +270,8 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
           case "score": value = Math.round(entry.hero_score || 0).toLocaleString(); break;
           case "hearts": value = entry.lives_lost ?? entry.total_lives_lost ?? 0; break;
           case "hp": value = entry.max_hp || 0; break;
-          case "dmg": value = Math.round(entry.base_damage || 0); break;
-          case "speed": value = entry.move_speed || 0; break;
+          case "dmg": value = parseFloat(entry.base_damage || 0).toFixed(2); break;
+          case "speed": value = parseFloat(entry.move_speed || 0).toFixed(2); break;
           case "lvl": value = entry.max_level || 0; break;
         }
 
