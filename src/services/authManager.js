@@ -91,9 +91,12 @@ export function logout() {
   currentProfile = null;
 }
 
-export async function recordHeroKill() {
+export async function recordHeroKill(kills = 1) {
   if (!isAuthenticated()) return null;
-  const response = await apiClient.post("/api/player/hero/kill");
+  const killsToRecord = Number.isInteger(kills) && kills > 0 ? kills : 1;
+  const response = await apiClient.post("/api/player/hero/kill", {
+    kills: killsToRecord,
+  });
   if (currentProfile?.player) {
     currentProfile.player.hero_points_available =
       response.data.heroPointsAvailable;
