@@ -8,6 +8,7 @@ export class MapScene extends Phaser.Scene {
     super("MapScene");
     this.levelIslands = new Map();
     this.bestRunsByLevel = new Map();
+    this.launchedFromMainMenu = false;
     this.biomes = {
       grass:  { top: 0x55aa44, side: 0x3d2b1f, light: 0x77cc66, prop: 0x225522, glow: 0x00ff00 },
       lava:   { top: 0x333333, side: 0x221100, light: 0xff4400, prop: 0xff0000, glow: 0xff4400 },
@@ -17,12 +18,21 @@ export class MapScene extends Phaser.Scene {
     };
   }
 
+  init(data) {
+    this.launchedFromMainMenu = data?.fromMainMenu === true;
+  }
+
   preload() {
     const backgroundMapUrl = new URL("../images/background_map.jpg", import.meta.url).href;
     this.load.image("background_map", backgroundMapUrl);
   }
 
   create() {
+    if (!this.launchedFromMainMenu) {
+      this.scene.start("MainMenuScene");
+      return;
+    }
+
     const { width, height } = this.scale;
     const cx = width / 2;
     
