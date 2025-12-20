@@ -41,6 +41,14 @@ export class MapManager {
         if (type === 8) key = "tile_ice_water"; // Eau/Glace profonde
         if (type === 9) key = "tile_snow_1"; // Sol sous la montagne neige
 
+        // --- BIOME SABLE (10-11) ---
+        if (type === 10) key = "tile_sand"; // Sable
+        if (type === 11) key = "tile_sand_rock"; // Rochers de sable
+
+        // --- BIOME CIMETIÈRE (12-13) ---
+        if (type === 12) key = "tile_graveyard"; // Sol de cimetière
+        if (type === 13) key = "tile_graveyard_path"; // Chemin de cimetière
+
         const tile = this.scene.add
           .image(px, py, key)
           .setOrigin(0, 0)
@@ -48,15 +56,22 @@ export class MapManager {
         tile.setScale(this.scene.scaleFactor);
 
         // --- GESTION DES ARBRES ---
-        // On place des arbres sur le type 0 (Morts/Verts) et le type 6 (Sapins enneigés)
-        if (type === 0 || type === 6) {
+        // On place des arbres selon le biome du niveau
+        const biome = this.scene.levelConfig.biome || "grass";
+        const shouldPlaceTree = 
+          (biome === "grass" && type === 0) || // Herbe pour biome grass
+          (biome === "sand" && (type === 0 || type === 10)) || // Herbe ou sable pour biome sand
+          (biome === "ice" && type === 6) || // Neige pour biome ice
+          (biome === "cimetiere" && type === 12); // Sol cimetière pour biome cimetiere
+
+        if (shouldPlaceTree) {
           const canPlaceBarracks = this.isAdjacentToPath(x, y);
           // Probabilités d'apparition
           if (!canPlaceBarracks && Math.random() < 0.3) {
-            this.addTree(px, py, x, y, type); // On passe le type pour savoir quel arbre dessiner
+            this.addTree(px, py, x, y, biome); // On passe le biome pour savoir quel arbre dessiner
             this.treePositions.add(`${x},${y}`);
           } else if (canPlaceBarracks && Math.random() < 0.1) {
-            this.addTree(px, py, x, y, type);
+            this.addTree(px, py, x, y, biome);
             this.treePositions.add(`${x},${y}`);
           }
         }
@@ -252,8 +267,8 @@ export class MapManager {
     });
   }
 
-  // Ajout du paramètre "groundType"
-  addTree(px, py, tileX, tileY, groundType) {
+  // Ajout du paramètre "biome" pour déterminer le type d'arbre
+  addTree(px, py, tileX, tileY, biome) {
     const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
     // Petit décalage aléatoire
     const treeX =
@@ -267,8 +282,8 @@ export class MapManager {
     const g = this.scene.add.graphics();
     const scale = this.scene.scaleFactor;
 
-    // Si on est sur de la neige (Type 6), on dessine un Sapin Enneigé
-    if (groundType === 6) {
+    if (biome === "ice") {
+      // --- ARBRES ENNEIGÉS (Sapins) ---
       // Tronc
       g.fillStyle(0x5c4033); // Marron foncé
       g.fillRect(-2 * scale, 0, 4 * scale, 8 * scale);
@@ -322,9 +337,140 @@ export class MapManager {
         2 * scale,
         -16 * scale
       );
+    } else if (biome === "sand") {
+      // --- BIOME SABLE : Cactus et Baobabs ---
+      const treeType = Math.random();
+      
+      if (treeType < 0.6) {
+        // CACTUS (60% de chance)
+        // Tronc principal vertical
+        g.fillStyle(0x2d5016); // Vert foncé
+        g.fillRect(-2 * scale, 0, 4 * scale, 16 * scale);
+        
+        // Bras du cactus (gauche)
+        g.fillRect(-6 * scale, 4 * scale, 4 * scale, 8 * scale);
+        // Bras du cactus (droite)
+        g.fillRect(2 * scale, 6 * scale, 4 * scale, 6 * scale);
+        
+        // Détails verts plus clairs
+        g.fillStyle(0x3a6b1f);
+        g.fillRect(-2 * scale, 0, 4 * scale, 16 * scale);
+        g.fillRect(-6 * scale, 4 * scale, 4 * scale, 8 * scale);
+        g.fillRect(2 * scale, 6 * scale, 4 * scale, 6 * scale);
+        
+        // Petites épines (points blancs)
+        g.fillStyle(0xffffff, 0.8);
+        for (let i = 0; i < 8; i++) {
+          g.fillCircle(
+            (Math.random() - 0.5) * 8 * scale,
+            Math.random() * 16 * scale,
+            1 * scale
+          );
+        }
+      } else {
+        // BAOBAB (40% de chance)
+        // Tronc épais et large
+        g.fillStyle(0x8b4513); // Marron
+        g.fillRect(-6 * scale, 0, 12 * scale, 20 * scale);
+        
+        // Détails du tronc (lignes verticales)
+        g.fillStyle(0x654321, 0.6);
+        for (let i = 0; i < 3; i++) {
+          g.fillRect(-5 * scale + i * 4 * scale, 0, 2 * scale, 20 * scale);
+        }
+        
+        // Branches courtes et épaisses
+        g.fillStyle(0x5c4033);
+        // Branche gauche
+        g.fillRect(-8 * scale, 4 * scale, 4 * scale, 3 * scale);
+        // Branche droite
+        g.fillRect(4 * scale, 6 * scale, 4 * scale, 3 * scale);
+        
+        // Feuillage minimal (petites boules)
+        g.fillStyle(0x2d5016, 0.7);
+        g.fillCircle(-6 * scale, 2 * scale, 4 * scale);
+        g.fillCircle(6 * scale, 4 * scale, 4 * scale);
+        g.fillCircle(0, -2 * scale, 5 * scale);
+      }
+    } else if (biome === "cimetiere") {
+      // --- BIOME CIMETIÈRE : Tombes ou Arbres avec citrouilles ---
+      const treeType = Math.random();
+      
+      if (treeType < 0.5) {
+        // TOMBE (50% de chance)
+        // Base de la tombe (rectangulaire)
+        g.fillStyle(0x2a2a2a); // Pierre grise foncée
+        g.fillRoundedRect(-6 * scale, 8 * scale, 12 * scale, 8 * scale, 2 * scale);
+        
+        // Stèle (pierre tombale verticale)
+        g.fillStyle(0x3a3a3a);
+        g.fillRoundedRect(-4 * scale, 0, 8 * scale, 10 * scale, 1 * scale);
+        
+        // Bordure de la stèle
+        g.lineStyle(1.5, 0x1a1a1a, 0.8);
+        g.strokeRoundedRect(-4 * scale, 0, 8 * scale, 10 * scale, 1 * scale);
+        
+        // Croix sur la stèle (optionnelle, 70% de chance)
+        if (Math.random() < 0.7) {
+          g.lineStyle(2, 0x1a1a1a, 0.9);
+          // Traverse horizontale
+          g.beginPath();
+          g.moveTo(-3 * scale, 3 * scale);
+          g.lineTo(3 * scale, 3 * scale);
+          g.strokePath();
+          // Traverse verticale
+          g.beginPath();
+          g.moveTo(0, 1 * scale);
+          g.lineTo(0, 6 * scale);
+          g.strokePath();
+        }
+        
+        // Mousse/lichen sur la pierre (détails verts sombres)
+        g.fillStyle(0x1a3a1a, 0.4);
+        g.fillCircle(-2 * scale, 5 * scale, 2 * scale);
+        g.fillCircle(2 * scale, 7 * scale, 1.5 * scale);
+        
+        // Petites fissures
+        g.lineStyle(1, 0x1a1a1a, 0.5);
+        g.beginPath();
+        g.moveTo(-2 * scale, 2 * scale);
+        g.lineTo(-1 * scale, 4 * scale);
+        g.strokePath();
+      } else {
+        // ARBRE AVEC CITROUILLES (50% de chance)
+        // Tronc mort
+        g.fillStyle(0x3a2a1a); // Marron sombre
+        g.fillRect(-2 * scale, 0, 4 * scale, 14 * scale);
+        
+        // Branches mortes
+        g.fillStyle(0x2a1a0a);
+        g.fillRect(-2 * scale, 0, 1 * scale, 6 * scale);
+        g.fillRect(1 * scale, 0, 1 * scale, 6 * scale);
+        g.fillRect(-4 * scale, -4 * scale, 2 * scale, 1 * scale);
+        g.fillRect(2 * scale, -4 * scale, 2 * scale, 1 * scale);
+        
+        // Citrouilles sur les branches
+        g.fillStyle(0xff6600); // Orange
+        // Citrouille gauche
+        g.fillCircle(-5 * scale, -4 * scale, 3 * scale);
+        g.fillStyle(0x1a0a00); // Tige
+        g.fillRect(-5 * scale, -1 * scale, 1 * scale, 2 * scale);
+        
+        // Citrouille droite
+        g.fillStyle(0xff6600);
+        g.fillCircle(5 * scale, -4 * scale, 3 * scale);
+        g.fillStyle(0x1a0a00);
+        g.fillRect(4 * scale, -1 * scale, 1 * scale, 2 * scale);
+        
+        // Visages effrayants sur les citrouilles (yeux)
+        g.fillStyle(0x000000);
+        g.fillCircle(-6 * scale, -4 * scale, 1 * scale);
+        g.fillCircle(-4 * scale, -4 * scale, 1 * scale);
+        g.fillCircle(4 * scale, -4 * scale, 1 * scale);
+        g.fillCircle(6 * scale, -4 * scale, 1 * scale);
+      }
     } else {
-      // --- ARBRES CLASSIQUES / MORTS (Biome Volcan Type 0) ---
-      // J'ai gardé ton code existant ici, tu peux le laisser tel quel
+      // --- ARBRES CLASSIQUES (Biome Grass) ---
       const treeType = Math.floor(Math.random() * 3);
       if (treeType === 0) {
         g.fillStyle(0x8b4513);
@@ -368,8 +514,8 @@ export class MapManager {
 
   isAdjacentToPath(tx, ty) {
     const map = this.scene.levelConfig.map;
-    // On considère 1 et 4 (Volcan) ET 7 (Neige) comme des chemins
-    const pathTypes = [1, 4, 7];
+    // On considère 1 et 4 (Volcan), 7 (Neige), et 13 (Cimetière) comme des chemins
+    const pathTypes = [1, 4, 7, 13];
     const directions = [
       { x: 0, y: -1 },
       { x: 0, y: 1 },

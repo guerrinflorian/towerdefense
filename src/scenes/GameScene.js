@@ -334,6 +334,14 @@ export class GameScene extends Phaser.Scene {
     return baseReward * 2;
   }
 
+  getAnticipationBonusCoins() {
+    // Retourne le bonus calculé pour l'anticipation de vague
+    // Le bonus est calculé en fonction des ennemis actuellement vivants
+    // On peut l'afficher même si canCallNextWave est false (pendant le spawn)
+    if (!this.isWaveRunning) return 0;
+    return this.calculateEarlyWaveBonus();
+  }
+
   showEarlyWaveBonusText(bonus) {
     const text = this.add
       .text(
@@ -373,14 +381,15 @@ export class GameScene extends Phaser.Scene {
     this.waveManager.finishWave();
   }
 
-  levelComplete() {
+  async levelComplete() {
     this.reportHeroKillsOnce();
-    this.waveManager.levelComplete();
+    await this.waveManager.levelComplete();
   }
 
   handleEnemyKilled(payload) {
     if (payload?.source === "hero") {
       this.heroKillCount += 1;
+      console.log(`Hero kill! Total: ${this.heroKillCount}`);
     }
 
     if (payload && Math.random() < 0.25) {
@@ -388,14 +397,30 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  reportHeroKillsOnce() {
-    if (this.heroKillCount <= 0) return null;
-    if (this.heroKillReportPromise) return this.heroKillReportPromise;
+  reportHeroKillsOnce(force = false) {
+    console.log(`reportHeroKillsOnce appelé - force: ${force}, heroKillCount: ${this.heroKillCount}`);
+    
+    // Si on force (défaite), toujours envoyer même si 0 kills
+    if (!force && this.heroKillCount <= 0) {
+      console.log("reportHeroKillsOnce: Pas de kills à reporter (et pas forcé)");
+      return null;
+    }
+    
+    // Si on force, créer une nouvelle requête même si une existe déjà
+    if (!force && this.heroKillReportPromise) {
+      console.log("reportHeroKillsOnce: Promesse existante retournée");
+      return this.heroKillReportPromise;
+    }
 
-    const killsToReport = this.heroKillCount;
+    const killsToReport = this.heroKillCount || 0;
+    console.log(`reportHeroKillsOnce: Préparation envoi de ${killsToReport} kills`);
     this.heroKillCount = 0;
 
-    this.heroKillReportPromise = recordHeroKill(killsToReport).catch(() => {});
+    // Toujours créer une nouvelle promesse pour forcer l'envoi
+    this.heroKillReportPromise = recordHeroKill(killsToReport).catch((err) => {
+      console.error("Erreur lors de l'envoi des kills du héros:", err);
+      return null;
+    });
     return this.heroKillReportPromise;
   }
 
@@ -405,7 +430,7 @@ export class GameScene extends Phaser.Scene {
 
   findHeroSpawnTile() {
     const map = this.levelConfig.map || [];
-    const pathTypes = [1, 4, 7];
+    const pathTypes = [1, 4, 7, 13];
     let baseTile = null;
     for (let y = 0; y < map.length; y++) {
       for (let x = 0; x < map[y].length; x++) {
@@ -471,9 +496,10 @@ export class GameScene extends Phaser.Scene {
 
   buildTurret(turretConfig, tileX, tileY) {
     // --- CORRECTION ICI ---
-    // Vérification stricte du terrain : Si ce n'est pas de l'herbe (0), on refuse tout de suite.
+    // Vérification stricte du terrain : Types autorisés : herbe (0), neige (6), sable (10), cimetière (12)
+    // Note: type 11 (rochers sable) et type 5 (rochers) ne sont pas constructibles car ce sont des décors
     const tileType = this.levelConfig.map[tileY][tileX];
-    if (tileType !== 0 && tileType !== 6) {
+    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12) {
       this.cameras.main.shake(50, 0.005);
       return false;
     }
@@ -554,14 +580,52 @@ export class GameScene extends Phaser.Scene {
     this.updateUI();
     this.cameras.main.shake(150, 0.01);
     if (this.lives <= 0) {
-      this.showGameOverNotification();
+      // Appeler de manière asynchrone sans bloquer
+      this.showGameOverNotification().catch(() => {});
     }
   }
 
-  showGameOverNotification() {
+  async showGameOverNotification() {
     // Mettre le jeu en pause
     this.isPaused = true;
-    this.reportHeroKillsOnce();
+    
+    // Exécuter immédiatement la requête de kills et attendre (forcer l'envoi même si 0 kills)
+    const heroKillReport = this.reportHeroKillsOnce(true);
+    if (heroKillReport) {
+      try {
+        await heroKillReport;
+        console.log("Kills du héros envoyés avec succès");
+      } catch (err) {
+        console.error("Erreur lors de l'envoi des kills du héros:", err);
+      }
+    }
+
+    // Désactiver les boutons pause et quitter
+    if (this.pauseBtn) {
+      this.pauseBtn.disableInteractive();
+      this.pauseBtn.setAlpha(0.5);
+    }
+    if (this.quitBtn) {
+      this.quitBtn.disableInteractive();
+      this.quitBtn.setAlpha(0.5);
+    }
+
+    // Couche de blocage pour empêcher les clics ailleurs
+    const blocker = this.add
+      .rectangle(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY,
+        this.gameWidth,
+        this.gameHeight,
+        0x000000,
+        0.3
+      )
+      .setDepth(199)
+      .setInteractive()
+      .on("pointerdown", (pointer) => {
+        // Empêcher la propagation du clic
+        pointer.event.stopPropagation();
+      });
 
     const bg = this.add
       .rectangle(
@@ -606,6 +670,9 @@ export class GameScene extends Phaser.Scene {
     bg.setInteractive({ useHandCursor: true }).on("pointerdown", () => {
       this.scene.start("MainMenuScene");
     });
+
+    // Stocker la référence pour pouvoir la détruire si nécessaire
+    this.gameOverBlocker = blocker;
   }
 
   earnMoney(amount) {

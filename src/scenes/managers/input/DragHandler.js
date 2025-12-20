@@ -78,7 +78,7 @@ export class DragHandler {
         this.scene.levelConfig.map
       ) {
         const tileType = this.scene.levelConfig.map[ty][tx];
-        if (tileType === 0 || tileType === 6) {
+        if (tileType === 0 || tileType === 6 || tileType === 10 || tileType === 12) {
           const hasTree =
             this.scene.mapManager && this.scene.mapManager.hasTree
               ? this.scene.mapManager.hasTree(tx, ty)
@@ -128,7 +128,7 @@ export class DragHandler {
     for (let y = 0; y < 15; y++) {
       for (let x = 0; x < 15; x++) {
         const tileType = this.scene.levelConfig.map[y][x];
-        if (tileType === 0 || tileType === 6) {
+        if (tileType === 0 || tileType === 6 || tileType === 10 || tileType === 12) {
           const hasTree = this.scene.mapManager.hasTree(x, y);
           if (!hasTree) {
             let canPlace = false;
@@ -171,7 +171,7 @@ export class DragHandler {
 
     if (tx >= 0 && tx < 15 && ty >= 0 && ty < 15) {
       const tileType = this.scene.levelConfig.map[ty][tx];
-      if (tileType === 0 || tileType === 6) {
+      if (tileType === 0 || tileType === 6 || tileType === 10 || tileType === 12) {
         const hasTree = this.scene.mapManager.hasTree(tx, ty);
         if (!hasTree) {
           const success = this.scene.buildTurret(this.draggingTurret, tx, ty);

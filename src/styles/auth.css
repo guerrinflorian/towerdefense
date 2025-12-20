@@ -7,8 +7,12 @@
 .auth-overlay {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, rgba(5, 5, 5, 0.95), rgba(15, 15, 25, 0.98));
-  backdrop-filter: blur(12px);
+  background-image: url('../images/background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,5 +1,7 @@
 export const LEVEL_1 = {
-  // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont
+  biome: "grass",
+  // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont 5=Rocher/Decor
+  // 6=Sol Neige, 7=Chemin Glacé, 8=Eau Glacée, 9=Montagne Neige, 2=Base
   map: [
     [1, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3], // y=0  : Départ
     [0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3],

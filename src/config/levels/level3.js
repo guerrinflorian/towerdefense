@@ -1,4 +1,5 @@
 export const LEVEL_3 = {
+  biome: "ice",
   // THEME : Désert de Glace
   // 6=Sol Neige, 7=Chemin Glacé, 8=Eau Glacée, 9=Montagne Neige, 2=Base
   map: [
@@ -77,16 +78,15 @@ export const LEVEL_3 = {
 
     // VAGUE 5 : Lourdeur Mécanique
     [
-      { count: 6, type: "tank", interval: 3000, startDelay: 0 },
-      { count: 4, type: "tortue_dragon", interval: 4000, startDelay: 10000 }, // Unité très tanky du lvl 2
+      { count: 10, type: "tortue_dragon", interval: 4000, startDelay: 1000 }, // Unité très juggernaut_iglooy du lvl 2
     ],
 
     // VAGUE 6 : Division et Multiplication
     // Les Diviseurs explosent en petits slimes, les Shamans soignent les petits slimes.
     [
-      { count: 5, type: "diviseur", interval: 4000, startDelay: 0 },
-      { count: 40, type: "grunt", interval: 300, startDelay: 8000 }, // Noyade sous le nombre
-      { count: 4, type: "shaman_gobelin", interval: 4000, startDelay: 10000 },
+      { count: 5, type: "diviseur", interval: 2500, startDelay: 0 },
+      { count: 20, type: "grunt", interval: 500, startDelay: 8000 }, // Noyade sous le nombre
+      { count: 4, type: "shaman_gobelin", interval: 4000, startDelay: 13000 },
     ],
 
     // VAGUE 7 : L'Escouade d'Élite
@@ -95,7 +95,7 @@ export const LEVEL_3 = {
       { count: 5, type: "shield", interval: 1000, startDelay: 0 },
       { count: 3, type: "tortue_dragon", interval: 3000, startDelay: 2000 },
       { count: 3, type: "shaman_gobelin", interval: 3000, startDelay: 4000 }, // Protégés par les tortues
-      { count: 5, type: "tank", interval: 2500, startDelay: 15000 },
+      { count: 5, type: "juggernaut_igloo", interval: 2500, startDelay: 15000 },
     ],
 
     // VAGUE 8 : Chaos Total
@@ -121,7 +121,7 @@ export const LEVEL_3 = {
       { count: 20, type: "runner", interval: 300, startDelay: 5000 },
 
       // La garde rapprochée
-      { count: 8, type: "tank", interval: 2000, startDelay: 20000 },
+      { count: 8, type: "juggernaut_igloo", interval: 2000, startDelay: 20000 },
       { count: 6, type: "shaman_gobelin", interval: 2000, startDelay: 25000 }, // ILS SONT LÀ POUR SOIGNER LE BOSS
 
       // LE BOSS

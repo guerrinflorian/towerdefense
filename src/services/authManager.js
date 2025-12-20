@@ -92,16 +92,27 @@ export function logout() {
 }
 
 export async function recordHeroKill(kills = 1) {
-  if (!isAuthenticated()) return null;
-  const killsToRecord = Number.isInteger(kills) && kills > 0 ? kills : 1;
-  const response = await apiClient.post("/api/player/hero/kill", {
-    kills: killsToRecord,
-  });
-  if (currentProfile?.player) {
-    currentProfile.player.hero_points_available =
-      response.data.heroPointsAvailable;
+  if (!isAuthenticated()) {
+    console.log("recordHeroKill: Utilisateur non authentifié");
+    return null;
   }
-  return response.data;
+  // Accepter 0 kills (pour forcer l'envoi même sans kills)
+  const killsToRecord = Number.isInteger(kills) && kills >= 0 ? kills : 1;
+  console.log(`recordHeroKill: Envoi de ${killsToRecord} kills`);
+  try {
+    const response = await apiClient.post("/api/player/hero/kill", {
+      kills: killsToRecord,
+    });
+    if (currentProfile?.player) {
+      currentProfile.player.hero_points_available =
+        response.data.heroPointsAvailable;
+    }
+    console.log("recordHeroKill: Succès", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("recordHeroKill: Erreur", error);
+    throw error;
+  }
 }
 
 export async function recordLevelCompletion(payload) {

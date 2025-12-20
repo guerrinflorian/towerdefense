@@ -32,118 +32,118 @@ export class WaveManager {
   }
 
   startWave() {
-    // 1. Vérifications de sécurité
     const totalWaves = this.scene.levelConfig?.waves?.length || 0;
     const hasMoreWaves = this.scene.currentWaveIndex < totalWaves;
-    const canChainWhileRunning =
-      !this.scene.isWaveRunning || this.scene.canCallNextWave;
 
+    // --- CORRECTION 1 : On autorise le lancement si c'est une anticipation ---
+    const isAnticipating = this.scene.isWaveRunning && !this.scene.canCallNextWave;
+    
     if (!hasMoreWaves) return;
-    if (!canChainWhileRunning) return;
     if (this.scene.isPaused) return;
 
-    // 2. Nettoyage (Timer Auto et Timers de spawn précédents)
+    // Nettoyage du timer de fin de vague (IMPORTANT : toujours le faire en premier)
+    if (this.scene.endCheckTimer) {
+        this.scene.endCheckTimer.remove();
+        this.scene.endCheckTimer = null;
+    }
+
+    // Si on anticipe, on donne un bonus d'or immédiat !
+    if (isAnticipating) {
+        const bonus = 50; // Ou un calcul basé sur le temps restant
+        this.scene.earnMoney?.(bonus);
+        // On ne fait PAS de return, on continue pour lancer la vague suivante
+    } else {
+        // Si ce n'est PAS une anticipation (vague normale), on nettoie les anciens timers
+        if (this.scene.waveSpawnTimers) {
+            this.scene.waveSpawnTimers.forEach(t => t.remove());
+        }
+        this.scene.waveSpawnTimers = [];
+    }
+
+    // Nettoyage du timer auto (toujours le faire)
     if (this.scene.nextWaveAutoTimer) {
-      this.scene.nextWaveAutoTimer.remove();
-      this.scene.nextWaveAutoTimer = null;
-      this.scene.nextWaveCountdown = 0;
+        this.scene.nextWaveAutoTimer.remove();
+        this.scene.nextWaveAutoTimer = null;
+        this.scene.nextWaveCountdown = 0;
     }
 
-    if (this.scene.waveSpawnTimers) {
-      this.scene.waveSpawnTimers.forEach((timer) => {
-        if (timer && !timer.hasDestroyed) timer.remove();
-      });
-    }
-    // On réinitialise le tableau pour cette nouvelle vague
-    this.scene.waveSpawnTimers = [];
-
-    // 3. Initialisation de l'état de la vague
+    // --- CORRECTION 2 : Gestion des états ---
     this.scene.isWaveRunning = true;
     this.scene.hasWaveFinishedSpawning = false;
     this.scene.canCallNextWave = false;
-    this.spawnControls?.setLockedState(true);
-    this.spawnControls?.clearCountdown();
-    this.spawnControls?.updateWaveRunningState();
-
+    
+    // Démarrer le chronomètre si ce n'est pas déjà fait
     if (!this.scene.isTimerRunning) {
       this.scene.startSessionTimer();
     }
+    
+    // On ne locke le bouton QUE s'il n'y a plus de vagues après celle-ci
+    const isLastWave = (this.scene.currentWaveIndex + 1) >= totalWaves;
+    this.spawnControls?.setLockedState(isLastWave); 
+    
+    this.spawnControls?.clearCountdown();
+    this.spawnControls?.updateWaveRunningState();
 
     const waveIndex = this.scene.currentWaveIndex;
     const waveGroups = this.scene.levelConfig.waves[waveIndex];
-    if (!waveGroups || !waveGroups.length) {
-      this.scene.isWaveRunning = false;
-      this.spawnControls?.setLockedState(false);
-      this.spawnControls?.updateWaveRunningState();
-      return;
-    }
-    // Préparer l'index pour la vague suivante
-    this.scene.currentWaveIndex = waveIndex + 1;
+    
+    this.scene.currentWaveIndex++;
     this.scene.updateUI();
 
-    // Calcul du nombre total d'ennemis pour savoir quand la vague finit
     let totalEnemiesInWave = 0;
     let spawnedTotal = 0;
     waveGroups.forEach((g) => (totalEnemiesInWave += g.count));
 
-    // 4. Lancement des groupes avec gestion du DÉLAI + INTERVALLE
     waveGroups.forEach((group) => {
-      // Sécurité : si startDelay n'est pas défini dans le JSON, on met 0
-      const delayBeforeStart = group.startDelay || 0;
+        const delayBeforeStart = group.startDelay || 0;
 
-      // TIMER A : Le délai initial avant que ce groupe ne commence
-      const startDelayTimer = this.scene.time.addEvent({
-        delay: delayBeforeStart,
-        callback: () => {
-          // Ce code s'exécute après le délai "startDelay"
-
-          // Si le jeu est en pause au moment exact où le délai finit, on annule
-          if (this.scene.isPaused) return;
-
-          // TIMER B : La boucle de spawn des ennemis du groupe
-          const spawnLoopTimer = this.scene.time.addEvent({
-            delay: group.interval,
-            repeat: group.count - 1, // repeat X fois + 1 exécution immédiate = count total
+        const startDelayTimer = this.scene.time.addEvent({
+            delay: delayBeforeStart,
             callback: () => {
-              // Vérification pause à chaque ennemi
-              if (this.scene.isPaused) return;
+                if (this.scene.isPaused) return;
 
-              const randomPath = Phaser.Utils.Array.GetRandom(this.scene.paths);
-              const enemy = new Enemy(this.scene, randomPath, group.type);
+                const spawnLoopTimer = this.scene.time.addEvent({
+                    delay: group.interval,
+                    repeat: group.count - 1,
+                    callback: () => {
+                        if (this.scene.isPaused) return;
 
-              enemy.setDepth(10);
-              enemy.setScale(this.scene.scaleFactor);
-              enemy.spawn();
+                        const randomPath = Phaser.Utils.Array.GetRandom(this.scene.paths);
+                        const enemy = new Enemy(this.scene, randomPath, group.type);
+                        enemy.spawn();
+                        this.scene.enemies.add(enemy);
+                        spawnedTotal++;
 
-              this.scene.enemies.add(enemy);
-              spawnedTotal++;
-
-              // Vérifier si c'était le tout dernier ennemi de TOUTE la vague
-              if (spawnedTotal >= totalEnemiesInWave) {
-                this.scene.hasWaveFinishedSpawning = true;
-                const hasUpcomingWave =
-                  this.scene.currentWaveIndex < totalWaves;
-                this.scene.canCallNextWave = hasUpcomingWave;
-                if (hasUpcomingWave) {
-                  this.spawnControls?.setLockedState(false);
-                }
-                this.spawnControls?.updateWaveRunningState();
-                this.monitorWaveEnd();
-              }
+                        // Quand CETTE vague précise a fini de spawner
+                        if (spawnedTotal >= totalEnemiesInWave) {
+                            // On vérifie s'il y en a encore d'autres après
+                            const stillMoreWaves = this.scene.currentWaveIndex < totalWaves;
+                            this.scene.canCallNextWave = stillMoreWaves;
+                            this.scene.hasWaveFinishedSpawning = true;
+                            
+                            this.spawnControls?.setLockedState(!stillMoreWaves);
+                            this.spawnControls?.updateWaveRunningState();
+                            
+                            // On ne lance le monitor qu'une fois
+                            if (!this.scene.endCheckTimer) {
+                                this.monitorWaveEnd();
+                            }
+                        }
+                    },
+                });
+                this.scene.waveSpawnTimers.push(spawnLoopTimer);
             },
-          });
-
-          // On ajoute le timer de boucle à la liste pour pouvoir le gérer (pause/fin)
-          this.scene.waveSpawnTimers.push(spawnLoopTimer);
-        },
-      });
-
-      // On ajoute le timer de délai à la liste aussi
-      this.scene.waveSpawnTimers.push(startDelayTimer);
+        });
+        this.scene.waveSpawnTimers.push(startDelayTimer);
     });
-  }
+}
 
   monitorWaveEnd() {
+    // Ne pas créer un nouveau timer si un existe déjà
+    if (this.scene.endCheckTimer) {
+      return;
+    }
+    
     this.scene.endCheckTimer = this.scene.time.addEvent({
       delay: 500,
       loop: true,
@@ -151,7 +151,8 @@ export class WaveManager {
         // Ne pas vérifier si le jeu est en pause
         if (this.scene.isPaused) return;
 
-        if (this.scene.enemies.getLength() === 0) {
+        const enemiesCount = this.scene.enemies?.getLength?.() || 0;
+        if (enemiesCount === 0 && this.scene.hasWaveFinishedSpawning) {
           this.finishWave();
         }
       },
@@ -227,12 +228,12 @@ export class WaveManager {
     });
   }
 
-  levelComplete() {
+  async levelComplete() {
     this.spawnControls?.destroy();
     this.scene.spawnControls = null;
     this.spawnControls = null;
 
-    // S'assurer que les kills du héros sont reportés avant d'enregistrer la victoire
+    // Préparer les requêtes
     const heroKillReport = this.scene?.reportHeroKillsOnce
       ? this.scene.reportHeroKillsOnce()
       : null;
@@ -247,11 +248,46 @@ export class WaveManager {
       isPerfectRun: this.scene.lives === CONFIG.STARTING_LIVES,
     };
 
-    // Tenter d'envoyer les deux requêtes en parallèle sans bloquer l'UI
-    Promise.allSettled([
-      recordLevelCompletion(completionPayload),
-      heroKillReport,
-    ]).catch(() => {});
+    // Exécuter les requêtes immédiatement et attendre leur complétion
+    const requests = [];
+    if (completionPayload) {
+      requests.push(recordLevelCompletion(completionPayload));
+    }
+    if (heroKillReport) {
+      requests.push(heroKillReport);
+    }
+
+    // Attendre que toutes les requêtes soient terminées (succès ou échec)
+    if (requests.length > 0) {
+      await Promise.allSettled(requests);
+    }
+
+    // Désactiver les boutons pause et quitter
+    if (this.scene.pauseBtn) {
+      this.scene.pauseBtn.disableInteractive();
+      this.scene.pauseBtn.setAlpha(0.5);
+    }
+    if (this.scene.quitBtn) {
+      this.scene.quitBtn.disableInteractive();
+      this.scene.quitBtn.setAlpha(0.5);
+    }
+
+    // Couche de blocage pour empêcher les clics ailleurs
+    const blocker = this.scene.add
+      .rectangle(
+        this.scene.gameWidth / 2,
+        this.scene.gameHeight / 2,
+        this.scene.gameWidth,
+        this.scene.gameHeight,
+        0x000000,
+        0.3
+      )
+      .setDepth(199)
+      .setInteractive()
+      .on("pointerdown", (pointer) => {
+        // Empêcher la propagation du clic
+        pointer.event.stopPropagation();
+      });
 
     const bg = this.scene.add
       .rectangle(
@@ -293,5 +329,8 @@ export class WaveManager {
     bg.setInteractive({ useHandCursor: true }).on("pointerdown", () =>
       this.scene.scene.start("MainMenuScene")
     );
+
+    // Stocker la référence pour pouvoir la détruire si nécessaire
+    this.scene.victoryBlocker = blocker;
   }
 }

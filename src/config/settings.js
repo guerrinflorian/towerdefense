@@ -18,12 +18,15 @@ import { shield } from "../config/ennemies/shield.js";
 import { bosslvl1 } from "../config/ennemies/bosslvl1.js";
 import { bosslvl2 } from "../config/ennemies/bosslvl2.js";
 import { bosslvl3 } from "./ennemies/bosslvl3.js";
+import { bosslvl4 } from "./ennemies/bosslvl4.js";
 import { bosslvl5 } from "./ennemies/bosslvl5.js";
 import { tortue_dragon } from "../config/ennemies/tortue_dragon.js";
 import { shaman_gobelin } from "../config/ennemies/shaman_gobelin.js";
 import { diviseur } from "../config/ennemies/diviseur.js";
 import { slime_medium } from "../config/ennemies/slime_medium.js";
 import { slime_small } from "../config/ennemies/slime_small.js";
+import { cemeteryTank } from "../config/ennemies/cemeteryTank.js";
+import { juggernaut_igloo } from "../config/ennemies/juggernaut_igloo.js";
 
 export const ENEMIES = {
   grunt,
@@ -33,11 +36,14 @@ export const ENEMIES = {
   bosslvl1,
   bosslvl2,
   bosslvl3,
+  bosslvl4,
   tortue_dragon,
   shaman_gobelin,
   diviseur,
   slime_medium,
   slime_small,
+  cemeteryTank,
+  juggernaut_igloo,
 };
 
 import { machine_gun } from "../config/turrets/machineGun.js";
