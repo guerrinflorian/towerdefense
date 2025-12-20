@@ -1,4 +1,4 @@
-import { ensureProfileLoaded, logout } from "../services/authManager.js";
+import { ensureProfileLoaded, logout, getProfile } from "../services/authManager.js";
 import { showAuth } from "../services/authOverlay.js";
 import { LeaderboardUI } from "./components/LeaderboardUI.js";
 import { HeroUpgradeUI } from "./components/HeroUpgradeUI.js";
@@ -28,30 +28,55 @@ export class MainMenuScene extends Phaser.Scene {
       color: "#ffffff",
     }).setOrigin(0.5).setShadow(0, 0, "#00f2ff", 30, true, true);
 
-    // --- 3. BOUTON DÉPLOYER (CENTRE) ---
+    // --- 3. NOM DE L'UTILISATEUR CONNECTÉ ---
+    this.userDisplayText = null;
+    this.createUserDisplay(cx, height * 0.15);
+
+    // --- 4. BOUTON DÉPLOYER (CENTRE) ---
     this.createPlayButton(cx, height * 0.55);
 
-    // --- 4. COMPOSANTS INTERFACE ---
+    // --- 5. COMPOSANTS INTERFACE ---
     
     // À GAUCHE : Amélioration du Héros
     this.heroPanel = new HeroUpgradeUI(this, padding, height * 0.25);
 
-    // À DROITE : Leaderboard (Fixé pour ne plus être coupé)
-    // Largeur du leaderboard = 460. Position = Largeur totale - Largeur composant - Marge
-    const leaderboardWidth = 460;
+    // À DROITE : Leaderboard
+    // Largeur du leaderboard = 540 (selon sa config)
+    const leaderboardWidth = 540;
+    // Position = Largeur totale - Largeur composant - Marge droite
     const lbX = width - leaderboardWidth - padding;
-    this.leaderboard = new LeaderboardUI(this, lbX, height * 0.15);
+    // S'assurer que le leaderboard ne dépasse pas de l'écran (au moins padding à droite)
+    const safeLbX = Math.max(padding, lbX);
+    this.leaderboard = new LeaderboardUI(this, safeLbX, height * 0.15);
 
-    // --- 5. PIED DE PAGE ---
+    // --- 6. PIED DE PAGE ---
     this.createLogoutButton(height - 40);
 
-    // --- 6. ÉVÉNEMENTS ---
+    // --- 7. ÉVÉNEMENTS ---
     this.setupEventListeners();
 
     // Initialisation
     ensureProfileLoaded().then(() => {
       if (this.heroPanel) this.heroPanel.refresh();
+      // Mettre à jour le nom d'utilisateur après chargement du profil
+      if (this.userDisplayText) {
+        const profile = getProfile();
+        const username = profile?.player?.username || "Invité";
+        this.userDisplayText.setText(`CONNECTÉ EN TANT QUE : ${username.toUpperCase()}`);
+      }
     });
+  }
+
+  createUserDisplay(cx, y) {
+    const profile = getProfile();
+    const username = profile?.player?.username || "Invité";
+    
+    this.userDisplayText = this.add.text(cx, y, `CONNECTÉ EN TANT QUE : ${username.toUpperCase()}`, {
+      fontSize: "16px",
+      fontFamily: "Orbitron, sans-serif",
+      color: "#00f2ff",
+      letterSpacing: 2
+    }).setOrigin(0.5).setShadow(0, 0, "#00f2ff", 10, true, true);
   }
 
   createPlayButton(x, y) {
@@ -99,15 +124,15 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   createLogoutButton(y) {
-    const btn = this.add.text(this.scale.width / 2, y, "DÉCONNEXION DU SYSTÈME", {
-      fontSize: "12px",
+    const btn = this.add.text(this.scale.width / 2, y, "DÉCONNEXION", {
+      fontSize: "14px",
       fontFamily: "Orbitron, sans-serif",
-      color: "#666",
+      color: "#ff0000",
       letterSpacing: 2
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    btn.on("pointerover", () => btn.setColor("#ff4d4d"));
-    btn.on("pointerout", () => btn.setColor("#666"));
+    btn.on("pointerover", () => btn.setColor("#ff6666"));
+    btn.on("pointerout", () => btn.setColor("#ff0000"));
     btn.on("pointerdown", () => {
       logout();
       this.scene.restart();
@@ -118,6 +143,12 @@ export class MainMenuScene extends Phaser.Scene {
   setupEventListeners() {
     this.profileUpdatedHandler = () => {
       if (this.heroPanel) this.heroPanel.refresh();
+      // Mettre à jour le nom d'utilisateur affiché
+      if (this.userDisplayText) {
+        const profile = getProfile();
+        const username = profile?.player?.username || "Invité";
+        this.userDisplayText.setText(`CONNECTÉ EN TANT QUE : ${username.toUpperCase()}`);
+      }
     };
     window.addEventListener("auth:profile-updated", this.profileUpdatedHandler);
     this.events.once("shutdown", () => {

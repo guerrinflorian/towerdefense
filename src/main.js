@@ -51,6 +51,9 @@ ensureProfileLoaded()
   })
   .finally(() => {
     game = new Phaser.Game(config);
+    
+    // Exposer game globalement pour pouvoir y accéder depuis authOverlay
+    window.game = game;
 
     // Stocker les infos de taille dans le jeu pour y accéder depuis les scènes
     game.baseWidth = CONFIG.GAME_WIDTH;

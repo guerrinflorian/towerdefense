@@ -254,6 +254,8 @@ let game = null;
 // L'overlay demandera une reconnexion si besoin
 }).finally(()=>{
     game = new Phaser.Game(config);
+    // Exposer game globalement pour pouvoir y accéder depuis authOverlay
+    window.game = game;
     // Stocker les infos de taille dans le jeu pour y accéder depuis les scènes
     game.baseWidth = (0, _settingsJs.CONFIG).GAME_WIDTH;
     game.baseHeight = (0, _settingsJs.CONFIG).GAME_HEIGHT;
@@ -306,24 +308,46 @@ class MainMenuScene extends Phaser.Scene {
             fontSize: "82px",
             color: "#ffffff"
         }).setOrigin(0.5).setShadow(0, 0, "#00f2ff", 30, true, true);
-        // --- 3. BOUTON DÉPLOYER (CENTRE) ---
+        // --- 3. NOM DE L'UTILISATEUR CONNECTÉ ---
+        this.userDisplayText = null;
+        this.createUserDisplay(cx, height * 0.15);
+        // --- 4. BOUTON DÉPLOYER (CENTRE) ---
         this.createPlayButton(cx, height * 0.55);
-        // --- 4. COMPOSANTS INTERFACE ---
+        // --- 5. COMPOSANTS INTERFACE ---
         // À GAUCHE : Amélioration du Héros
         this.heroPanel = new (0, _heroUpgradeUIJs.HeroUpgradeUI)(this, padding, height * 0.25);
-        // À DROITE : Leaderboard (Fixé pour ne plus être coupé)
-        // Largeur du leaderboard = 460. Position = Largeur totale - Largeur composant - Marge
-        const leaderboardWidth = 460;
+        // À DROITE : Leaderboard
+        // Largeur du leaderboard = 540 (selon sa config)
+        const leaderboardWidth = 540;
+        // Position = Largeur totale - Largeur composant - Marge droite
         const lbX = width - leaderboardWidth - padding;
-        this.leaderboard = new (0, _leaderboardUIJs.LeaderboardUI)(this, lbX, height * 0.15);
-        // --- 5. PIED DE PAGE ---
+        // S'assurer que le leaderboard ne dépasse pas de l'écran (au moins padding à droite)
+        const safeLbX = Math.max(padding, lbX);
+        this.leaderboard = new (0, _leaderboardUIJs.LeaderboardUI)(this, safeLbX, height * 0.15);
+        // --- 6. PIED DE PAGE ---
         this.createLogoutButton(height - 40);
-        // --- 6. ÉVÉNEMENTS ---
+        // --- 7. ÉVÉNEMENTS ---
         this.setupEventListeners();
         // Initialisation
         (0, _authManagerJs.ensureProfileLoaded)().then(()=>{
             if (this.heroPanel) this.heroPanel.refresh();
+            // Mettre à jour le nom d'utilisateur après chargement du profil
+            if (this.userDisplayText) {
+                const profile = (0, _authManagerJs.getProfile)();
+                const username = profile?.player?.username || "Invit\xe9";
+                this.userDisplayText.setText(`CONNECT\xc9 EN TANT QUE : ${username.toUpperCase()}`);
+            }
         });
+    }
+    createUserDisplay(cx, y) {
+        const profile = (0, _authManagerJs.getProfile)();
+        const username = profile?.player?.username || "Invit\xe9";
+        this.userDisplayText = this.add.text(cx, y, `CONNECT\xc9 EN TANT QUE : ${username.toUpperCase()}`, {
+            fontSize: "16px",
+            fontFamily: "Orbitron, sans-serif",
+            color: "#00f2ff",
+            letterSpacing: 2
+        }).setOrigin(0.5).setShadow(0, 0, "#00f2ff", 10, true, true);
     }
     createPlayButton(x, y) {
         const playBtn = this.add.container(x, y);
@@ -369,16 +393,16 @@ class MainMenuScene extends Phaser.Scene {
         }
     }
     createLogoutButton(y) {
-        const btn = this.add.text(this.scale.width / 2, y, "D\xc9CONNEXION DU SYST\xc8ME", {
-            fontSize: "12px",
+        const btn = this.add.text(this.scale.width / 2, y, "D\xc9CONNEXION", {
+            fontSize: "14px",
             fontFamily: "Orbitron, sans-serif",
-            color: "#666",
+            color: "#ff0000",
             letterSpacing: 2
         }).setOrigin(0.5).setInteractive({
             useHandCursor: true
         });
-        btn.on("pointerover", ()=>btn.setColor("#ff4d4d"));
-        btn.on("pointerout", ()=>btn.setColor("#666"));
+        btn.on("pointerover", ()=>btn.setColor("#ff6666"));
+        btn.on("pointerout", ()=>btn.setColor("#ff0000"));
         btn.on("pointerdown", ()=>{
             (0, _authManagerJs.logout)();
             this.scene.restart();
@@ -388,6 +412,12 @@ class MainMenuScene extends Phaser.Scene {
     setupEventListeners() {
         this.profileUpdatedHandler = ()=>{
             if (this.heroPanel) this.heroPanel.refresh();
+            // Mettre à jour le nom d'utilisateur affiché
+            if (this.userDisplayText) {
+                const profile = (0, _authManagerJs.getProfile)();
+                const username = profile?.player?.username || "Invit\xe9";
+                this.userDisplayText.setText(`CONNECT\xc9 EN TANT QUE : ${username.toUpperCase()}`);
+            }
         };
         window.addEventListener("auth:profile-updated", this.profileUpdatedHandler);
         this.events.once("shutdown", ()=>{
@@ -5525,6 +5555,11 @@ async function processAuth(action, event, errorBox) {
         toggleVisible(UI.overlay, false);
         toggleGameBlock(false);
         window.dispatchEvent(new CustomEvent("auth:profile-updated"));
+        // S'assurer qu'on est sur MainMenuScene après connexion
+        if (window.game && window.game.scene) {
+            const currentScene = window.game.scene.getScenes(true)[0];
+            if (currentScene && currentScene.scene.key !== "MainMenuScene") window.game.scene.start("MainMenuScene");
+        }
     } catch (error) {
         updateError(errorBox, (0, _authManagerJs.handleAuthError)(error));
     }
@@ -5570,90 +5605,385 @@ const showAuth = ()=>{
 },{"./authManager.js":"cvKjF","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"fNAJL":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "LeaderboardUI", ()=>LeaderboardUI);
+/**
+ * UI du Classement - Style Cyberpunk / Sci-Fi
+ * Entièrement localisé en Français
+ */ parcelHelpers.export(exports, "LeaderboardUI", ()=>LeaderboardUI);
+var _indexJs = require("../../config/levels/index.js");
 var _leaderboardServiceJs = require("../../services/leaderboardService.js");
+var _authManagerJs = require("../../services/authManager.js");
 class LeaderboardUI extends Phaser.GameObjects.Container {
     constructor(scene, x, y){
         super(scene, x, y);
-        this.config = {
-            width: 500,
-            height: 450,
-            accentColor: 0x00eaff,
-            rowHeight: 32,
+        // --- CONFIGURATION STYLE ---
+        this.uiConfig = {
+            width: 560,
+            height: 500,
+            colors: {
+                bg: 0x0d1b2a,
+                accent: 0x00eaff,
+                textBlue: 0x7dd0ff,
+                gold: 0xffd700,
+                white: 0xffffff
+            },
+            rowHeight: 34,
             maxEntries: 8
         };
+        // --- ÉTAT ---
+        this.viewModes = [
+            "hero",
+            "global",
+            "level"
+        ];
+        this.currentModeIndex = 1;
+        this.currentLevelIndex = 0;
+        this.levelLeaderboards = [];
+        this.levelLeaderboardMap = new Map();
         this.setupLayout();
+        this.updateModeUI();
         this.loadData();
         this.scene.add.existing(this);
         this.setDepth(200);
     }
+    get currentMode() {
+        return this.viewModes[this.currentModeIndex];
+    }
     setupLayout() {
-        const { width, height, accentColor } = this.config;
-        // --- 1. PANNEAU DE FOND ---
+        const { width, height, colors } = this.uiConfig;
+        // 1. FOND PRINCIPAL
         const bg = this.scene.add.graphics();
-        // Ombre de profondeur
-        bg.fillStyle(0x000000, 0.5);
-        bg.fillRoundedRect(10, 10, width, height, 15);
-        // Bordure et fond
-        bg.fillStyle(0x0d1b2a, 0.95);
-        bg.lineStyle(2, accentColor, 1);
-        bg.fillRoundedRect(0, 0, width, height, 15);
-        bg.strokeRoundedRect(0, 0, width, height, 15);
-        // Ligne de séparation header
-        bg.lineStyle(1, accentColor, 0.4);
-        bg.lineBetween(15, 55, width - 15, 55);
+        // Ombre
+        bg.fillStyle(0x000000, 0.4).fillRoundedRect(10, 10, width, height, 15);
+        // Fond
+        bg.fillStyle(colors.bg, 0.95).lineStyle(2, colors.accent, 1);
+        bg.fillRoundedRect(0, 0, width, height, 15).strokeRoundedRect(0, 0, width, height, 15);
+        // Ligne de séparation titre
+        bg.lineStyle(1, colors.accent, 0.4).lineBetween(15, 55, width - 15, 55);
         this.add(bg);
-        // --- 2. TITRE ---
-        const title = this.scene.add.text(width / 2, 18, "\uD83D\uDCCA CLASSEMENT DES SURVIVANTS", {
-            fontSize: "20px",
+        // 2. NAVIGATION DES MODES (Haut)
+        const navStyle = {
+            fontSize: "22px",
+            fontFamily: "Impact, sans-serif",
+            color: "#7dd0ff"
+        };
+        this.btnPrevMode = this.scene.add.text(20, 28, "\u25C0", navStyle).setOrigin(0, 0.5).setInteractive({
+            useHandCursor: true
+        });
+        this.btnNextMode = this.scene.add.text(width - 70, 28, "\u25B6", navStyle).setOrigin(1, 0.5).setInteractive({
+            useHandCursor: true
+        });
+        this.title = this.scene.add.text(width / 2, 28, "", {
+            fontSize: "22px",
             fontFamily: "Impact, sans-serif",
             color: "#ffffff",
             letterSpacing: 1
-        }).setOrigin(0.5, 0).setShadow(0, 0, "#00eaff", 10);
-        this.add(title);
-        // --- 3. BOUTON REFRESH ---
+        }).setOrigin(0.5).setShadow(0, 0, "#00eaff", 10);
         this.refreshBtn = this.scene.add.text(width - 30, 28, "\u21BB", {
             fontSize: "26px",
-            color: accentColor,
+            color: "#00eaff",
             fontStyle: "bold"
         }).setOrigin(0.5).setInteractive({
             useHandCursor: true
         });
-        this.refreshBtn.on("pointerdown", ()=>this.handleRefresh());
-        this.add(this.refreshBtn);
-        // --- 4. EN-TÊTE DES COLONNES (ALIGNEMENT FIXE) ---
-        const hStyle = {
-            fontSize: "11px",
-            color: "#7dd0ff",
-            fontWeight: "bold",
-            fontFamily: "Orbitron, Arial"
-        };
-        // On définit des X fixes pour chaque colonne
-        this.cols = {
-            rank: 20,
-            player: 65,
-            lvl: 185,
-            hearts: 275,
-            time: width - 20
-        };
         this.add([
-            this.scene.add.text(this.cols.rank, 65, "RANG", hStyle),
-            this.scene.add.text(this.cols.player, 65, "JOUEUR", hStyle),
-            this.scene.add.text(this.cols.lvl, 65, "NIV MAX", hStyle),
-            this.scene.add.text(this.cols.hearts, 65, "COEURS PERDUS", hStyle),
-            this.scene.add.text(this.cols.time, 65, "TEMPS CUMUL\xc9", hStyle).setOrigin(1, 0)
+            this.btnPrevMode,
+            this.btnNextMode,
+            this.title,
+            this.refreshBtn
         ]);
-        // --- 5. LISTE DES ENTRÉES ---
-        this.listContainer = this.scene.add.container(0, 95);
-        this.add(this.listContainer);
-        this.statusText = this.scene.add.text(width / 2, height / 2 + 30, "", {
+        // 3. BARRE DE SELECTION DES NIVEAUX (Plus espacée et structurée)
+        // On crée un conteneur dédié pour la navigation de niveau
+        this.levelNavContainer = this.scene.add.container(0, 75);
+        const levelBg = this.scene.add.graphics();
+        levelBg.fillStyle(0xffffff, 0.05).fillRoundedRect(20, 0, width - 40, 40, 10);
+        this.levelNavContainer.add(levelBg);
+        const levelNavStyle = {
+            fontSize: "14px",
+            color: "#9ae8ff",
+            fontFamily: "Orbitron",
+            fontWeight: "bold"
+        };
+        this.btnPrevLvl = this.scene.add.text(45, 20, "\u27F8 NIVEAU PR\xc9C\xc9DENT", {
+            ...levelNavStyle,
+            fontSize: "11px"
+        }).setOrigin(0, 0.5).setInteractive({
+            useHandCursor: true
+        });
+        this.levelNavLabel = this.scene.add.text(width / 2, 20, "", levelNavStyle).setOrigin(0.5).setShadow(0, 0, "#00eaff", 5);
+        this.btnNextLvl = this.scene.add.text(width - 45, 20, "NIVEAU SUIVANT \u27F9", {
+            ...levelNavStyle,
+            fontSize: "11px"
+        }).setOrigin(1, 0.5).setInteractive({
+            useHandCursor: true
+        });
+        this.levelNavContainer.add([
+            this.btnPrevLvl,
+            this.levelNavLabel,
+            this.btnNextLvl
+        ]);
+        this.add(this.levelNavContainer);
+        // 4. ZONE DE DONNÉES
+        this.headerContainer = this.scene.add.container(0, 130);
+        this.listContainer = this.scene.add.container(0, 155);
+        this.statusText = this.scene.add.text(width / 2, height / 2 + 50, "", {
             fontSize: "14px",
             color: "#ffffff",
             fontFamily: "Courier New"
         }).setOrigin(0.5);
-        this.add(this.statusText);
+        this.add([
+            this.headerContainer,
+            this.listContainer,
+            this.statusText
+        ]);
+        // --- ÉVÉNEMENTS ---
+        this.btnPrevMode.on("pointerdown", ()=>this.switchMode(-1));
+        this.btnNextMode.on("pointerdown", ()=>this.switchMode(1));
+        this.btnPrevLvl.on("pointerdown", ()=>this.changeLevel(-1));
+        this.btnNextLvl.on("pointerdown", ()=>this.changeLevel(1));
+        this.refreshBtn.on("pointerdown", ()=>this.handleRefresh());
     }
-    async handleRefresh() {
+    // --- LOGIQUE DE NAVIGATION ---
+    switchMode(delta) {
+        const total = this.viewModes.length;
+        this.currentModeIndex = (this.currentModeIndex + delta + total) % total;
+        if (this.currentMode === "level") this.currentLevelIndex = 0;
+        this.updateModeUI();
+        this.loadData();
+    }
+    changeLevel(delta) {
+        const totalLevels = (0, _indexJs.LEVELS_CONFIG).length;
+        if (totalLevels === 0) return;
+        this.currentLevelIndex = (this.currentLevelIndex + delta + totalLevels) % totalLevels;
+        this.updateModeUI();
+        this.loadData();
+    }
+    updateModeUI() {
+        this.title.setText(this.getTitleText());
+        // Afficher/Cacher la barre de sélection de niveau
+        const isLevelMode = this.currentMode === "level";
+        this.levelNavContainer.setVisible(isLevelMode);
+        // Ajuster la position du tableau si on est en mode niveau ou non
+        this.headerContainer.setY(isLevelMode ? 130 : 80);
+        this.listContainer.setY(isLevelMode ? 155 : 105);
+        if (isLevelMode) {
+            const lvl = (0, _indexJs.LEVELS_CONFIG)[this.currentLevelIndex];
+            this.levelNavLabel.setText(lvl ? `${lvl.id} \u{2022} ${lvl.name.toUpperCase()}` : "NIVEAU INCONNU");
+        }
+        this.drawHeaders();
+    }
+    getTitleText() {
+        switch(this.currentMode){
+            case "hero":
+                return "\uD83E\uDDB8 CLASSEMENT DES H\xc9ROS";
+            case "level":
+                return "\uD83D\uDDFA\uFE0F RECORDS PAR MISSION";
+            default:
+                return "\uD83D\uDCCA CLASSEMENT G\xc9N\xc9RAL";
+        }
+    }
+    // --- RENDU DU TABLEAU ---
+    getColumns() {
+        const { width } = this.uiConfig;
+        if (this.currentMode === "hero") return [
+            {
+                key: "rank",
+                label: "RG",
+                x: 20
+            },
+            {
+                key: "player",
+                label: "JOUEUR",
+                x: 70
+            },
+            {
+                key: "hp",
+                label: "PV",
+                x: 210
+            },
+            {
+                key: "dmg",
+                label: "D\xc9G\xc2TS",
+                x: 290
+            },
+            {
+                key: "speed",
+                label: "VIT.",
+                x: 380
+            },
+            {
+                key: "score",
+                label: "TOTAL",
+                x: width - 20,
+                align: "right"
+            }
+        ];
+        if (this.currentMode === "level") return [
+            {
+                key: "rank",
+                label: "RG",
+                x: 20
+            },
+            {
+                key: "player",
+                label: "PILOTE",
+                x: 120
+            },
+            {
+                key: "hearts",
+                label: "VIES PERDUES",
+                x: 280
+            },
+            {
+                key: "time",
+                label: "TEMPS",
+                x: width - 110,
+                align: "right"
+            },
+            {
+                key: "date",
+                label: "DATE",
+                x: width - 20,
+                align: "right"
+            }
+        ];
+        return [
+            {
+                key: "rank",
+                label: "RG",
+                x: 20
+            },
+            {
+                key: "player",
+                label: "JOUEUR",
+                x: 75
+            },
+            {
+                key: "lvl",
+                label: "NIV. MAX",
+                x: 200
+            },
+            {
+                key: "hearts",
+                label: "COEURS PERDUS",
+                x: 320
+            },
+            {
+                key: "time",
+                label: "TEMPS TOTAL",
+                x: width - 20,
+                align: "right"
+            }
+        ];
+    }
+    drawHeaders() {
+        const hStyle = {
+            fontSize: "11px",
+            color: "#7dd0ff",
+            fontWeight: "bold",
+            fontFamily: "Orbitron"
+        };
+        this.headerContainer.removeAll(true);
+        this.activeColumns = this.getColumns();
+        this.activeColumns.forEach((col)=>{
+            const txt = this.scene.add.text(col.x, 0, col.label, hStyle);
+            if (col.align === "right") txt.setOrigin(1, 0);
+            this.headerContainer.add(txt);
+        });
+    }
+    // --- CHARGEMENT DES DONNÉES ---
+    async loadData() {
+        try {
+            this.listContainer.removeAll(true);
+            // Vérifier si l'utilisateur est authentifié avant de charger les données
+            if (!(0, _authManagerJs.isAuthenticated)()) {
+                this.statusText.setText("CONNEXION REQUISE");
+                return;
+            }
+            this.statusText.setText("SYNCHRONISATION AVEC LE SERVEUR...");
+            let entries = [];
+            if (this.currentMode === "hero") entries = await (0, _leaderboardServiceJs.fetchHeroLeaderboard)();
+            else if (this.currentMode === "level") {
+                if (this.levelLeaderboards.length === 0) {
+                    const levels = await (0, _leaderboardServiceJs.fetchLevelLeaderboards)();
+                    this.levelLeaderboards = levels;
+                    this.levelLeaderboardMap = new Map(levels.map((l)=>[
+                            l.levelId,
+                            l.entries || []
+                        ]));
+                }
+                const levelId = (0, _indexJs.LEVELS_CONFIG)[this.state?.currentLevelIndex || this.currentLevelIndex]?.id;
+                entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
+            } else entries = await (0, _leaderboardServiceJs.fetchGlobalLeaderboard)();
+            this.statusText.setText(entries.length === 0 ? "AUCUNE DONN\xc9E TROUV\xc9E" : "");
+            this.renderEntries(entries);
+        } catch (err) {
+            console.error(err);
+            this.statusText.setText("ERREUR DE CONNEXION");
+        }
+    }
+    renderEntries(entries) {
+        entries.slice(0, this.uiConfig.maxEntries).forEach((entry, idx)=>{
+            const y = idx * this.uiConfig.rowHeight;
+            const isTop1 = idx === 0;
+            const color = isTop1 ? "#ffd700" : "#ffffff";
+            const row = this.scene.add.container(0, y);
+            // Fond de ligne alterné
+            const rowBg = this.scene.add.graphics();
+            rowBg.fillStyle(0xffffff, idx % 2 === 0 ? 0.04 : 0);
+            rowBg.fillRect(10, -5, this.uiConfig.width - 20, 30);
+            row.add(rowBg);
+            // Création des cellules dynamiques
+            this.activeColumns.forEach((col)=>{
+                let value = "";
+                switch(col.key){
+                    case "rank":
+                        value = (idx + 1).toString().padStart(2, "0");
+                        break;
+                    case "player":
+                        value = (entry.username || "Anonyme").substring(0, 14);
+                        break;
+                    case "time":
+                        value = this.formatTime(entry.completion_time_ms || entry.total_time_ms);
+                        break;
+                    case "date":
+                        value = this.formatDate(entry.created_at);
+                        break;
+                    case "score":
+                        value = Math.round(entry.hero_score || 0).toLocaleString();
+                        break;
+                    case "hearts":
+                        value = entry.lives_lost ?? entry.total_lives_lost ?? 0;
+                        break;
+                    case "hp":
+                        value = entry.max_hp || 0;
+                        break;
+                    case "dmg":
+                        value = Math.round(entry.base_damage || 0);
+                        break;
+                    case "speed":
+                        value = entry.move_speed || 0;
+                        break;
+                    case "lvl":
+                        value = entry.max_level || 0;
+                        break;
+                }
+                const cell = this.scene.add.text(col.x, 0, value, {
+                    fontSize: "13px",
+                    fontFamily: "Arial",
+                    color: col.key === "time" || col.key === "score" ? "#00eaff" : color,
+                    fontWeight: isTop1 || col.key === "rank" ? "bold" : "normal"
+                });
+                if (col.align === "right") cell.setOrigin(1, 0);
+                row.add(cell);
+            });
+            this.animateRow(row, idx);
+            this.listContainer.add(row);
+        });
+    }
+    // --- UTILITAIRES ---
+    handleRefresh() {
+        this.levelLeaderboards = [];
+        this.levelLeaderboardMap.clear();
         this.scene.tweens.add({
             targets: this.refreshBtn,
             angle: 360,
@@ -5664,115 +5994,1674 @@ class LeaderboardUI extends Phaser.GameObjects.Container {
             }
         });
     }
-    async loadData() {
-        try {
-            this.listContainer.removeAll(true);
-            this.statusText.setText("CHARGEMENT DES DONN\xc9ES...");
-            const entries = await (0, _leaderboardServiceJs.fetchLeaderboard)();
-            this.statusText.setText("");
-            this.renderEntries(entries);
-        } catch (err) {
-            this.statusText.setText("ERREUR DE SYNCHRONISATION");
-        }
-    }
-    renderEntries(entries) {
-        if (!entries || entries.length === 0) {
-            this.statusText.setText("AUCUN SURVIVANT R\xc9PERTORI\xc9");
-            return;
-        }
-        entries.slice(0, this.config.maxEntries).forEach((entry, idx)=>{
-            const y = idx * this.config.rowHeight;
-            const isFirst = idx === 0;
-            const color = isFirst ? "#ffd700" : "#ffffff";
-            const row = this.scene.add.container(0, y);
-            // Fond de ligne alterné
-            const rowBg = this.scene.add.graphics();
-            rowBg.fillStyle(0xffffff, idx % 2 === 0 ? 0.03 : 0);
-            rowBg.fillRect(10, -5, this.config.width - 20, 28);
-            row.add(rowBg);
-            // 1. RANG (01, 02...)
-            const rank = (idx + 1).toString().padStart(2, '0');
-            const rankTxt = this.scene.add.text(this.cols.rank, 0, rank, {
-                fontSize: "13px",
-                fontFamily: "Courier New",
-                color: color,
-                fontWeight: isFirst ? "bold" : "normal"
-            });
-            // 2. JOUEUR
-            const name = (entry.username || "Inconnu").substring(0, 12);
-            const nameTxt = this.scene.add.text(this.cols.player, 0, name, {
-                fontSize: "13px",
-                fontFamily: "Arial",
-                color: color
-            });
-            // 3. NIV MAX
-            const lvlTxt = this.scene.add.text(this.cols.lvl, 0, `${entry.max_level || 0}`, {
-                fontSize: "13px",
-                fontFamily: "Courier New",
-                color: color
-            });
-            // 4. COEURS PERDUS (Icône + nombre + "perdu")
-            const heartsCount = entry.total_lives_lost || 0;
-            const heartsContainer = this.scene.add.container(this.cols.hearts, 0);
-            const heartIcon = this.scene.add.text(0, -1, "\u2764\uFE0F", {
-                fontSize: "12px"
-            });
-            const heartValue = this.scene.add.text(18, 0, `${heartsCount}`, {
-                fontSize: "12px",
-                fontFamily: "Arial",
-                color: color
-            });
-            heartsContainer.add([
-                heartIcon,
-                heartValue
-            ]);
-            // 5. TEMPS CUMULÉ
-            const timeStr = this.formatTime(entry.total_time_ms);
-            const timeTxt = this.scene.add.text(this.cols.time, 0, timeStr, {
-                fontSize: "13px",
-                fontFamily: "Courier New",
-                color: "#00eaff"
-            }).setOrigin(1, 0);
-            row.add([
-                rankTxt,
-                nameTxt,
-                lvlTxt,
-                heartsContainer,
-                timeTxt
-            ]);
-            this.listContainer.add(row);
-            // Animation d'apparition
-            row.alpha = 0;
-            row.x = -15;
-            this.scene.tweens.add({
-                targets: row,
-                alpha: 1,
-                x: 0,
-                duration: 300,
-                delay: idx * 40
-            });
+    animateRow(row, idx) {
+        row.alpha = 0;
+        row.x = -10;
+        this.scene.tweens.add({
+            targets: row,
+            alpha: 1,
+            x: 0,
+            duration: 300,
+            delay: idx * 40
         });
     }
     formatTime(ms) {
         if (!ms || ms <= 0) return "0:00";
         const sec = Math.floor(ms / 1000);
-        const m = Math.floor(sec / 60);
-        const s = sec % 60;
-        return `${m}:${s.toString().padStart(2, '0')}`;
+        return `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, "0")}`;
+    }
+    formatDate(date) {
+        if (!date) return "--/--";
+        const d = new Date(date);
+        return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
     }
 }
 
-},{"../../services/leaderboardService.js":"2zhl5","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"2zhl5":[function(require,module,exports,__globalThis) {
+},{"../../services/leaderboardService.js":"2zhl5","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../../config/levels/index.js":"8fcfE","../../services/authManager.js":"cvKjF"}],"2zhl5":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "fetchGlobalLeaderboard", ()=>fetchGlobalLeaderboard);
+parcelHelpers.export(exports, "fetchHeroLeaderboard", ()=>fetchHeroLeaderboard);
+parcelHelpers.export(exports, "fetchLevelLeaderboards", ()=>fetchLevelLeaderboards);
+parcelHelpers.export(exports, "fetchPlayerBestRuns", ()=>fetchPlayerBestRuns);
+// Compatibilité avec l'ancienne API
 parcelHelpers.export(exports, "fetchLeaderboard", ()=>fetchLeaderboard);
 var _apiClientJs = require("./apiClient.js");
-async function fetchLeaderboard() {
-    const response = await (0, _apiClientJs.apiClient).get("/api/player/leaderboard");
+async function fetchGlobalLeaderboard() {
+    const response = await (0, _apiClientJs.apiClient).get("/api/player/leaderboard/global");
     return response.data?.entries || [];
 }
+async function fetchHeroLeaderboard() {
+    const response = await (0, _apiClientJs.apiClient).get("/api/player/leaderboard/heroes");
+    return response.data?.entries || [];
+}
+async function fetchLevelLeaderboards() {
+    const response = await (0, _apiClientJs.apiClient).get("/api/player/leaderboard/levels");
+    return response.data?.levels || [];
+}
+async function fetchPlayerBestRuns() {
+    const response = await (0, _apiClientJs.apiClient).get("/api/player/levels/best");
+    return response.data?.entries || [];
+}
+async function fetchLeaderboard() {
+    return fetchGlobalLeaderboard();
+}
 
-},{"./apiClient.js":"eiuF4","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"cwcYt":[function(require,module,exports,__globalThis) {
+},{"./apiClient.js":"eiuF4","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8fcfE":[function(require,module,exports,__globalThis) {
+// src/levels/index.js
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LEVELS_CONFIG", ()=>LEVELS_CONFIG);
+var _level1Js = require("./level1.js");
+var _level2Js = require("./level2.js");
+var _level3Js = require("./level3.js");
+const LEVELS_CONFIG = [
+    {
+        id: 1,
+        name: "Les Bocages",
+        data: (0, _level1Js.LEVEL_1)
+    },
+    {
+        id: 2,
+        name: "Double Front",
+        data: (0, _level2Js.LEVEL_2)
+    },
+    {
+        id: 3,
+        name: "Forteresse de neige",
+        data: (0, _level3Js.LEVEL_3)
+    }
+];
+
+},{"./level1.js":"4Dl0R","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./level2.js":"alrw9","./level3.js":"c2Phu"}],"4Dl0R":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LEVEL_1", ()=>LEVEL_1);
+const LEVEL_1 = {
+    // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont
+    map: [
+        [
+            1,
+            1,
+            1,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            3,
+            3
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            3
+        ],
+        [
+            0,
+            0,
+            1,
+            4,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            5,
+            0,
+            1,
+            3,
+            0,
+            5,
+            5,
+            5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            5,
+            5,
+            5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            5,
+            5,
+            5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            4,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            3,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            3,
+            3,
+            3
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0
+        ],
+        [
+            3,
+            3,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            2
+        ]
+    ],
+    // LISTE DES CHEMINS POSSIBLES (paths au pluriel)
+    paths: [
+        // CHEMIN A : Passe par le pont du HAUT
+        [
+            {
+                x: 0,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 2
+            },
+            {
+                x: 10,
+                y: 2
+            },
+            {
+                x: 10,
+                y: 10
+            },
+            {
+                x: 10,
+                y: 12
+            },
+            {
+                x: 13,
+                y: 12
+            },
+            {
+                x: 13,
+                y: 13
+            },
+            {
+                x: 13,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            }
+        ],
+        // CHEMIN B : Passe par le pont du BAS
+        [
+            {
+                x: 0,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 8
+            },
+            {
+                x: 6,
+                y: 8
+            },
+            {
+                x: 6,
+                y: 10
+            },
+            {
+                x: 10,
+                y: 10
+            },
+            {
+                x: 10,
+                y: 12
+            },
+            {
+                x: 13,
+                y: 12
+            },
+            {
+                x: 13,
+                y: 13
+            },
+            {
+                x: 13,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            }
+        ]
+    ],
+    waves: [
+        // VAGUE 1 : Soldats (La seconde escouade arrive après 10 secondes)
+        [
+            {
+                count: 24,
+                type: "grunt",
+                interval: 1000,
+                startDelay: 0
+            },
+            {
+                count: 15,
+                type: "grunt",
+                interval: 1000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 2 : Runners (Rush immédiat)
+        [
+            {
+                count: 21,
+                type: "runner",
+                interval: 450,
+                startDelay: 0
+            },
+            {
+                count: 1,
+                type: "shield",
+                interval: 1500,
+                startDelay: 3000
+            }
+        ],
+        // VAGUE 3 : Mixte (Chair à canon d'abord, Boucliers ensuite, Runners en traître)
+        [
+            {
+                count: 12,
+                type: "grunt",
+                interval: 600,
+                startDelay: 0
+            },
+            {
+                count: 6,
+                type: "shield",
+                interval: 1500,
+                startDelay: 4000
+            },
+            {
+                count: 10,
+                type: "runner",
+                interval: 800,
+                startDelay: 12000
+            }
+        ],
+        // VAGUE 4 : Tank (Escorte progressive)
+        [
+            {
+                count: 12,
+                type: "grunt",
+                interval: 600,
+                startDelay: 0
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 400,
+                startDelay: 5000
+            },
+            {
+                count: 4,
+                type: "shield",
+                interval: 1500,
+                startDelay: 15000
+            },
+            {
+                count: 4,
+                type: "tank",
+                interval: 4000,
+                startDelay: 25000
+            }
+        ],
+        // VAGUE 5 : Invasion (Longue bataille)
+        [
+            {
+                count: 60,
+                type: "grunt",
+                interval: 500,
+                startDelay: 0
+            },
+            {
+                count: 10,
+                type: "runner",
+                interval: 400,
+                startDelay: 8000
+            },
+            {
+                count: 8,
+                type: "shield",
+                interval: 1500,
+                startDelay: 18000
+            },
+            {
+                count: 7,
+                type: "tank",
+                interval: 4000,
+                startDelay: 30000
+            }
+        ],
+        // VAGUE 6 : BOSS (Le Final)
+        [
+            {
+                count: 68,
+                type: "grunt",
+                interval: 700,
+                startDelay: 0
+            },
+            {
+                count: 36,
+                type: "runner",
+                interval: 1500,
+                startDelay: 12000
+            },
+            {
+                count: 6,
+                type: "tank",
+                interval: 5000,
+                startDelay: 35000
+            },
+            {
+                count: 1,
+                type: "bosslvl1",
+                interval: 3000,
+                startDelay: 45000
+            }
+        ]
+    ]
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"alrw9":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LEVEL_2", ()=>LEVEL_2);
+const LEVEL_2 = {
+    // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont, 5=Rocher/Decor
+    map: [
+        [
+            0,
+            0,
+            0,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            5,
+            5,
+            0
+        ],
+        [
+            1,
+            1,
+            1,
+            4,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            5,
+            5,
+            5,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            5,
+            5,
+            5,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
+        [
+            0,
+            3,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+        ],
+        [
+            1,
+            1,
+            1,
+            3,
+            3,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            4,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            3,
+            3,
+            3,
+            3,
+            3,
+            0,
+            5,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            2
+        ]
+    ],
+    // LISTE DES CHEMINS (Identiques à ta version corrigée)
+    paths: [
+        // --- CHEMIN A : Départ HAUT GAUCHE ---
+        [
+            {
+                x: 0,
+                y: 2
+            },
+            {
+                x: 8,
+                y: 2
+            },
+            {
+                x: 8,
+                y: 5
+            },
+            {
+                x: 14,
+                y: 5
+            },
+            {
+                x: 14,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            }
+        ],
+        // --- CHEMIN B : Départ BAS GAUCHE (Le zig-zag) ---
+        [
+            {
+                x: 0,
+                y: 8
+            },
+            {
+                x: 2,
+                y: 8
+            },
+            {
+                x: 2,
+                y: 11
+            },
+            {
+                x: 4,
+                y: 11
+            },
+            {
+                x: 4,
+                y: 10
+            },
+            {
+                x: 6,
+                y: 10
+            },
+            {
+                x: 6,
+                y: 9
+            },
+            {
+                x: 8,
+                y: 9
+            },
+            {
+                x: 8,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            }
+        ]
+    ],
+    // CONFIGURATION DES 8 VAGUES (Sans Shaman, Difficile)
+    waves: [
+        // VAGUE 1 : Mise en bouche (2 chemins)
+        [
+            {
+                count: 12,
+                type: "grunt",
+                interval: 1000,
+                startDelay: 0
+            },
+            {
+                count: 12,
+                type: "grunt",
+                interval: 1000,
+                startDelay: 6000
+            },
+            {
+                count: 5,
+                type: "runner",
+                interval: 800,
+                startDelay: 15000
+            }
+        ],
+        // VAGUE 2 : Le Mur de Boucliers
+        [
+            {
+                count: 8,
+                type: "shield",
+                interval: 1500,
+                startDelay: 0
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 400,
+                startDelay: 5000
+            }
+        ],
+        // VAGUE 3 : Introduction Tortue Dragon (Tanky)
+        [
+            {
+                count: 25,
+                type: "grunt",
+                interval: 600,
+                startDelay: 0
+            },
+            {
+                count: 3,
+                type: "tortue_dragon",
+                interval: 3000,
+                startDelay: 10000
+            },
+            {
+                count: 10,
+                type: "runner",
+                interval: 500,
+                startDelay: 18000
+            }
+        ],
+        // VAGUE 4 : L'Escorte Blindée
+        [
+            {
+                count: 30,
+                type: "grunt",
+                interval: 500,
+                startDelay: 0
+            },
+            {
+                count: 5,
+                type: "tank",
+                interval: 3000,
+                startDelay: 10000
+            },
+            {
+                count: 5,
+                type: "shield",
+                interval: 1200,
+                startDelay: 12000
+            }
+        ],
+        // VAGUE 5 : Division Cellulaire (Introduction Diviseur)
+        [
+            {
+                count: 4,
+                type: "diviseur",
+                interval: 4000,
+                startDelay: 0
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 350,
+                startDelay: 8000
+            },
+            {
+                count: 15,
+                type: "grunt",
+                interval: 500,
+                startDelay: 12000
+            }
+        ],
+        // VAGUE 6 : Le Combo Lourd
+        [
+            {
+                count: 5,
+                type: "tortue_dragon",
+                interval: 3500,
+                startDelay: 0
+            },
+            {
+                count: 4,
+                type: "tank",
+                interval: 3000,
+                startDelay: 5000
+            },
+            {
+                count: 6,
+                type: "diviseur",
+                interval: 4000,
+                startDelay: 20000
+            }
+        ],
+        // VAGUE 7 : Submersion (Test de DPS)
+        [
+            {
+                count: 50,
+                type: "grunt",
+                interval: 300,
+                startDelay: 0
+            },
+            {
+                count: 15,
+                type: "shield",
+                interval: 1000,
+                startDelay: 5000
+            },
+            {
+                count: 15,
+                type: "runner",
+                interval: 300,
+                startDelay: 15000
+            },
+            {
+                count: 5,
+                type: "diviseur",
+                interval: 3000,
+                startDelay: 25000
+            }
+        ],
+        // VAGUE 8 : BOSS FINAL (Boss Lvl 2)
+        [
+            {
+                count: 30,
+                type: "runner",
+                interval: 350,
+                startDelay: 0
+            },
+            {
+                count: 8,
+                type: "tortue_dragon",
+                interval: 3000,
+                startDelay: 10000
+            },
+            {
+                count: 8,
+                type: "tank",
+                interval: 3000,
+                startDelay: 20000
+            },
+            {
+                count: 1,
+                type: "bosslvl2",
+                interval: 5000,
+                startDelay: 40000
+            }
+        ]
+    ]
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"c2Phu":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LEVEL_3", ()=>LEVEL_3);
+const LEVEL_3 = {
+    // THEME : Désert de Glace
+    // 6=Sol Neige, 7=Chemin Glacé, 8=Eau Glacée, 9=Montagne Neige, 2=Base
+    map: [
+        // 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
+        [
+            7,
+            7,
+            7,
+            6,
+            6,
+            6,
+            8,
+            8,
+            8,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            8,
+            8,
+            8,
+            6,
+            9,
+            9,
+            9,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            7,
+            7,
+            7,
+            7,
+            7,
+            6,
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            8,
+            8,
+            6,
+            6,
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            8,
+            8,
+            6,
+            6,
+            6,
+            6,
+            7,
+            7,
+            7,
+            7,
+            7,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            7,
+            7,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            7,
+            6,
+            7,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            7,
+            6,
+            7,
+            7,
+            7,
+            7,
+            7,
+            7,
+            2
+        ],
+        [
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            7,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            7,
+            7,
+            7,
+            7,
+            7,
+            7,
+            6,
+            7,
+            8,
+            8,
+            8,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            6,
+            7,
+            8,
+            8,
+            8,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            7,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ]
+    ],
+    paths: [
+        // CHEMIN 1 : HAUT GAUCHE vers BASE (suivre uniquement les cases 7)
+        [
+            {
+                x: 0,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 3
+            },
+            {
+                x: 6,
+                y: 3
+            },
+            {
+                x: 6,
+                y: 6
+            },
+            {
+                x: 10,
+                y: 6
+            },
+            {
+                x: 10,
+                y: 10
+            },
+            {
+                x: 14,
+                y: 10
+            }
+        ],
+        // CHEMIN 2 : BAS GAUCHE vers BASE (suivre uniquement les cases 7)
+        [
+            {
+                x: 0,
+                y: 12
+            },
+            {
+                x: 5,
+                y: 12
+            },
+            {
+                x: 5,
+                y: 14
+            },
+            {
+                x: 7,
+                y: 14
+            },
+            {
+                x: 7,
+                y: 11
+            },
+            {
+                x: 6,
+                y: 11
+            },
+            {
+                x: 6,
+                y: 8
+            },
+            {
+                x: 8,
+                y: 8
+            },
+            {
+                x: 8,
+                y: 10
+            },
+            {
+                x: 14,
+                y: 10
+            }
+        ]
+    ],
+    // 10 VAGUES - DIFFICULTÉ "CAUCHEMAR TACTIQUE"
+    waves: [
+        // VAGUE 1 : Échauffement bilatéral
+        // Le joueur doit placer des tours aux deux spawn ou au centre.
+        [
+            {
+                count: 10,
+                type: "grunt",
+                interval: 800,
+                startDelay: 0
+            },
+            {
+                count: 10,
+                type: "grunt",
+                interval: 800,
+                startDelay: 5000
+            }
+        ],
+        // VAGUE 2 : La vitesse
+        [
+            {
+                count: 25,
+                type: "runner",
+                interval: 400,
+                startDelay: 0
+            }
+        ],
+        // VAGUE 3 : INTRODUCTION DU SHAMAN
+        // Les Grunts servent de bouclier de chair, les Shamans les soignent derrière.
+        [
+            {
+                count: 20,
+                type: "grunt",
+                interval: 600,
+                startDelay: 0
+            },
+            {
+                count: 3,
+                type: "shaman_gobelin",
+                interval: 4000,
+                startDelay: 5000
+            }
+        ],
+        // VAGUE 4 : Le Mur immortel
+        // Shields (haute défense) + Shaman (Soin) = Très dur à tuer sans gros DPS.
+        [
+            {
+                count: 10,
+                type: "shield",
+                interval: 1200,
+                startDelay: 0
+            },
+            {
+                count: 4,
+                type: "shaman_gobelin",
+                interval: 3000,
+                startDelay: 4000
+            },
+            {
+                count: 15,
+                type: "runner",
+                interval: 400,
+                startDelay: 12000
+            }
+        ],
+        // VAGUE 5 : Lourdeur Mécanique
+        [
+            {
+                count: 6,
+                type: "tank",
+                interval: 3000,
+                startDelay: 0
+            },
+            {
+                count: 4,
+                type: "tortue_dragon",
+                interval: 4000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 6 : Division et Multiplication
+        // Les Diviseurs explosent en petits slimes, les Shamans soignent les petits slimes.
+        [
+            {
+                count: 5,
+                type: "diviseur",
+                interval: 4000,
+                startDelay: 0
+            },
+            {
+                count: 40,
+                type: "grunt",
+                interval: 300,
+                startDelay: 8000
+            },
+            {
+                count: 4,
+                type: "shaman_gobelin",
+                interval: 4000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 7 : L'Escouade d'Élite
+        // Un mélange compact et dangereux.
+        [
+            {
+                count: 5,
+                type: "shield",
+                interval: 1000,
+                startDelay: 0
+            },
+            {
+                count: 3,
+                type: "tortue_dragon",
+                interval: 3000,
+                startDelay: 2000
+            },
+            {
+                count: 3,
+                type: "shaman_gobelin",
+                interval: 3000,
+                startDelay: 4000
+            },
+            {
+                count: 5,
+                type: "tank",
+                interval: 2500,
+                startDelay: 15000
+            }
+        ],
+        // VAGUE 8 : Chaos Total
+        // Ça vient de partout.
+        [
+            {
+                count: 60,
+                type: "runner",
+                interval: 250,
+                startDelay: 0
+            },
+            {
+                count: 8,
+                type: "diviseur",
+                interval: 3500,
+                startDelay: 5000
+            },
+            {
+                count: 5,
+                type: "shaman_gobelin",
+                interval: 4000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 9 : Avant la tempête
+        // Des unités très résistantes pour vider les munitions/énergie du joueur.
+        [
+            {
+                count: 10,
+                type: "tortue_dragon",
+                interval: 2500,
+                startDelay: 0
+            },
+            {
+                count: 10,
+                type: "shield",
+                interval: 1000,
+                startDelay: 5000
+            },
+            {
+                count: 6,
+                type: "shaman_gobelin",
+                interval: 3000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 10 : LE SEIGNEUR DE GUERRE (Boss Lvl 3)
+        [
+            // L'avant-garde
+            {
+                count: 30,
+                type: "grunt",
+                interval: 300,
+                startDelay: 0
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 300,
+                startDelay: 5000
+            },
+            // La garde rapprochée
+            {
+                count: 8,
+                type: "tank",
+                interval: 2000,
+                startDelay: 20000
+            },
+            {
+                count: 6,
+                type: "shaman_gobelin",
+                interval: 2000,
+                startDelay: 25000
+            },
+            // LE BOSS
+            {
+                count: 1,
+                type: "bosslvl3",
+                interval: 10000,
+                startDelay: 35000
+            },
+            // Les renforts de dernière chance
+            {
+                count: 10,
+                type: "runner",
+                interval: 200,
+                startDelay: 49000
+            }
+        ]
+    ]
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"cwcYt":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "HeroUpgradeUI", ()=>HeroUpgradeUI);
@@ -9306,1620 +11195,6 @@ const bosslvl3 = {
         enemyInstance.smokeGroup.scaleX = 1 + Math.sin(time * 0.002) * 0.1;
         enemyInstance.smokeGroup.scaleY = 1 + Math.sin(time * 0.002) * 0.1;
     }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8fcfE":[function(require,module,exports,__globalThis) {
-// src/levels/index.js
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "LEVELS_CONFIG", ()=>LEVELS_CONFIG);
-var _level1Js = require("./level1.js");
-var _level2Js = require("./level2.js");
-var _level3Js = require("./level3.js");
-const LEVELS_CONFIG = [
-    {
-        id: 1,
-        name: "Les Bocages",
-        data: (0, _level1Js.LEVEL_1)
-    },
-    {
-        id: 2,
-        name: "Double Front",
-        data: (0, _level2Js.LEVEL_2)
-    },
-    {
-        id: 3,
-        name: "Forteresse de neige",
-        data: (0, _level3Js.LEVEL_3)
-    }
-];
-
-},{"./level1.js":"4Dl0R","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./level2.js":"alrw9","./level3.js":"c2Phu"}],"4Dl0R":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "LEVEL_1", ()=>LEVEL_1);
-const LEVEL_1 = {
-    // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont
-    map: [
-        [
-            1,
-            1,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            3,
-            3,
-            3
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            3,
-            3
-        ],
-        [
-            0,
-            0,
-            1,
-            4,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            3
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            3
-        ],
-        [
-            5,
-            0,
-            1,
-            3,
-            0,
-            5,
-            5,
-            5,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            3
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            5,
-            5,
-            5,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            5,
-            5,
-            5,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            4,
-            1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            3,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            1,
-            0,
-            3,
-            3,
-            3
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            3
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            0
-        ],
-        [
-            3,
-            3,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            2
-        ]
-    ],
-    // LISTE DES CHEMINS POSSIBLES (paths au pluriel)
-    paths: [
-        // CHEMIN A : Passe par le pont du HAUT
-        [
-            {
-                x: 0,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 2
-            },
-            {
-                x: 10,
-                y: 2
-            },
-            {
-                x: 10,
-                y: 10
-            },
-            {
-                x: 10,
-                y: 12
-            },
-            {
-                x: 13,
-                y: 12
-            },
-            {
-                x: 13,
-                y: 13
-            },
-            {
-                x: 13,
-                y: 14
-            },
-            {
-                x: 14,
-                y: 14
-            }
-        ],
-        // CHEMIN B : Passe par le pont du BAS
-        [
-            {
-                x: 0,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 8
-            },
-            {
-                x: 6,
-                y: 8
-            },
-            {
-                x: 6,
-                y: 10
-            },
-            {
-                x: 10,
-                y: 10
-            },
-            {
-                x: 10,
-                y: 12
-            },
-            {
-                x: 13,
-                y: 12
-            },
-            {
-                x: 13,
-                y: 13
-            },
-            {
-                x: 13,
-                y: 14
-            },
-            {
-                x: 14,
-                y: 14
-            }
-        ]
-    ],
-    waves: [
-        // VAGUE 1 : Soldats (La seconde escouade arrive après 10 secondes)
-        [
-            {
-                count: 24,
-                type: "grunt",
-                interval: 1000,
-                startDelay: 0
-            },
-            {
-                count: 15,
-                type: "grunt",
-                interval: 1000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 2 : Runners (Rush immédiat)
-        [
-            {
-                count: 21,
-                type: "runner",
-                interval: 450,
-                startDelay: 0
-            },
-            {
-                count: 1,
-                type: "shield",
-                interval: 1500,
-                startDelay: 3000
-            }
-        ],
-        // VAGUE 3 : Mixte (Chair à canon d'abord, Boucliers ensuite, Runners en traître)
-        [
-            {
-                count: 12,
-                type: "grunt",
-                interval: 600,
-                startDelay: 0
-            },
-            {
-                count: 6,
-                type: "shield",
-                interval: 1500,
-                startDelay: 4000
-            },
-            {
-                count: 10,
-                type: "runner",
-                interval: 800,
-                startDelay: 12000
-            }
-        ],
-        // VAGUE 4 : Tank (Escorte progressive)
-        [
-            {
-                count: 12,
-                type: "grunt",
-                interval: 600,
-                startDelay: 0
-            },
-            {
-                count: 20,
-                type: "runner",
-                interval: 400,
-                startDelay: 5000
-            },
-            {
-                count: 4,
-                type: "shield",
-                interval: 1500,
-                startDelay: 15000
-            },
-            {
-                count: 4,
-                type: "tank",
-                interval: 4000,
-                startDelay: 25000
-            }
-        ],
-        // VAGUE 5 : Invasion (Longue bataille)
-        [
-            {
-                count: 60,
-                type: "grunt",
-                interval: 500,
-                startDelay: 0
-            },
-            {
-                count: 10,
-                type: "runner",
-                interval: 400,
-                startDelay: 8000
-            },
-            {
-                count: 8,
-                type: "shield",
-                interval: 1500,
-                startDelay: 18000
-            },
-            {
-                count: 7,
-                type: "tank",
-                interval: 4000,
-                startDelay: 30000
-            }
-        ],
-        // VAGUE 6 : BOSS (Le Final)
-        [
-            {
-                count: 68,
-                type: "grunt",
-                interval: 700,
-                startDelay: 0
-            },
-            {
-                count: 36,
-                type: "runner",
-                interval: 1500,
-                startDelay: 12000
-            },
-            {
-                count: 6,
-                type: "tank",
-                interval: 5000,
-                startDelay: 35000
-            },
-            {
-                count: 1,
-                type: "bosslvl1",
-                interval: 3000,
-                startDelay: 45000
-            }
-        ]
-    ]
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"alrw9":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "LEVEL_2", ()=>LEVEL_2);
-const LEVEL_2 = {
-    // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont, 5=Rocher/Decor
-    map: [
-        [
-            0,
-            0,
-            0,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            5,
-            5,
-            5,
-            0
-        ],
-        [
-            1,
-            1,
-            1,
-            4,
-            1,
-            1,
-            1,
-            1,
-            1,
-            0,
-            0,
-            5,
-            5,
-            5,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            5,
-            5,
-            5,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1
-        ],
-        [
-            0,
-            3,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1
-        ],
-        [
-            1,
-            1,
-            1,
-            3,
-            3,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            1,
-            1,
-            1,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            4,
-            1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            3,
-            3,
-            3,
-            3,
-            3,
-            0,
-            5,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            2
-        ]
-    ],
-    // LISTE DES CHEMINS (Identiques à ta version corrigée)
-    paths: [
-        // --- CHEMIN A : Départ HAUT GAUCHE ---
-        [
-            {
-                x: 0,
-                y: 2
-            },
-            {
-                x: 8,
-                y: 2
-            },
-            {
-                x: 8,
-                y: 5
-            },
-            {
-                x: 14,
-                y: 5
-            },
-            {
-                x: 14,
-                y: 8
-            },
-            {
-                x: 11,
-                y: 8
-            },
-            {
-                x: 11,
-                y: 14
-            },
-            {
-                x: 14,
-                y: 14
-            }
-        ],
-        // --- CHEMIN B : Départ BAS GAUCHE (Le zig-zag) ---
-        [
-            {
-                x: 0,
-                y: 8
-            },
-            {
-                x: 2,
-                y: 8
-            },
-            {
-                x: 2,
-                y: 11
-            },
-            {
-                x: 4,
-                y: 11
-            },
-            {
-                x: 4,
-                y: 10
-            },
-            {
-                x: 6,
-                y: 10
-            },
-            {
-                x: 6,
-                y: 9
-            },
-            {
-                x: 8,
-                y: 9
-            },
-            {
-                x: 8,
-                y: 8
-            },
-            {
-                x: 11,
-                y: 8
-            },
-            {
-                x: 11,
-                y: 14
-            },
-            {
-                x: 14,
-                y: 14
-            }
-        ]
-    ],
-    // CONFIGURATION DES 8 VAGUES (Sans Shaman, Difficile)
-    waves: [
-        // VAGUE 1 : Mise en bouche (2 chemins)
-        [
-            {
-                count: 12,
-                type: "grunt",
-                interval: 1000,
-                startDelay: 0
-            },
-            {
-                count: 12,
-                type: "grunt",
-                interval: 1000,
-                startDelay: 6000
-            },
-            {
-                count: 5,
-                type: "runner",
-                interval: 800,
-                startDelay: 15000
-            }
-        ],
-        // VAGUE 2 : Le Mur de Boucliers
-        [
-            {
-                count: 8,
-                type: "shield",
-                interval: 1500,
-                startDelay: 0
-            },
-            {
-                count: 20,
-                type: "runner",
-                interval: 400,
-                startDelay: 5000
-            }
-        ],
-        // VAGUE 3 : Introduction Tortue Dragon (Tanky)
-        [
-            {
-                count: 25,
-                type: "grunt",
-                interval: 600,
-                startDelay: 0
-            },
-            {
-                count: 3,
-                type: "tortue_dragon",
-                interval: 3000,
-                startDelay: 10000
-            },
-            {
-                count: 10,
-                type: "runner",
-                interval: 500,
-                startDelay: 18000
-            }
-        ],
-        // VAGUE 4 : L'Escorte Blindée
-        [
-            {
-                count: 30,
-                type: "grunt",
-                interval: 500,
-                startDelay: 0
-            },
-            {
-                count: 5,
-                type: "tank",
-                interval: 3000,
-                startDelay: 10000
-            },
-            {
-                count: 5,
-                type: "shield",
-                interval: 1200,
-                startDelay: 12000
-            }
-        ],
-        // VAGUE 5 : Division Cellulaire (Introduction Diviseur)
-        [
-            {
-                count: 4,
-                type: "diviseur",
-                interval: 4000,
-                startDelay: 0
-            },
-            {
-                count: 20,
-                type: "runner",
-                interval: 350,
-                startDelay: 8000
-            },
-            {
-                count: 15,
-                type: "grunt",
-                interval: 500,
-                startDelay: 12000
-            }
-        ],
-        // VAGUE 6 : Le Combo Lourd
-        [
-            {
-                count: 5,
-                type: "tortue_dragon",
-                interval: 3500,
-                startDelay: 0
-            },
-            {
-                count: 4,
-                type: "tank",
-                interval: 3000,
-                startDelay: 5000
-            },
-            {
-                count: 6,
-                type: "diviseur",
-                interval: 4000,
-                startDelay: 20000
-            }
-        ],
-        // VAGUE 7 : Submersion (Test de DPS)
-        [
-            {
-                count: 50,
-                type: "grunt",
-                interval: 300,
-                startDelay: 0
-            },
-            {
-                count: 15,
-                type: "shield",
-                interval: 1000,
-                startDelay: 5000
-            },
-            {
-                count: 15,
-                type: "runner",
-                interval: 300,
-                startDelay: 15000
-            },
-            {
-                count: 5,
-                type: "diviseur",
-                interval: 3000,
-                startDelay: 25000
-            }
-        ],
-        // VAGUE 8 : BOSS FINAL (Boss Lvl 2)
-        [
-            {
-                count: 30,
-                type: "runner",
-                interval: 350,
-                startDelay: 0
-            },
-            {
-                count: 8,
-                type: "tortue_dragon",
-                interval: 3000,
-                startDelay: 10000
-            },
-            {
-                count: 8,
-                type: "tank",
-                interval: 3000,
-                startDelay: 20000
-            },
-            {
-                count: 1,
-                type: "bosslvl2",
-                interval: 5000,
-                startDelay: 40000
-            }
-        ]
-    ]
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"c2Phu":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "LEVEL_3", ()=>LEVEL_3);
-const LEVEL_3 = {
-    // THEME : Désert de Glace
-    // 6=Sol Neige, 7=Chemin Glacé, 8=Eau Glacée, 9=Montagne Neige, 2=Base
-    map: [
-        // 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
-        [
-            7,
-            7,
-            7,
-            6,
-            6,
-            6,
-            8,
-            8,
-            8,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            8,
-            8,
-            8,
-            6,
-            9,
-            9,
-            9,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            7,
-            7,
-            7,
-            7,
-            7,
-            6,
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            8,
-            8,
-            6,
-            6,
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            8,
-            8,
-            6,
-            6,
-            6,
-            6,
-            7,
-            7,
-            7,
-            7,
-            7,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            7,
-            7,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            7,
-            6,
-            7,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            7,
-            6,
-            7,
-            7,
-            7,
-            7,
-            7,
-            7,
-            2
-        ],
-        [
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            7,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            7,
-            7,
-            7,
-            7,
-            7,
-            7,
-            6,
-            7,
-            8,
-            8,
-            8,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            6,
-            7,
-            8,
-            8,
-            8,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            7,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ]
-    ],
-    paths: [
-        // CHEMIN 1 : HAUT GAUCHE vers BASE (suivre uniquement les cases 7)
-        [
-            {
-                x: 0,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 3
-            },
-            {
-                x: 6,
-                y: 3
-            },
-            {
-                x: 6,
-                y: 6
-            },
-            {
-                x: 10,
-                y: 6
-            },
-            {
-                x: 10,
-                y: 10
-            },
-            {
-                x: 14,
-                y: 10
-            }
-        ],
-        // CHEMIN 2 : BAS GAUCHE vers BASE (suivre uniquement les cases 7)
-        [
-            {
-                x: 0,
-                y: 12
-            },
-            {
-                x: 5,
-                y: 12
-            },
-            {
-                x: 5,
-                y: 14
-            },
-            {
-                x: 7,
-                y: 14
-            },
-            {
-                x: 7,
-                y: 11
-            },
-            {
-                x: 6,
-                y: 11
-            },
-            {
-                x: 6,
-                y: 8
-            },
-            {
-                x: 8,
-                y: 8
-            },
-            {
-                x: 8,
-                y: 10
-            },
-            {
-                x: 14,
-                y: 10
-            }
-        ]
-    ],
-    // 10 VAGUES - DIFFICULTÉ "CAUCHEMAR TACTIQUE"
-    waves: [
-        // VAGUE 1 : Échauffement bilatéral
-        // Le joueur doit placer des tours aux deux spawn ou au centre.
-        [
-            {
-                count: 10,
-                type: "grunt",
-                interval: 800,
-                startDelay: 0
-            },
-            {
-                count: 10,
-                type: "grunt",
-                interval: 800,
-                startDelay: 5000
-            }
-        ],
-        // VAGUE 2 : La vitesse
-        [
-            {
-                count: 25,
-                type: "runner",
-                interval: 400,
-                startDelay: 0
-            }
-        ],
-        // VAGUE 3 : INTRODUCTION DU SHAMAN
-        // Les Grunts servent de bouclier de chair, les Shamans les soignent derrière.
-        [
-            {
-                count: 20,
-                type: "grunt",
-                interval: 600,
-                startDelay: 0
-            },
-            {
-                count: 3,
-                type: "shaman_gobelin",
-                interval: 4000,
-                startDelay: 5000
-            }
-        ],
-        // VAGUE 4 : Le Mur immortel
-        // Shields (haute défense) + Shaman (Soin) = Très dur à tuer sans gros DPS.
-        [
-            {
-                count: 10,
-                type: "shield",
-                interval: 1200,
-                startDelay: 0
-            },
-            {
-                count: 4,
-                type: "shaman_gobelin",
-                interval: 3000,
-                startDelay: 4000
-            },
-            {
-                count: 15,
-                type: "runner",
-                interval: 400,
-                startDelay: 12000
-            }
-        ],
-        // VAGUE 5 : Lourdeur Mécanique
-        [
-            {
-                count: 6,
-                type: "tank",
-                interval: 3000,
-                startDelay: 0
-            },
-            {
-                count: 4,
-                type: "tortue_dragon",
-                interval: 4000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 6 : Division et Multiplication
-        // Les Diviseurs explosent en petits slimes, les Shamans soignent les petits slimes.
-        [
-            {
-                count: 5,
-                type: "diviseur",
-                interval: 4000,
-                startDelay: 0
-            },
-            {
-                count: 40,
-                type: "grunt",
-                interval: 300,
-                startDelay: 8000
-            },
-            {
-                count: 4,
-                type: "shaman_gobelin",
-                interval: 4000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 7 : L'Escouade d'Élite
-        // Un mélange compact et dangereux.
-        [
-            {
-                count: 5,
-                type: "shield",
-                interval: 1000,
-                startDelay: 0
-            },
-            {
-                count: 3,
-                type: "tortue_dragon",
-                interval: 3000,
-                startDelay: 2000
-            },
-            {
-                count: 3,
-                type: "shaman_gobelin",
-                interval: 3000,
-                startDelay: 4000
-            },
-            {
-                count: 5,
-                type: "tank",
-                interval: 2500,
-                startDelay: 15000
-            }
-        ],
-        // VAGUE 8 : Chaos Total
-        // Ça vient de partout.
-        [
-            {
-                count: 60,
-                type: "runner",
-                interval: 250,
-                startDelay: 0
-            },
-            {
-                count: 8,
-                type: "diviseur",
-                interval: 3500,
-                startDelay: 5000
-            },
-            {
-                count: 5,
-                type: "shaman_gobelin",
-                interval: 4000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 9 : Avant la tempête
-        // Des unités très résistantes pour vider les munitions/énergie du joueur.
-        [
-            {
-                count: 10,
-                type: "tortue_dragon",
-                interval: 2500,
-                startDelay: 0
-            },
-            {
-                count: 10,
-                type: "shield",
-                interval: 1000,
-                startDelay: 5000
-            },
-            {
-                count: 6,
-                type: "shaman_gobelin",
-                interval: 3000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 10 : LE SEIGNEUR DE GUERRE (Boss Lvl 3)
-        [
-            // L'avant-garde
-            {
-                count: 30,
-                type: "grunt",
-                interval: 300,
-                startDelay: 0
-            },
-            {
-                count: 20,
-                type: "runner",
-                interval: 300,
-                startDelay: 5000
-            },
-            // La garde rapprochée
-            {
-                count: 8,
-                type: "tank",
-                interval: 2000,
-                startDelay: 20000
-            },
-            {
-                count: 6,
-                type: "shaman_gobelin",
-                interval: 2000,
-                startDelay: 25000
-            },
-            // LE BOSS
-            {
-                count: 1,
-                type: "bosslvl3",
-                interval: 10000,
-                startDelay: 35000
-            },
-            // Les renforts de dernière chance
-            {
-                count: 10,
-                type: "runner",
-                interval: 200,
-                startDelay: 49000
-            }
-        ]
-    ]
 };
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hW1Gp":[function(require,module,exports,__globalThis) {
@@ -16185,9 +16460,12 @@ parcelHelpers.export(exports, "MapScene", ()=>MapScene);
 var _indexJs = require("../config/levels/index.js");
 var _authManagerJs = require("../services/authManager.js");
 var _authOverlayJs = require("../services/authOverlay.js");
+var _leaderboardServiceJs = require("../services/leaderboardService.js");
 class MapScene extends Phaser.Scene {
     constructor(){
         super("MapScene");
+        this.levelIslands = new Map();
+        this.bestRunsByLevel = new Map();
         this.biomes = {
             grass: {
                 top: 0x55aa44,
@@ -16226,11 +16504,20 @@ class MapScene extends Phaser.Scene {
             }
         };
     }
+    preload() {
+        const backgroundMapUrl = new URL(require("620eb32498f7d1c0")).href;
+        this.load.image("background_map", backgroundMapUrl);
+    }
     create() {
         const { width, height } = this.scale;
-        this.createDeepSea(width, height);
+        const cx = width / 2;
+        this.levelIslands = new Map();
+        this.bestRunsByLevel = new Map();
+        // Ajouter le fond avec l'image
+        this.addBackground(cx, height);
         this.mapContainer = this.add.container(0, 0);
-        this.draw3DMap(width / 2, height);
+        this.draw3DMap(cx, height);
+        this.loadBestRuns();
         // Titre
         this.add.text(width / 2, 50, "CARTOGRAPHIE DES SECTEURS", {
             fontFamily: "Impact",
@@ -16246,10 +16533,13 @@ class MapScene extends Phaser.Scene {
         });
         back.on("pointerdown", ()=>this.scene.start("MainMenuScene"));
     }
-    createDeepSea(w, h) {
-        const bg = this.add.graphics();
-        bg.fillGradientStyle(0x02101a, 0x02101a, 0x00050a, 0x00050a, 1);
-        bg.fillRect(0, 0, w, h);
+    addBackground(cx, height) {
+        this.cameras.main.setBackgroundColor("#020508");
+        if (this.textures.exists("background_map")) {
+            const bg = this.add.image(cx, height / 2, "background_map").setDepth(-1).setScrollFactor(0).setTint(0x444444);
+            const scale = Math.max(this.scale.width / bg.width, this.scale.height / bg.height);
+            bg.setScale(scale);
+        }
     }
     draw3DMap(cx, height) {
         const unlocked = (0, _authManagerJs.getUnlockedLevel)();
@@ -16364,6 +16654,29 @@ class MapScene extends Phaser.Scene {
             txtId,
             txtName
         ]);
+        const statsStyle = {
+            fontSize: "12px",
+            fontFamily: "Orbitron",
+            color: "#bdf1ff"
+        };
+        const bestTime = this.add.text(0, -78, "", statsStyle).setOrigin(0.5);
+        const bestHearts = this.add.text(0, -62, "", {
+            ...statsStyle,
+            color: "#ffb3b3"
+        }).setOrigin(0.5);
+        const statsContainer = this.add.container(0, 0, [
+            bestTime,
+            bestHearts
+        ]);
+        statsContainer.setVisible(false);
+        container.add(statsContainer);
+        this.levelIslands.set(id, {
+            container,
+            statsContainer,
+            bestTime,
+            bestHearts,
+            isLocked
+        });
         // 6. LE CADENA (Si verrouillé)
         if (isLocked) {
             const lock = this.add.text(0, 0, "\uD83D\uDD12", {
@@ -16418,8 +16731,49 @@ class MapScene extends Phaser.Scene {
         gfx.lineStyle(2, color, isLocked ? 0.1 : 0.6);
         curve.draw(gfx);
     }
+    async loadBestRuns() {
+        if (!(0, _authManagerJs.isAuthenticated)()) return;
+        try {
+            const entries = await (0, _leaderboardServiceJs.fetchPlayerBestRuns)();
+            this.bestRunsByLevel = new Map(entries.map((run)=>[
+                    Number(run.level_id),
+                    {
+                        livesLost: Number(run.lives_lost ?? 0),
+                        completionTimeMs: Number(run.completion_time_ms || 0)
+                    }
+                ]));
+            this.updateAllIslandStats();
+        } catch (err) {
+        // Silencieux pour ne pas bloquer la carte
+        }
+    }
+    updateAllIslandStats() {
+        this.levelIslands.forEach((_value, levelId)=>this.updateIslandStats(levelId));
+    }
+    updateIslandStats(levelId) {
+        const island = this.levelIslands.get(levelId);
+        if (!island || island.isLocked) return;
+        const bestRun = this.bestRunsByLevel.get(levelId);
+        if (!bestRun) {
+            island.statsContainer.setVisible(false);
+            return;
+        }
+        island.bestTime.setText(`\u{23F1} ${this.formatTime(bestRun.completionTimeMs)}`);
+        island.bestHearts.setText(`\u{2764}\u{FE0F} ${bestRun.livesLost} coeurs perdus`);
+        island.statsContainer.setVisible(true);
+    }
+    formatTime(ms) {
+        if (!ms || ms <= 0) return "0:00";
+        const sec = Math.floor(ms / 1000);
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m}:${s.toString().padStart(2, "0")}`;
+    }
 }
 
-},{"../config/levels/index.js":"8fcfE","../services/authManager.js":"cvKjF","../services/authOverlay.js":"g1JuO","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["fILKw"], "fILKw", "parcelRequirebaba", {}, "./", "/")
+},{"../config/levels/index.js":"8fcfE","../services/authManager.js":"cvKjF","../services/authOverlay.js":"g1JuO","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../services/leaderboardService.js":"2zhl5","620eb32498f7d1c0":"1sEGa"}],"1sEGa":[function(require,module,exports,__globalThis) {
+module.exports = module.bundle.resolve("background_map.214738dd.jpg");
+
+},{}]},["fILKw"], "fILKw", "parcelRequirebaba", {}, "./", "/")
 
 //# sourceMappingURL=towerdefense.1fcc916e.js.map

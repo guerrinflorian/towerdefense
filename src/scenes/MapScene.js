@@ -17,14 +17,23 @@ export class MapScene extends Phaser.Scene {
     };
   }
 
+  preload() {
+    const backgroundMapUrl = new URL("../images/background_map.jpg", import.meta.url).href;
+    this.load.image("background_map", backgroundMapUrl);
+  }
+
   create() {
     const { width, height } = this.scale;
+    const cx = width / 2;
+    
     this.levelIslands = new Map();
     this.bestRunsByLevel = new Map();
-    this.createDeepSea(width, height);
+    
+    // Ajouter le fond avec l'image
+    this.addBackground(cx, height);
 
     this.mapContainer = this.add.container(0, 0);
-    this.draw3DMap(width / 2, height);
+    this.draw3DMap(cx, height);
     this.loadBestRuns();
 
     // Titre
@@ -38,10 +47,16 @@ export class MapScene extends Phaser.Scene {
     back.on("pointerdown", () => this.scene.start("MainMenuScene"));
   }
 
-  createDeepSea(w, h) {
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x02101a, 0x02101a, 0x00050a, 0x00050a, 1);
-    bg.fillRect(0, 0, w, h);
+  addBackground(cx, height) {
+    this.cameras.main.setBackgroundColor("#020508");
+    if (this.textures.exists("background_map")) {
+      const bg = this.add.image(cx, height / 2, "background_map")
+        .setDepth(-1)
+        .setScrollFactor(0)
+        .setTint(0x444444);
+      const scale = Math.max(this.scale.width / bg.width, this.scale.height / bg.height);
+      bg.setScale(scale);
+    }
   }
 
   draw3DMap(cx, height) {
