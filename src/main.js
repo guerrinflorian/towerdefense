@@ -51,6 +51,15 @@ ensureProfileLoaded()
   })
   .finally(() => {
     game = new Phaser.Game(config);
+
+    // Forcer le retour sur le menu principal au démarrage,
+    // même si une autre scène était active (HMR / rechargement).
+    const sceneManager = game.scene;
+    if (sceneManager && !sceneManager.isActive("MainMenuScene")) {
+      sceneManager.stop("GameScene");
+      sceneManager.stop("MapScene");
+      sceneManager.start("MainMenuScene");
+    }
     
     // Exposer game globalement pour pouvoir y accéder depuis authOverlay
     window.game = game;

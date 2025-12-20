@@ -46,6 +46,15 @@ const clearAllErrors = () => {
   updateError(UI.register.error);
 };
 
+const goToMainMenu = () => {
+  const sceneManager = window.game?.scene;
+  if (!sceneManager) return;
+
+  sceneManager.stop("GameScene");
+  sceneManager.stop("MapScene");
+  sceneManager.start("MainMenuScene");
+};
+
 // --- Actions ---
 function renderWelcome() {
   if (!UI.welcome) return;
@@ -66,13 +75,7 @@ async function processAuth(action, event, errorBox) {
     toggleGameBlock(false);
     window.dispatchEvent(new CustomEvent("auth:profile-updated"));
     
-    // S'assurer qu'on est sur MainMenuScene après connexion
-    if (window.game && window.game.scene) {
-      const currentScene = window.game.scene.getScenes(true)[0];
-      if (currentScene && currentScene.scene.key !== "MainMenuScene") {
-        window.game.scene.start("MainMenuScene");
-      }
-    }
+    goToMainMenu();
   } catch (error) {
     updateError(errorBox, handleAuthError(error));
   }
@@ -103,6 +106,7 @@ export function setupAuthOverlay() {
       .then(() => {
         toggleVisible(UI.overlay, false);
         toggleGameBlock(false);
+        goToMainMenu();
       })
       .catch(() => {
         toggleVisible(UI.overlay, true);
