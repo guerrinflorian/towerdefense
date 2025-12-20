@@ -195,6 +195,11 @@ export class WaveManager {
     this.scene.spawnControls = null;
     this.spawnControls = null;
 
+    // S'assurer que les kills du héros sont reportés avant d'enregistrer la victoire
+    const heroKillReport = this.scene?.reportHeroKillsOnce
+      ? this.scene.reportHeroKillsOnce()
+      : null;
+
     const completionPayload = {
       levelId: this.scene.levelID,
       completionTimeMs: Math.round(this.scene.elapsedTimeMs || 0),
@@ -205,7 +210,11 @@ export class WaveManager {
       isPerfectRun: this.scene.lives === CONFIG.STARTING_LIVES,
     };
 
-    recordLevelCompletion(completionPayload).catch(() => {});
+    // Tenter d'envoyer les deux requêtes en parallèle sans bloquer l'UI
+    Promise.allSettled([
+      recordLevelCompletion(completionPayload),
+      heroKillReport,
+    ]).catch(() => {});
 
     const bg = this.scene.add
       .rectangle(
