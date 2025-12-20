@@ -97,10 +97,11 @@ export class SpawnWaveControls {
     
     // Forcer le container au-dessus de tous les autres objets
     container.bringToTop();
-    
+
     // EVENTS
     container.on("pointerover", () => {
-      if (this.scene.isWaveRunning) return;
+      if (this.isLocked) return;
+      if (this.scene.isWaveRunning && !this.scene.canCallNextWave) return;
       container.setScale(1.1);
       this.drawArrow(arrow, 0xffffff, size * 0.6);
       this.showWavePreview(container);
@@ -118,7 +119,8 @@ export class SpawnWaveControls {
     });
 
     container.on("pointerdown", () => {
-      if (this.isLocked || this.scene.isWaveRunning) return;
+      if (this.isLocked) return;
+      if (this.scene.isWaveRunning && !this.scene.canCallNextWave) return;
       this.scene.startWave();
       this.hideWavePreview();
     });
@@ -236,24 +238,33 @@ export class SpawnWaveControls {
 
   updateWaveRunningState() {
     const isRunning = this.scene.isWaveRunning;
+    const canChain = this.scene.canCallNextWave;
     this.icons.forEach(icon => {
-      if (isRunning) {
+      const isUnavailable = isRunning && !canChain;
+      if (isUnavailable) {
         icon.container.setAlpha(0.05); // Presque invisible pendant la vague
         icon.container.disableInteractive();
         icon.countdownText.setText("");
-      } else {
-        icon.container.setAlpha(this.isLocked ? 0.5 : 1);
-        if (!this.isLocked) {
-          const hitSize = icon.size * 2.2; // Même zone d'interaction qu'à la création
-          icon.container.setSize(hitSize, hitSize);
-          // Utiliser setInteractive sans paramètres pour utiliser la zone définie par setSize
-          icon.container.setInteractive();
-          if (icon.container.input) {
-            icon.container.input.cursor = "pointer";
-          }
-        } else {
-          icon.container.disableInteractive();
+        return;
+      }
+
+      icon.container.setAlpha(this.isLocked ? 0.5 : 1);
+      if (!this.isLocked) {
+        const hitSize = icon.size * 2.2; // Même zone d'interaction qu'à la création
+        icon.container.setSize(hitSize, hitSize);
+        // Utiliser setInteractive sans paramètres pour utiliser la zone définie par setSize
+        icon.container.setInteractive();
+        if (icon.container.input) {
+          icon.container.input.cursor = "pointer";
         }
+
+        if (canChain) {
+          icon.countdownText.setText("Prêt");
+          icon.countdownText.setColor("#00ffc2");
+        }
+      } else {
+        icon.container.disableInteractive();
+        icon.countdownText.setText("");
       }
     });
   }
