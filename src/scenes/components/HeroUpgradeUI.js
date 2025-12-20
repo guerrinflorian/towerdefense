@@ -195,6 +195,15 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
 
     container.add(frame);
     this.add(container);
+    
+    // Afficher les kills en dessous de l'avatar
+    this.killsText = this.scene.add.text(x + size / 2, y + size + 15, "", {
+      fontSize: "14px",
+      fontFamily: "Arial",
+      color: "#ff6b6b",
+      fontWeight: "bold"
+    }).setOrigin(0.5);
+    this.add(this.killsText);
   }
 
   createStatRow(stat, x, y) {
@@ -345,5 +354,11 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
 
     this.pointsText.setText(`POINTS DISPONIBLES : ${available}`);
     this.costText.setText(`1 point améliore chaque stat selon sa conversion`);
+    
+    // Afficher les kills avec icône de tête de mort
+    if (this.killsText) {
+      const kills = Number(stats.kills) || 0;
+      this.killsText.setText(`💀 ${kills.toLocaleString()} kills`);
+    }
   }
 }

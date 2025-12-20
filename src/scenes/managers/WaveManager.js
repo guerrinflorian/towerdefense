@@ -94,6 +94,9 @@ export class WaveManager {
     let spawnedTotal = 0;
     waveGroups.forEach((g) => (totalEnemiesInWave += g.count));
 
+    // Compteur pour équilibrer la répartition entre les chemins
+    const pathCounts = new Array(this.scene.paths.length).fill(0);
+
     waveGroups.forEach((group) => {
         const delayBeforeStart = group.startDelay || 0;
 
@@ -108,8 +111,38 @@ export class WaveManager {
                     callback: () => {
                         if (this.scene.isPaused) return;
 
-                        const randomPath = Phaser.Utils.Array.GetRandom(this.scene.paths);
-                        const enemy = new Enemy(this.scene, randomPath, group.type);
+                        // Choisir le chemin de manière équilibrée
+                        let selectedPathIndex = 0;
+                        if (this.scene.paths.length > 1) {
+                            // Trouver le chemin avec le moins d'ennemis spawnés
+                            let minCount = pathCounts[0];
+                            let minIndex = 0;
+                            for (let i = 1; i < pathCounts.length; i++) {
+                                if (pathCounts[i] < minCount) {
+                                    minCount = pathCounts[i];
+                                    minIndex = i;
+                                }
+                            }
+                            // Si la différence est trop grande (>40%), choisir aléatoirement parmi les moins utilisés
+                            const maxCount = Math.max(...pathCounts);
+                            if (maxCount > 0 && (maxCount - minCount) / maxCount > 0.4) {
+                                // Trouver tous les chemins avec un compte proche du minimum
+                                const candidates = [];
+                                for (let i = 0; i < pathCounts.length; i++) {
+                                    if (pathCounts[i] <= minCount + 1) {
+                                        candidates.push(i);
+                                    }
+                                }
+                                selectedPathIndex = Phaser.Utils.Array.GetRandom(candidates);
+                            } else {
+                                selectedPathIndex = minIndex;
+                            }
+                        }
+                        
+                        const selectedPath = this.scene.paths[selectedPathIndex];
+                        pathCounts[selectedPathIndex]++;
+                        
+                        const enemy = new Enemy(this.scene, selectedPath, group.type);
                         enemy.spawn();
                         this.scene.enemies.add(enemy);
                         spawnedTotal++;

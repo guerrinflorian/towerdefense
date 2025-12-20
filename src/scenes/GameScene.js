@@ -389,7 +389,6 @@ export class GameScene extends Phaser.Scene {
   handleEnemyKilled(payload) {
     if (payload?.source === "hero") {
       this.heroKillCount += 1;
-      console.log(`Hero kill! Total: ${this.heroKillCount}`);
     }
 
     if (payload && Math.random() < 0.25) {
@@ -398,27 +397,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   reportHeroKillsOnce(force = false) {
-    console.log(`reportHeroKillsOnce appelé - force: ${force}, heroKillCount: ${this.heroKillCount}`);
-    
     // Si on force (défaite), toujours envoyer même si 0 kills
     if (!force && this.heroKillCount <= 0) {
-      console.log("reportHeroKillsOnce: Pas de kills à reporter (et pas forcé)");
       return null;
     }
     
     // Si on force, créer une nouvelle requête même si une existe déjà
     if (!force && this.heroKillReportPromise) {
-      console.log("reportHeroKillsOnce: Promesse existante retournée");
       return this.heroKillReportPromise;
     }
 
     const killsToReport = this.heroKillCount || 0;
-    console.log(`reportHeroKillsOnce: Préparation envoi de ${killsToReport} kills`);
     this.heroKillCount = 0;
 
     // Toujours créer une nouvelle promesse pour forcer l'envoi
     this.heroKillReportPromise = recordHeroKill(killsToReport).catch((err) => {
-      console.error("Erreur lors de l'envoi des kills du héros:", err);
       return null;
     });
     return this.heroKillReportPromise;
@@ -594,9 +587,8 @@ export class GameScene extends Phaser.Scene {
     if (heroKillReport) {
       try {
         await heroKillReport;
-        console.log("Kills du héros envoyés avec succès");
       } catch (err) {
-        console.error("Erreur lors de l'envoi des kills du héros:", err);
+        // Erreur silencieuse
       }
     }
 

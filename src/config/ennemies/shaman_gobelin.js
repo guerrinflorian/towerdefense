@@ -11,7 +11,7 @@ export const shaman_gobelin = {
     
     healAmount: 75,
     healInterval: 2400, 
-    healRadius: 2.3, // Rayon en cases
+    healRadius: 1.7, // Rayon en cases
 
     onDraw: (scene, container, color, enemyInstance) => {
         enemyInstance.legs = {};
