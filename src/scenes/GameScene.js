@@ -72,6 +72,8 @@ export class GameScene extends Phaser.Scene {
     this.pausedTweens = []; // Liste des tweens en pause
     this.elapsedTimeMs = 0; // Chronomètre de session
     this.isTimerRunning = false;
+    this.heroKillCount = 0;
+    this.heroKillReportPromise = null;
   }
 
   preload() {
@@ -302,13 +304,25 @@ export class GameScene extends Phaser.Scene {
   }
 
   levelComplete() {
+    this.reportHeroKillsOnce();
     this.waveManager.levelComplete();
   }
 
   handleEnemyKilled(payload) {
     if (payload?.source === "hero") {
-      recordHeroKill().catch(() => {});
+      this.heroKillCount += 1;
     }
+  }
+
+  reportHeroKillsOnce() {
+    if (this.heroKillCount <= 0) return null;
+    if (this.heroKillReportPromise) return this.heroKillReportPromise;
+
+    const killsToReport = this.heroKillCount;
+    this.heroKillCount = 0;
+
+    this.heroKillReportPromise = recordHeroKill(killsToReport).catch(() => {});
+    return this.heroKillReportPromise;
   }
 
   // =========================================================
@@ -473,6 +487,7 @@ export class GameScene extends Phaser.Scene {
   showGameOverNotification() {
     // Mettre le jeu en pause
     this.isPaused = true;
+    this.reportHeroKillsOnce();
 
     const bg = this.add
       .rectangle(
