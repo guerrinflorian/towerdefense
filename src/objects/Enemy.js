@@ -394,13 +394,15 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   handleSpecialAbilities(time) {
-    if (this.stats.onUpdateAnimation) return;
-
-    if (this.healInterval && time - this.lastHealTime >= this.healInterval) {
-      this.healNearbyEnemies();
-      this.lastHealTime = time;
+    // Le heal n'est géré que si pas d'animation personnalisée (pour éviter les conflits)
+    if (!this.stats.onUpdateAnimation) {
+      if (this.healInterval && time - this.lastHealTime >= this.healInterval) {
+        this.healNearbyEnemies();
+        this.lastHealTime = time;
+      }
     }
 
+    // Le spawn de minions fonctionne toujours, même avec une animation personnalisée
     if (this.stats.spawnInterval && time - this.lastSpawnTime >= this.stats.spawnInterval) {
       this.spawnMinions();
       this.lastSpawnTime = time;

@@ -1,7 +1,7 @@
 export const bosslvl2 = {
   name: "NÉANT VORACE",
   speed: 12, // Plus rapide que le chevalier, course effrayante
-  hp: 90000,
+  hp: 80000,
   reward: 2500,
   playerDamage: 20,
   color: 0x000000,

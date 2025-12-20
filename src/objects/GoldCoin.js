@@ -24,7 +24,7 @@ export class GoldCoin extends Phaser.GameObjects.Container {
     this.add(shadow);
 
     const coin = this.scene.add.graphics();
-    const radius = 14 * s;
+    const radius = 10 * s;
 
     coin.fillStyle(0x8d5a15, 0.85);
     coin.fillCircle(1 * s, 1 * s, radius);
