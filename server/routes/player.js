@@ -48,9 +48,10 @@ router.get("/leaderboard", async (_req, res) => {
 
 router.post("/hero/kill", async (req, res) => {
   try {
+    const kills = Number.isInteger(req.body?.kills) && req.body.kills > 0 ? req.body.kills : 1;
     const updated = await query(
-      "UPDATE players SET hero_points_available = hero_points_available + 1 WHERE id = $1 RETURNING hero_points_available",
-      [req.user.id]
+      "UPDATE players SET hero_points_available = hero_points_available + $1 WHERE id = $2 RETURNING hero_points_available",
+      [kills, req.user.id]
     );
     return res.json({ heroPointsAvailable: updated.rows[0].hero_points_available });
   } catch (err) {
