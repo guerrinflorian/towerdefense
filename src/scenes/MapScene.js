@@ -1,10 +1,13 @@
 import { LEVELS_CONFIG } from "../config/levels/index.js";
 import { getUnlockedLevel, isAuthenticated, getHeroStats } from "../services/authManager.js";
 import { showAuth } from "../services/authOverlay.js";
+import { fetchPlayerBestRuns } from "../services/leaderboardService.js";
 
 export class MapScene extends Phaser.Scene {
   constructor() {
     super("MapScene");
+    this.levelIslands = new Map();
+    this.bestRunsByLevel = new Map();
     this.biomes = {
       grass:  { top: 0x55aa44, side: 0x3d2b1f, light: 0x77cc66, prop: 0x225522, glow: 0x00ff00 },
       lava:   { top: 0x333333, side: 0x221100, light: 0xff4400, prop: 0xff0000, glow: 0xff4400 },
@@ -16,10 +19,13 @@ export class MapScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    this.levelIslands = new Map();
+    this.bestRunsByLevel = new Map();
     this.createDeepSea(width, height);
 
     this.mapContainer = this.add.container(0, 0);
     this.draw3DMap(width / 2, height);
+    this.loadBestRuns();
 
     // Titre
     this.add.text(width/2, 50, "CARTOGRAPHIE DES SECTEURS", {
@@ -112,6 +118,13 @@ export class MapScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     container.add([shadow, cliff, surface, labelBox, txtId, txtName]);
+    const statsStyle = { fontSize: "12px", fontFamily: "Orbitron", color: "#bdf1ff" };
+    const bestTime = this.add.text(0, -78, "", statsStyle).setOrigin(0.5);
+    const bestHearts = this.add.text(0, -62, "", { ...statsStyle, color: "#ffb3b3" }).setOrigin(0.5);
+    const statsContainer = this.add.container(0, 0, [bestTime, bestHearts]);
+    statsContainer.setVisible(false);
+    container.add(statsContainer);
+    this.levelIslands.set(id, { container, statsContainer, bestTime, bestHearts, isLocked });
 
     // 6. LE CADENA (Si verrouillé)
     if (isLocked) {
@@ -159,5 +172,50 @@ export class MapScene extends Phaser.Scene {
     );
     gfx.lineStyle(8, 0x000000, 0.3); curve.draw(gfx);
     gfx.lineStyle(2, color, isLocked ? 0.1 : 0.6); curve.draw(gfx);
+  }
+
+  async loadBestRuns() {
+    if (!isAuthenticated()) return;
+    try {
+      const entries = await fetchPlayerBestRuns();
+      this.bestRunsByLevel = new Map(
+        entries.map((run) => [
+          Number(run.level_id),
+          {
+            livesLost: Number(run.lives_lost ?? 0),
+            completionTimeMs: Number(run.completion_time_ms || 0),
+          },
+        ])
+      );
+      this.updateAllIslandStats();
+    } catch (err) {
+      // Silencieux pour ne pas bloquer la carte
+    }
+  }
+
+  updateAllIslandStats() {
+    this.levelIslands.forEach((_value, levelId) => this.updateIslandStats(levelId));
+  }
+
+  updateIslandStats(levelId) {
+    const island = this.levelIslands.get(levelId);
+    if (!island || island.isLocked) return;
+    const bestRun = this.bestRunsByLevel.get(levelId);
+    if (!bestRun) {
+      island.statsContainer.setVisible(false);
+      return;
+    }
+
+    island.bestTime.setText(`⏱ ${this.formatTime(bestRun.completionTimeMs)}`);
+    island.bestHearts.setText(`❤️ ${bestRun.livesLost} coeurs perdus`);
+    island.statsContainer.setVisible(true);
+  }
+
+  formatTime(ms) {
+    if (!ms || ms <= 0) return "0:00";
+    const sec = Math.floor(ms / 1000);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   }
 }
