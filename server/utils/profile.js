@@ -79,8 +79,8 @@ export async function recordLevelCompletion(playerId, payload) {
 
   await query(
     `INSERT INTO level_completions
-      (player_id, level_id, completion_time_ms, lives_remaining, waves_completed, money_earned, stars_earned, is_perfect_run)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      (player_id, level_id, completion_time_ms, lives_remaining, waves_completed, money_earned, stars_earned, is_perfect_run, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
     [
       playerId,
       levelId,

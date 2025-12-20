@@ -25,28 +25,17 @@ router.get("/leaderboard", async (_req, res) => {
   try {
     const result = await query(
       `SELECT p.username,
-              lc.level_id AS max_level,
-              lc.lives_remaining,
-              lc.completion_time_ms,
-              lc.created_at
+              MAX(lc.level_id) AS max_level,
+              COALESCE(SUM(20 - COALESCE(lc.lives_remaining, 20)), 0) AS total_lives_lost,
+              COALESCE(SUM(lc.completion_time_ms), 0) AS total_time_ms
          FROM players p
-         JOIN LATERAL (
-            SELECT level_id,
-                   lives_remaining,
-                   completion_time_ms,
-                   created_at
-              FROM level_completions lc2
-             WHERE lc2.player_id = p.id
-             ORDER BY level_id DESC,
-                      lives_remaining DESC NULLS LAST,
-                      completion_time_ms ASC NULLS LAST,
-                      created_at ASC
-             LIMIT 1
-         ) lc ON TRUE
-        ORDER BY lc.level_id DESC,
-                 lc.lives_remaining DESC NULLS LAST,
-                 lc.completion_time_ms ASC NULLS LAST,
-                 lc.created_at ASC
+         LEFT JOIN level_completions lc ON lc.player_id = p.id
+        GROUP BY p.id, p.username
+        HAVING MAX(lc.level_id) IS NOT NULL
+        ORDER BY 
+                 MAX(lc.level_id) DESC,
+                 COALESCE(SUM(20 - COALESCE(lc.lives_remaining, 20)), 0) ASC,
+                 COALESCE(SUM(lc.completion_time_ms), 0) ASC
         LIMIT 10`
     );
 

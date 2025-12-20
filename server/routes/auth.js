@@ -19,7 +19,7 @@ router.post("/register", async (req, res) => {
   if (!validateUsername(username)) {
     return res
       .status(400)
-      .json({ error: "Nom d'utilisateur invalide (3 caractères minimum)" });
+      .json({ error: "Nom d'utilisateur invalide (3 à 15 caractères)" });
   }
   if (!validateEmail(email)) {
     return res.status(400).json({ error: "Email invalide" });

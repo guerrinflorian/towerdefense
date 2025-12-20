@@ -55,14 +55,22 @@ export async function upgradeHeroStats(playerId, { stat, points }) {
       throw error;
     }
 
-    const deltaHp = statKey === "hp" ? conversion.hp_per_point * cleanPoints : 0;
-    const deltaDamage = statKey === "damage" ? conversion.damage_per_point * cleanPoints : 0;
-    const deltaSpeed = statKey === "move_speed" ? conversion.move_speed_per_point * cleanPoints : 0;
+    // Convertir les valeurs de conversion en nombres (elles peuvent être des strings depuis la DB)
+    const hpPerPoint = parseFloat(conversion.hp_per_point) || 0;
+    const damagePerPoint = parseFloat(conversion.damage_per_point) || 0;
+    const speedPerPoint = parseFloat(conversion.move_speed_per_point) || 0;
+
+    // Calculer les deltas
+    // base_damage est NUMERIC(10,2) donc on peut utiliser des décimales
+    // max_hp et move_speed peuvent être INTEGER donc on arrondit
+    const deltaHp = statKey === "hp" ? Math.round(hpPerPoint * cleanPoints) : 0;
+    const deltaDamage = statKey === "damage" ? parseFloat((damagePerPoint * cleanPoints).toFixed(2)) : 0; // Préserver 2 décimales pour NUMERIC(10,2)
+    const deltaSpeed = statKey === "move_speed" ? Math.round(speedPerPoint * cleanPoints) : 0;
 
     const heroRes = await client.query(
       `UPDATE hero_stats
        SET max_hp = max_hp + $1,
-           base_damage = base_damage + $2,
+           base_damage = (base_damage + $2)::NUMERIC(10,2),
            move_speed = move_speed + $3,
            upgrade_points_spent = upgrade_points_spent + $4
        WHERE player_id = $5
