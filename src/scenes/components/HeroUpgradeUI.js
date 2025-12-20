@@ -236,11 +236,23 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     btn.add([btnBg, btnPlus]);
     btn.setSize(24, 24).setInteractive({ useHandCursor: true });
 
-    btn.on("pointerover", () => btnBg.setFillStyle(0x00eaff, 0.5));
-    btn.on("pointerout", () => btnBg.setFillStyle(0x00eaff, 0.2));
-    btn.on("pointerdown", () => this.handleUpgrade(stat.key));
+    btn.on("pointerover", () => {
+      if (btn.input.enabled) {
+        btnBg.setFillStyle(0x00eaff, 0.5);
+      }
+    });
+    btn.on("pointerout", () => {
+      if (btn.input.enabled) {
+        btnBg.setFillStyle(0x00eaff, 0.2);
+      }
+    });
+    btn.on("pointerdown", () => {
+      if (btn.input.enabled) {
+        this.handleUpgrade(stat.key);
+      }
+    });
 
-    this.statElements.set(stat.key, { label, valText, barFill, conversionText, color: stat.color, x, y, barWidth });
+    this.statElements.set(stat.key, { label, valText, barFill, conversionText, color: stat.color, x, y, barWidth, btn, btnBg, btnPlus });
     this.add([label, valText, conversionText, barBg, barFill, btn]);
   }
 
@@ -310,6 +322,25 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
           el.barFill.fillRoundedRect(el.x, el.y, el.barWidth * tween.getValue(), 10, 5);
         }
       });
+
+      // Activer/désactiver le bouton selon les points disponibles
+      if (el.btn && el.btnBg && el.btnPlus) {
+        if (available > 0) {
+          // Activer le bouton
+          el.btn.setInteractive({ useHandCursor: true });
+          el.btn.setAlpha(1);
+          el.btnBg.setFillStyle(0x00eaff, 0.2);
+          el.btnBg.setStrokeStyle(1, 0x00eaff);
+          el.btnPlus.setColor("#00eaff");
+        } else {
+          // Désactiver le bouton
+          el.btn.disableInteractive();
+          el.btn.setAlpha(0.4);
+          el.btnBg.setFillStyle(0x666666, 0.2);
+          el.btnBg.setStrokeStyle(1, 0x666666);
+          el.btnPlus.setColor("#666666");
+        }
+      }
     });
 
     this.pointsText.setText(`POINTS DISPONIBLES : ${available}`);

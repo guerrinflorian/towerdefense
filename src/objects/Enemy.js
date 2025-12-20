@@ -26,6 +26,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.targetSoldier = null;
     this.isBlocked = false;
     this.blockedBy = null;
+    this.hasUsedShell = false;
 
     // Système de lanes plus réactif - pas de collision, juste évitement visuel
     this.laneOffset = (Math.random() - 0.5) * 12;
@@ -48,6 +49,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.lastHealTime = 0;
     this.healInterval = this.stats.healInterval || null;
     this.lastSpawnTime = 0;
+    this.lastDamageSource = null; // Source du dernier dégât reçu (pour savoir qui a tué l'ennemi)
 
     // Pour la variation de vitesse fluide
     this.speedMultiplier = 1.0;
@@ -108,13 +110,26 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   update(time, delta) {
-    if (!this.active || !this.scene || this.isInShell || this.scene.isPaused) return;
+    if (!this.active || !this.scene || this.scene.isPaused) return;
 
     // Si paralysé, maintenir la position et ne rien faire d'autre
     if (this.isParalyzed) {
       if (this.paralysisPosition) {
         // Forcer l'ennemi à rester à sa position de paralysie
         this.setPosition(this.paralysisPosition.x, this.paralysisPosition.y);
+      }
+      // Toujours appeler onUpdateAnimation même si paralysé
+      if (this.stats.onUpdateAnimation) {
+        this.stats.onUpdateAnimation(time, this);
+      }
+      return;
+    }
+
+    // Si en carapace, ne pas bouger ni combattre, mais permettre l'animation
+    if (this.isInShell) {
+      // Toujours appeler onUpdateAnimation pour gérer l'animation de la carapace
+      if (this.stats.onUpdateAnimation) {
+        this.stats.onUpdateAnimation(time, this);
       }
       return;
     }
@@ -315,20 +330,24 @@ export class Enemy extends Phaser.GameObjects.Container {
   damage(amount, metadata = {}) {
     if (this.isInvulnerable || !this.active) return;
 
-    this.lastDamageSource = metadata?.source || null;
+    // Stocker la source des dégâts pour savoir qui a tué l'ennemi
+    if (metadata?.source) {
+      this.lastDamageSource = metadata.source;
+    }
 
     this.hp -= amount;
     this.updateHealthBar();
 
+    // Feedback visuel (flash)
     this.scene.tweens.add({
-      targets: this.bodyGroup,
-      alpha: 0.5,
-      duration: 50,
-      yoyo: true,
+        targets: this.bodyGroup,
+        alpha: 0.5,
+        duration: 50,
+        yoyo: true,
     });
 
-    if (this.shellThreshold && !this.isInShell && (this.hp / this.maxHp) <= this.shellThreshold) {
-      this.enterShell();
+    if (this.shellThreshold && !this.isInShell && !this.hasUsedShell && (this.hp / this.maxHp) <= this.shellThreshold) {
+        this.enterShell();
     }
 
     if (this.hp <= 0) this.die();
@@ -427,13 +446,17 @@ export class Enemy extends Phaser.GameObjects.Container {
   enterShell() {
     this.isInShell = true;
     this.isInvulnerable = true;
+    this.hasUsedShell = true; // Empêche de recommencer à l'infini
+    this.isMoving = false;    // Stop le mouvement proprement
+
     this.scene.time.delayedCall(this.stats.shellDuration || 3000, () => {
-      if (this.active) {
-        this.isInShell = false;
-        this.isInvulnerable = false;
-      }
+        if (this.active) {
+            this.isInShell = false;
+            this.isInvulnerable = false;
+            this.isMoving = true; // Reprend le mouvement
+        }
     });
-  }
+}
 
   spawnMinions() {
     if (!this.stats.spawnType || !this.scene?.enemies) return;

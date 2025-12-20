@@ -213,6 +213,129 @@ export class TextureFactory {
       g.fillCircle(T * 0.7, T * 0.6, 2);
     });
 
+    // --- TEXTURES BIOME SABLE ---
+
+    // tile_sand (Sable - ID 10)
+    generateIfNotExists("tile_sand", () => {
+      // Fond sable beige clair
+      g.fillStyle(0xedc9af, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Texture de sable (petits grains)
+      g.fillStyle(0xd2b48c, 0.6);
+      for (let i = 0; i < 50; i++) {
+        const size = Math.random() * 2 + 1;
+        g.fillCircle(Math.random() * T, Math.random() * T, size);
+      }
+
+      // Détails plus foncés
+      g.fillStyle(0xbc8f5f, 0.4);
+      for (let i = 0; i < 20; i++) {
+        g.fillCircle(Math.random() * T, Math.random() * T, 1);
+      }
+    });
+
+    // tile_sand_rock (Rochers de Sable - ID 11)
+    generateIfNotExists("tile_sand_rock", () => {
+      // Fond sable
+      g.fillStyle(0xedc9af, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Texture de sable
+      g.fillStyle(0xd2b48c, 0.5);
+      for (let i = 0; i < 40; i++) {
+        const size = Math.random() * 2 + 1;
+        g.fillCircle(Math.random() * T, Math.random() * T, size);
+      }
+
+      // Rochers (couleur beige/brun)
+      g.fillStyle(0x8b7355, 1);
+      // Rocher 1
+      g.fillCircle(T * 0.3, T * 0.4, 8);
+      g.fillStyle(0x6b5b4f, 0.8);
+      g.fillCircle(T * 0.3, T * 0.4, 6);
+      
+      // Rocher 2
+      g.fillStyle(0x8b7355, 1);
+      g.fillCircle(T * 0.7, T * 0.6, 6);
+      g.fillStyle(0x6b5b4f, 0.8);
+      g.fillCircle(T * 0.7, T * 0.6, 4);
+
+      // Rocher 3 (plus petit)
+      g.fillStyle(0x8b7355, 1);
+      g.fillCircle(T * 0.5, T * 0.8, 5);
+      g.fillStyle(0x6b5b4f, 0.8);
+      g.fillCircle(T * 0.5, T * 0.8, 3);
+
+      // Ombres sous les rochers
+      g.fillStyle(0x6b5b4f, 0.3);
+      g.fillEllipse(T * 0.3, T * 0.5, 12, 4);
+      g.fillEllipse(T * 0.7, T * 0.7, 10, 3);
+      g.fillEllipse(T * 0.5, T * 0.9, 8, 2);
+    });
+
+    // --- TEXTURES BIOME CIMETIÈRE ---
+
+    // tile_graveyard (Sol de Cimetière - ID 12)
+    generateIfNotExists("tile_graveyard", () => {
+      // Fond terre sombre
+      g.fillStyle(0x2a1f1a, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Texture de terre (petites mottes)
+      g.fillStyle(0x1a1510, 0.7);
+      for (let i = 0; i < 30; i++) {
+        const size = Math.random() * 3 + 1;
+        g.fillCircle(Math.random() * T, Math.random() * T, size);
+      }
+
+      // Détails plus foncés (creux)
+      g.fillStyle(0x0f0a05, 0.5);
+      for (let i = 0; i < 15; i++) {
+        g.fillCircle(Math.random() * T, Math.random() * T, 2);
+      }
+
+      // Petites pierres/tombes
+      g.fillStyle(0x3a3a3a, 0.8);
+      for (let i = 0; i < 3; i++) {
+        const x = Math.random() * T;
+        const y = Math.random() * T;
+        g.fillRect(x, y, 4, 2);
+      }
+    });
+
+    // tile_graveyard_path (Chemin de Cimetière - ID 13)
+    generateIfNotExists("tile_graveyard_path", () => {
+      // Fond chemin sombre (pierre grise foncée)
+      g.fillStyle(0x1a1a1a, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Texture de pierre (fissures et détails)
+      g.fillStyle(0x0f0f0f, 0.6);
+      for (let i = 0; i < 40; i++) {
+        const size = Math.random() * 2 + 1;
+        g.fillCircle(Math.random() * T, Math.random() * T, size);
+      }
+
+      // Fissures sombres
+      g.lineStyle(1, 0x0a0a0a, 0.8);
+      for (let i = 0; i < 5; i++) {
+        const sx = Math.random() * T;
+        const sy = Math.random() * T;
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.lineTo(sx + (Math.random() - 0.5) * 15, sy + (Math.random() - 0.5) * 15);
+        g.strokePath();
+      }
+
+      // Bordure du chemin (pierre plus claire mais toujours sombre)
+      g.fillStyle(0x2a2a2a, 0.6);
+      g.fillRect(0, 0, T, 3);
+      g.fillRect(0, T - 3, T, 3);
+      g.fillRect(0, 0, 3, T);
+      g.fillRect(T - 3, 0, 3, T);
+    });
+
     // Ne pas détruire l'objet Graphics ici car il peut être réutilisé
     // Il sera nettoyé automatiquement par Phaser quand la scène est détruite
   }

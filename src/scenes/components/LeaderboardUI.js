@@ -216,11 +216,15 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
       
       // Vérifier si l'utilisateur est authentifié avant de charger les données
       if (!isAuthenticated()) {
-        this.statusText.setText("CONNEXION REQUISE");
+        if (this.statusText) {
+          this.statusText.setText("CONNEXION REQUISE");
+        }
         return;
       }
       
-      this.statusText.setText("SYNCHRONISATION AVEC LE SERVEUR...");
+      if (this.statusText) {
+        this.statusText.setText("SYNCHRONISATION AVEC LE SERVEUR...");
+      }
 
       let entries = [];
 
@@ -232,17 +236,21 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
           this.levelLeaderboards = levels;
           this.levelLeaderboardMap = new Map(levels.map(l => [l.levelId, l.entries || []]));
         }
-        const levelId = LEVELS_CONFIG[this.state?.currentLevelIndex || this.currentLevelIndex]?.id;
+        const levelId = LEVELS_CONFIG[this.currentLevelIndex]?.id;
         entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
       } else {
         entries = await fetchGlobalLeaderboard();
       }
 
-      this.statusText.setText(entries.length === 0 ? "AUCUNE DONNÉE TROUVÉE" : "");
+      if (this.statusText) {
+        this.statusText.setText(entries.length === 0 ? "AUCUNE DONNÉE TROUVÉE" : "");
+      }
       this.renderEntries(entries);
     } catch (err) {
       console.error(err);
-      this.statusText.setText("ERREUR DE CONNEXION");
+      if (this.statusText) {
+        this.statusText.setText("ERREUR DE CONNEXION");
+      }
     }
   }
 

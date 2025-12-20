@@ -1,11 +1,11 @@
 export const bosslvl3 = {
   name: "KROVAR LE PRIMORDIAL",
-  speed: 12,
-  hp: 200000,
+  speed: 10,
+  hp: 88000,
   reward: 6500,
   playerDamage: 25,
   color: 0xffffff,
-  damage: 450,
+  damage: 307,
   attackSpeed: 1800,
   scale: 1.0, // Taille réduite
 

@@ -14,7 +14,7 @@ export const slime_medium = {
   
   // --- LOGIQUE DE DIVISION ---
   onDeath: (enemy) => {
-    if (!enemy.scene || !enemy.active) return;
+    if (!enemy.scene || !enemy.active || !enemy.path) return;
     
     // Paramètres
     const childKey = "slime_small";
@@ -25,16 +25,19 @@ export const slime_medium = {
     for (let i = 0; i < count; i++) {
         const child = new ChildClass(enemy.scene, enemy.path, childKey);
         
-        // Positionnement légèrement décalé
-        child.follower.t = Math.max(0, enemy.follower.t - (i * 0.015)); 
-        const point = enemy.path.getPoint(child.follower.t);
+        // Initialiser spawn d'abord (pour pathLength, etc.)
+        child.spawn();
+        
+        // Ensuite définir progress à la position du parent (légèrement en retrait)
+        child.progress = Math.max(0, enemy.progress - (i * 0.015));
+        const point = enemy.path.getPoint(child.progress);
         child.setPosition(point.x, point.y);
         
-        // Dispersion latérale
-        child.targetPathOffset = (Math.random() - 0.5) * 25;
-        child.currentPathOffset = child.targetPathOffset;
+        // Initialiser previousTangent pour le mouvement
+        if (child.progress > 0) {
+          child.previousTangent = child.calculateTangent(child.progress);
+        }
         
-        child.spawn();
         enemy.scene.enemies.add(child);
         
         // Petit saut à l'apparition
