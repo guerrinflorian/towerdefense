@@ -8,7 +8,9 @@ export function validatePassword(password) {
 }
 
 export function validateUsername(username) {
-  return typeof username === "string" && username.trim().length >= 3;
+  if (typeof username !== "string") return false;
+  const trimmed = username.trim();
+  return trimmed.length >= 3 && trimmed.length <= 15;
 }
 
 export function sanitizeIdentifier(identifier) {

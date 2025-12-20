@@ -177,7 +177,7 @@
 
   // Only insert newRequire.load when it is actually used.
   // The code in this file is linted against ES5, so dynamic import is not allowed.
-  // INSERT_LOAD_HERE
+  function $parcel$resolve(url) {  url = importMap[url] || url;  return import.meta.resolve(distDir + url);}newRequire.resolve = $parcel$resolve;
 
   Object.defineProperty(newRequire, 'root', {
     get: function () {
@@ -280,122 +280,126 @@ document.addEventListener("touchend", (event)=>{
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "MainMenuScene", ()=>MainMenuScene);
-var _settingsJs = require("../config/settings.js");
 var _indexJs = require("../config/levels/index.js");
 var _authManagerJs = require("../services/authManager.js");
 var _authOverlayJs = require("../services/authOverlay.js");
+var _leaderboardUIJs = require("./components/LeaderboardUI.js");
+var _heroUpgradeUIJs = require("./components/HeroUpgradeUI.js");
 class MainMenuScene extends Phaser.Scene {
     constructor(){
         super("MainMenuScene");
-        this.levelReached = 1;
+    }
+    preload() {
+        const backgroundUrl = new URL(require("95ddb640642c8907")).href;
+        this.load.image("background", backgroundUrl);
     }
     create() {
-        this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
         const { width, height } = this.scale;
         const cx = width / 2;
-        // --- 1. CONFIGURATION DES ESPACEMENTS (Ajustable ici) ---
-        const TITLE_Y = 100; // Position du titre
-        const LIST_START_Y = 240; // Où commence la liste (bien plus bas pour éviter le titre)
-        const LIST_BOTTOM_Y = height - 120; // Où s'arrête la liste avant le bouton reset
-        const VIEW_HEIGHT = LIST_BOTTOM_Y - LIST_START_Y;
-        // --- 2. FOND ---
-        this.cameras.main.setBackgroundColor("#05050a");
-        if (this.textures.exists("background_main")) {
-            const bg = this.add.image(cx, height / 2, "background_main");
-            const scale = Math.max(width / bg.width, height / bg.height);
-            bg.setScale(scale).setAlpha(0.2).setScrollFactor(0);
+        const padding = 40;
+        // --- 1. AMBIANCE & FOND ---
+        this.addBackground(cx, height);
+        // --- 2. TITRE PRINCIPAL ---
+        this.addTitle(cx);
+        // --- 3. COLONNE GAUCHE : HERO PANEL ---
+        this.heroPanel = new (0, _heroUpgradeUIJs.HeroUpgradeUI)(this, padding, height * 0.3);
+        // --- 4. COLONNE DROITE : LEADERBOARD ---
+        const lbWidth = 500;
+        this.leaderboard = new (0, _leaderboardUIJs.LeaderboardUI)(this, width - lbWidth - padding, height * 0.15);
+        // --- 5. COLONNE CENTRALE : LISTE DES NIVEAUX ---
+        this.createLevelList(cx, height);
+        // --- 6. PIED DE PAGE : DÉCONNEXION ---
+        this.createLogoutButton(height - 40);
+        // --- 7. GESTION DES ÉVÉNEMENTS ---
+        this.setupEventListeners();
+        // Chargement initial des données
+        (0, _authManagerJs.ensureProfileLoaded)().then(()=>{
+            if (this.heroPanel) this.heroPanel.refresh();
+        });
+    }
+    addBackground(cx, height) {
+        this.cameras.main.setBackgroundColor("#020508");
+        if (this.textures.exists("background")) {
+            const bg = this.add.image(cx, height / 2, "background");
+            bg.setScrollFactor(0);
+            bg.setDepth(-1);
+            const scaleX = this.scale.width / bg.width;
+            const scaleY = this.scale.height / bg.height;
+            const scale = Math.max(scaleX, scaleY);
+            bg.setScale(scale);
+            bg.setTint(0x888888);
         }
-        // --- 3. TITRE FIXE (Anglais - LAST OUTPOST) ---
-        const title = this.add.text(cx, TITLE_Y, "LAST OUTPOST", {
+    }
+    addTitle(cx) {
+        const title = this.add.text(cx, 60, "LAST OUTPOST", {
             fontFamily: "Impact, sans-serif",
-            fontSize: `${Math.max(45, width * 0.08)}px`,
+            fontSize: "64px",
             color: "#ffffff",
-            letterSpacing: 8
-        }).setOrigin(0.5).setDepth(100);
-        title.setShadow(0, 5, "#00f2ff", 15, true, true);
-        // --- 4. GESTION DE LA LISTE SCROLLABLE ---
-        // On crée un conteneur pour les niveaux
-        this.levelContainer = this.add.container(cx, LIST_START_Y);
-        this.levelReached = (0, _authManagerJs.getUnlockedLevel)();
-        let currentY = 50; // On commence à 50 pour que le 1er bouton ne soit pas collé au bord du masque
-        const spacing = 120;
+            letterSpacing: 12
+        }).setOrigin(0.5).setShadow(0, 0, "#00f2ff", 20, true, true);
+        const line = this.add.graphics();
+        line.lineStyle(2, 0x00f2ff, 0.5);
+        line.lineBetween(cx - 200, 100, cx + 200, 100);
+    }
+    createLevelList(cx, height) {
+        const startY = 180;
+        const bottomMargin = 80; // Espace pour le bouton de déconnexion
+        const availableHeight = height - startY - bottomMargin;
+        const cardSpacing = 110;
+        const cardHeight = 90;
+        this.levelContainer = this.add.container(cx, startY);
+        let currentY = 0;
+        const levelReached = (0, _authManagerJs.getUnlockedLevel)();
+        // Créer toutes les cartes de niveau
         (0, _indexJs.LEVELS_CONFIG).forEach((level)=>{
-            const isLocked = level.id > this.levelReached;
+            const isLocked = level.id > levelReached;
             const card = this.createLevelCard(0, currentY, level, isLocked);
             this.levelContainer.add(card);
-            currentY += spacing;
+            currentY += cardSpacing;
         });
-        const totalContentHeight = currentY;
-        // --- 5. CRÉATION DU MASQUE ---
-        // Le masque définit la zone "fenêtre" où les boutons sont visibles
-        const maskShape = this.make.graphics();
-        maskShape.fillStyle(0xffffff);
-        // On dessine le rectangle de visibilité
-        maskShape.fillRect(0, LIST_START_Y, width, VIEW_HEIGHT);
-        const mask = maskShape.createGeometryMask();
-        this.levelContainer.setMask(mask);
-        // --- 6. LOGIQUE DE SCROLL (LIMITES STRICTES) ---
-        const limitTop = LIST_START_Y;
-        const limitBottom = totalContentHeight > VIEW_HEIGHT ? LIST_START_Y - (totalContentHeight - VIEW_HEIGHT) : LIST_START_Y;
-        // Interaction Molette
-        this.input.on("wheel", (pointer, gameObjects, deltaX, deltaY)=>{
-            this.levelContainer.y -= deltaY;
-            this.clampScroll(limitTop, limitBottom);
-        });
-        // Interaction Drag (Tactile/Souris)
-        let dragY = 0;
-        this.input.on("pointerdown", (p)=>{
-            dragY = this.levelContainer.y - p.y;
-        });
-        this.input.on("pointermove", (p)=>{
-            if (p.isDown) {
-                this.levelContainer.y = p.y + dragY;
-                this.clampScroll(limitTop, limitBottom);
-            }
-        });
-        // --- 7. BOUTON DECONNEXION (Bas de page) ---
-        this.createLogoutButton(height - 50);
-        this.profileUpdatedHandler = ()=>{
-            this.levelReached = (0, _authManagerJs.getUnlockedLevel)();
-            this.refreshLevelLocks();
-        };
-        window.addEventListener("auth:profile-updated", this.profileUpdatedHandler);
-        (0, _authManagerJs.ensureProfileLoaded)().then(()=>{
-            const updatedLevel = (0, _authManagerJs.getUnlockedLevel)();
-            if (updatedLevel !== this.levelReached) {
-                this.levelReached = updatedLevel;
-                this.refreshLevelLocks();
-            }
-        });
-    }
-    clampScroll(top, bottom) {
-        if (this.levelContainer.y > top) this.levelContainer.y = top;
-        if (this.levelContainer.y < bottom) this.levelContainer.y = bottom;
+        // Calculer la hauteur totale du contenu
+        const totalContentHeight = (0, _indexJs.LEVELS_CONFIG).length * cardSpacing;
+        // Déterminer si le scroll est nécessaire
+        const needsScroll = totalContentHeight > availableHeight;
+        if (needsScroll) {
+            // Activer le masque et le scroll uniquement si nécessaire
+            const maskShape = this.make.graphics();
+            maskShape.fillStyle(0xffffff);
+            maskShape.fillRect(cx - 250, startY, 500, availableHeight);
+            this.levelContainer.setMask(maskShape.createGeometryMask());
+            this.setupScrollLogic(startY, totalContentHeight, availableHeight);
+            // Ajouter des indicateurs visuels de scroll
+            this.addScrollIndicators(cx, startY, availableHeight, totalContentHeight);
+        } else {
+            // Pas de scroll nécessaire - centrer verticalement le contenu
+            const verticalOffset = (availableHeight - totalContentHeight) / 2;
+            this.levelContainer.y = startY + verticalOffset;
+        }
     }
     createLevelCard(x, y, level, isLocked) {
-        const cardWidth = Math.min(this.scale.width * 0.85, 500);
-        const cardHeight = 100;
         const container = this.add.container(x, y);
+        const cardWidth = 400;
+        const cardHeight = 90;
         const bg = this.add.graphics();
-        const draw = (over = false)=>{
+        const drawBg = (over = false)=>{
             bg.clear();
-            bg.fillStyle(isLocked ? 0x1a1a1a : over ? 0x004488 : 0x002244, 0.8);
-            bg.lineStyle(2, isLocked ? 0x333333 : over ? 0x00f2ff : 0x0088ff, 1);
-            bg.fillRoundedRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight, 8);
-            bg.strokeRoundedRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight, 8);
+            const fillColor = isLocked ? 0x111111 : over ? 0x003366 : 0x050a15;
+            const strokeColor = isLocked ? 0x333333 : over ? 0x00f2ff : 0x0088ff;
+            bg.fillStyle(fillColor, 0.9);
+            bg.lineStyle(2, strokeColor, 1);
+            bg.fillRoundedRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight, 10);
+            bg.strokeRoundedRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight, 10);
         };
-        draw();
-        const title = this.add.text(-cardWidth / 2 + 20, -20, `NIVEAU ${level.id}`, {
-            fontSize: "18px",
-            fontWeight: "bold",
-            color: isLocked ? "#666" : "#00ccff",
-            fontFamily: "Arial"
+        drawBg();
+        const title = this.add.text(-cardWidth / 2 + 25, -22, `MISSION ${level.id.toString().padStart(2, '0')}`, {
+            fontSize: "14px",
+            fontFamily: "Orbitron, sans-serif",
+            color: isLocked ? "#555" : "#00ccff"
         });
-        const name = this.add.text(-cardWidth / 2 + 20, 5, level.name.toUpperCase(), {
+        const name = this.add.text(-cardWidth / 2 + 25, 2, level.name.toUpperCase(), {
             fontSize: "22px",
-            fontWeight: "900",
-            color: isLocked ? "#444" : "#fff",
-            fontFamily: "Arial"
+            fontFamily: "Impact, sans-serif",
+            color: isLocked ? "#333" : "#fff"
         });
         container.add([
             bg,
@@ -406,2731 +410,121 @@ class MainMenuScene extends Phaser.Scene {
             const zone = this.add.zone(0, 0, cardWidth, cardHeight).setInteractive({
                 useHandCursor: true
             });
-            container.add(zone);
             zone.on("pointerover", ()=>{
-                draw(true);
-                container.setScale(1.02);
+                drawBg(true);
+                container.setScale(1.03);
             });
             zone.on("pointerout", ()=>{
-                draw(false);
+                drawBg(false);
                 container.setScale(1);
             });
             zone.on("pointerdown", ()=>{
-                if (!(0, _authManagerJs.isAuthenticated)()) {
-                    (0, _authOverlayJs.showAuth)();
-                    return;
-                }
+                if (!(0, _authManagerJs.isAuthenticated)()) return (0, _authOverlayJs.showAuth)();
                 this.scene.start("GameScene", {
                     level: level.id,
                     heroStats: (0, _authManagerJs.getHeroStats)()
                 });
             });
+            container.add(zone);
+        } else {
+            const lockIcon = this.add.text(cardWidth / 2 - 40, 0, "\uD83D\uDD12", {
+                fontSize: "20px"
+            }).setOrigin(0.5);
+            container.add(lockIcon);
         }
         return container;
     }
+    setupScrollLogic(startY, totalContentHeight, viewHeight) {
+        const bottomLimit = startY - (totalContentHeight - viewHeight);
+        let isScrolling = false;
+        // Gestion de la molette
+        this.input.on("wheel", (pointer, gameObjects, deltaX, deltaY)=>{
+            const newY = Phaser.Math.Clamp(this.levelContainer.y - deltaY * 0.5, bottomLimit, startY);
+            this.levelContainer.y = newY;
+            this.updateScrollIndicators(startY, bottomLimit);
+        });
+        // Support du drag tactile/souris
+        let dragStartY = 0;
+        let containerStartY = 0;
+        this.input.on("pointerdown", (pointer)=>{
+            // Vérifier si le pointeur est dans la zone de scroll
+            const cx = this.scale.width / 2;
+            if (pointer.x > cx - 250 && pointer.x < cx + 250) {
+                isScrolling = true;
+                dragStartY = pointer.y;
+                containerStartY = this.levelContainer.y;
+            }
+        });
+        this.input.on("pointermove", (pointer)=>{
+            if (isScrolling && pointer.isDown) {
+                const deltaY = pointer.y - dragStartY;
+                const newY = Phaser.Math.Clamp(containerStartY + deltaY, bottomLimit, startY);
+                this.levelContainer.y = newY;
+                this.updateScrollIndicators(startY, bottomLimit);
+            }
+        });
+        this.input.on("pointerup", ()=>{
+            isScrolling = false;
+        });
+    }
+    addScrollIndicators(cx, startY, viewHeight, totalHeight) {
+        // Indicateur en haut
+        this.scrollTopIndicator = this.add.triangle(cx, startY - 10, 0, 10, 10, 0, -10, 0, 0x00f2ff, 0.5).setOrigin(0.5);
+        // Indicateur en bas
+        this.scrollBottomIndicator = this.add.triangle(cx, startY + viewHeight + 10, 0, 0, 10, 10, -10, 10, 0x00f2ff, 0.5).setOrigin(0.5);
+        // Masquer l'indicateur du haut au départ (on est en haut)
+        this.scrollTopIndicator.setVisible(false);
+    }
+    updateScrollIndicators(topLimit, bottomLimit) {
+        if (!this.scrollTopIndicator || !this.scrollBottomIndicator) return;
+        // Afficher/masquer les indicateurs selon la position
+        const atTop = this.levelContainer.y >= topLimit - 5;
+        const atBottom = this.levelContainer.y <= bottomLimit + 5;
+        this.scrollTopIndicator.setVisible(!atTop);
+        this.scrollBottomIndicator.setVisible(!atBottom);
+        // Animation de pulsation
+        if (this.scrollTopIndicator.visible) this.tweens.add({
+            targets: this.scrollTopIndicator,
+            alpha: 0.3,
+            duration: 800,
+            yoyo: true,
+            repeat: -1
+        });
+        if (this.scrollBottomIndicator.visible) this.tweens.add({
+            targets: this.scrollBottomIndicator,
+            alpha: 0.3,
+            duration: 800,
+            yoyo: true,
+            repeat: -1
+        });
+    }
     createLogoutButton(y) {
-        const btn = this.add.text(this.scale.width / 2, y, "Se d\xe9connecter", {
-            fontSize: "14px",
-            color: "#cccccc",
-            fontFamily: "Arial",
-            textDecoration: "underline"
+        const btn = this.add.text(this.scale.width / 2, y, "D\xc9CONNEXION DU SYST\xc8ME", {
+            fontSize: "12px",
+            fontFamily: "Orbitron, sans-serif",
+            color: "#666",
+            letterSpacing: 2
         }).setOrigin(0.5).setInteractive({
             useHandCursor: true
-        }).setDepth(100);
-        btn.on("pointerover", ()=>btn.setColor("#ff0000"));
-        btn.on("pointerout", ()=>btn.setColor("#cccccc"));
+        });
+        btn.on("pointerover", ()=>btn.setColor("#ff4d4d"));
+        btn.on("pointerout", ()=>btn.setColor("#666"));
         btn.on("pointerdown", ()=>{
             (0, _authManagerJs.logout)();
-            this.levelReached = 1;
-            this.refreshLevelLocks();
+            this.scene.restart();
             (0, _authOverlayJs.showAuth)();
         });
     }
-    refreshLevelLocks() {
-        this.scene.restart();
-    }
-    shutdown() {
-        if (this.profileUpdatedHandler) {
+    setupEventListeners() {
+        this.profileUpdatedHandler = ()=>this.scene.restart();
+        window.addEventListener("auth:profile-updated", this.profileUpdatedHandler);
+        this.events.once("shutdown", ()=>{
             window.removeEventListener("auth:profile-updated", this.profileUpdatedHandler);
-            this.profileUpdatedHandler = null;
-        }
-    }
-    createAtmosphere() {
-        // Particules simples pour le style
-        if (!this.textures.exists("p")) {
-            const g = this.make.graphics({
-                x: 0,
-                y: 0,
-                add: false
-            });
-            g.fillStyle(0xffffff).fillCircle(2, 2, 2).generateTexture("p", 4, 4);
-        }
-        this.add.particles(0, 0, "p", {
-            x: {
-                min: 0,
-                max: this.scale.width
-            },
-            y: {
-                min: 0,
-                max: this.scale.height
-            },
-            alpha: {
-                start: 0.2,
-                end: 0
-            },
-            scale: {
-                start: 0.5,
-                end: 0
-            },
-            speedY: {
-                min: -10,
-                max: -2
-            },
-            lifespan: 3000
         });
     }
 }
 
-},{"../config/settings.js":"9kTMs","../config/levels/index.js":"8fcfE","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../services/authManager.js":"cvKjF","../services/authOverlay.js":"g1JuO"}],"9kTMs":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "CONFIG", ()=>CONFIG);
-parcelHelpers.export(exports, "ENEMIES", ()=>ENEMIES);
-parcelHelpers.export(exports, "TURRETS", ()=>TURRETS);
-// ... Imports inchangés ...
-var _gruntJs = require("../config/ennemies/grunt.js");
-var _runnerJs = require("../config/ennemies/runner.js");
-var _tankJs = require("../config/ennemies/tank.js");
-var _shieldJs = require("../config/ennemies/shield.js");
-var _bosslvl1Js = require("../config/ennemies/bosslvl1.js");
-var _bosslvl2Js = require("../config/ennemies/bosslvl2.js");
-var _bosslvl3Js = require("../config/ennemies/bosslvl3.js");
-var _witchJs = require("../config/ennemies/witch.js");
-var _zombieMinionJs = require("../config/ennemies/zombie_minion.js");
-var _tortueDragonJs = require("../config/ennemies/tortue_dragon.js");
-var _shamanGobelinJs = require("../config/ennemies/shaman_gobelin.js");
-var _diviseurJs = require("../config/ennemies/diviseur.js");
-var _slimeMediumJs = require("../config/ennemies/slime_medium.js");
-var _slimeSmallJs = require("../config/ennemies/slime_small.js");
-var _machineGunJs = require("../config/turrets/machineGun.js");
-var _sniperJs = require("../config/turrets/sniper.js");
-var _cannonJs = require("../config/turrets/cannon.js");
-var _zapJs = require("../config/turrets/zap.js");
-var _barracksJs = require("../config/turrets/barracks.js");
-const CONFIG = {
-    TILE_SIZE: 64,
-    UI_HEIGHT: 80,
-    MAP_OFFSET: 120,
-    GAME_WIDTH: 960,
-    GAME_HEIGHT: 1080,
-    STARTING_MONEY: 650,
-    STARTING_LIVES: 20,
-    TOOLBAR_HEIGHT: 100,
-    TOOLBAR_MARGIN: 20
-};
-const ENEMIES = {
-    grunt: (0, _gruntJs.grunt),
-    runner: (0, _runnerJs.runner),
-    tank: (0, _tankJs.tank),
-    shield: (0, _shieldJs.shield),
-    bosslvl1: (0, _bosslvl1Js.bosslvl1),
-    bosslvl2: (0, _bosslvl2Js.bosslvl2),
-    bosslvl3: (0, _bosslvl3Js.bosslvl3),
-    witch: (0, _witchJs.witch),
-    zombie_minion: (0, _zombieMinionJs.zombie_minion),
-    tortue_dragon: (0, _tortueDragonJs.tortue_dragon),
-    shaman_gobelin: (0, _shamanGobelinJs.shaman_gobelin),
-    diviseur: (0, _diviseurJs.diviseur),
-    slime_medium: (0, _slimeMediumJs.slime_medium),
-    slime_small: (0, _slimeSmallJs.slime_small)
-};
-const TURRETS = {
-    machine_gun: (0, _machineGunJs.machine_gun),
-    sniper: (0, _sniperJs.sniper),
-    cannon: (0, _cannonJs.cannon),
-    zap: (0, _zapJs.zap),
-    barracks: (0, _barracksJs.barracks)
-};
-
-},{"../config/ennemies/grunt.js":"iqyIL","../config/ennemies/runner.js":"k54Ru","../config/ennemies/tank.js":"caNrh","../config/ennemies/shield.js":"BAQN3","../config/turrets/machineGun.js":"ecBws","../config/turrets/sniper.js":"fm2OQ","../config/turrets/cannon.js":"3RJPP","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../config/turrets/zap.js":"bgZGw","../config/turrets/barracks.js":"9rF1d","../config/ennemies/witch.js":"k759O","../config/ennemies/zombie_minion.js":"bONBj","../config/ennemies/bosslvl1.js":"lF8pq","../config/ennemies/bosslvl2.js":"hQduM","../config/ennemies/tortue_dragon.js":"bnkzu","../config/ennemies/shaman_gobelin.js":"8mFrl","../config/ennemies/diviseur.js":"7ppi2","../config/ennemies/slime_medium.js":"j7fMh","../config/ennemies/slime_small.js":"KCZbL","../config/ennemies/bosslvl3.js":"8MdQT"}],"iqyIL":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "grunt", ()=>grunt);
-const grunt = {
-    name: "Grunt",
-    speed: 62,
-    hp: 100,
-    reward: 15,
-    playerDamage: 1,
-    color: 0x558844,
-    damage: 8,
-    attackSpeed: 800,
-    scale: 1,
-    // --- DESSIN DU PERSONNAGE (Vue de profil) ---
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // On stocke les références aux jambes dans l'instance pour pouvoir les animer
-        enemyInstance.legs = {};
-        // 1. Jambe Arrière (plus sombre)
-        enemyInstance.legs.back = scene.add.container(0, 5); // Pivot à la hanche
-        const legB = scene.add.graphics();
-        legB.fillStyle(0x335522); // Vert foncé
-        legB.fillRoundedRect(-3, 0, 6, 18, 2); // Cuisse/Mollet
-        legB.fillRoundedRect(-4, 16, 10, 5, 2); // Botte
-        enemyInstance.legs.back.add(legB);
-        container.add(enemyInstance.legs.back);
-        // 2. Corps (Torse, Tête, Bras visible)
-        const body = scene.add.graphics();
-        // Torse (Gilet)
-        body.fillStyle(color);
-        body.fillRoundedRect(-6, -10, 12, 18, 3);
-        // Tête (Casque rond)
-        body.fillStyle(0x446633);
-        body.fillCircle(0, -14, 7);
-        // Visière/Yeux (Petit trait noir)
-        body.fillStyle(0x000000);
-        body.fillRect(2, -16, 4, 3);
-        // Bras (fixe le long du corps pour simplifier)
-        body.fillStyle(color);
-        body.fillRoundedRect(-2, -8, 6, 16, 2);
-        container.add(body);
-        // 3. Jambe Avant (couleur normale)
-        enemyInstance.legs.front = scene.add.container(0, 5); // Pivot à la hanche
-        const legF = scene.add.graphics();
-        legF.fillStyle(color);
-        legF.fillRoundedRect(-3, 0, 6, 18, 2); // Cuisse/Mollet
-        legF.fillRoundedRect(-4, 16, 10, 5, 2); // Botte
-        enemyInstance.legs.front.add(legF);
-        container.add(enemyInstance.legs.front);
-        // L'ennemi utilise maintenant le flip horizontal au lieu de rotation
-        enemyInstance.shouldRotate = false;
-    },
-    // --- ANIMATION DE MARCHE (Pendule) ---
-    onUpdateAnimation: (time, enemyInstance)=>{
-        const speed = 0.008; // Vitesse du balancement
-        const range = 0.5; // Amplitude du balancement (en radians)
-        // Oscillation sinusoïdale
-        // La jambe arrière est opposée à la jambe avant (+ Math.PI)
-        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
-        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"jnFvT":[function(require,module,exports,__globalThis) {
-exports.interopDefault = function(a) {
-    return a && a.__esModule ? a : {
-        default: a
-    };
-};
-exports.defineInteropFlag = function(a) {
-    Object.defineProperty(a, '__esModule', {
-        value: true
-    });
-};
-exports.exportAll = function(source, dest) {
-    Object.keys(source).forEach(function(key) {
-        if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) return;
-        Object.defineProperty(dest, key, {
-            enumerable: true,
-            get: function() {
-                return source[key];
-            }
-        });
-    });
-    return dest;
-};
-exports.export = function(dest, destName, get) {
-    Object.defineProperty(dest, destName, {
-        enumerable: true,
-        get: get
-    });
-};
-
-},{}],"k54Ru":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "runner", ()=>runner);
-const runner = {
-    name: "Scout",
-    speed: 205,
-    hp: 105,
-    reward: 20,
-    playerDamage: 1,
-    color: 0xffd166,
-    damage: 8,
-    attackSpeed: 600,
-    scale: 1,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        enemyInstance.legs = {};
-        // Le corps est légèrement penché vers l'avant (mais on garde l'orientation verticale)
-        // container.angle = -15; // Retiré pour garder l'ennemi droit
-        // 1. Jambe Arrière (sombre)
-        enemyInstance.legs.back = scene.add.container(2, 4);
-        const legB = scene.add.graphics();
-        legB.fillStyle(0xccaa44);
-        legB.fillRoundedRect(-2, 0, 5, 22, 2); // Jambe fine et longue
-        enemyInstance.legs.back.add(legB);
-        container.add(enemyInstance.legs.back);
-        // 2. Corps (Fin et aérodynamique)
-        const body = scene.add.graphics();
-        body.fillStyle(color);
-        // Torse fin
-        body.fillRoundedRect(-5, -12, 10, 18, 4);
-        // Tête avec une sorte de capuche/masque pointu
-        body.beginPath();
-        body.moveTo(0, -22);
-        body.lineTo(8, -14);
-        body.lineTo(-4, -12);
-        body.closePath();
-        body.fillPath();
-        container.add(body);
-        // 3. Jambe Avant
-        enemyInstance.legs.front = scene.add.container(2, 4);
-        const legF = scene.add.graphics();
-        legF.fillStyle(color);
-        legF.fillRoundedRect(-2, 0, 5, 22, 2);
-        enemyInstance.legs.front.add(legF);
-        container.add(enemyInstance.legs.front);
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Course rapide : vitesse élevée, grande amplitude
-        const speed = 0.015;
-        const range = 0.8;
-        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
-        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"caNrh":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "tank", ()=>tank);
-const tank = {
-    name: "Heavy",
-    speed: 38,
-    hp: 2650,
-    reward: 140,
-    playerDamage: 4,
-    color: 0x224466,
-    damage: 28,
-    attackSpeed: 1200,
-    scale: 1,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        enemyInstance.legs = {};
-        // 1. "Pied" Arrière (Gros bloc)
-        enemyInstance.legs.back = scene.add.container(0, 10);
-        const legB = scene.add.graphics();
-        legB.fillStyle(0x112233);
-        legB.fillRect(-10, 0, 20, 12); // Pied large
-        enemyInstance.legs.back.add(legB);
-        container.add(enemyInstance.legs.back);
-        // 2. Corps (Armure massive)
-        const body = scene.add.graphics();
-        body.fillStyle(color);
-        // Gros plastron carré
-        body.fillRoundedRect(-18, -25, 36, 35, 6);
-        body.lineStyle(3, 0x000000);
-        body.strokeRoundedRect(-18, -25, 36, 35, 6);
-        // Petite tête carrée engoncée dans l'armure
-        body.fillStyle(0x112233);
-        body.fillRect(-8, -32, 16, 10);
-        // Oeil rouge unique type "cyclope robot"
-        body.fillStyle(0xff0000);
-        body.fillRect(4, -28, 6, 4);
-        // Gros bras carré sur le côté
-        body.fillStyle(color);
-        body.fillRoundedRect(-4, -15, 14, 25, 4);
-        container.add(body);
-        // 3. "Pied" Avant
-        enemyInstance.legs.front = scene.add.container(0, 10);
-        const legF = scene.add.graphics();
-        legF.fillStyle(color);
-        legF.fillRect(-10, 0, 20, 12);
-        enemyInstance.legs.front.add(legF);
-        container.add(enemyInstance.legs.front);
-        // Le tank est si gros qu'il ne tourne pas pour suivre le chemin, il reste droit
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Piétinement lourd : faible vitesse, faible amplitude, mouvement vertical ajouté
-        const speed = 0.004;
-        const range = 0.2;
-        const sin = Math.sin(time * speed);
-        enemyInstance.legs.front.rotation = sin * range;
-        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
-        // Petit effet de rebond vertical lourd
-        enemyInstance.bodyGroup.y = Math.abs(sin) * -3;
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"BAQN3":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "shield", ()=>shield);
-const shield = {
-    name: "Aegis",
-    speed: 65,
-    hp: 550,
-    reward: 65,
-    playerDamage: 2,
-    color: 0x00aabb,
-    damage: 12,
-    attackSpeed: 900,
-    scale: 1,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        enemyInstance.legs = {};
-        // 1. Jambes (Similaires au Grunt mais plus robustes)
-        enemyInstance.legs.back = scene.add.container(0, 5);
-        const legB = scene.add.graphics();
-        legB.fillStyle(0x007788);
-        legB.fillRoundedRect(-4, 0, 8, 18, 3);
-        enemyInstance.legs.back.add(legB);
-        container.add(enemyInstance.legs.back);
-        // 2. Corps (Derrière le bouclier)
-        const body = scene.add.graphics();
-        body.fillStyle(color);
-        body.fillRoundedRect(-7, -12, 14, 20, 4); // Torse
-        body.fillStyle(0x007788);
-        body.fillCircle(0, -16, 8); // Tête
-        container.add(body);
-        // 3. Jambe Avant
-        enemyInstance.legs.front = scene.add.container(0, 5);
-        const legF = scene.add.graphics();
-        legF.fillStyle(color);
-        legF.fillRoundedRect(-4, 0, 8, 18, 3);
-        enemyInstance.legs.front.add(legF);
-        container.add(enemyInstance.legs.front);
-        // 4. LE BOUCLIER (Devant tout le reste)
-        const shield = scene.add.graphics();
-        // Grand hexagone d'énergie
-        shield.fillStyle(0x00ffff, 0.7); // Cyan semi-transparent
-        shield.lineStyle(3, 0xffffff);
-        shield.beginPath();
-        shield.moveTo(15, -20);
-        shield.lineTo(20, 0);
-        shield.lineTo(15, 25);
-        shield.lineTo(5, 20);
-        shield.lineTo(5, -15);
-        shield.closePath();
-        shield.fillPath();
-        shield.strokePath();
-        // Symbole "+" dessus
-        shield.fillStyle(0xffffff);
-        shield.fillRect(10, -5, 6, 16);
-        shield.fillRect(5, 0, 16, 6);
-        container.add(shield);
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Marche lente et assurée
-        const speed = 0.006;
-        const range = 0.4;
-        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
-        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"ecBws":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "machine_gun", ()=>machine_gun);
-const machine_gun = {
-    key: "machine_gun",
-    name: "Mitrailleuse",
-    cost: 90,
-    range: 100,
-    damage: 10,
-    rate: 290,
-    color: 0x4488ff,
-    maxLevel: 3,
-    description: "Tourelle polyvalente avec cadence de tir tr\xe8s \xe9lev\xe9e.\n\n\u2705 Avantages:\n\u2022 Cadence de tir rapide\n\u2022 D\xe9g\xe2ts constants\n\u2022 Port\xe9e correcte\n\n\u274C Inconv\xe9nients:\n\u2022 D\xe9g\xe2ts par tir faibles\n\u2022 Moins efficace contre les ennemis blind\xe9s",
-    // --- DESSIN ÉVOLUTIF (Base + 2 Améliorations) ---
-    // Note: On assume que Turret.js passe (scene, container, color, turretInstance)
-    onDrawBarrel: (scene, container, color, turret)=>{
-        const g = scene.add.graphics();
-        const level = turret.level || 1; // Niveau actuel (1, 2 ou 3)
-        // Palette de couleurs
-        const darkMetal = 0x222222;
-        const lightMetal = 0x8899aa;
-        const gold = 0xffd700;
-        const ammoColor = 0xccaa00;
-        // --- DESIGN SELON LE NIVEAU ---
-        if (level === 1) {
-            // === NIVEAU 1 : Standard ===
-            g.fillStyle(color);
-            g.fillRoundedRect(-10, -10, 20, 20, 3); // Culasse
-            g.fillStyle(lightMetal);
-            g.fillRect(10, -6, 20, 4); // Canon gauche
-            g.fillRect(10, 2, 20, 4); // Canon droit
-            g.fillStyle(darkMetal);
-            g.fillRect(30, -6, 3, 4); // Embout gauche
-            g.fillRect(30, 2, 3, 4); // Embout droit
-        } else if (level === 2) {
-            // === NIVEAU 2 : Renforcé ===
-            g.fillStyle(0x113355); // Bleu nuit
-            g.fillRoundedRect(-14, -14, 28, 28, 4); // Culasse large
-            g.lineStyle(2, 0x557799);
-            g.strokeRoundedRect(-14, -14, 28, 28, 4);
-            g.fillStyle(lightMetal);
-            g.fillRect(14, -8, 28, 6); // Canons longs
-            g.fillRect(14, 2, 28, 6);
-            g.fillStyle(darkMetal);
-            g.fillRect(20, -8, 10, 2); // Events
-            g.fillRect(20, 6, 10, 2);
-            g.fillStyle(ammoColor);
-            g.fillRect(-12, -8, 6, 16); // Chargeur
-        } else {
-            // === NIVEAU 3 : Élite (Gatling) ===
-            g.fillStyle(0x001133); // Presque noir
-            g.fillRoundedRect(-16, -18, 32, 36, 5); // Corps massif
-            g.lineStyle(2, gold);
-            g.strokeRoundedRect(-16, -18, 32, 36, 5); // Bordure dorée
-            // Bloc Gatling
-            g.fillStyle(darkMetal);
-            g.fillCircle(25, 0, 12);
-            g.fillStyle(lightMetal);
-            g.fillCircle(25, -5, 3);
-            g.fillCircle(25, 5, 3);
-            g.fillCircle(20, 0, 3);
-            g.fillCircle(30, 0, 3);
-            g.fillStyle(color);
-            g.fillRect(10, -12, 15, 24); // Support
-            g.fillStyle(0xff0000);
-            g.fillRect(0, -20, 10, 2); // Laser
-        }
-        // Pivot central
-        g.fillStyle(0x111111);
-        g.fillCircle(0, 0, 6);
-        container.add(g);
-        // --- INDICATEUR DE NIVEAU ---
-        const badge = scene.add.container(-20, 20);
-        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.7);
-        badgeBg.setStrokeStyle(1, level === 3 ? gold : 0xffffff);
-        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
-            fontSize: "10px",
-            fontFamily: "Arial",
-            color: level === 3 ? "#ffd700" : "#ffffff",
-            fontStyle: "bold"
-        }).setOrigin(0.5);
-        badge.add([
-            badgeBg,
-            lvlText
-        ]);
-        container.add(badge);
-    },
-    // --- LOGIQUE DE TIR ---
-    onFire: (scene, turret, target)=>{
-        const level = turret.level || 1;
-        const angle = turret.barrelGroup.rotation;
-        const barrelLen = level === 1 ? 30 : level === 2 ? 42 : 38;
-        // Alternance des canons
-        turret.fireAlt = !turret.fireAlt;
-        const offsetSide = turret.fireAlt ? 4 : -4;
-        const tipX = turret.x + Math.cos(angle) * barrelLen - Math.sin(angle) * offsetSide;
-        const tipY = turret.y + Math.sin(angle) * barrelLen + Math.cos(angle) * offsetSide;
-        // Flash
-        const flashColor = level === 3 ? 0xffaa00 : 0xffffaa;
-        const flashSize = level === 3 ? 12 : 8;
-        const flash = scene.add.circle(tipX, tipY, flashSize, flashColor, 0.9);
-        scene.tweens.add({
-            targets: flash,
-            scale: 0,
-            duration: 50,
-            onComplete: ()=>flash.destroy()
-        });
-        // Traceur
-        const tracer = scene.add.graphics();
-        const tracerColor = level === 3 ? 0xff4400 : 0xffdd44;
-        const tracerWidth = level === 3 ? 3 : 2;
-        tracer.lineStyle(tracerWidth, tracerColor, 0.8);
-        tracer.lineBetween(tipX, tipY, target.x, target.y);
-        scene.time.delayedCall(60, ()=>tracer.destroy());
-        // Dégâts
-        if (target.active) {
-            target.damage(turret.config.damage);
-            if (level >= 2) {
-                // Impact visuel à partir du niveau 2
-                const impact = scene.add.circle(target.x, target.y, 5, 0xffffff, 0.7);
-                scene.tweens.add({
-                    targets: impact,
-                    scale: 0,
-                    duration: 100,
-                    onComplete: ()=>impact.destroy()
-                });
-            }
-        }
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"fm2OQ":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "sniper", ()=>sniper);
-const sniper = {
-    key: "sniper",
-    name: "Sniper",
-    cost: 270,
-    range: 160,
-    damage: 158,
-    rate: 2200,
-    color: 0x44ff44,
-    maxLevel: 3,
-    description: "Tourelle de pr\xe9cision avec d\xe9g\xe2ts massifs et tr\xe8s longue port\xe9e.\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts \xe9normes par tir\n\u2022 Port\xe9e exceptionnelle\n\u2022 Id\xe9al contre les ennemis r\xe9sistants\n\n\u274C Inconv\xe9nients:\n\u2022 Cadence de tir tr\xe8s lente\n\u2022 Co\xfbt \xe9lev\xe9\n\u2022 Moins efficace contre les groupes",
-    // --- DESSIN ÉVOLUTIF ---
-    onDrawBarrel: (scene, container, color, turret)=>{
-        const g = scene.add.graphics();
-        const level = turret.level || 1;
-        // Palette
-        const black = 0x111111;
-        const darkGrey = 0x333333;
-        const camoGreen = 0x336633;
-        const techWhite = 0xeeeeee;
-        const energyBlue = 0x00ffff;
-        const lensColor = 0x000000;
-        if (level === 1) {
-            // === NIVEAU 1 : Fusil de précision standard ===
-            // Canon fin
-            g.fillStyle(black);
-            g.fillRect(0, -3, 45, 6);
-            // Corps
-            g.fillStyle(camoGreen);
-            g.fillRect(-10, -6, 25, 12);
-            // Lunette simple (Ronde)
-            g.fillStyle(darkGrey);
-            g.fillRect(-5, -10, 15, 4); // Support
-            g.fillCircle(0, -10, 4); // Oculaire
-            g.fillCircle(10, -10, 4); // Objectif
-        } else if (level === 2) {
-            // === NIVEAU 2 : Heavy Sniper (Calibre .50) ===
-            // Canon lourd
-            g.fillStyle(darkGrey);
-            g.fillRect(0, -4, 50, 8);
-            // Frein de bouche (le bout carré pour le recul)
-            g.fillStyle(black);
-            g.fillRect(50, -6, 8, 12);
-            // Corps renforcé
-            g.fillStyle(0x224422); // Vert foncé
-            g.fillRoundedRect(-15, -8, 35, 16, 2);
-            // Lunette Tactique (Carrée/Digitale)
-            g.fillStyle(black);
-            g.fillRect(-5, -14, 20, 6);
-            g.fillStyle(0x00ff00); // Lentille verte
-            g.fillRect(15, -14, 2, 6);
-            // Bipied replié en dessous
-            g.fillStyle(darkGrey);
-            g.fillRect(10, 5, 20, 3);
-        } else {
-            // === NIVEAU 3 : RAILGUN (Futuriste) ===
-            // Rails magnétiques (Haut et Bas)
-            g.fillStyle(techWhite);
-            g.fillRect(0, -10, 55, 4); // Rail haut
-            g.fillRect(0, 6, 55, 4); // Rail bas
-            // Noyau d'énergie (au milieu)
-            g.fillStyle(energyBlue, 0.8);
-            g.fillRect(5, -2, 45, 4); // Lueur interne
-            // Corps High-Tech
-            g.fillStyle(darkGrey);
-            g.fillRoundedRect(-15, -12, 30, 24, 4);
-            g.lineStyle(2, energyBlue);
-            g.strokeRoundedRect(-15, -12, 30, 24, 4); // Bordure néon
-            // Lunette Holographique
-            g.lineStyle(1, energyBlue, 0.5);
-            g.strokeRect(-5, -18, 15, 6);
-            g.fillStyle(energyBlue, 0.3);
-            g.fillRect(-5, -18, 15, 6);
-        }
-        // Pivot central
-        g.fillStyle(black);
-        g.fillCircle(0, 0, 5);
-        container.add(g);
-        // --- INDICATEUR DE NIVEAU ---
-        // Un petit badge sur le côté
-        const badge = scene.add.container(-20, 20);
-        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.7);
-        badgeBg.setStrokeStyle(1, level === 3 ? energyBlue : 0xffffff);
-        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
-            fontSize: "10px",
-            fontFamily: "Arial",
-            color: level === 3 ? energyBlue : "#ffffff",
-            fontStyle: "bold"
-        }).setOrigin(0.5);
-        badge.add([
-            badgeBg,
-            lvlText
-        ]);
-        container.add(badge);
-    },
-    // --- LOGIQUE DE TIR (Railgun au niveau 3) ---
-    onFire: (scene, turret, target)=>{
-        const level = turret.level || 1;
-        const angle = turret.barrelGroup.rotation;
-        // Longueur du canon pour savoir d'où part le tir
-        const barrelLen = level === 1 ? 45 : level === 2 ? 58 : 55;
-        const tipX = turret.x + Math.cos(angle) * barrelLen;
-        const tipY = turret.y + Math.sin(angle) * barrelLen;
-        // --- EFFETS VISUELS ---
-        if (level < 3) {
-            // NIVEAU 1 & 2 : Tir de balle classique mais puissant
-            // 1. Flash de bouche
-            const flashColor = level === 2 ? 0xffaa00 : 0xffffaa;
-            const flashSize = level === 2 ? 20 : 15;
-            const flash = scene.add.circle(tipX, tipY, flashSize, flashColor, 1);
-            scene.tweens.add({
-                targets: flash,
-                scale: 0,
-                alpha: 0,
-                duration: 150,
-                onComplete: ()=>flash.destroy()
-            });
-            // 2. Traînée blanche (Vapeur)
-            const beam = scene.add.graphics();
-            const thickness = level === 2 ? 4 : 2;
-            beam.lineStyle(thickness, 0xffffff, 0.8);
-            beam.lineBetween(tipX, tipY, target.x, target.y);
-            // Disparition rapide
-            scene.tweens.add({
-                targets: beam,
-                alpha: 0,
-                duration: 200,
-                onComplete: ()=>beam.destroy()
-            });
-        } else {
-            // NIVEAU 3 : RAILGUN (Rayon d'énergie)
-            // 1. Accumulation d'énergie (Flash bleu cyan)
-            const flash = scene.add.circle(tipX, tipY, 25, 0x00ffff, 1);
-            scene.tweens.add({
-                targets: flash,
-                scale: 0,
-                alpha: 0,
-                duration: 300,
-                onComplete: ()=>flash.destroy()
-            });
-            // 2. Le Rayon principal (Cœur blanc, bord bleu)
-            const beam = scene.add.graphics();
-            // Aura bleue
-            beam.lineStyle(10, 0x00ffff, 0.4);
-            beam.lineBetween(tipX, tipY, target.x, target.y);
-            // Cœur blanc pur
-            beam.lineStyle(4, 0xffffff, 1);
-            beam.lineBetween(tipX, tipY, target.x, target.y);
-            // Disparition lente et stylée
-            scene.tweens.add({
-                targets: beam,
-                alpha: 0,
-                duration: 400,
-                onComplete: ()=>beam.destroy()
-            });
-        // 3. Particules sur le trajet (optionnel, pour le style)
-        // On pourrait ajouter des petites étincelles ici
-        }
-        // --- DÉGÂTS ET IMPACT ---
-        if (target.active) {
-            target.damage(turret.config.damage);
-            // Impact sur la cible
-            const impactColor = level === 3 ? 0x00ffff : 0xffffff;
-            const impactSize = level === 3 ? 30 : 20;
-            const impact = scene.add.circle(target.x, target.y, impactSize, impactColor, 0.8);
-            scene.tweens.add({
-                targets: impact,
-                scale: 0,
-                duration: 150,
-                onComplete: ()=>impact.destroy()
-            });
-        }
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"3RJPP":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "cannon", ()=>cannon);
-const cannon = {
-    key: "cannon",
-    name: "Mortier",
-    cost: 180,
-    range: 110,
-    damage: 72,
-    rate: 2300,
-    color: 0xff8844,
-    aoe: 50,
-    maxLevel: 3,
-    description: "Artillerie lourde avec d\xe9g\xe2ts de zone (AOE).\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts de zone (touche plusieurs ennemis)\n\u2022 Port\xe9e longue\n\u2022 Efficace contre les groupes\n\n\u274C Inconv\xe9nients:\n\u2022 Cadence de tir lente\n\u2022 Projectile en arc (d\xe9lai d'impact)\n\u2022 Moins pr\xe9cis que les autres tourelles",
-    // ============================================================
-    // DESSIN DU CANON
-    // ============================================================
-    onDrawBarrel: (scene, container, color, turret)=>{
-        const g = scene.add.graphics();
-        const level = turret.level || 1;
-        const black = 0x111111;
-        g.clear();
-        if (level === 1) {
-            // --- Niv 1 : Mortier Bronze (Classique) ---
-            const bronze = 0xcd7f32;
-            const darkBronze = 0xa05a2c;
-            g.fillStyle(darkBronze);
-            g.fillRoundedRect(-20, -18, 30, 36, 6);
-            g.lineStyle(3, 0x663311);
-            g.strokeRoundedRect(-20, -18, 30, 36, 6);
-            g.fillStyle(0x663311);
-            g.fillCircle(-15, -12, 2);
-            g.fillCircle(-15, 12, 2);
-            g.fillCircle(5, -12, 2);
-            g.fillCircle(5, 12, 2);
-            g.fillStyle(bronze);
-            g.fillRect(10, -12, 20, 24);
-            g.fillStyle(darkBronze);
-            g.fillRect(12, -14, 4, 28);
-            g.fillRect(22, -14, 4, 28);
-            g.fillStyle(black);
-            g.fillCircle(30, 0, 10);
-            g.lineStyle(4, darkBronze);
-            g.strokeCircle(30, 0, 10);
-            // Recul
-            g.fillStyle(0x555555);
-            g.fillRect(-5, 18, 20, 6);
-        } else if (level === 2) {
-            // --- Niv 2 : Artillerie Lourde (Classique) ---
-            const steel = 0x8899aa;
-            const darkSteel = 0x445566;
-            g.fillStyle(darkSteel);
-            g.fillRoundedRect(-22, -20, 34, 40, 4);
-            g.lineStyle(2, 0xaabbcc);
-            g.strokeRoundedRect(-22, -20, 34, 40, 4);
-            g.fillStyle(steel);
-            g.fillRect(12, -14, 30, 28);
-            g.fillStyle(darkSteel);
-            g.fillRect(15, -14, 2, 28);
-            g.fillRect(20, -14, 2, 28);
-            g.fillRect(25, -14, 2, 28);
-            g.fillRect(30, -14, 2, 28);
-            g.fillStyle(black);
-            g.fillCircle(42, 0, 12);
-            g.lineStyle(4, darkSteel);
-            g.strokeCircle(42, 0, 12);
-            g.fillStyle(0x333333);
-            g.fillRect(-10, -22, 10, 8);
-            g.fillStyle(0x555555);
-            g.fillRect(-5, 18, 20, 6);
-        } else {
-            // --- Niv 3 : Système de Missiles "Titan" (RE-DESIGN COMPLET) ---
-            const hullColor = 0xe0e0e0; // Blanc cassé blindage
-            const darkHull = 0x546e7a; // Bleu gris sombre
-            const accent = 0xff3d00; // Orange sécurité
-            const glow = 0x00eaff; // Cyan futuriste
-            // 1. Base pivotante lourde
-            g.fillStyle(0x263238);
-            g.fillCircle(0, 0, 22);
-            g.lineStyle(2, 0x37474f);
-            g.strokeCircle(0, 0, 22);
-            // 2. Corps central blindé (Anguleux)
-            g.fillStyle(hullColor);
-            g.beginPath();
-            g.moveTo(-15, -15);
-            g.lineTo(25, -15);
-            g.lineTo(35, 0);
-            g.lineTo(25, 15);
-            g.lineTo(-15, 15);
-            g.closePath();
-            g.fill();
-            g.lineStyle(2, 0x90a4ae);
-            g.strokePath();
-            // Détails techniques sur le dessus
-            g.fillStyle(0x263238);
-            g.fillRect(-5, -8, 15, 16); // Trappe maintenance
-            g.fillStyle(accent);
-            g.fillRect(20, -5, 4, 10); // Indicateur de tir
-            // 3. Pods de missiles latéraux (Gauche et Droite)
-            const drawPod = (offsetY)=>{
-                // Structure du pod
-                g.fillStyle(darkHull);
-                g.fillRoundedRect(-10, offsetY - 10, 35, 20, 4);
-                g.lineStyle(1, 0x000000);
-                g.strokeRoundedRect(-10, offsetY - 10, 35, 20, 4);
-                // Têtes de missiles visibles
-                g.fillStyle(0x000000);
-                g.fillCircle(25, offsetY, 6); // Le trou
-                g.fillStyle(0xff0000);
-                g.fillCircle(25, offsetY, 3); // La tête du missile
-                // Lumière d'état sur le pod
-                g.fillStyle(glow);
-                g.fillRect(0, offsetY - 2, 8, 4);
-            };
-            drawPod(-20); // Pod Gauche
-            drawPod(20); // Pod Droit
-            // 4. Radar/Optique sur le côté
-            g.lineStyle(2, glow, 0.6);
-            g.strokeCircle(10, 0, 8);
-            g.fillStyle(glow, 0.3);
-            g.fillCircle(10, 0, 3);
-        }
-        container.add(g);
-        // Badge niveau
-        const badge = scene.add.container(-20, 20);
-        let badgeColorStr = "#ffffff";
-        let badgeColorHex = 0xffffff;
-        if (level === 2) {
-            badgeColorStr = "#00ffff";
-            badgeColorHex = 0x00ffff;
-        } else if (level === 3) {
-            badgeColorStr = "#ff00aa";
-            badgeColorHex = 0xff00aa;
-        }
-        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.55);
-        badgeBg.setStrokeStyle(1, badgeColorHex, 0.9);
-        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
-            fontSize: "10px",
-            fontFamily: "Arial",
-            color: badgeColorStr,
-            fontStyle: "bold"
-        }).setOrigin(0.5);
-        badge.add([
-            badgeBg,
-            lvlText
-        ]);
-        container.add(badge);
-    },
-    // ============================================================
-    // LOGIQUE DE TIR
-    // ============================================================
-    onFire: (scene, turret, target)=>{
-        if (!scene || !turret || !target || !target.active) return;
-        const level = turret.level || 1;
-        if (level < 3) {
-            // --- LOGIQUE NIV 1 & 2 : OBUS EN CLOCHE (INCHANGÉ) ---
-            const spread = 5;
-            const impactX = target.x + (Math.random() - 0.5) * spread;
-            const impactY = target.y + (Math.random() - 0.5) * spread;
-            const blastRadius = turret.config.aoe;
-            const damageAmount = turret.config.damage;
-            const muzzle = scene.add.circle(turret.x, turret.y, 10, 0xffaa00, 0.8);
-            scene.tweens.add({
-                targets: muzzle,
-                scale: 2,
-                alpha: 0,
-                duration: 100,
-                onComplete: ()=>muzzle.destroy()
-            });
-            const shell = scene.add.circle(turret.x, turret.y, 4, 0x000000, 1);
-            shell.setStrokeStyle(2, 0x555555);
-            shell.setDepth(200);
-            const shadow = scene.add.ellipse(turret.x, turret.y, 8, 4, 0x000000, 0.3);
-            shadow.setDepth(5);
-            const dist = Phaser.Math.Distance.Between(turret.x, turret.y, impactX, impactY);
-            const flightTime = Phaser.Math.Clamp(dist * 2.5, 400, 800);
-            const peakHeight = 150;
-            scene.tweens.add({
-                targets: [
-                    shell,
-                    shadow
-                ],
-                x: impactX,
-                y: impactY,
-                duration: flightTime,
-                ease: "Linear"
-            });
-            scene.tweens.add({
-                targets: shell,
-                z: 1,
-                duration: flightTime,
-                ease: "Linear",
-                onUpdate: (tween)=>{
-                    const progress = tween.progress;
-                    const heightOffset = Math.sin(progress * Math.PI) * peakHeight;
-                    shell.y = turret.y + (impactY - turret.y) * progress - heightOffset;
-                },
-                onComplete: ()=>{
-                    shell.destroy();
-                    shadow.destroy();
-                    triggerExplosion(scene, impactX, impactY, blastRadius, damageAmount, level);
-                }
-            });
-        } else // --- LOGIQUE NIV 3 : MISSILE CINÉMATIQUE ---
-        launchRealisticMissile(scene, turret, target);
-    }
-};
-// ============================================================
-// NOUVEAU SYSTÈME DE MISSILE (PLUS FLUIDE ET RÉALISTE)
-// ============================================================
-function launchRealisticMissile(scene, turret, target) {
-    const damageAmount = turret.config.damage * 2.5;
-    const blastRadius = turret.config.aoe * 1.8;
-    const flightDuration = 2500; // 3 secondes
-    // 1. Design du Missile (Plus détaillé)
-    const missile = scene.add.container(turret.x, turret.y);
-    missile.setDepth(300);
-    const mg = scene.add.graphics();
-    // Flamme du réacteur (animée plus tard)
-    mg.fillStyle(0x00ffff);
-    mg.fillTriangle(0, 15, -4, 25, 4, 25);
-    // Corps
-    mg.fillStyle(0xffffff);
-    mg.fillRoundedRect(-5, -20, 10, 35, 2);
-    // Tête nucléaire
-    mg.fillStyle(0xff0000);
-    mg.fillTriangle(0, -30, -5, -20, 5, -20);
-    // Ailerons arrière
-    mg.fillStyle(0x445566);
-    mg.beginPath();
-    mg.moveTo(-5, 0);
-    mg.lineTo(-14, 15);
-    mg.lineTo(-5, 15);
-    mg.fill(); // Gauche
-    mg.beginPath();
-    mg.moveTo(5, 0);
-    mg.lineTo(14, 15);
-    mg.lineTo(5, 15);
-    mg.fill(); // Droite
-    missile.add(mg);
-    missile.setScale(0.6);
-    // 2. Définition de la trajectoire COURBE (Pas de zigzag sec)
-    // On crée un point de contrôle pour faire un bel arc de cercle
-    // Le point de contrôle est décalé perpendiculairement à la cible
-    const startX = turret.x;
-    const startY = turret.y;
-    // Angle initial vers la cible
-    const angleToTarget = Phaser.Math.Angle.Between(startX, startY, target.x, target.y);
-    // On détermine aléatoirement si l'arc part à gauche ou à droite (-1 ou 1)
-    const arcSide = Math.random() > 0.5 ? 1 : -1;
-    const arcIntensity = 200; // Amplitude de la courbe
-    // Variables de suivi
-    let prevX = startX;
-    let prevY = startY;
-    let smokeTimer = 0;
-    // Flash de départ
-    const flash = scene.add.circle(startX, startY, 25, 0xffaa00, 1);
-    scene.tweens.add({
-        targets: flash,
-        scale: 2,
-        alpha: 0,
-        duration: 200,
-        onComplete: ()=>flash.destroy()
-    });
-    // 3. TWEEN AVEC COURBE DE BÉZIER DYNAMIQUE
-    scene.tweens.add({
-        targets: missile,
-        z: 1,
-        duration: flightDuration,
-        ease: "Quad.easeIn",
-        onUpdate: (tween, targetParam, param2, progress)=>{
-            if (!missile.active) return;
-            // Position actuelle de la cible (ou dernière connue)
-            const tx = target.active ? target.x : target.lastX || target.x;
-            const ty = target.active ? target.y : target.lastY || target.y;
-            // --- CALCUL DE LA POSITION ---
-            // On calcule une courbe de Bézier quadratique à la volée.
-            // P0 = Départ
-            // P1 = Point de contrôle (qui bouge un peu pour faire "vivant")
-            // P2 = Cible
-            // Calcul du point de contrôle P1 :
-            // Il est au milieu du trajet, mais décalé sur le côté pour créer l'arc
-            const midX = (startX + tx) / 2;
-            const midY = (startY + ty) / 2;
-            // Vecteur perpendiculaire pour le décalage
-            const dx = tx - startX;
-            const dy = ty - startY;
-            // Normalisation approximative pour le décalage
-            const perpX = -dy * 0.5;
-            const perpY = dx * 0.5;
-            // Le point de contrôle se rapproche de la ligne directe à la fin (progress)
-            // pour que le missile "rentre" dans la cible
-            const currentArc = arcIntensity * (1 - progress);
-            // Ajout d'une petite turbulence (Noise) pour le réalisme, pas un zigzag mathématique
-            const turbulence = Math.sin(progress * 20) * 10 * (1 - progress); // Vibre moins à la fin
-            const controlX = midX + perpX * arcSide / (Math.abs(dx) + Math.abs(dy)) * currentArc + turbulence;
-            const controlY = midY + perpY * arcSide / (Math.abs(dx) + Math.abs(dy)) * currentArc + turbulence;
-            // Formule de Bézier Quadratique : (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
-            const t = progress;
-            const x = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * controlX + t * t * tx;
-            const y = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * controlY + t * t * ty;
-            missile.x = x;
-            missile.y = y;
-            // --- CALCUL DE LA ROTATION (LISSÉE) ---
-            // On regarde la différence avec la frame d'avant
-            const angle = Math.atan2(y - prevY, x - prevX);
-            // + PI/2 car le dessin pointe vers le haut (-Y)
-            missile.setRotation(angle + Math.PI / 2);
-            prevX = x;
-            prevY = y;
-            // --- FX DE TRAINÉE (SMOKE) ---
-            smokeTimer += scene.game.loop.delta;
-            if (smokeTimer > 20) {
-                // Très dense
-                smokeTimer = 0;
-                const p = scene.add.circle(missile.x, missile.y, 4, 0x999999, 0.6);
-                p.setDepth(290);
-                scene.tweens.add({
-                    targets: p,
-                    scale: {
-                        from: 1,
-                        to: 3
-                    },
-                    alpha: {
-                        from: 0.6,
-                        to: 0
-                    },
-                    duration: 600,
-                    onComplete: ()=>p.destroy()
-                });
-                // Petit cœur de flamme
-                const f = scene.add.circle(missile.x, missile.y, 2, 0x00ffff, 1);
-                f.setDepth(291);
-                scene.tweens.add({
-                    targets: f,
-                    scale: 0,
-                    duration: 200,
-                    onComplete: ()=>f.destroy()
-                });
-            }
-        },
-        onComplete: ()=>{
-            const finalX = target.active ? target.x : missile.x;
-            const finalY = target.active ? target.y : missile.y;
-            missile.destroy();
-            triggerExplosion(scene, finalX, finalY, blastRadius, damageAmount, 3);
-        }
-    });
-}
-// ============================================================
-// EXPLOSION (INCHANGÉE MAIS OPTIMISÉE)
-// ============================================================
-function triggerExplosion(scene, x, y, radius, damage, level) {
-    const hitboxBuffer = 8;
-    const effectiveRadius = radius + hitboxBuffer;
-    const isLvl3 = level === 3;
-    // Trace au sol
-    const scorch = scene.add.circle(x, y, effectiveRadius, isLvl3 ? 0x001122 : 0x000000, 0.6);
-    scorch.setDepth(4);
-    scorch.scaleY = 0.6;
-    scene.tweens.add({
-        targets: scorch,
-        alpha: 0,
-        duration: 2000,
-        delay: 500,
-        onComplete: ()=>scorch.destroy()
-    });
-    // Flash
-    const flash = scene.add.circle(x, y, radius, isLvl3 ? 0xccffff : 0xffaa00, 1);
-    flash.setDepth(350);
-    scene.tweens.add({
-        targets: flash,
-        scale: 1.5,
-        alpha: 0,
-        duration: 200,
-        onComplete: ()=>flash.destroy()
-    });
-    // Onde de choc
-    const shock = scene.add.graphics();
-    shock.setDepth(340);
-    shock.lineStyle(isLvl3 ? 8 : 4, isLvl3 ? 0x00ffff : 0xffaa00);
-    shock.strokeCircle(0, 0, radius);
-    shock.setPosition(x, y);
-    shock.setScale(0.1);
-    scene.tweens.add({
-        targets: shock,
-        scale: 1.2,
-        alpha: 0,
-        duration: 400,
-        onComplete: ()=>shock.destroy()
-    });
-    // Particules
-    const pCount = isLvl3 ? 20 : 8;
-    for(let i = 0; i < pCount; i++){
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * radius * 0.5;
-        const px = x + Math.cos(angle) * dist;
-        const py = y + Math.sin(angle) * dist;
-        // Mixte feu/fumée ou plasma/fumée
-        const color = isLvl3 ? Math.random() > 0.5 ? 0x00ffff : 0x555555 : 0x666666;
-        const p = scene.add.circle(px, py, Math.random() * 4 + 2, color, 1);
-        p.setDepth(345);
-        scene.tweens.add({
-            targets: p,
-            x: px + Math.cos(angle) * radius,
-            y: py + Math.sin(angle) * radius - 50,
-            alpha: 0,
-            scale: 0.5,
-            duration: Math.random() * 500 + 500,
-            onComplete: ()=>p.destroy()
-        });
-    }
-    // Dégâts
-    if (scene.enemies) scene.enemies.children.each((e)=>{
-        if (e.active && Phaser.Math.Distance.Between(x, y, e.x, e.y) <= effectiveRadius) {
-            e.damage(damage);
-            if (e.bodyGroup) scene.tweens.add({
-                targets: e.bodyGroup,
-                tint: isLvl3 ? 0x00ffff : 0xff0000,
-                duration: 100,
-                yoyo: true
-            });
-        }
-    });
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bgZGw":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "zap", ()=>zap);
-const zap = {
-    key: "zap",
-    name: "\xc9clair",
-    cost: 350,
-    range: 120,
-    damage: 50,
-    rate: 1800,
-    color: 0x00ffff,
-    maxLevel: 3,
-    maxChainTargets: 3,
-    description: "G\xe9n\xe9rateur \xe9lectrique avec propagation en cha\xeene.\n\n\u2705 Avantages:\n\u2022 Propagation d'\xe9clair entre ennemis proches\n\u2022 D\xe9g\xe2ts instantan\xe9s\n\u2022 Efficace contre les groupes serr\xe9s\n\n\u274C Inconv\xe9nients:\n\u2022 Co\xfbt tr\xe8s \xe9lev\xe9\n\u2022 Port\xe9e moyenne\n\u2022 Moins efficace si ennemis espac\xe9s",
-    // --- DESSIN ÉVOLUTIF (Design Électrique) ---
-    onDrawBarrel: (scene, container, color, turret)=>{
-        const g = scene.add.graphics();
-        const level = turret.level || 1;
-        // Palette de couleurs électriques
-        const electricBlue = 0x00ffff;
-        const electricYellow = 0xffff00;
-        const electricPurple = 0xaa00ff;
-        const darkMetal = 0x111111;
-        const lightMetal = 0x444444;
-        const energyCore = 0xffffff;
-        if (level === 1) {
-            // === NIVEAU 1 : Générateur d'Éclair Standard ===
-            // Base circulaire avec bobines
-            g.fillStyle(darkMetal);
-            g.fillCircle(0, 0, 20);
-            g.lineStyle(2, electricBlue, 0.8);
-            g.strokeCircle(0, 0, 20);
-            // Bobines électriques (cercles concentriques)
-            g.lineStyle(1.5, electricBlue, 0.6);
-            g.strokeCircle(0, 0, 12);
-            g.strokeCircle(0, 0, 8);
-            // Canon électrique (pointant vers l'avant)
-            g.fillStyle(electricBlue, 0.7);
-            g.fillRect(0, -4, 35, 8);
-            g.lineStyle(2, electricYellow, 0.9);
-            g.strokeRect(0, -4, 35, 8);
-            // Noyau d'énergie
-            g.fillStyle(energyCore, 0.9);
-            g.fillCircle(35, 0, 5);
-        } else if (level === 2) {
-            // === NIVEAU 2 : Générateur Renforcé ===
-            // Base plus grande avec plus de bobines
-            g.fillStyle(darkMetal);
-            g.fillCircle(0, 0, 24);
-            g.lineStyle(2, electricBlue, 0.9);
-            g.strokeCircle(0, 0, 24);
-            // Bobines multiples
-            g.lineStyle(1.5, electricBlue, 0.7);
-            g.strokeCircle(0, 0, 16);
-            g.strokeCircle(0, 0, 12);
-            g.strokeCircle(0, 0, 8);
-            // Canon électrique plus long
-            g.fillStyle(electricBlue, 0.8);
-            g.fillRect(0, -5, 45, 10);
-            g.lineStyle(2, electricYellow, 1);
-            g.strokeRect(0, -5, 45, 10);
-            // Énergie pulsante (cercles concentriques)
-            g.lineStyle(1, electricYellow, 0.5);
-            g.strokeCircle(45, 0, 8);
-            g.strokeCircle(45, 0, 6);
-            // Noyau d'énergie plus gros
-            g.fillStyle(energyCore, 1);
-            g.fillCircle(45, 0, 6);
-        } else {
-            // === NIVEAU 3 : Générateur Élite (Tesla) ===
-            // Base massive avec bobines complexes
-            g.fillStyle(darkMetal);
-            g.fillCircle(0, 0, 28);
-            g.lineStyle(3, electricPurple, 1);
-            g.strokeCircle(0, 0, 28);
-            // Bobines en spirale
-            g.lineStyle(2, electricPurple, 0.8);
-            g.strokeCircle(0, 0, 20);
-            g.strokeCircle(0, 0, 16);
-            g.strokeCircle(0, 0, 12);
-            g.strokeCircle(0, 0, 8);
-            // Canon Tesla (très long)
-            g.fillStyle(electricPurple, 0.9);
-            g.fillRect(0, -6, 55, 12);
-            g.lineStyle(3, electricYellow, 1);
-            g.strokeRect(0, -6, 55, 12);
-            // Énergie Tesla (aura multiple)
-            g.lineStyle(2, electricYellow, 0.6);
-            g.strokeCircle(55, 0, 10);
-            g.strokeCircle(55, 0, 7);
-            g.strokeCircle(55, 0, 4);
-            // Noyau d'énergie Tesla (brillant)
-            g.fillStyle(energyCore, 1);
-            g.fillCircle(55, 0, 7);
-            g.fillStyle(electricYellow, 0.8);
-            g.fillCircle(55, 0, 4);
-            // Particules d'énergie (petits points)
-            g.fillStyle(electricYellow, 1);
-            g.fillCircle(-8, -8, 2);
-            g.fillCircle(8, -8, 2);
-            g.fillCircle(-8, 8, 2);
-            g.fillCircle(8, 8, 2);
-        }
-        // Pivot central
-        g.fillStyle(0x000000);
-        g.fillCircle(0, 0, 4);
-        container.add(g);
-        // --- INDICATEUR DE NIVEAU ---
-        const badge = scene.add.container(-20, 20);
-        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.7);
-        const badgeColor = level === 3 ? electricPurple : electricBlue;
-        badgeBg.setStrokeStyle(1, badgeColor);
-        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
-            fontSize: "10px",
-            fontFamily: "Arial",
-            color: level === 3 ? "#aa00ff" : "#00ffff",
-            fontStyle: "bold"
-        }).setOrigin(0.5);
-        badge.add([
-            badgeBg,
-            lvlText
-        ]);
-        container.add(badge);
-    },
-    // --- LOGIQUE DE TIR AVEC PROPAGATION D'ÉCLAIR ---
-    onFire: (scene, turret, target)=>{
-        const level = turret.level || 1;
-        const angle = turret.barrelGroup.rotation;
-        // Nombre max de cibles selon le niveau
-        const maxChainTargets = level === 1 ? 3 : level === 2 ? 5 : 7;
-        const chainDistance = 80; // 1/2 case = 32 pixels donc environ 1.2 cases
-        // Longueur du canon
-        const barrelLen = level === 1 ? 32 : level === 2 ? 40 : 48;
-        const tipX = turret.x + Math.cos(angle) * barrelLen;
-        const tipY = turret.y + Math.sin(angle) * barrelLen;
-        // --- EFFET VISUEL INITIAL ---
-        const flashColor = level === 3 ? 0xaa00ff : level === 2 ? 0x00ffff : 0x00aaff;
-        const flashSize = level === 3 ? 25 : level === 2 ? 20 : 15;
-        const flash = scene.add.circle(tipX, tipY, flashSize, flashColor, 0.9);
-        scene.tweens.add({
-            targets: flash,
-            scale: 2,
-            alpha: 0,
-            duration: 200,
-            onComplete: ()=>flash.destroy()
-        });
-        // --- PROPAGATION D'ÉCLAIR ---
-        const allEnemies = scene.enemies.getChildren();
-        const hitEnemies = new Set(); // Pour éviter de toucher deux fois le même ennemi
-        const chainSequence = []; // Pour l'animation de la chaîne
-        // Fonction récursive pour la propagation
-        const chainLightning = (currentTarget, depth, fromX, fromY)=>{
-            if (depth >= maxChainTargets || !currentTarget || !currentTarget.active) return;
-            // Marquer comme touché
-            hitEnemies.add(currentTarget);
-            chainSequence.push({
-                target: currentTarget,
-                fromX: fromX,
-                fromY: fromY,
-                depth: depth
-            });
-            // Infliger des dégâts
-            currentTarget.damage(turret.config.damage);
-            // Trouver le prochain ennemi à proximité
-            let nearestEnemy = null;
-            let minDist = chainDistance;
-            allEnemies.forEach((enemy)=>{
-                if (enemy.active && !hitEnemies.has(enemy) && enemy !== currentTarget) {
-                    const dist = Phaser.Math.Distance.Between(currentTarget.x, currentTarget.y, enemy.x, enemy.y);
-                    if (dist <= chainDistance && dist < minDist) {
-                        minDist = dist;
-                        nearestEnemy = enemy;
-                    }
-                }
-            });
-            // Si on trouve un ennemi proche, continuer la chaîne
-            if (nearestEnemy) chainLightning(nearestEnemy, depth + 1, currentTarget.x, currentTarget.y);
-        };
-        // Démarrer la chaîne depuis la cible initiale
-        chainLightning(target, 0, tipX, tipY);
-        // --- ANIMATION DE LA CHAÎNE D'ÉCLAIR ---
-        chainSequence.forEach((link, index)=>{
-            const delay = index * 50; // Délai progressif pour l'effet de chaîne
-            scene.time.delayedCall(delay, ()=>{
-                // Ligne d'éclair zigzagante
-                const lightning = scene.add.graphics();
-                const lightningColor = level === 3 ? 0xaa00ff : 0x00ffff;
-                const lightningWidth = level === 3 ? 4 : 3;
-                // Créer un zigzag pour l'effet éclair
-                const steps = 8;
-                const dx = link.target.x - link.fromX;
-                const dy = link.target.y - link.fromY;
-                lightning.lineStyle(lightningWidth, lightningColor, 1);
-                lightning.beginPath();
-                lightning.moveTo(link.fromX, link.fromY);
-                for(let i = 1; i <= steps; i++){
-                    const t = i / steps;
-                    const x = link.fromX + dx * t;
-                    const y = link.fromY + dy * t;
-                    // Ajouter un décalage aléatoire pour l'effet zigzag
-                    const offsetX = (Math.random() - 0.5) * 8;
-                    const offsetY = (Math.random() - 0.5) * 8;
-                    lightning.lineTo(x + offsetX, y + offsetY);
-                }
-                lightning.lineTo(link.target.x, link.target.y);
-                lightning.strokePath();
-                // Ligne principale (plus épaisse)
-                lightning.lineStyle(lightningWidth + 2, 0xffffff, 0.8);
-                lightning.beginPath();
-                lightning.moveTo(link.fromX, link.fromY);
-                lightning.lineTo(link.target.x, link.target.y);
-                lightning.strokePath();
-                lightning.setDepth(100);
-                // Disparition rapide
-                scene.tweens.add({
-                    targets: lightning,
-                    alpha: 0,
-                    duration: 150,
-                    onComplete: ()=>lightning.destroy()
-                });
-                // Impact sur la cible
-                const impactColor = level === 3 ? 0xaa00ff : 0x00ffff;
-                const impactSize = level === 3 ? 15 : 12;
-                const impact = scene.add.circle(link.target.x, link.target.y, impactSize, impactColor, 0.9);
-                impact.setDepth(99);
-                scene.tweens.add({
-                    targets: impact,
-                    scale: 0,
-                    alpha: 0,
-                    duration: 200,
-                    onComplete: ()=>impact.destroy()
-                });
-                // Particules d'électricité
-                for(let i = 0; i < 5; i++){
-                    const particle = scene.add.circle(link.target.x + (Math.random() - 0.5) * 20, link.target.y + (Math.random() - 0.5) * 20, 2, lightningColor, 1);
-                    particle.setDepth(101);
-                    scene.tweens.add({
-                        targets: particle,
-                        x: particle.x + (Math.random() - 0.5) * 30,
-                        y: particle.y + (Math.random() - 0.5) * 30,
-                        alpha: 0,
-                        scale: 0,
-                        duration: 300,
-                        onComplete: ()=>particle.destroy()
-                    });
-                }
-            });
-        });
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"9rF1d":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "barracks", ()=>barracks);
-const barracks = {
-    key: "barracks",
-    name: "Caserne",
-    cost: 200,
-    range: 0,
-    damage: 0,
-    rate: 0,
-    color: 0x8b4513,
-    maxLevel: 3,
-    description: "B\xe2timent qui produit des soldats pour bloquer les ennemis.\n\n\u2705 Avantages:\n\u2022 Soldats bloquent temporairement les ennemis\n\u2022 Les soldats se r\xe9g\xe9n\xe8rent automatiquement\n\u2022 Compl\xe9mentaire aux tourelles\n\u2022 Peut \xeatre am\xe9lior\xe9 pour plus de soldats\n\n\u274C Inconv\xe9nients:\n\u2022 Pas de d\xe9g\xe2ts directs\n\u2022 Les soldats peuvent mourir\n\u2022 N\xe9cessite un placement strat\xe9gique",
-    // Nombre de soldats par niveau
-    soldiersCount: [
-        2,
-        3,
-        4
-    ],
-    // Temps de respawn en millisecondes
-    respawnTime: [
-        12000,
-        10000,
-        8000
-    ],
-    // Vie des soldats par niveau
-    soldierHp: [
-        100,
-        130,
-        170
-    ],
-    // --- DESSIN ÉVOLUTIF (Bâtiment militaire) ---
-    onDrawBarrel: (scene, container, color, turret)=>{
-        const g = scene.add.graphics();
-        const level = turret.level || 1;
-        // Palette de couleurs
-        const woodBrown = 0x8b4513;
-        const darkWood = 0x654321;
-        const stoneGray = 0x696969;
-        const darkStone = 0x404040;
-        const metalGray = 0x708090;
-        const flagRed = 0xcc0000;
-        const flagBlue = 0x0000cc;
-        if (level === 1) {
-            // === NIVEAU 1 : Baraque Simple ===
-            // Base en bois
-            g.fillStyle(woodBrown);
-            g.fillRect(-20, -20, 40, 40);
-            g.lineStyle(2, darkWood);
-            g.strokeRect(-20, -20, 40, 40);
-            // Toit
-            g.fillStyle(darkWood);
-            g.fillTriangle(-22, -20, 0, -30, 22, -20);
-            g.lineStyle(2, 0x000000);
-            g.strokeTriangle(-22, -20, 0, -30, 22, -20);
-            // Porte
-            g.fillStyle(0x000000);
-            g.fillRect(-6, 0, 12, 20);
-            g.lineStyle(1, darkWood);
-            g.strokeRect(-6, 0, 12, 20);
-            // Fenêtre
-            g.fillStyle(0xffffaa, 0.8);
-            g.fillRect(-12, -12, 8, 8);
-            g.fillRect(4, -12, 8, 8);
-        } else if (level === 2) {
-            // === NIVEAU 2 : Caserne Renforcée ===
-            // Base en pierre
-            g.fillStyle(stoneGray);
-            g.fillRect(-24, -24, 48, 48);
-            g.lineStyle(2, darkStone);
-            g.strokeRect(-24, -24, 48, 48);
-            // Toit plus imposant
-            g.fillStyle(darkStone);
-            g.fillTriangle(-26, -24, 0, -36, 26, -24);
-            g.lineStyle(3, 0x000000);
-            g.strokeTriangle(-26, -24, 0, -36, 26, -24);
-            // Porte renforcée
-            g.fillStyle(0x000000);
-            g.fillRect(-8, 2, 16, 24);
-            g.lineStyle(2, metalGray);
-            g.strokeRect(-8, 2, 16, 24);
-            // Fenêtres avec barreaux
-            g.fillStyle(0xffffaa, 0.8);
-            g.fillRect(-14, -14, 10, 10);
-            g.fillRect(4, -14, 10, 10);
-            g.lineStyle(1, 0x000000);
-            g.strokeRect(-14, -14, 10, 10);
-            g.strokeRect(4, -14, 10, 10);
-            // Barreaux
-            g.lineStyle(1, 0x000000);
-            g.lineBetween(-14, -9, -4, -9);
-            g.lineBetween(-9, -14, -9, -4);
-            g.lineBetween(4, -9, 14, -9);
-            g.lineBetween(9, -14, 9, -4);
-            // Drapeau simple
-            g.fillStyle(flagRed);
-            g.fillRect(20, -30, 4, 12);
-        } else {
-            // === NIVEAU 3 : Forteresse ===
-            // Base massive en pierre
-            g.fillStyle(stoneGray);
-            g.fillRect(-28, -28, 56, 56);
-            g.lineStyle(3, darkStone);
-            g.strokeRect(-28, -28, 56, 56);
-            // Détails de pierre
-            g.lineStyle(1, darkStone);
-            for(let i = -24; i < 24; i += 8)g.lineBetween(i, -28, i, 28);
-            // Toit imposant avec créneaux
-            g.fillStyle(darkStone);
-            g.fillRect(-30, -40, 60, 12);
-            g.fillStyle(0x000000);
-            // Créneaux
-            for(let i = -28; i < 28; i += 8)g.fillRect(i, -40, 4, 4);
-            // Porte massive
-            g.fillStyle(0x000000);
-            g.fillRect(-10, 4, 20, 28);
-            g.lineStyle(3, metalGray);
-            g.strokeRect(-10, 4, 20, 28);
-            // Clous
-            g.fillStyle(metalGray);
-            g.fillCircle(-5, 10, 2);
-            g.fillCircle(5, 10, 2);
-            g.fillCircle(-5, 20, 2);
-            g.fillCircle(5, 20, 2);
-            // Fenêtres avec barreaux
-            g.fillStyle(0xffffaa, 0.8);
-            g.fillRect(-16, -16, 12, 12);
-            g.fillRect(4, -16, 12, 12);
-            g.lineStyle(2, 0x000000);
-            g.strokeRect(-16, -16, 12, 12);
-            g.strokeRect(4, -16, 12, 12);
-            // Barreaux épais
-            g.lineStyle(2, 0x000000);
-            g.lineBetween(-16, -11, -4, -11);
-            g.lineBetween(-10, -16, -10, -4);
-            g.lineBetween(4, -11, 16, -11);
-            g.lineBetween(10, -16, 10, -4);
-            // Drapeau avec mât
-            g.fillStyle(0x654321);
-            g.fillRect(24, -42, 3, 20);
-            g.fillStyle(flagRed);
-            g.fillRect(27, -40, 8, 6);
-            g.fillStyle(flagBlue);
-            g.fillRect(27, -34, 8, 6);
-            // Tourelles latérales
-            g.fillStyle(stoneGray);
-            g.fillCircle(-26, -26, 6);
-            g.fillCircle(26, -26, 6);
-            g.lineStyle(2, darkStone);
-            g.strokeCircle(-26, -26, 6);
-            g.strokeCircle(26, -26, 6);
-        }
-        // Pivot central
-        g.fillStyle(0x000000);
-        g.fillCircle(0, 0, 3);
-        container.add(g);
-        // --- INDICATEUR DE NIVEAU ---
-        const badge = scene.add.container(-20, 20);
-        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.7);
-        const badgeColor = level === 3 ? 0xffd700 : level === 2 ? 0x00ffff : 0xffffff;
-        badgeBg.setStrokeStyle(1, badgeColor);
-        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
-            fontSize: "10px",
-            fontFamily: "Arial",
-            color: level === 3 ? "#ffd700" : level === 2 ? "#00ffff" : "#ffffff",
-            fontStyle: "bold"
-        }).setOrigin(0.5);
-        badge.add([
-            badgeBg,
-            lvlText
-        ]);
-        container.add(badge);
-    },
-    // --- LOGIQUE SPÉCIALE : Pas de tir, mais gestion des soldats ---
-    onFire: null,
-    // Fonction appelée lors de la création du bâtiment
-    onBuild: (scene, barracks)=>{
-    // Cette fonction sera appelée depuis GameScene après la création
-    // Les soldats seront créés et déployés automatiquement
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"k759O":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "witch", ()=>witch);
-const witch = {
-    name: "Sorci\xe8re",
-    speed: 28,
-    hp: 800,
-    reward: 150,
-    playerDamage: 4,
-    color: 0x6a1b9a,
-    damage: 15,
-    attackSpeed: 1200,
-    spawnInterval: 5000,
-    spawnCount: 4,
-    spawnType: "zombie_minion",
-    scale: 1.2,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Stocker les références pour l'animation
-        enemyInstance.legs = {};
-        enemyInstance.staff = null;
-        enemyInstance.hat = null;
-        // 1. Jambe Arrière
-        enemyInstance.legs.back = scene.add.container(0, 8);
-        const legB = scene.add.graphics();
-        legB.fillStyle(0x4a148c); // Violet foncé
-        legB.fillRoundedRect(-3, 0, 6, 20, 2);
-        legB.fillRoundedRect(-4, 18, 8, 4, 2); // Botte pointue
-        enemyInstance.legs.back.add(legB);
-        container.add(enemyInstance.legs.back);
-        // 2. Robe (longue et ample)
-        const robe = scene.add.graphics();
-        robe.fillStyle(color);
-        // Robe en forme de trapèze
-        robe.beginPath();
-        robe.moveTo(-8, -5);
-        robe.lineTo(8, -5);
-        robe.lineTo(12, 20);
-        robe.lineTo(-12, 20);
-        robe.closePath();
-        robe.fillPath();
-        // Bordure dorée
-        robe.lineStyle(2, 0xffd700);
-        robe.strokePath();
-        // Détails de la robe (étoiles, runes)
-        robe.fillStyle(0xffd700, 0.6);
-        robe.fillCircle(-5, 5, 2);
-        robe.fillCircle(5, 5, 2);
-        robe.fillCircle(0, 12, 1.5);
-        container.add(robe);
-        // 3. Tête et chapeau pointu
-        const head = scene.add.graphics();
-        head.fillStyle(0xffdbac); // Peau
-        head.fillCircle(0, -12, 6);
-        // Yeux brillants (magie)
-        head.fillStyle(0x00ffff); // Cyan magique
-        head.fillCircle(-2, -13, 1.5);
-        head.fillCircle(2, -13, 1.5);
-        // Chapeau pointu
-        enemyInstance.hat = scene.add.graphics();
-        enemyInstance.hat.fillStyle(0x4a148c);
-        enemyInstance.hat.beginPath();
-        enemyInstance.hat.moveTo(-6, -18);
-        enemyInstance.hat.lineTo(6, -18);
-        enemyInstance.hat.lineTo(0, -30);
-        enemyInstance.hat.closePath();
-        enemyInstance.hat.fillPath();
-        enemyInstance.hat.lineStyle(2, 0xffd700);
-        enemyInstance.hat.strokePath();
-        // Étoile sur le chapeau
-        enemyInstance.hat.fillStyle(0xffd700);
-        enemyInstance.hat.fillCircle(0, -24, 2);
-        container.add(head);
-        container.add(enemyInstance.hat);
-        // 4. Bâton magique (tenu à la main)
-        const staffContainer = scene.add.container(0, 0);
-        const staff = scene.add.graphics();
-        staff.fillStyle(0x8b4513); // Marron pour le bâton
-        staff.fillRect(8, -8, 3, 25);
-        staffContainer.add(staff);
-        // Orbe magique au bout (objet séparé pour l'animation)
-        enemyInstance.orb = scene.add.circle(9.5, 18, 4, 0x00ffff, 0.8);
-        enemyInstance.orb.setStrokeStyle(1, 0xffffff);
-        staffContainer.add(enemyInstance.orb);
-        enemyInstance.staff = staffContainer;
-        container.add(staffContainer);
-        // 5. Jambe Avant
-        enemyInstance.legs.front = scene.add.container(0, 8);
-        const legF = scene.add.graphics();
-        legF.fillStyle(0x4a148c);
-        legF.fillRoundedRect(-3, 0, 6, 20, 2);
-        legF.fillRoundedRect(-4, 18, 8, 4, 2);
-        enemyInstance.legs.front.add(legF);
-        container.add(enemyInstance.legs.front);
-        // Aura magique (particules autour)
-        enemyInstance.aura = scene.add.graphics();
-        enemyInstance.aura.lineStyle(1, 0x00ffff, 0.4);
-        enemyInstance.aura.strokeCircle(0, 0, 18);
-        enemyInstance.aura.strokeCircle(0, 0, 20);
-        container.add(enemyInstance.aura);
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        const speed = 0.005; // Marche très lente
-        const range = 0.3;
-        // Animation de marche
-        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
-        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
-        // Animation du chapeau (légère oscillation)
-        if (enemyInstance.hat) enemyInstance.hat.rotation = Math.sin(time * 0.003) * 0.1;
-        // Animation du bâton (légère pulsation de l'orbe)
-        if (enemyInstance.orb && enemyInstance.orb.active) {
-            const pulseScale = 1 + Math.sin(time * 0.01) * 0.2;
-            enemyInstance.orb.setScale(pulseScale);
-            enemyInstance.orb.setAlpha(0.6 + Math.sin(time * 0.015) * 0.3);
-        }
-        // Animation de l'aura
-        if (enemyInstance.aura) {
-            enemyInstance.aura.alpha = 0.3 + Math.sin(time * 0.008) * 0.2;
-            enemyInstance.aura.rotation += 0.002;
-        }
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bONBj":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "zombie_minion", ()=>zombie_minion);
-const zombie_minion = {
-    name: "B\xe9b\xe9 Zombie",
-    speed: 60,
-    hp: 55,
-    reward: 5,
-    playerDamage: 1,
-    color: 0x4a7a2f,
-    damage: 3,
-    attackSpeed: 1000,
-    scale: 0.7,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        enemyInstance.legs = {};
-        // 1. Jambe Arrière
-        enemyInstance.legs.back = scene.add.container(0, 3);
-        const legB = scene.add.graphics();
-        legB.fillStyle(0x2d5016); // Vert foncé
-        legB.fillRoundedRect(-2, 0, 4, 12, 1);
-        legB.fillRoundedRect(-3, 11, 6, 3, 1); // Petit pied
-        enemyInstance.legs.back.add(legB);
-        container.add(enemyInstance.legs.back);
-        // 2. Corps (petit et trapu)
-        const body = scene.add.graphics();
-        // Torse
-        body.fillStyle(color);
-        body.fillRoundedRect(-4, -6, 8, 10, 2);
-        // Tête (plus grosse proportionnellement)
-        body.fillStyle(0x3a6b1f);
-        body.fillCircle(0, -10, 5);
-        // Yeux morts (points rouges)
-        body.fillStyle(0xff0000);
-        body.fillCircle(-2, -11, 1);
-        body.fillCircle(2, -11, 1);
-        // Bras (courts)
-        body.fillStyle(color);
-        body.fillRoundedRect(-5, -4, 3, 6, 1);
-        body.fillRoundedRect(2, -4, 3, 6, 1);
-        container.add(body);
-        // 3. Jambe Avant
-        enemyInstance.legs.front = scene.add.container(0, 3);
-        const legF = scene.add.graphics();
-        legF.fillStyle(color);
-        legF.fillRoundedRect(-2, 0, 4, 12, 1);
-        legF.fillRoundedRect(-3, 11, 6, 3, 1);
-        enemyInstance.legs.front.add(legF);
-        container.add(enemyInstance.legs.front);
-        // Détails zombie (plaies, déchirures)
-        body.fillStyle(0x8b4513); // Marron pour les plaies
-        body.fillRect(-3, -2, 2, 1);
-        body.fillRect(1, 0, 2, 1);
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        const speed = 0.01; // Animation plus rapide pour les petits
-        const range = 0.4;
-        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
-        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"lF8pq":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "bosslvl1", ()=>bosslvl1);
-const bosslvl1 = {
-    name: "DOOM",
-    speed: 11,
-    hp: 42000,
-    reward: 1000,
-    playerDamage: 20,
-    color: 0x222222,
-    damage: 70,
-    attackSpeed: 1500,
-    scale: 1,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Pas de jambes pour le boss, il flotte !
-        // 1. Cape / Aura (Flottant derrière)
-        const aura = scene.add.graphics();
-        aura.fillStyle(0xff0000, 0.3); // Rouge sang transparent
-        // Forme déchiquetée
-        aura.beginPath();
-        aura.moveTo(-30, -40);
-        aura.lineTo(30, -40);
-        aura.lineTo(40, 20);
-        aura.lineTo(20, 50);
-        aura.lineTo(0, 30);
-        aura.lineTo(-20, 50);
-        aura.lineTo(-40, 20);
-        aura.closePath();
-        aura.fillPath();
-        container.add(aura);
-        // 2. Corps (Armure noire massive à pointes)
-        const body = scene.add.graphics();
-        body.fillStyle(color); // Noir
-        body.lineStyle(4, 0xff0000); // Bordure rouge
-        // Torse massif
-        body.beginPath();
-        body.moveTo(-25, -30);
-        body.lineTo(25, -30);
-        body.lineTo(15, 30);
-        body.lineTo(-15, 30);
-        body.closePath();
-        body.fillPath();
-        body.strokePath();
-        // Épaulières à pointes
-        body.fillStyle(0xff0000);
-        body.beginPath();
-        body.moveTo(-25, -30);
-        body.lineTo(-45, -40);
-        body.lineTo(-25, -10);
-        body.fillPath();
-        body.beginPath();
-        body.moveTo(25, -30);
-        body.lineTo(45, -40);
-        body.lineTo(25, -10);
-        body.fillPath();
-        // Tête (Casque cornu)
-        body.fillStyle(color);
-        body.fillRect(-12, -50, 24, 20);
-        // Cornes
-        body.fillStyle(0xff0000);
-        body.beginPath();
-        body.moveTo(-12, -50);
-        body.lineTo(-25, -70);
-        body.lineTo(-5, -50);
-        body.fillPath();
-        body.beginPath();
-        body.moveTo(12, -50);
-        body.lineTo(25, -70);
-        body.lineTo(5, -50);
-        body.fillPath();
-        // Yeux brillants
-        body.fillStyle(0xffff00);
-        body.fillRect(-8, -45, 6, 4);
-        body.fillRect(2, -45, 6, 4);
-        container.add(body);
-        // Le Boss est trop imposant pour tourner rapidement
-        enemyInstance.shouldRotate = false;
-        // On stocke l'aura pour l'animer
-        enemyInstance.aura = aura;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Pas de marche, mais une lévitation menaçante
-        const speed = 0.002;
-        const floatRange = 10;
-        // Flottement vertical lent
-        enemyInstance.bodyGroup.y = Math.sin(time * speed) * floatRange;
-        // L'aura ondule légèrement
-        enemyInstance.aura.scaleX = 1 + Math.sin(time * 0.005) * 0.1;
-        enemyInstance.aura.alpha = 0.3 + Math.sin(time * 0.01) * 0.1;
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hQduM":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "bosslvl2", ()=>bosslvl2);
-const bosslvl2 = {
-    name: "N\xc9ANT VORACE",
-    speed: 12,
-    hp: 90000,
-    reward: 2500,
-    playerDamage: 20,
-    color: 0x000000,
-    damage: 150,
-    attackSpeed: 800,
-    scale: 1.3,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Initialisation pour l'animation
-        enemyInstance.legs = [];
-        enemyInstance.eye = null;
-        enemyInstance.pupil = null;
-        // --- 1. LES PATTES (8 pattes d'araignée effrayantes) ---
-        // On les dessine d'abord pour qu'elles soient derrière le corps
-        for(let i = 0; i < 8; i++){
-            const leg = scene.add.graphics();
-            leg.lineStyle(4, 0x110022); // Violet très sombre
-            // Forme de patte articulée pointue
-            leg.beginPath();
-            leg.moveTo(0, 0);
-            leg.lineTo(30, -20); // Premier segment
-            leg.lineTo(55, 10); // Pointe vers le bas
-            leg.strokePath();
-            // On positionne la patte autour du corps
-            // On les groupe un peu pour laisser de la place devant
-            // Angles : -135, -90, -45, -20 (gauche) et 20, 45, 90, 135 (droite)
-            const angles = [
-                -2.2,
-                -1.5,
-                -0.8,
-                -0.3,
-                0.3,
-                0.8,
-                1.5,
-                2.2
-            ];
-            const angle = angles[i];
-            // Créer un conteneur pour la patte pour pouvoir la pivoter facilement
-            const legContainer = scene.add.container(0, 0);
-            legContainer.add(leg);
-            legContainer.rotation = angle;
-            // Stocker l'angle de base pour l'animation
-            legContainer.baseRotation = angle;
-            container.add(legContainer);
-            enemyInstance.legs.push(legContainer);
-        }
-        // --- 2. AURA DE TÉNÈBRES (Fumée noire) ---
-        const darkness = scene.add.graphics();
-        darkness.fillStyle(0x000000, 0.3);
-        for(let i = 0; i < 8; i++)darkness.fillCircle((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50, 15 + Math.random() * 15);
-        container.add(darkness);
-        enemyInstance.darkness = darkness;
-        // --- 3. CORPS (Masse informe) ---
-        const body = scene.add.graphics();
-        body.fillStyle(0x0a000a); // Noir quasi absolu
-        body.lineStyle(3, 0x440044); // Contour violet maladif
-        // Forme irrégulière
-        body.beginPath();
-        body.moveTo(-25, -30);
-        body.lineTo(25, -30);
-        body.lineTo(35, 0);
-        body.lineTo(20, 35);
-        body.lineTo(-20, 35);
-        body.lineTo(-35, 0);
-        body.closePath();
-        body.fillPath();
-        body.strokePath();
-        container.add(body);
-        enemyInstance.bodyGraphic = body;
-        // --- 4. L'ŒIL UNIQUE (Sauron style mais organique) ---
-        // Blanc de l'œil (injecté de sang)
-        const eyeWhite = scene.add.graphics();
-        eyeWhite.fillStyle(0xffcccc);
-        eyeWhite.fillEllipse(0, -5, 15, 10);
-        container.add(eyeWhite);
-        enemyInstance.eye = eyeWhite;
-        // Pupille (Fente verticale rouge vif)
-        const pupil = scene.add.graphics();
-        pupil.fillStyle(0xff0000);
-        pupil.fillEllipse(0, -5, 3, 9);
-        container.add(pupil);
-        enemyInstance.pupil = pupil;
-        // --- CONFIG ---
-        enemyInstance.shouldRotate = false; // Il fait face au joueur
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Sécurité
-        if (!enemyInstance.legs || !enemyInstance.bodyGraphic) return;
-        // 1. ANIMATION DES PATTES (Frénétique)
-        // Elles bougent très vite et de manière désynchronisée (effet insecte)
-        const legSpeed = 0.02;
-        enemyInstance.legs.forEach((leg, index)=>{
-            // Mouvement de marche rapide et saccadé
-            const offset = index * 0.5; // Décalage pour qu'elles ne bougent pas toutes en même temps
-            const wiggle = Math.sin(time * legSpeed + offset) * 0.2;
-            // Ajout d'un "twitch" (spasme) aléatoire
-            const twitch = Math.random() > 0.95 ? 0.1 : 0;
-            leg.rotation = leg.baseRotation + wiggle + twitch;
-            // Les pointes des pattes bougent légèrement en distance
-            leg.x = Math.cos(leg.rotation) * (Math.sin(time * 0.01) * 2);
-            leg.y = Math.sin(leg.rotation) * (Math.sin(time * 0.01) * 2);
-        });
-        // 2. CORPS QUI RESPIRE / PALPITE
-        const breath = 1 + Math.sin(time * 0.005) * 0.05;
-        enemyInstance.bodyGraphic.scaleX = breath;
-        enemyInstance.bodyGraphic.scaleY = breath;
-        // 3. MOUVEMENT "GLITCH" DU BOSS
-        // Au lieu de flotter doucement, il se décale brusquement de temps en temps
-        if (Math.random() > 0.92) {
-            enemyInstance.bodyGroup.x = (Math.random() - 0.5) * 3;
-            enemyInstance.bodyGroup.y = (Math.random() - 0.5) * 3;
-        } else {
-            // Retour progressif au centre (lissage)
-            enemyInstance.bodyGroup.x *= 0.8;
-            enemyInstance.bodyGroup.y *= 0.8;
-        }
-        // 4. L'ŒIL QUI REGARDE PARTOUT
-        if (enemyInstance.pupil) {
-            // La pupille bouge nerveusement
-            enemyInstance.pupil.x = (Math.random() - 0.5) * 4;
-            enemyInstance.pupil.y = -5 + (Math.random() - 0.5) * 2;
-            // Clignement de l'œil (disparition brève)
-            if (Math.random() > 0.99) {
-                enemyInstance.eye.visible = false;
-                enemyInstance.pupil.visible = false;
-                // Réapparaît après 100ms
-                setTimeout(()=>{
-                    if (enemyInstance.active) {
-                        enemyInstance.eye.visible = true;
-                        enemyInstance.pupil.visible = true;
-                    }
-                }, 100);
-            }
-        }
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bnkzu":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "tortue_dragon", ()=>tortue_dragon);
-const tortue_dragon = {
-    name: "Tortue-Dragon",
-    speed: 35,
-    hp: 2800,
-    reward: 200,
-    playerDamage: 4,
-    color: 0x4a5d23,
-    damage: 25,
-    attackSpeed: 1000,
-    scale: 1.1,
-    // Paramètres spécifiques
-    shellThreshold: 0.3,
-    shellDuration: 4000,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Initialisation des états
-        enemyInstance.legs = {};
-        enemyInstance.shellGroup = null; // Groupe visuel carapace fermée
-        enemyInstance.normalGroup = null; // Groupe visuel normal
-        enemyInstance.isInShell = false;
-        enemyInstance.hasUsedShell = false; // Pour ne le faire qu'une fois
-        // --- 1. GROUPE NORMAL (Marche) ---
-        const normalGroup = scene.add.container(0, 0);
-        // a) Pattes Arrière
-        const legBack = scene.add.graphics();
-        legBack.fillStyle(0x3a4d13);
-        legBack.fillRoundedRect(-4, 0, 8, 18, 3); // Cuisse
-        legBack.fillRoundedRect(-5, 15, 12, 6, 2); // Pied
-        const legBackContainer = scene.add.container(-10, 5);
-        legBackContainer.add(legBack);
-        normalGroup.add(legBackContainer);
-        enemyInstance.legs.back = legBackContainer;
-        // b) Pattes Avant (Ajouté pour le réalisme)
-        const legFront = scene.add.graphics();
-        legFront.fillStyle(0x3a4d13);
-        legFront.fillRoundedRect(-4, 0, 8, 18, 3);
-        legFront.fillRoundedRect(-5, 15, 12, 6, 2);
-        const legFrontContainer = scene.add.container(12, 5);
-        legFrontContainer.add(legFront);
-        normalGroup.add(legFrontContainer);
-        enemyInstance.legs.front = legFrontContainer;
-        // c) Queue
-        const tail = scene.add.graphics();
-        tail.fillStyle(color);
-        tail.fillTriangle(-20, 0, -35, -5, -35, 5);
-        normalGroup.add(tail);
-        // d) Corps/Carapace Ouverte
-        const body = scene.add.graphics();
-        body.fillStyle(color);
-        body.fillEllipse(0, -5, 42, 32); // Corps principal
-        body.lineStyle(3, 0x2a3d13);
-        body.strokeEllipse(0, -5, 42, 32); // Contour
-        // Écailles décoratives
-        body.fillStyle(0x2a3d13);
-        body.fillEllipse(-10, -8, 8, 6);
-        body.fillEllipse(0, -10, 10, 8);
-        body.fillEllipse(10, -8, 8, 6);
-        normalGroup.add(body);
-        // e) Tête
-        const head = scene.add.graphics();
-        head.fillStyle(0x5a6d33);
-        head.fillRoundedRect(15, -15, 20, 14, 5); // Cou/Tête
-        // Yeux
-        head.fillStyle(0xff0000);
-        head.fillCircle(28, -11, 2);
-        // Corne/Museau
-        head.fillStyle(0xffffaa);
-        head.fillTriangle(32, -15, 38, -12, 32, -9);
-        normalGroup.add(head);
-        container.add(normalGroup);
-        enemyInstance.normalGroup = normalGroup;
-        // --- 2. GROUPE CARAPACE (Caché) ---
-        const shellGroup = scene.add.container(0, 0);
-        const shellGraphic = scene.add.graphics();
-        // Ombre sous la carapace
-        shellGraphic.fillStyle(0x000000, 0.3);
-        shellGraphic.fillEllipse(0, 10, 40, 10);
-        // La carapace fermée
-        shellGraphic.fillStyle(0x3a4d13); // Plus sombre
-        shellGraphic.fillEllipse(0, 0, 46, 36);
-        shellGraphic.lineStyle(4, 0x1a2d03);
-        shellGraphic.strokeEllipse(0, 0, 46, 36);
-        // Pics sur la carapace fermée
-        shellGraphic.fillStyle(0x1a2d03);
-        shellGraphic.fillTriangle(-15, -10, -15, -20, -5, -12);
-        shellGraphic.fillTriangle(0, -15, 0, -25, 10, -15);
-        shellGraphic.fillTriangle(15, -10, 15, -20, 25, -12);
-        shellGroup.add(shellGraphic);
-        shellGroup.visible = false; // Invisible au départ
-        container.add(shellGroup);
-        enemyInstance.shellGroup = shellGroup;
-        // Désactiver la rotation automatique du sprite car on gère le flip dans Enemy.js
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // --- LOGIQUE "SE CACHER" ---
-        if (!enemyInstance.isInShell && !enemyInstance.hasUsedShell) // Vérifier si HP < 30%
-        {
-            if (enemyInstance.hp / enemyInstance.maxHp <= 0.3) {
-                enemyInstance.isInShell = true;
-                enemyInstance.hasUsedShell = true;
-                // 1. Arrêter le mouvement
-                if (enemyInstance.follower && enemyInstance.follower.tween) enemyInstance.follower.tween.pause();
-                // 2. Visuel : Passage en mode coquille
-                enemyInstance.normalGroup.visible = false;
-                enemyInstance.shellGroup.visible = true;
-                // 3. Timer pour ressortir (4 secondes)
-                enemyInstance.scene.time.delayedCall(4000, ()=>{
-                    // Vérifier si l'ennemi n'est pas mort entre temps
-                    if (enemyInstance.active) {
-                        enemyInstance.isInShell = false;
-                        // Reprendre le mouvement
-                        if (enemyInstance.follower && enemyInstance.follower.tween) enemyInstance.follower.tween.resume();
-                        // Visuel : Retour normal
-                        enemyInstance.normalGroup.visible = true;
-                        enemyInstance.shellGroup.visible = false;
-                    // Petit soin optionnel (bonus) : +10% HP
-                    // enemyInstance.hp = Math.min(enemyInstance.maxHp, enemyInstance.hp + (enemyInstance.maxHp * 0.1));
-                    // enemyInstance.updateHealthBar();
-                    }
-                });
-            }
-        }
-        // --- ANIMATIONS ---
-        if (enemyInstance.isInShell) // Animation : Tremblement quand caché
-        {
-            if (enemyInstance.shellGroup) {
-                enemyInstance.shellGroup.x = Math.sin(time * 0.05) * 1.5; // Tremble horizontalement
-                enemyInstance.shellGroup.rotation = Math.sin(time * 0.02) * 0.05; // Oscille un peu
-            }
-        } else {
-            // Animation : Marche normale
-            const speed = 0.006;
-            const range = 0.5;
-            // Animation des pattes (marche croisée)
-            if (enemyInstance.legs.front) enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
-            if (enemyInstance.legs.back) enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range; // Opposé
-            // Animation du corps (léger rebond)
-            if (enemyInstance.normalGroup) enemyInstance.normalGroup.y = Math.sin(time * speed * 2) * 1;
-        }
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8mFrl":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "shaman_gobelin", ()=>shaman_gobelin);
-const shaman_gobelin = {
-    name: "Shaman Gobelin",
-    speed: 45,
-    hp: 1200,
-    reward: 120,
-    playerDamage: 2,
-    color: 0x8b4513,
-    damage: 12,
-    attackSpeed: 1500,
-    scale: 0.9,
-    // Stats spécifiques au healer
-    healAmount: 60,
-    healInterval: 2000,
-    healRadius: 3,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Initialisation des états
-        enemyInstance.legs = {};
-        enemyInstance.healArea = null;
-        enemyInstance.orb = null;
-        enemyInstance.lastHealTime = 0; // Important pour le cooldown du soin
-        // --- 1. ZONE DE SOIN (Au sol, tout en bas) ---
-        const CONFIG = {
-            TILE_SIZE: 64
-        };
-        const tileSize = CONFIG.TILE_SIZE * (scene.scaleFactor || 1);
-        // On convertit le rayon "cases" en pixels
-        const radiusInPixels = shaman_gobelin.healRadius * tileSize;
-        const healArea = scene.add.graphics();
-        healArea.lineStyle(2, 0x00ff00, 0.5); // Bordure fine
-        healArea.strokeCircle(0, 0, radiusInPixels);
-        healArea.fillStyle(0x00ff00, 0.1); // Fond très transparent
-        healArea.fillCircle(0, 0, radiusInPixels);
-        // On l'ajoute au container mais avec un z-index négatif simulé par l'ordre d'ajout
-        // Astuce : On le met dans un container 'background' attaché au container principal
-        const bgContainer = scene.add.container(0, 0);
-        bgContainer.add(healArea);
-        container.add(bgContainer);
-        bgContainer.sendToBack(healArea); // S'assurer qu'il est derrière
-        enemyInstance.healArea = healArea;
-        enemyInstance.healRadiusPixels = radiusInPixels; // Stocker pour la logique
-        // --- 2. JAMBE ARRIÈRE ---
-        enemyInstance.legs.back = scene.add.container(-4, 6);
-        const legB = scene.add.graphics();
-        legB.fillStyle(0x5a3510); // Marron plus foncé pour l'arrière
-        legB.fillRoundedRect(-3, 0, 6, 14, 2); // Cuisse
-        legB.fillRoundedRect(-4, 12, 9, 5, 2); // Pied
-        enemyInstance.legs.back.add(legB);
-        container.add(enemyInstance.legs.back);
-        // --- 3. CORPS (Robe & Masque) ---
-        const bodyGroup = scene.add.container(0, 0);
-        const body = scene.add.graphics();
-        // Robe
-        body.fillStyle(color);
-        body.fillRoundedRect(-10, -15, 20, 24, 6);
-        body.lineStyle(2, 0x5a3510);
-        body.strokeRoundedRect(-10, -15, 20, 24, 6);
-        // Détails de la robe (ceinture)
-        body.fillStyle(0xccaa00); // Doré
-        body.fillRect(-10, -2, 20, 4);
-        // Collier d'os
-        body.fillStyle(0xeeeeee);
-        body.fillCircle(-6, -10, 2);
-        body.fillCircle(0, -8, 2);
-        body.fillCircle(6, -10, 2);
-        // Masque Tribal
-        body.fillStyle(0x222222); // Masque noir
-        body.fillRoundedRect(-8, -22, 16, 12, 3);
-        // Peinture de guerre sur le masque
-        body.fillStyle(0xff0000);
-        body.fillRect(-6, -20, 2, 8);
-        body.fillRect(4, -20, 2, 8);
-        // Yeux brillants
-        body.fillStyle(0x00ff00);
-        body.fillCircle(-4, -16, 2);
-        body.fillCircle(4, -16, 2);
-        bodyGroup.add(body);
-        container.add(bodyGroup);
-        // --- 4. BÂTON MAGIQUE ---
-        const staffContainer = scene.add.container(12, -5);
-        const staff = scene.add.graphics();
-        // Manche
-        staff.fillStyle(0x654321);
-        staff.fillRoundedRect(-2, -15, 4, 35, 1);
-        // Tête du bâton (Crâne ou bois)
-        staff.fillStyle(0xdddddd);
-        staff.fillCircle(0, -15, 5);
-        // Orbe magique (séparé pour animer l'alpha)
-        const orb = scene.add.circle(0, -15, 6, 0x00ff00, 0.6);
-        enemyInstance.orb = orb;
-        staffContainer.add(staff);
-        staffContainer.add(orb);
-        container.add(staffContainer);
-        enemyInstance.staff = staffContainer;
-        // --- 5. JAMBE AVANT ---
-        enemyInstance.legs.front = scene.add.container(4, 6);
-        const legF = scene.add.graphics();
-        legF.fillStyle(color);
-        legF.fillRoundedRect(-3, 0, 6, 14, 2);
-        legF.fillRoundedRect(-4, 12, 9, 5, 2);
-        enemyInstance.legs.front.add(legF);
-        container.add(enemyInstance.legs.front);
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // 1. Animation de Marche (Classique)
-        const speed = 0.007;
-        const range = 0.5;
-        if (enemyInstance.legs.front) enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
-        if (enemyInstance.legs.back) enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
-        // Petit rebond du bâton
-        if (enemyInstance.staff) enemyInstance.staff.y = -5 + Math.sin(time * speed * 2) * 2;
-        // 2. Animation Orbe & Zone (Pulsation passive)
-        if (enemyInstance.orb) {
-            enemyInstance.orb.alpha = 0.5 + Math.sin(time * 0.005) * 0.4;
-            const s = 1 + Math.sin(time * 0.01) * 0.2;
-            enemyInstance.orb.setScale(s);
-        }
-        if (enemyInstance.healArea) // La zone "respire" doucement
-        enemyInstance.healArea.alpha = 0.3 + Math.sin(time * 0.002) * 0.1;
-        // --- 3. LOGIQUE DE SOIN ---
-        if (!enemyInstance.scene || !enemyInstance.active) return;
-        const now = enemyInstance.scene.time.now;
-        // Vérifier le Cooldown (healInterval)
-        if (now - enemyInstance.lastHealTime > enemyInstance.stats.healInterval) {
-            let hasHealedSomeone = false;
-            const r2 = enemyInstance.healRadiusPixels * enemyInstance.healRadiusPixels; // Distance au carré pour perf
-            // Parcourir tous les ennemis
-            enemyInstance.scene.enemies.children.each((ally)=>{
-                // Ne pas soigner si : soi-même, mort, ou déjà full vie
-                if (ally === enemyInstance || !ally.active || ally.hp >= ally.maxHp) return;
-                // Calcul distance
-                const dx = ally.x - enemyInstance.x;
-                const dy = ally.y - enemyInstance.y;
-                const distSq = dx * dx + dy * dy;
-                // Si à portée
-                if (distSq <= r2) {
-                    // APPLIQUER LE SOIN
-                    const amount = enemyInstance.stats.healAmount;
-                    ally.hp = Math.min(ally.maxHp, ally.hp + amount);
-                    ally.updateHealthBar(); // Mise à jour visuelle de la barre de vie
-                    hasHealedSomeone = true;
-                    // Effet visuel sur l'allié soigné (Particules +HP)
-                    if (enemyInstance.scene.add) {
-                        const txt = enemyInstance.scene.add.text(ally.x, ally.y - 40, `+${amount}`, {
-                            fontSize: '16px',
-                            fill: '#00ff00',
-                            fontStyle: 'bold',
-                            stroke: '#000',
-                            strokeThickness: 2
-                        }).setOrigin(0.5);
-                        enemyInstance.scene.tweens.add({
-                            targets: txt,
-                            y: ally.y - 80,
-                            alpha: 0,
-                            duration: 1000,
-                            onComplete: ()=>txt.destroy()
-                        });
-                    }
-                }
-            });
-            // Si on a soigné au moins une personne, on déclenche l'animation de cast
-            if (hasHealedSomeone) {
-                enemyInstance.lastHealTime = now;
-                // Flash de la zone au sol
-                if (enemyInstance.healArea) {
-                    enemyInstance.healArea.alpha = 0.8;
-                    enemyInstance.scene.tweens.add({
-                        targets: enemyInstance.healArea,
-                        alpha: 0.1,
-                        duration: 500
-                    });
-                }
-                // Flash de l'orbe
-                if (enemyInstance.orb) {
-                    enemyInstance.orb.setScale(2);
-                    enemyInstance.scene.tweens.add({
-                        targets: enemyInstance.orb,
-                        scaleX: 1,
-                        scaleY: 1,
-                        duration: 300
-                    });
-                }
-            }
-        }
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"7ppi2":[function(require,module,exports,__globalThis) {
-// ==========================================
-// 3. DIVISEUR (Le Boss, se divise en moyens)
-// ==========================================
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "diviseur", ()=>diviseur);
-const diviseur = {
-    name: "Diviseur",
-    speed: 30,
-    hp: 3500,
-    reward: 180,
-    playerDamage: 4,
-    color: 0x00ff00,
-    damage: 20,
-    attackSpeed: 1200,
-    scale: 1.3,
-    // --- LOGIQUE DE DIVISION ---
-    onDeath: (enemy)=>{
-        if (!enemy.scene || !enemy.active) return;
-        // Paramètres
-        const childKey = "slime_medium";
-        const count = 2; // Se divise en 2 moyens
-        // Splash visuel à la mort du gros
-        const splash = enemy.scene.add.circle(enemy.x, enemy.y, 10, 0x00ff00);
-        enemy.scene.tweens.add({
-            targets: splash,
-            scale: 5,
-            alpha: 0,
-            duration: 400,
-            onComplete: ()=>splash.destroy()
-        });
-        // Création des enfants
-        const ChildClass = enemy.constructor;
-        for(let i = 0; i < count; i++){
-            const child = new ChildClass(enemy.scene, enemy.path, childKey);
-            child.follower.t = Math.max(0, enemy.follower.t - i * 0.02);
-            const point = enemy.path.getPoint(child.follower.t);
-            child.setPosition(point.x, point.y);
-            child.targetPathOffset = (Math.random() - 0.5) * 35;
-            child.currentPathOffset = child.targetPathOffset;
-            child.spawn();
-            enemy.scene.enemies.add(child);
-            child.bodyGroup.y = -25;
-            enemy.scene.tweens.add({
-                targets: child.bodyGroup,
-                y: 0,
-                duration: 400,
-                ease: 'Bounce.Out'
-            });
-        }
-    },
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Slime géant : forme de goutte massive
-        const body = scene.add.graphics();
-        // Corps principal (grosse goutte)
-        body.fillStyle(color);
-        body.fillEllipse(0, 0, 50, 45);
-        body.lineStyle(3, 0x00cc00);
-        body.strokeEllipse(0, 0, 50, 45);
-        // Reflets brillants
-        body.fillStyle(0x88ff88);
-        body.fillEllipse(-8, -10, 15, 12);
-        body.fillEllipse(5, -8, 10, 8);
-        // Yeux multiples
-        body.fillStyle(0x000000);
-        body.fillCircle(-12, -5, 4);
-        body.fillCircle(0, -8, 4);
-        body.fillCircle(12, -5, 4);
-        // Petites bulles à la surface
-        body.fillStyle(0x88ff88);
-        for(let i = 0; i < 5; i++){
-            const angle = i / 5 * Math.PI * 2;
-            const dist = 18;
-            body.fillCircle(Math.cos(angle) * dist, Math.sin(angle) * dist, 3);
-        }
-        container.add(body);
-        enemyInstance.body = body;
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Animation de tremblement/ondulation
-        if (enemyInstance.body) {
-            const wobble = Math.sin(time * 0.008) * 0.1;
-            enemyInstance.body.scaleX = 1 + wobble;
-            enemyInstance.body.scaleY = 1 - wobble * 0.5;
-            // Mouvement vertical de rebond
-            enemyInstance.bodyGroup.y = Math.sin(time * 0.01) * 3;
-        }
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"j7fMh":[function(require,module,exports,__globalThis) {
-// ==========================================
-// 2. SLIME MOYEN (Se divise en petits)
-// ==========================================
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "slime_medium", ()=>slime_medium);
-const slime_medium = {
-    name: "Slime Moyen",
-    speed: 40,
-    hp: 800,
-    reward: 50,
-    playerDamage: 2,
-    color: 0x44ff44,
-    damage: 12,
-    attackSpeed: 1000,
-    scale: 0.9,
-    // --- LOGIQUE DE DIVISION ---
-    onDeath: (enemy)=>{
-        if (!enemy.scene || !enemy.active) return;
-        // Paramètres
-        const childKey = "slime_small";
-        const count = 2; // Se divise en 2 petits
-        // Création des enfants
-        const ChildClass = enemy.constructor;
-        for(let i = 0; i < count; i++){
-            const child = new ChildClass(enemy.scene, enemy.path, childKey);
-            // Positionnement légèrement décalé
-            child.follower.t = Math.max(0, enemy.follower.t - i * 0.015);
-            const point = enemy.path.getPoint(child.follower.t);
-            child.setPosition(point.x, point.y);
-            // Dispersion latérale
-            child.targetPathOffset = (Math.random() - 0.5) * 25;
-            child.currentPathOffset = child.targetPathOffset;
-            child.spawn();
-            enemy.scene.enemies.add(child);
-            // Petit saut à l'apparition
-            child.bodyGroup.y = -15;
-            enemy.scene.tweens.add({
-                targets: child.bodyGroup,
-                y: 0,
-                duration: 250,
-                ease: 'Bounce.Out'
-            });
-        }
-    },
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Slime moyen : forme de goutte
-        const body = scene.add.graphics();
-        // Corps principal
-        body.fillStyle(color);
-        body.fillEllipse(0, 0, 35, 30);
-        body.lineStyle(2, 0x33cc33);
-        body.strokeEllipse(0, 0, 35, 30);
-        // Reflets
-        body.fillStyle(0x66ff66);
-        body.fillEllipse(-5, -6, 10, 8);
-        body.fillEllipse(3, -5, 7, 6);
-        // Yeux
-        body.fillStyle(0x000000);
-        body.fillCircle(-8, -3, 3);
-        body.fillCircle(8, -3, 3);
-        // Petites bulles
-        body.fillStyle(0x66ff66);
-        for(let i = 0; i < 3; i++){
-            const angle = i / 3 * Math.PI * 2;
-            const dist = 12;
-            body.fillCircle(Math.cos(angle) * dist, Math.sin(angle) * dist, 2);
-        }
-        container.add(body);
-        enemyInstance.body = body;
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Animation de tremblement
-        if (enemyInstance.body) {
-            const wobble = Math.sin(time * 0.01) * 0.08;
-            enemyInstance.body.scaleX = 1 + wobble;
-            enemyInstance.body.scaleY = 1 - wobble * 0.5;
-            // Mouvement vertical
-            enemyInstance.bodyGroup.y = Math.sin(time * 0.012) * 2;
-        }
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"KCZbL":[function(require,module,exports,__globalThis) {
-// ==========================================
-// 1. PETIT SLIME (Dernier stade, ne se divise plus)
-// ==========================================
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "slime_small", ()=>slime_small);
-const slime_small = {
-    name: "Petit Slime",
-    speed: 50,
-    hp: 300,
-    reward: 20,
-    playerDamage: 1,
-    color: 0x88ff88,
-    damage: 8,
-    attackSpeed: 800,
-    scale: 0.6,
-    // Pas de onDeath car c'est la fin de la chaîne
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Petit slime : forme de goutte petite
-        const body = scene.add.graphics();
-        // Corps principal
-        body.fillStyle(color);
-        body.fillEllipse(0, 0, 22, 18);
-        body.lineStyle(2, 0x66ff66);
-        body.strokeEllipse(0, 0, 22, 18);
-        // Reflet
-        body.fillStyle(0xaaffaa);
-        body.fillEllipse(-3, -4, 6, 5);
-        // Yeux
-        body.fillStyle(0x000000);
-        body.fillCircle(-5, -2, 2);
-        body.fillCircle(5, -2, 2);
-        // Petite bulle
-        body.fillStyle(0xaaffaa);
-        body.fillCircle(0, 6, 1.5);
-        container.add(body);
-        enemyInstance.body = body;
-        enemyInstance.shouldRotate = false;
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Animation de tremblement rapide
-        if (enemyInstance.body) {
-            const wobble = Math.sin(time * 0.015) * 0.06;
-            enemyInstance.body.scaleX = 1 + wobble;
-            enemyInstance.body.scaleY = 1 - wobble * 0.5;
-            // Mouvement vertical rapide
-            enemyInstance.bodyGroup.y = Math.sin(time * 0.018) * 1.5;
-        }
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8MdQT":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "bosslvl3", ()=>bosslvl3);
-const bosslvl3 = {
-    name: "OMEGA-TITAN",
-    speed: 8,
-    hp: 180000,
-    reward: 5000,
-    playerDamage: 20,
-    color: 0xff4400,
-    damage: 500,
-    attackSpeed: 2000,
-    scale: 1.6,
-    onDraw: (scene, container, color, enemyInstance)=>{
-        // Initialisation des références pour l'animation
-        enemyInstance.gears = [];
-        enemyInstance.pistons = [];
-        // --- 1. FUMÉE VOLCANIQUE (Arrière-plan) ---
-        // Des cercles gris qui tourneront autour de lui
-        const smokeGroup = scene.add.container(0, 0);
-        for(let i = 0; i < 6; i++){
-            const smoke = scene.add.graphics();
-            smoke.fillStyle(0x333333, 0.5);
-            smoke.fillCircle(0, 0, 10 + Math.random() * 10);
-            // Position aléatoire autour du centre
-            smoke.x = (Math.random() - 0.5) * 60;
-            smoke.y = (Math.random() - 0.5) * 60;
-            smokeGroup.add(smoke);
-        }
-        container.add(smokeGroup);
-        enemyInstance.smokeGroup = smokeGroup;
-        // --- 2. JAMBES BLINDÉES ---
-        // Deux gros rectangles noirs pour les pieds
-        const legs = scene.add.graphics();
-        legs.fillStyle(0x1a1a1a); // Acier noir
-        legs.lineStyle(2, 0xff4400); // Bordure en fusion
-        // Jambe G
-        legs.fillRect(-30, 10, 20, 30);
-        // Jambe D
-        legs.fillRect(10, 10, 20, 30);
-        legs.strokeRect(-30, 10, 20, 30);
-        legs.strokeRect(10, 10, 20, 30);
-        container.add(legs);
-        // --- 3. CORPS (TORSE MASSIF) ---
-        const torso = scene.add.graphics();
-        torso.fillStyle(0x222222); // Gris foncé
-        // Forme trapézoïdale pour faire "costaud"
-        torso.beginPath();
-        torso.moveTo(-40, -20); // Haut G
-        torso.lineTo(40, -20); // Haut D
-        torso.lineTo(30, 20); // Bas D
-        torso.lineTo(-30, 20); // Bas G
-        torso.closePath();
-        torso.fillPath();
-        container.add(torso);
-        // --- 4. CŒUR DE FUSION (Le point faible visuel) ---
-        // Un cercle qui va pulser
-        const core = scene.add.graphics();
-        core.fillStyle(0xffaa00); // Jaune/Orange très vif
-        core.fillCircle(0, 0, 12);
-        container.add(core);
-        enemyInstance.coreGraphic = core;
-        // --- 5. ÉPAULIÈRES ROTATIVES (Engrenages) ---
-        // Deux engrenages sur les épaules qui tournent
-        const createGear = (x, y)=>{
-            const gear = scene.add.graphics();
-            gear.lineStyle(3, 0x555555);
-            gear.fillStyle(0x333333);
-            // Dessin d'un engrenage simple
-            const radius = 18;
-            const teeth = 8;
-            gear.beginPath();
-            for(let i = 0; i < teeth * 2; i++){
-                const angle = Math.PI * 2 * i / (teeth * 2);
-                const r = i % 2 === 0 ? radius : radius - 5;
-                const px = Math.cos(angle) * r;
-                const py = Math.sin(angle) * r;
-                if (i === 0) gear.moveTo(px, py);
-                else gear.lineTo(px, py);
-            }
-            gear.closePath();
-            gear.fillPath();
-            gear.strokePath();
-            // Centre de l'engrenage
-            gear.fillStyle(0xff0000);
-            gear.fillCircle(0, 0, 5);
-            const gearCont = scene.add.container(x, y);
-            gearCont.add(gear);
-            return gearCont;
-        };
-        const leftGear = createGear(-45, -25);
-        const rightGear = createGear(45, -25);
-        container.add(leftGear);
-        container.add(rightGear);
-        enemyInstance.gears.push(leftGear, rightGear);
-        // --- 6. TÊTE (Casque) ---
-        const head = scene.add.graphics();
-        head.fillStyle(0x111111); // Noir
-        head.fillRect(-15, -45, 30, 25);
-        // Visière cylon (rouge/orange)
-        head.fillStyle(0xff0000);
-        head.fillRect(-12, -35, 24, 4);
-        container.add(head);
-        // --- CONFIG ---
-        enemyInstance.shouldRotate = false; // Il reste droit (comme un mech)
-    },
-    onUpdateAnimation: (time, enemyInstance)=>{
-        // Sécurité
-        if (!enemyInstance.coreGraphic || !enemyInstance.smokeGroup) return;
-        // 1. MARCHE LOURDE (Pilonnage)
-        // Au lieu de trembler, il monte et descend lourdement
-        // Sinus lent mais grande amplitude
-        const walkCycle = Math.sin(time * 0.008);
-        // On déplace tout le conteneur du corps (offset Y)
-        // Note: on modifie les éléments graphiques internes pour ne pas casser le x/y global de l'ennemi sur le chemin
-        enemyInstance.bodyGroup.y = Math.abs(walkCycle) * -5; // Il s'écrase au sol à 0, monte à -5
-        // 2. PULSATION DU CŒUR (Thermique)
-        // La chaleur monte et descend
-        const heat = 0.8 + Math.abs(Math.sin(time * 0.01)) * 0.5;
-        enemyInstance.coreGraphic.scaleX = heat;
-        enemyInstance.coreGraphic.scaleY = heat;
-        enemyInstance.coreGraphic.alpha = 0.5 + heat / 3;
-        // 3. ROTATION DES ENGRENAGES (Mécanique)
-        // Ils tournent en sens inverse l'un de l'autre
-        if (enemyInstance.gears) {
-            enemyInstance.gears[0].rotation -= 0.02; // Gauche
-            enemyInstance.gears[1].rotation += 0.02; // Droite
-        }
-        // 4. FUMÉE EN ORBITE
-        // La fumée tourne lentement autour du boss
-        enemyInstance.smokeGroup.rotation += 0.005;
-        // Et palpite légèrement
-        enemyInstance.smokeGroup.scaleX = 1 + Math.sin(time * 0.002) * 0.1;
-        enemyInstance.smokeGroup.scaleY = 1 + Math.sin(time * 0.002) * 0.1;
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8fcfE":[function(require,module,exports,__globalThis) {
+},{"../config/levels/index.js":"8fcfE","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../services/authManager.js":"cvKjF","../services/authOverlay.js":"g1JuO","./components/LeaderboardUI.js":"fNAJL","./components/HeroUpgradeUI.js":"cwcYt","95ddb640642c8907":"hLiDk"}],"8fcfE":[function(require,module,exports,__globalThis) {
 // src/levels/index.js
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
@@ -3648,7 +1042,37 @@ const LEVEL_1 = {
     ]
 };
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"alrw9":[function(require,module,exports,__globalThis) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"jnFvT":[function(require,module,exports,__globalThis) {
+exports.interopDefault = function(a) {
+    return a && a.__esModule ? a : {
+        default: a
+    };
+};
+exports.defineInteropFlag = function(a) {
+    Object.defineProperty(a, '__esModule', {
+        value: true
+    });
+};
+exports.exportAll = function(source, dest) {
+    Object.keys(source).forEach(function(key) {
+        if (key === 'default' || key === '__esModule' || Object.prototype.hasOwnProperty.call(dest, key)) return;
+        Object.defineProperty(dest, key, {
+            enumerable: true,
+            get: function() {
+                return source[key];
+            }
+        });
+    });
+    return dest;
+};
+exports.export = function(dest, destName, get) {
+    Object.defineProperty(dest, destName, {
+        enumerable: true,
+        get: get
+    });
+};
+
+},{}],"alrw9":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "LEVEL_2", ()=>LEVEL_2);
@@ -4751,6 +2175,8 @@ parcelHelpers.export(exports, "isAuthenticated", ()=>isAuthenticated);
 parcelHelpers.export(exports, "getProfile", ()=>getProfile);
 parcelHelpers.export(exports, "getUnlockedLevel", ()=>getUnlockedLevel);
 parcelHelpers.export(exports, "getHeroStats", ()=>getHeroStats);
+parcelHelpers.export(exports, "getHeroPointConversion", ()=>getHeroPointConversion);
+parcelHelpers.export(exports, "getHeroPointsAvailable", ()=>getHeroPointsAvailable);
 parcelHelpers.export(exports, "getPlayer", ()=>getPlayer);
 parcelHelpers.export(exports, "ensureProfileLoaded", ()=>ensureProfileLoaded);
 parcelHelpers.export(exports, "registerUser", ()=>registerUser);
@@ -4758,6 +2184,7 @@ parcelHelpers.export(exports, "loginUser", ()=>loginUser);
 parcelHelpers.export(exports, "logout", ()=>logout);
 parcelHelpers.export(exports, "recordHeroKill", ()=>recordHeroKill);
 parcelHelpers.export(exports, "recordLevelCompletion", ()=>recordLevelCompletion);
+parcelHelpers.export(exports, "upgradeHero", ()=>upgradeHero);
 parcelHelpers.export(exports, "handleAuthError", ()=>handleAuthError);
 var _apiClientJs = require("./apiClient.js");
 const TOKEN_KEY = "authToken";
@@ -4778,6 +2205,12 @@ function getUnlockedLevel() {
 }
 function getHeroStats() {
     return currentProfile?.heroStats || null;
+}
+function getHeroPointConversion() {
+    return currentProfile?.heroPointConversion || null;
+}
+function getHeroPointsAvailable() {
+    return currentProfile?.player?.hero_points_available ?? 0;
 }
 function getPlayer() {
     return currentProfile?.player || null;
@@ -4835,6 +2268,15 @@ async function recordLevelCompletion(payload) {
         ...payload
     });
     if (currentProfile?.progress) currentProfile.progress = response.data.progress;
+    return response.data;
+}
+async function upgradeHero(stat, points) {
+    if (!isAuthenticated()) return null;
+    const response = await (0, _apiClientJs.apiClient).post("/api/player/hero/upgrade", {
+        stat,
+        points
+    });
+    if (response.data?.profile) currentProfile = response.data.profile;
     return response.data;
 }
 function handleAuthError(error) {
@@ -9864,7 +7306,516 @@ const showAuth = ()=>{
     toggleGameBlock(true);
 };
 
-},{"./authManager.js":"cvKjF","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bDbTi":[function(require,module,exports,__globalThis) {
+},{"./authManager.js":"cvKjF","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"fNAJL":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LeaderboardUI", ()=>LeaderboardUI);
+var _leaderboardServiceJs = require("../../services/leaderboardService.js");
+class LeaderboardUI extends Phaser.GameObjects.Container {
+    constructor(scene, x, y){
+        super(scene, x, y);
+        this.config = {
+            width: 500,
+            height: 450,
+            accentColor: 0x00eaff,
+            rowHeight: 32,
+            maxEntries: 8
+        };
+        this.setupLayout();
+        this.loadData();
+        this.scene.add.existing(this);
+        this.setDepth(200);
+    }
+    setupLayout() {
+        const { width, height, accentColor } = this.config;
+        // --- 1. PANNEAU DE FOND ---
+        const bg = this.scene.add.graphics();
+        // Ombre de profondeur
+        bg.fillStyle(0x000000, 0.5);
+        bg.fillRoundedRect(10, 10, width, height, 15);
+        // Bordure et fond
+        bg.fillStyle(0x0d1b2a, 0.95);
+        bg.lineStyle(2, accentColor, 1);
+        bg.fillRoundedRect(0, 0, width, height, 15);
+        bg.strokeRoundedRect(0, 0, width, height, 15);
+        // Ligne de séparation header
+        bg.lineStyle(1, accentColor, 0.4);
+        bg.lineBetween(15, 55, width - 15, 55);
+        this.add(bg);
+        // --- 2. TITRE ---
+        const title = this.scene.add.text(width / 2, 18, "\uD83D\uDCCA CLASSEMENT DES SURVIVANTS", {
+            fontSize: "20px",
+            fontFamily: "Impact, sans-serif",
+            color: "#ffffff",
+            letterSpacing: 1
+        }).setOrigin(0.5, 0).setShadow(0, 0, "#00eaff", 10);
+        this.add(title);
+        // --- 3. BOUTON REFRESH ---
+        this.refreshBtn = this.scene.add.text(width - 30, 28, "\u21BB", {
+            fontSize: "26px",
+            color: accentColor,
+            fontStyle: "bold"
+        }).setOrigin(0.5).setInteractive({
+            useHandCursor: true
+        });
+        this.refreshBtn.on("pointerdown", ()=>this.handleRefresh());
+        this.add(this.refreshBtn);
+        // --- 4. EN-TÊTE DES COLONNES (ALIGNEMENT FIXE) ---
+        const hStyle = {
+            fontSize: "11px",
+            color: "#7dd0ff",
+            fontWeight: "bold",
+            fontFamily: "Orbitron, Arial"
+        };
+        // On définit des X fixes pour chaque colonne
+        this.cols = {
+            rank: 20,
+            player: 65,
+            lvl: 185,
+            hearts: 275,
+            time: width - 20
+        };
+        this.add([
+            this.scene.add.text(this.cols.rank, 65, "RANG", hStyle),
+            this.scene.add.text(this.cols.player, 65, "JOUEUR", hStyle),
+            this.scene.add.text(this.cols.lvl, 65, "NIV MAX", hStyle),
+            this.scene.add.text(this.cols.hearts, 65, "COEURS PERDUS", hStyle),
+            this.scene.add.text(this.cols.time, 65, "TEMPS CUMUL\xc9", hStyle).setOrigin(1, 0)
+        ]);
+        // --- 5. LISTE DES ENTRÉES ---
+        this.listContainer = this.scene.add.container(0, 95);
+        this.add(this.listContainer);
+        this.statusText = this.scene.add.text(width / 2, height / 2 + 30, "", {
+            fontSize: "14px",
+            color: "#ffffff",
+            fontFamily: "Courier New"
+        }).setOrigin(0.5);
+        this.add(this.statusText);
+    }
+    async handleRefresh() {
+        this.scene.tweens.add({
+            targets: this.refreshBtn,
+            angle: 360,
+            duration: 500,
+            onComplete: ()=>{
+                this.refreshBtn.angle = 0;
+                this.loadData();
+            }
+        });
+    }
+    async loadData() {
+        try {
+            this.listContainer.removeAll(true);
+            this.statusText.setText("CHARGEMENT DES DONN\xc9ES...");
+            const entries = await (0, _leaderboardServiceJs.fetchLeaderboard)();
+            this.statusText.setText("");
+            this.renderEntries(entries);
+        } catch (err) {
+            this.statusText.setText("ERREUR DE SYNCHRONISATION");
+        }
+    }
+    renderEntries(entries) {
+        if (!entries || entries.length === 0) {
+            this.statusText.setText("AUCUN SURVIVANT R\xc9PERTORI\xc9");
+            return;
+        }
+        entries.slice(0, this.config.maxEntries).forEach((entry, idx)=>{
+            const y = idx * this.config.rowHeight;
+            const isFirst = idx === 0;
+            const color = isFirst ? "#ffd700" : "#ffffff";
+            const row = this.scene.add.container(0, y);
+            // Fond de ligne alterné
+            const rowBg = this.scene.add.graphics();
+            rowBg.fillStyle(0xffffff, idx % 2 === 0 ? 0.03 : 0);
+            rowBg.fillRect(10, -5, this.config.width - 20, 28);
+            row.add(rowBg);
+            // 1. RANG (01, 02...)
+            const rank = (idx + 1).toString().padStart(2, '0');
+            const rankTxt = this.scene.add.text(this.cols.rank, 0, rank, {
+                fontSize: "13px",
+                fontFamily: "Courier New",
+                color: color,
+                fontWeight: isFirst ? "bold" : "normal"
+            });
+            // 2. JOUEUR
+            const name = (entry.username || "Inconnu").substring(0, 12);
+            const nameTxt = this.scene.add.text(this.cols.player, 0, name, {
+                fontSize: "13px",
+                fontFamily: "Arial",
+                color: color
+            });
+            // 3. NIV MAX
+            const lvlTxt = this.scene.add.text(this.cols.lvl, 0, `${entry.max_level || 0}`, {
+                fontSize: "13px",
+                fontFamily: "Courier New",
+                color: color
+            });
+            // 4. COEURS PERDUS (Icône + nombre + "perdu")
+            const heartsCount = entry.total_lives_lost || 0;
+            const heartsContainer = this.scene.add.container(this.cols.hearts, 0);
+            const heartIcon = this.scene.add.text(0, -1, "\u2764\uFE0F", {
+                fontSize: "12px"
+            });
+            const heartValue = this.scene.add.text(18, 0, `${heartsCount}`, {
+                fontSize: "12px",
+                fontFamily: "Arial",
+                color: color
+            });
+            heartsContainer.add([
+                heartIcon,
+                heartValue
+            ]);
+            // 5. TEMPS CUMULÉ
+            const timeStr = this.formatTime(entry.total_time_ms);
+            const timeTxt = this.scene.add.text(this.cols.time, 0, timeStr, {
+                fontSize: "13px",
+                fontFamily: "Courier New",
+                color: "#00eaff"
+            }).setOrigin(1, 0);
+            row.add([
+                rankTxt,
+                nameTxt,
+                lvlTxt,
+                heartsContainer,
+                timeTxt
+            ]);
+            this.listContainer.add(row);
+            // Animation d'apparition
+            row.alpha = 0;
+            row.x = -15;
+            this.scene.tweens.add({
+                targets: row,
+                alpha: 1,
+                x: 0,
+                duration: 300,
+                delay: idx * 40
+            });
+        });
+    }
+    formatTime(ms) {
+        if (!ms || ms <= 0) return "0:00";
+        const sec = Math.floor(ms / 1000);
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+}
+
+},{"../../services/leaderboardService.js":"2zhl5","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"2zhl5":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "fetchLeaderboard", ()=>fetchLeaderboard);
+var _apiClientJs = require("./apiClient.js");
+async function fetchLeaderboard() {
+    const response = await (0, _apiClientJs.apiClient).get("/api/player/leaderboard");
+    return response.data?.entries || [];
+}
+
+},{"./apiClient.js":"eiuF4","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"cwcYt":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "HeroUpgradeUI", ()=>HeroUpgradeUI);
+var _authManagerJs = require("../../services/authManager.js");
+var _authOverlayJs = require("../../services/authOverlay.js");
+class HeroUpgradeUI extends Phaser.GameObjects.Container {
+    constructor(scene, x, y){
+        super(scene, x, y);
+        // --- Configuration du Design ---
+        this.config = {
+            width: 380,
+            height: 300,
+            padding: 20,
+            accentColor: 0x00eaff,
+            bgColor: 0x050a10,
+            rowHeight: 55,
+            avatarSize: 80
+        };
+        this.statElements = new Map(); // Pour stocker les références proprement
+        this.setupMainPanel();
+        this.refresh();
+        this.scene.add.existing(this);
+        this.setDepth(180);
+    }
+    setupMainPanel() {
+        const { width, height, padding, accentColor, bgColor } = this.config;
+        // 1. Fond avec bordure néon et dégradé
+        const bg = this.scene.add.graphics();
+        bg.fillStyle(bgColor, 0.9);
+        bg.lineStyle(2, accentColor, 1);
+        bg.fillRoundedRect(0, 0, width, height, 15);
+        bg.strokeRoundedRect(0, 0, width, height, 15);
+        // Petite barre décorative en haut
+        bg.lineStyle(4, accentColor, 0.5);
+        bg.lineBetween(width * 0.3, 0, width * 0.7, 0);
+        this.add(bg);
+        // 2. Titre stylisé
+        const title = this.scene.add.text(width / 2, -15, " SYST\xc8ME H\xc9ROS ", {
+            fontFamily: "Impact, sans-serif",
+            fontSize: "24px",
+            color: "#ffffff",
+            backgroundColor: "#050a10",
+            padding: {
+                x: 10,
+                y: 2
+            }
+        }).setOrigin(0.5);
+        this.add(title);
+        // 3. Section Avatar (à gauche)
+        this.createAvatar(padding, 40);
+        // 4. Section Stats (à droite de l'avatar)
+        const statsData = [
+            {
+                key: "hp",
+                label: "INT\xc9GRIT\xc9 (PV)",
+                color: 0x4caf50
+            },
+            {
+                key: "damage",
+                label: "PUISSANCE",
+                color: 0xff4d4d
+            },
+            {
+                key: "move_speed",
+                label: "AGILIT\xc9",
+                color: 0x00eaff
+            }
+        ];
+        const statsStartX = padding + this.config.avatarSize + 25; // Espace après l'avatar
+        statsData.forEach((stat, idx)=>{
+            this.createStatRow(stat, statsStartX, 60 + idx * this.config.rowHeight);
+        });
+        // 5. Footer (Points & Coût)
+        this.pointsText = this.scene.add.text(width / 2, height - 50, "", {
+            fontSize: "16px",
+            fontFamily: "Orbitron, sans-serif",
+            color: "#7dd0ff",
+            fontWeight: "bold"
+        }).setOrigin(0.5);
+        this.costText = this.scene.add.text(width / 2, height - 25, "", {
+            fontSize: "11px",
+            fontFamily: "Arial",
+            color: "#aaaaaa"
+        }).setOrigin(0.5);
+        this.add([
+            this.pointsText,
+            this.costText
+        ]);
+    }
+    createAvatar(x, y) {
+        const size = this.config.avatarSize;
+        const container = this.scene.add.container(x, y);
+        const frame = this.scene.add.graphics();
+        // Ombre/Glow de l'avatar
+        frame.lineStyle(2, this.config.accentColor, 0.5);
+        frame.strokeRect(-2, -2, size + 4, size + 4);
+        // Fond de l'avatar
+        frame.fillStyle(0x1a2a3a, 1);
+        frame.fillRect(0, 0, size, size);
+        // Dessiner le héros comme dans Hero.js (version réduite)
+        const scale = size / 50; // Facteur d'échelle pour adapter au format avatar
+        const centerX = size / 2;
+        const centerY = size / 2;
+        // Ombre au sol
+        frame.fillStyle(0x000000, 0.18);
+        frame.fillEllipse(centerX, centerY + 18 * scale, 26 * scale, 10 * scale);
+        // Cape
+        frame.fillStyle(0x151526, 0.92);
+        frame.fillEllipse(centerX - 2 * scale, centerY + 8 * scale, 22 * scale, 30 * scale);
+        frame.fillStyle(0x0d0d18, 0.35);
+        frame.fillEllipse(centerX - 6 * scale, centerY + 10 * scale, 14 * scale, 24 * scale);
+        // Armure (corps)
+        frame.fillStyle(0x505050, 1);
+        frame.fillRoundedRect(centerX - 12 * scale, centerY - 18 * scale, 24 * scale, 34 * scale, 7 * scale);
+        frame.lineStyle(2 * scale, 0x242424, 1);
+        frame.strokeRoundedRect(centerX - 12 * scale, centerY - 18 * scale, 24 * scale, 34 * scale, 7 * scale);
+        // Plastron
+        frame.lineStyle(2 * scale, 0x6a6a6a, 0.6);
+        frame.beginPath();
+        frame.moveTo(centerX, centerY - 16 * scale);
+        frame.lineTo(centerX, centerY + 10 * scale);
+        frame.strokePath();
+        // Épaulières
+        frame.fillStyle(0x7a7a7a, 1);
+        frame.fillCircle(centerX - 11 * scale, centerY - 12 * scale, 7 * scale);
+        frame.fillCircle(centerX + 11 * scale, centerY - 12 * scale, 7 * scale);
+        frame.lineStyle(2 * scale, 0x2a2a2a, 0.9);
+        frame.strokeCircle(centerX - 11 * scale, centerY - 12 * scale, 7 * scale);
+        frame.strokeCircle(centerX + 11 * scale, centerY - 12 * scale, 7 * scale);
+        // Ceinture
+        frame.fillStyle(0x8b5a2b, 1);
+        frame.fillRoundedRect(centerX - 12 * scale, centerY + 6 * scale, 24 * scale, 5 * scale, 2 * scale);
+        frame.fillStyle(0xd2b48c, 0.9);
+        frame.fillRect(centerX - 2 * scale, centerY + 6 * scale, 4 * scale, 5 * scale);
+        // Tête (comme dans Hero.js)
+        frame.fillStyle(0xffd4a3, 1);
+        frame.fillCircle(centerX, centerY - 24 * scale, 8 * scale);
+        // Casque / cheveux
+        frame.fillStyle(0x2b2b2b, 1);
+        frame.fillRoundedRect(centerX - 10 * scale, centerY - 33 * scale, 20 * scale, 8 * scale, 3 * scale);
+        // Yeux (regard)
+        frame.fillStyle(0x111111, 0.9);
+        frame.fillCircle(centerX - 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
+        frame.fillCircle(centerX + 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
+        // Épée (comme dans Hero.js) - utiliser un container pour la rotation
+        const swordPivotX = centerX + 12 * scale;
+        const swordPivotY = centerY - 4 * scale;
+        const swordPivot = this.scene.add.container(swordPivotX, swordPivotY);
+        swordPivot.setRotation(-0.3);
+        const sword = this.scene.add.graphics();
+        // Lame (avec petit highlight)
+        sword.fillStyle(0xd6d6d6, 1);
+        sword.fillRoundedRect(0, -2 * scale, 22 * scale, 5 * scale, 2 * scale);
+        sword.fillStyle(0xffffff, 0.75);
+        sword.fillRoundedRect(0, -2 * scale, 22 * scale, 2.2 * scale, 2 * scale);
+        // Pointe
+        sword.fillStyle(0xcfcfcf, 1);
+        sword.fillTriangle(22 * scale, -2 * scale, 28 * scale, 0.5 * scale, 22 * scale, 3 * scale);
+        // Garde
+        sword.fillStyle(0x6b3d18, 1);
+        sword.fillRoundedRect(-4 * scale, -4.2 * scale, 6 * scale, 9 * scale, 2 * scale);
+        // Poignée
+        sword.fillStyle(0x8b4513, 1);
+        sword.fillRoundedRect(-8 * scale, -2.5 * scale, 5 * scale, 6 * scale, 2 * scale);
+        sword.fillStyle(0x3b2210, 0.55);
+        sword.fillRect(-7.2 * scale, -2.2 * scale, 3.5 * scale, 0.8 * scale);
+        sword.fillRect(-7.2 * scale, -0.6 * scale, 3.5 * scale, 0.8 * scale);
+        sword.fillRect(-7.2 * scale, 1.0 * scale, 3.5 * scale, 0.8 * scale);
+        // Pommeau
+        sword.fillStyle(0xbdbdbd, 1);
+        sword.fillCircle(-9.2 * scale, 0.5 * scale, 2.2 * scale);
+        swordPivot.add(sword);
+        container.add(swordPivot);
+        container.add(frame);
+        this.add(container);
+    }
+    createStatRow(stat, x, y) {
+        const barWidth = 180;
+        // Label de la stat
+        const label = this.scene.add.text(x, y - 20, stat.label, {
+            fontSize: "11px",
+            fontWeight: "bold",
+            color: "#ffffff",
+            letterSpacing: 1
+        });
+        // Valeur numérique
+        const valText = this.scene.add.text(x + barWidth, y - 20, "0", {
+            fontSize: "12px",
+            color: "#00eaff"
+        }).setOrigin(1, 0);
+        // Texte de conversion (ex: "+0.4 par point")
+        const conversionText = this.scene.add.text(x, y + 15, "", {
+            fontSize: "9px",
+            color: "#7dd0ff",
+            fontStyle: "italic"
+        });
+        // Fond de la barre (vaisseau)
+        const barBg = this.scene.add.graphics();
+        barBg.fillStyle(0xffffff, 0.1);
+        barBg.fillRoundedRect(x, y, barWidth, 10, 5);
+        // Barre de progression (le remplissage)
+        const barFill = this.scene.add.graphics();
+        // Bouton "+" stylisé
+        const btn = this.scene.add.container(x + barWidth + 25, y + 5);
+        const btnBg = this.scene.add.circle(0, 0, 12, 0x00eaff, 0.2).setStrokeStyle(1, 0x00eaff);
+        const btnPlus = this.scene.add.text(0, 0, "+", {
+            fontSize: "18px",
+            color: "#00eaff"
+        }).setOrigin(0.5);
+        btn.add([
+            btnBg,
+            btnPlus
+        ]);
+        btn.setSize(24, 24).setInteractive({
+            useHandCursor: true
+        });
+        btn.on("pointerover", ()=>btnBg.setFillStyle(0x00eaff, 0.5));
+        btn.on("pointerout", ()=>btnBg.setFillStyle(0x00eaff, 0.2));
+        btn.on("pointerdown", ()=>this.handleUpgrade(stat.key));
+        this.statElements.set(stat.key, {
+            label,
+            valText,
+            barFill,
+            conversionText,
+            color: stat.color,
+            x,
+            y,
+            barWidth
+        });
+        this.add([
+            label,
+            valText,
+            conversionText,
+            barBg,
+            barFill,
+            btn
+        ]);
+    }
+    async handleUpgrade(key) {
+        if (!(0, _authManagerJs.isAuthenticated)()) return (0, _authOverlayJs.showAuth)();
+        try {
+            this.scene.cameras.main.shake(100, 0.002); // Petit feedback visuel
+            await (0, _authManagerJs.upgradeHero)(key, 1);
+            this.refresh();
+        } catch (err) {
+            console.error("\xc9chec upgrade:", err);
+        }
+    }
+    refresh() {
+        const stats = (0, _authManagerJs.getHeroStats)();
+        const available = (0, _authManagerJs.getHeroPointsAvailable)();
+        const conversion = (0, _authManagerJs.getHeroPointConversion)();
+        if (!stats) {
+            this.pointsText.setText("SYNCHRONISATION REQUISE");
+            return;
+        }
+        const values = {
+            hp: Number(stats.max_hp) || 0,
+            damage: parseFloat(stats.base_damage) || 0,
+            move_speed: Number(stats.move_speed) || 0
+        };
+        // Mapping des clés vers les noms de conversion
+        const conversionMap = {
+            hp: "hp_per_point",
+            damage: "damage_per_point",
+            move_speed: "move_speed_per_point"
+        };
+        // Mise à jour des barres avec animation
+        this.statElements.forEach((el, key)=>{
+            const val = values[key];
+            // Formater les dégâts avec 2 décimales si c'est une valeur décimale
+            const displayVal = key === "damage" && val % 1 !== 0 ? val.toFixed(2) : Math.round(val).toString();
+            el.valText.setText(displayVal);
+            // Afficher la conversion pour chaque stat
+            const conversionKey = conversionMap[key];
+            const conversionValue = conversion?.[conversionKey];
+            if (conversionValue !== undefined && el.conversionText) {
+                const formattedValue = parseFloat(conversionValue).toFixed(2);
+                el.conversionText.setText(`+${formattedValue} par point`);
+            }
+            // Calcul du pourcentage (ex: max 500 pour le visuel)
+            const targetScale = Phaser.Math.Clamp(val / 500, 0.1, 1);
+            // Animation fluide de la barre
+            this.scene.tweens.addCounter({
+                from: el.barFill.scaleX || 0,
+                to: targetScale,
+                duration: 600,
+                ease: 'Cubic.out',
+                onUpdate: (tween)=>{
+                    el.barFill.clear();
+                    el.barFill.fillStyle(el.color, 1);
+                    el.barFill.fillRoundedRect(el.x, el.y, el.barWidth * tween.getValue(), 10, 5);
+                }
+            });
+        });
+        this.pointsText.setText(`POINTS DISPONIBLES : ${available}`);
+        this.costText.setText(`1 point am\xe9liore chaque stat selon sa conversion`);
+    }
+}
+
+},{"../../services/authManager.js":"cvKjF","../../services/authOverlay.js":"g1JuO","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hLiDk":[function(require,module,exports,__globalThis) {
+module.exports = module.bundle.resolve("background.4281a5ae.jpg");
+
+},{}],"bDbTi":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "GameScene", ()=>GameScene);
@@ -10475,7 +8426,2616 @@ class GameScene extends Phaser.Scene {
     }
 }
 
-},{"../config/settings.js":"9kTMs","../config/levels/index.js":"8fcfE","../objects/Enemy.js":"hW1Gp","../objects/Turret.js":"lbJGU","../objects/Barracks.js":"bSlQd","./managers/MapManager.js":"bYbwC","./managers/WaveManager.js":"bbCRa","./managers/UIManager.js":"1XDfq","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./managers/InputManager.js":"9HXrx","./managers/SpellManager.js":"WA9IR","./managers/TextureFactory.js":"bSv7j","../objects/Hero.js":"bdQ7o","../services/authManager.js":"cvKjF"}],"hW1Gp":[function(require,module,exports,__globalThis) {
+},{"../config/settings.js":"9kTMs","../config/levels/index.js":"8fcfE","../objects/Enemy.js":"hW1Gp","../objects/Turret.js":"lbJGU","../objects/Barracks.js":"bSlQd","./managers/MapManager.js":"bYbwC","./managers/WaveManager.js":"bbCRa","./managers/UIManager.js":"1XDfq","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./managers/InputManager.js":"9HXrx","./managers/SpellManager.js":"WA9IR","./managers/TextureFactory.js":"bSv7j","../objects/Hero.js":"bdQ7o","../services/authManager.js":"cvKjF"}],"9kTMs":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "CONFIG", ()=>CONFIG);
+parcelHelpers.export(exports, "ENEMIES", ()=>ENEMIES);
+parcelHelpers.export(exports, "TURRETS", ()=>TURRETS);
+// ... Imports inchangés ...
+var _gruntJs = require("../config/ennemies/grunt.js");
+var _runnerJs = require("../config/ennemies/runner.js");
+var _tankJs = require("../config/ennemies/tank.js");
+var _shieldJs = require("../config/ennemies/shield.js");
+var _bosslvl1Js = require("../config/ennemies/bosslvl1.js");
+var _bosslvl2Js = require("../config/ennemies/bosslvl2.js");
+var _bosslvl3Js = require("../config/ennemies/bosslvl3.js");
+var _witchJs = require("../config/ennemies/witch.js");
+var _zombieMinionJs = require("../config/ennemies/zombie_minion.js");
+var _tortueDragonJs = require("../config/ennemies/tortue_dragon.js");
+var _shamanGobelinJs = require("../config/ennemies/shaman_gobelin.js");
+var _diviseurJs = require("../config/ennemies/diviseur.js");
+var _slimeMediumJs = require("../config/ennemies/slime_medium.js");
+var _slimeSmallJs = require("../config/ennemies/slime_small.js");
+var _machineGunJs = require("../config/turrets/machineGun.js");
+var _sniperJs = require("../config/turrets/sniper.js");
+var _cannonJs = require("../config/turrets/cannon.js");
+var _zapJs = require("../config/turrets/zap.js");
+var _barracksJs = require("../config/turrets/barracks.js");
+const CONFIG = {
+    TILE_SIZE: 64,
+    UI_HEIGHT: 80,
+    MAP_OFFSET: 120,
+    GAME_WIDTH: 960,
+    GAME_HEIGHT: 1080,
+    STARTING_MONEY: 650,
+    STARTING_LIVES: 20,
+    TOOLBAR_HEIGHT: 100,
+    TOOLBAR_MARGIN: 20
+};
+const ENEMIES = {
+    grunt: (0, _gruntJs.grunt),
+    runner: (0, _runnerJs.runner),
+    tank: (0, _tankJs.tank),
+    shield: (0, _shieldJs.shield),
+    bosslvl1: (0, _bosslvl1Js.bosslvl1),
+    bosslvl2: (0, _bosslvl2Js.bosslvl2),
+    bosslvl3: (0, _bosslvl3Js.bosslvl3),
+    witch: (0, _witchJs.witch),
+    zombie_minion: (0, _zombieMinionJs.zombie_minion),
+    tortue_dragon: (0, _tortueDragonJs.tortue_dragon),
+    shaman_gobelin: (0, _shamanGobelinJs.shaman_gobelin),
+    diviseur: (0, _diviseurJs.diviseur),
+    slime_medium: (0, _slimeMediumJs.slime_medium),
+    slime_small: (0, _slimeSmallJs.slime_small)
+};
+const TURRETS = {
+    machine_gun: (0, _machineGunJs.machine_gun),
+    sniper: (0, _sniperJs.sniper),
+    cannon: (0, _cannonJs.cannon),
+    zap: (0, _zapJs.zap),
+    barracks: (0, _barracksJs.barracks)
+};
+
+},{"../config/ennemies/grunt.js":"iqyIL","../config/ennemies/runner.js":"k54Ru","../config/ennemies/tank.js":"caNrh","../config/ennemies/shield.js":"BAQN3","../config/turrets/machineGun.js":"ecBws","../config/turrets/sniper.js":"fm2OQ","../config/turrets/cannon.js":"3RJPP","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../config/turrets/zap.js":"bgZGw","../config/turrets/barracks.js":"9rF1d","../config/ennemies/witch.js":"k759O","../config/ennemies/zombie_minion.js":"bONBj","../config/ennemies/bosslvl1.js":"lF8pq","../config/ennemies/bosslvl2.js":"hQduM","../config/ennemies/tortue_dragon.js":"bnkzu","../config/ennemies/shaman_gobelin.js":"8mFrl","../config/ennemies/diviseur.js":"7ppi2","../config/ennemies/slime_medium.js":"j7fMh","../config/ennemies/slime_small.js":"KCZbL","../config/ennemies/bosslvl3.js":"8MdQT"}],"iqyIL":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "grunt", ()=>grunt);
+const grunt = {
+    name: "Grunt",
+    speed: 62,
+    hp: 100,
+    reward: 15,
+    playerDamage: 1,
+    color: 0x558844,
+    damage: 8,
+    attackSpeed: 800,
+    scale: 1,
+    // --- DESSIN DU PERSONNAGE (Vue de profil) ---
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // On stocke les références aux jambes dans l'instance pour pouvoir les animer
+        enemyInstance.legs = {};
+        // 1. Jambe Arrière (plus sombre)
+        enemyInstance.legs.back = scene.add.container(0, 5); // Pivot à la hanche
+        const legB = scene.add.graphics();
+        legB.fillStyle(0x335522); // Vert foncé
+        legB.fillRoundedRect(-3, 0, 6, 18, 2); // Cuisse/Mollet
+        legB.fillRoundedRect(-4, 16, 10, 5, 2); // Botte
+        enemyInstance.legs.back.add(legB);
+        container.add(enemyInstance.legs.back);
+        // 2. Corps (Torse, Tête, Bras visible)
+        const body = scene.add.graphics();
+        // Torse (Gilet)
+        body.fillStyle(color);
+        body.fillRoundedRect(-6, -10, 12, 18, 3);
+        // Tête (Casque rond)
+        body.fillStyle(0x446633);
+        body.fillCircle(0, -14, 7);
+        // Visière/Yeux (Petit trait noir)
+        body.fillStyle(0x000000);
+        body.fillRect(2, -16, 4, 3);
+        // Bras (fixe le long du corps pour simplifier)
+        body.fillStyle(color);
+        body.fillRoundedRect(-2, -8, 6, 16, 2);
+        container.add(body);
+        // 3. Jambe Avant (couleur normale)
+        enemyInstance.legs.front = scene.add.container(0, 5); // Pivot à la hanche
+        const legF = scene.add.graphics();
+        legF.fillStyle(color);
+        legF.fillRoundedRect(-3, 0, 6, 18, 2); // Cuisse/Mollet
+        legF.fillRoundedRect(-4, 16, 10, 5, 2); // Botte
+        enemyInstance.legs.front.add(legF);
+        container.add(enemyInstance.legs.front);
+        // L'ennemi utilise maintenant le flip horizontal au lieu de rotation
+        enemyInstance.shouldRotate = false;
+    },
+    // --- ANIMATION DE MARCHE (Pendule) ---
+    onUpdateAnimation: (time, enemyInstance)=>{
+        const speed = 0.008; // Vitesse du balancement
+        const range = 0.5; // Amplitude du balancement (en radians)
+        // Oscillation sinusoïdale
+        // La jambe arrière est opposée à la jambe avant (+ Math.PI)
+        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"k54Ru":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "runner", ()=>runner);
+const runner = {
+    name: "Scout",
+    speed: 205,
+    hp: 105,
+    reward: 20,
+    playerDamage: 1,
+    color: 0xffd166,
+    damage: 8,
+    attackSpeed: 600,
+    scale: 1,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        enemyInstance.legs = {};
+        // Le corps est légèrement penché vers l'avant (mais on garde l'orientation verticale)
+        // container.angle = -15; // Retiré pour garder l'ennemi droit
+        // 1. Jambe Arrière (sombre)
+        enemyInstance.legs.back = scene.add.container(2, 4);
+        const legB = scene.add.graphics();
+        legB.fillStyle(0xccaa44);
+        legB.fillRoundedRect(-2, 0, 5, 22, 2); // Jambe fine et longue
+        enemyInstance.legs.back.add(legB);
+        container.add(enemyInstance.legs.back);
+        // 2. Corps (Fin et aérodynamique)
+        const body = scene.add.graphics();
+        body.fillStyle(color);
+        // Torse fin
+        body.fillRoundedRect(-5, -12, 10, 18, 4);
+        // Tête avec une sorte de capuche/masque pointu
+        body.beginPath();
+        body.moveTo(0, -22);
+        body.lineTo(8, -14);
+        body.lineTo(-4, -12);
+        body.closePath();
+        body.fillPath();
+        container.add(body);
+        // 3. Jambe Avant
+        enemyInstance.legs.front = scene.add.container(2, 4);
+        const legF = scene.add.graphics();
+        legF.fillStyle(color);
+        legF.fillRoundedRect(-2, 0, 5, 22, 2);
+        enemyInstance.legs.front.add(legF);
+        container.add(enemyInstance.legs.front);
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Course rapide : vitesse élevée, grande amplitude
+        const speed = 0.015;
+        const range = 0.8;
+        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"caNrh":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "tank", ()=>tank);
+const tank = {
+    name: "Heavy",
+    speed: 38,
+    hp: 2650,
+    reward: 140,
+    playerDamage: 4,
+    color: 0x224466,
+    damage: 28,
+    attackSpeed: 1200,
+    scale: 1,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        enemyInstance.legs = {};
+        // 1. "Pied" Arrière (Gros bloc)
+        enemyInstance.legs.back = scene.add.container(0, 10);
+        const legB = scene.add.graphics();
+        legB.fillStyle(0x112233);
+        legB.fillRect(-10, 0, 20, 12); // Pied large
+        enemyInstance.legs.back.add(legB);
+        container.add(enemyInstance.legs.back);
+        // 2. Corps (Armure massive)
+        const body = scene.add.graphics();
+        body.fillStyle(color);
+        // Gros plastron carré
+        body.fillRoundedRect(-18, -25, 36, 35, 6);
+        body.lineStyle(3, 0x000000);
+        body.strokeRoundedRect(-18, -25, 36, 35, 6);
+        // Petite tête carrée engoncée dans l'armure
+        body.fillStyle(0x112233);
+        body.fillRect(-8, -32, 16, 10);
+        // Oeil rouge unique type "cyclope robot"
+        body.fillStyle(0xff0000);
+        body.fillRect(4, -28, 6, 4);
+        // Gros bras carré sur le côté
+        body.fillStyle(color);
+        body.fillRoundedRect(-4, -15, 14, 25, 4);
+        container.add(body);
+        // 3. "Pied" Avant
+        enemyInstance.legs.front = scene.add.container(0, 10);
+        const legF = scene.add.graphics();
+        legF.fillStyle(color);
+        legF.fillRect(-10, 0, 20, 12);
+        enemyInstance.legs.front.add(legF);
+        container.add(enemyInstance.legs.front);
+        // Le tank est si gros qu'il ne tourne pas pour suivre le chemin, il reste droit
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Piétinement lourd : faible vitesse, faible amplitude, mouvement vertical ajouté
+        const speed = 0.004;
+        const range = 0.2;
+        const sin = Math.sin(time * speed);
+        enemyInstance.legs.front.rotation = sin * range;
+        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+        // Petit effet de rebond vertical lourd
+        enemyInstance.bodyGroup.y = Math.abs(sin) * -3;
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"BAQN3":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "shield", ()=>shield);
+const shield = {
+    name: "Aegis",
+    speed: 65,
+    hp: 550,
+    reward: 65,
+    playerDamage: 2,
+    color: 0x00aabb,
+    damage: 12,
+    attackSpeed: 900,
+    scale: 1,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        enemyInstance.legs = {};
+        // 1. Jambes (Similaires au Grunt mais plus robustes)
+        enemyInstance.legs.back = scene.add.container(0, 5);
+        const legB = scene.add.graphics();
+        legB.fillStyle(0x007788);
+        legB.fillRoundedRect(-4, 0, 8, 18, 3);
+        enemyInstance.legs.back.add(legB);
+        container.add(enemyInstance.legs.back);
+        // 2. Corps (Derrière le bouclier)
+        const body = scene.add.graphics();
+        body.fillStyle(color);
+        body.fillRoundedRect(-7, -12, 14, 20, 4); // Torse
+        body.fillStyle(0x007788);
+        body.fillCircle(0, -16, 8); // Tête
+        container.add(body);
+        // 3. Jambe Avant
+        enemyInstance.legs.front = scene.add.container(0, 5);
+        const legF = scene.add.graphics();
+        legF.fillStyle(color);
+        legF.fillRoundedRect(-4, 0, 8, 18, 3);
+        enemyInstance.legs.front.add(legF);
+        container.add(enemyInstance.legs.front);
+        // 4. LE BOUCLIER (Devant tout le reste)
+        const shield = scene.add.graphics();
+        // Grand hexagone d'énergie
+        shield.fillStyle(0x00ffff, 0.7); // Cyan semi-transparent
+        shield.lineStyle(3, 0xffffff);
+        shield.beginPath();
+        shield.moveTo(15, -20);
+        shield.lineTo(20, 0);
+        shield.lineTo(15, 25);
+        shield.lineTo(5, 20);
+        shield.lineTo(5, -15);
+        shield.closePath();
+        shield.fillPath();
+        shield.strokePath();
+        // Symbole "+" dessus
+        shield.fillStyle(0xffffff);
+        shield.fillRect(10, -5, 6, 16);
+        shield.fillRect(5, 0, 16, 6);
+        container.add(shield);
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Marche lente et assurée
+        const speed = 0.006;
+        const range = 0.4;
+        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"ecBws":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "machine_gun", ()=>machine_gun);
+const machine_gun = {
+    key: "machine_gun",
+    name: "Mitrailleuse",
+    cost: 90,
+    range: 100,
+    damage: 10,
+    rate: 290,
+    color: 0x4488ff,
+    maxLevel: 3,
+    description: "Tourelle polyvalente avec cadence de tir tr\xe8s \xe9lev\xe9e.\n\n\u2705 Avantages:\n\u2022 Cadence de tir rapide\n\u2022 D\xe9g\xe2ts constants\n\u2022 Port\xe9e correcte\n\n\u274C Inconv\xe9nients:\n\u2022 D\xe9g\xe2ts par tir faibles\n\u2022 Moins efficace contre les ennemis blind\xe9s",
+    // --- DESSIN ÉVOLUTIF (Base + 2 Améliorations) ---
+    // Note: On assume que Turret.js passe (scene, container, color, turretInstance)
+    onDrawBarrel: (scene, container, color, turret)=>{
+        const g = scene.add.graphics();
+        const level = turret.level || 1; // Niveau actuel (1, 2 ou 3)
+        // Palette de couleurs
+        const darkMetal = 0x222222;
+        const lightMetal = 0x8899aa;
+        const gold = 0xffd700;
+        const ammoColor = 0xccaa00;
+        // --- DESIGN SELON LE NIVEAU ---
+        if (level === 1) {
+            // === NIVEAU 1 : Standard ===
+            g.fillStyle(color);
+            g.fillRoundedRect(-10, -10, 20, 20, 3); // Culasse
+            g.fillStyle(lightMetal);
+            g.fillRect(10, -6, 20, 4); // Canon gauche
+            g.fillRect(10, 2, 20, 4); // Canon droit
+            g.fillStyle(darkMetal);
+            g.fillRect(30, -6, 3, 4); // Embout gauche
+            g.fillRect(30, 2, 3, 4); // Embout droit
+        } else if (level === 2) {
+            // === NIVEAU 2 : Renforcé ===
+            g.fillStyle(0x113355); // Bleu nuit
+            g.fillRoundedRect(-14, -14, 28, 28, 4); // Culasse large
+            g.lineStyle(2, 0x557799);
+            g.strokeRoundedRect(-14, -14, 28, 28, 4);
+            g.fillStyle(lightMetal);
+            g.fillRect(14, -8, 28, 6); // Canons longs
+            g.fillRect(14, 2, 28, 6);
+            g.fillStyle(darkMetal);
+            g.fillRect(20, -8, 10, 2); // Events
+            g.fillRect(20, 6, 10, 2);
+            g.fillStyle(ammoColor);
+            g.fillRect(-12, -8, 6, 16); // Chargeur
+        } else {
+            // === NIVEAU 3 : Élite (Gatling) ===
+            g.fillStyle(0x001133); // Presque noir
+            g.fillRoundedRect(-16, -18, 32, 36, 5); // Corps massif
+            g.lineStyle(2, gold);
+            g.strokeRoundedRect(-16, -18, 32, 36, 5); // Bordure dorée
+            // Bloc Gatling
+            g.fillStyle(darkMetal);
+            g.fillCircle(25, 0, 12);
+            g.fillStyle(lightMetal);
+            g.fillCircle(25, -5, 3);
+            g.fillCircle(25, 5, 3);
+            g.fillCircle(20, 0, 3);
+            g.fillCircle(30, 0, 3);
+            g.fillStyle(color);
+            g.fillRect(10, -12, 15, 24); // Support
+            g.fillStyle(0xff0000);
+            g.fillRect(0, -20, 10, 2); // Laser
+        }
+        // Pivot central
+        g.fillStyle(0x111111);
+        g.fillCircle(0, 0, 6);
+        container.add(g);
+        // --- INDICATEUR DE NIVEAU ---
+        const badge = scene.add.container(-20, 20);
+        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.7);
+        badgeBg.setStrokeStyle(1, level === 3 ? gold : 0xffffff);
+        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
+            fontSize: "10px",
+            fontFamily: "Arial",
+            color: level === 3 ? "#ffd700" : "#ffffff",
+            fontStyle: "bold"
+        }).setOrigin(0.5);
+        badge.add([
+            badgeBg,
+            lvlText
+        ]);
+        container.add(badge);
+    },
+    // --- LOGIQUE DE TIR ---
+    onFire: (scene, turret, target)=>{
+        const level = turret.level || 1;
+        const angle = turret.barrelGroup.rotation;
+        const barrelLen = level === 1 ? 30 : level === 2 ? 42 : 38;
+        // Alternance des canons
+        turret.fireAlt = !turret.fireAlt;
+        const offsetSide = turret.fireAlt ? 4 : -4;
+        const tipX = turret.x + Math.cos(angle) * barrelLen - Math.sin(angle) * offsetSide;
+        const tipY = turret.y + Math.sin(angle) * barrelLen + Math.cos(angle) * offsetSide;
+        // Flash
+        const flashColor = level === 3 ? 0xffaa00 : 0xffffaa;
+        const flashSize = level === 3 ? 12 : 8;
+        const flash = scene.add.circle(tipX, tipY, flashSize, flashColor, 0.9);
+        scene.tweens.add({
+            targets: flash,
+            scale: 0,
+            duration: 50,
+            onComplete: ()=>flash.destroy()
+        });
+        // Traceur
+        const tracer = scene.add.graphics();
+        const tracerColor = level === 3 ? 0xff4400 : 0xffdd44;
+        const tracerWidth = level === 3 ? 3 : 2;
+        tracer.lineStyle(tracerWidth, tracerColor, 0.8);
+        tracer.lineBetween(tipX, tipY, target.x, target.y);
+        scene.time.delayedCall(60, ()=>tracer.destroy());
+        // Dégâts
+        if (target.active) {
+            target.damage(turret.config.damage);
+            if (level >= 2) {
+                // Impact visuel à partir du niveau 2
+                const impact = scene.add.circle(target.x, target.y, 5, 0xffffff, 0.7);
+                scene.tweens.add({
+                    targets: impact,
+                    scale: 0,
+                    duration: 100,
+                    onComplete: ()=>impact.destroy()
+                });
+            }
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"fm2OQ":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "sniper", ()=>sniper);
+const sniper = {
+    key: "sniper",
+    name: "Sniper",
+    cost: 270,
+    range: 160,
+    damage: 158,
+    rate: 2200,
+    color: 0x44ff44,
+    maxLevel: 3,
+    description: "Tourelle de pr\xe9cision avec d\xe9g\xe2ts massifs et tr\xe8s longue port\xe9e.\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts \xe9normes par tir\n\u2022 Port\xe9e exceptionnelle\n\u2022 Id\xe9al contre les ennemis r\xe9sistants\n\n\u274C Inconv\xe9nients:\n\u2022 Cadence de tir tr\xe8s lente\n\u2022 Co\xfbt \xe9lev\xe9\n\u2022 Moins efficace contre les groupes",
+    // --- DESSIN ÉVOLUTIF ---
+    onDrawBarrel: (scene, container, color, turret)=>{
+        const g = scene.add.graphics();
+        const level = turret.level || 1;
+        // Palette
+        const black = 0x111111;
+        const darkGrey = 0x333333;
+        const camoGreen = 0x336633;
+        const techWhite = 0xeeeeee;
+        const energyBlue = 0x00ffff;
+        const lensColor = 0x000000;
+        if (level === 1) {
+            // === NIVEAU 1 : Fusil de précision standard ===
+            // Canon fin
+            g.fillStyle(black);
+            g.fillRect(0, -3, 45, 6);
+            // Corps
+            g.fillStyle(camoGreen);
+            g.fillRect(-10, -6, 25, 12);
+            // Lunette simple (Ronde)
+            g.fillStyle(darkGrey);
+            g.fillRect(-5, -10, 15, 4); // Support
+            g.fillCircle(0, -10, 4); // Oculaire
+            g.fillCircle(10, -10, 4); // Objectif
+        } else if (level === 2) {
+            // === NIVEAU 2 : Heavy Sniper (Calibre .50) ===
+            // Canon lourd
+            g.fillStyle(darkGrey);
+            g.fillRect(0, -4, 50, 8);
+            // Frein de bouche (le bout carré pour le recul)
+            g.fillStyle(black);
+            g.fillRect(50, -6, 8, 12);
+            // Corps renforcé
+            g.fillStyle(0x224422); // Vert foncé
+            g.fillRoundedRect(-15, -8, 35, 16, 2);
+            // Lunette Tactique (Carrée/Digitale)
+            g.fillStyle(black);
+            g.fillRect(-5, -14, 20, 6);
+            g.fillStyle(0x00ff00); // Lentille verte
+            g.fillRect(15, -14, 2, 6);
+            // Bipied replié en dessous
+            g.fillStyle(darkGrey);
+            g.fillRect(10, 5, 20, 3);
+        } else {
+            // === NIVEAU 3 : RAILGUN (Futuriste) ===
+            // Rails magnétiques (Haut et Bas)
+            g.fillStyle(techWhite);
+            g.fillRect(0, -10, 55, 4); // Rail haut
+            g.fillRect(0, 6, 55, 4); // Rail bas
+            // Noyau d'énergie (au milieu)
+            g.fillStyle(energyBlue, 0.8);
+            g.fillRect(5, -2, 45, 4); // Lueur interne
+            // Corps High-Tech
+            g.fillStyle(darkGrey);
+            g.fillRoundedRect(-15, -12, 30, 24, 4);
+            g.lineStyle(2, energyBlue);
+            g.strokeRoundedRect(-15, -12, 30, 24, 4); // Bordure néon
+            // Lunette Holographique
+            g.lineStyle(1, energyBlue, 0.5);
+            g.strokeRect(-5, -18, 15, 6);
+            g.fillStyle(energyBlue, 0.3);
+            g.fillRect(-5, -18, 15, 6);
+        }
+        // Pivot central
+        g.fillStyle(black);
+        g.fillCircle(0, 0, 5);
+        container.add(g);
+        // --- INDICATEUR DE NIVEAU ---
+        // Un petit badge sur le côté
+        const badge = scene.add.container(-20, 20);
+        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.7);
+        badgeBg.setStrokeStyle(1, level === 3 ? energyBlue : 0xffffff);
+        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
+            fontSize: "10px",
+            fontFamily: "Arial",
+            color: level === 3 ? energyBlue : "#ffffff",
+            fontStyle: "bold"
+        }).setOrigin(0.5);
+        badge.add([
+            badgeBg,
+            lvlText
+        ]);
+        container.add(badge);
+    },
+    // --- LOGIQUE DE TIR (Railgun au niveau 3) ---
+    onFire: (scene, turret, target)=>{
+        const level = turret.level || 1;
+        const angle = turret.barrelGroup.rotation;
+        // Longueur du canon pour savoir d'où part le tir
+        const barrelLen = level === 1 ? 45 : level === 2 ? 58 : 55;
+        const tipX = turret.x + Math.cos(angle) * barrelLen;
+        const tipY = turret.y + Math.sin(angle) * barrelLen;
+        // --- EFFETS VISUELS ---
+        if (level < 3) {
+            // NIVEAU 1 & 2 : Tir de balle classique mais puissant
+            // 1. Flash de bouche
+            const flashColor = level === 2 ? 0xffaa00 : 0xffffaa;
+            const flashSize = level === 2 ? 20 : 15;
+            const flash = scene.add.circle(tipX, tipY, flashSize, flashColor, 1);
+            scene.tweens.add({
+                targets: flash,
+                scale: 0,
+                alpha: 0,
+                duration: 150,
+                onComplete: ()=>flash.destroy()
+            });
+            // 2. Traînée blanche (Vapeur)
+            const beam = scene.add.graphics();
+            const thickness = level === 2 ? 4 : 2;
+            beam.lineStyle(thickness, 0xffffff, 0.8);
+            beam.lineBetween(tipX, tipY, target.x, target.y);
+            // Disparition rapide
+            scene.tweens.add({
+                targets: beam,
+                alpha: 0,
+                duration: 200,
+                onComplete: ()=>beam.destroy()
+            });
+        } else {
+            // NIVEAU 3 : RAILGUN (Rayon d'énergie)
+            // 1. Accumulation d'énergie (Flash bleu cyan)
+            const flash = scene.add.circle(tipX, tipY, 25, 0x00ffff, 1);
+            scene.tweens.add({
+                targets: flash,
+                scale: 0,
+                alpha: 0,
+                duration: 300,
+                onComplete: ()=>flash.destroy()
+            });
+            // 2. Le Rayon principal (Cœur blanc, bord bleu)
+            const beam = scene.add.graphics();
+            // Aura bleue
+            beam.lineStyle(10, 0x00ffff, 0.4);
+            beam.lineBetween(tipX, tipY, target.x, target.y);
+            // Cœur blanc pur
+            beam.lineStyle(4, 0xffffff, 1);
+            beam.lineBetween(tipX, tipY, target.x, target.y);
+            // Disparition lente et stylée
+            scene.tweens.add({
+                targets: beam,
+                alpha: 0,
+                duration: 400,
+                onComplete: ()=>beam.destroy()
+            });
+        // 3. Particules sur le trajet (optionnel, pour le style)
+        // On pourrait ajouter des petites étincelles ici
+        }
+        // --- DÉGÂTS ET IMPACT ---
+        if (target.active) {
+            target.damage(turret.config.damage);
+            // Impact sur la cible
+            const impactColor = level === 3 ? 0x00ffff : 0xffffff;
+            const impactSize = level === 3 ? 30 : 20;
+            const impact = scene.add.circle(target.x, target.y, impactSize, impactColor, 0.8);
+            scene.tweens.add({
+                targets: impact,
+                scale: 0,
+                duration: 150,
+                onComplete: ()=>impact.destroy()
+            });
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"3RJPP":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "cannon", ()=>cannon);
+const cannon = {
+    key: "cannon",
+    name: "Mortier",
+    cost: 180,
+    range: 110,
+    damage: 72,
+    rate: 2300,
+    color: 0xff8844,
+    aoe: 50,
+    maxLevel: 3,
+    description: "Artillerie lourde avec d\xe9g\xe2ts de zone (AOE).\n\n\u2705 Avantages:\n\u2022 D\xe9g\xe2ts de zone (touche plusieurs ennemis)\n\u2022 Port\xe9e longue\n\u2022 Efficace contre les groupes\n\n\u274C Inconv\xe9nients:\n\u2022 Cadence de tir lente\n\u2022 Projectile en arc (d\xe9lai d'impact)\n\u2022 Moins pr\xe9cis que les autres tourelles",
+    // ============================================================
+    // DESSIN DU CANON
+    // ============================================================
+    onDrawBarrel: (scene, container, color, turret)=>{
+        const g = scene.add.graphics();
+        const level = turret.level || 1;
+        const black = 0x111111;
+        g.clear();
+        if (level === 1) {
+            // --- Niv 1 : Mortier Bronze (Classique) ---
+            const bronze = 0xcd7f32;
+            const darkBronze = 0xa05a2c;
+            g.fillStyle(darkBronze);
+            g.fillRoundedRect(-20, -18, 30, 36, 6);
+            g.lineStyle(3, 0x663311);
+            g.strokeRoundedRect(-20, -18, 30, 36, 6);
+            g.fillStyle(0x663311);
+            g.fillCircle(-15, -12, 2);
+            g.fillCircle(-15, 12, 2);
+            g.fillCircle(5, -12, 2);
+            g.fillCircle(5, 12, 2);
+            g.fillStyle(bronze);
+            g.fillRect(10, -12, 20, 24);
+            g.fillStyle(darkBronze);
+            g.fillRect(12, -14, 4, 28);
+            g.fillRect(22, -14, 4, 28);
+            g.fillStyle(black);
+            g.fillCircle(30, 0, 10);
+            g.lineStyle(4, darkBronze);
+            g.strokeCircle(30, 0, 10);
+            // Recul
+            g.fillStyle(0x555555);
+            g.fillRect(-5, 18, 20, 6);
+        } else if (level === 2) {
+            // --- Niv 2 : Artillerie Lourde (Classique) ---
+            const steel = 0x8899aa;
+            const darkSteel = 0x445566;
+            g.fillStyle(darkSteel);
+            g.fillRoundedRect(-22, -20, 34, 40, 4);
+            g.lineStyle(2, 0xaabbcc);
+            g.strokeRoundedRect(-22, -20, 34, 40, 4);
+            g.fillStyle(steel);
+            g.fillRect(12, -14, 30, 28);
+            g.fillStyle(darkSteel);
+            g.fillRect(15, -14, 2, 28);
+            g.fillRect(20, -14, 2, 28);
+            g.fillRect(25, -14, 2, 28);
+            g.fillRect(30, -14, 2, 28);
+            g.fillStyle(black);
+            g.fillCircle(42, 0, 12);
+            g.lineStyle(4, darkSteel);
+            g.strokeCircle(42, 0, 12);
+            g.fillStyle(0x333333);
+            g.fillRect(-10, -22, 10, 8);
+            g.fillStyle(0x555555);
+            g.fillRect(-5, 18, 20, 6);
+        } else {
+            // --- Niv 3 : Système de Missiles "Titan" (RE-DESIGN COMPLET) ---
+            const hullColor = 0xe0e0e0; // Blanc cassé blindage
+            const darkHull = 0x546e7a; // Bleu gris sombre
+            const accent = 0xff3d00; // Orange sécurité
+            const glow = 0x00eaff; // Cyan futuriste
+            // 1. Base pivotante lourde
+            g.fillStyle(0x263238);
+            g.fillCircle(0, 0, 22);
+            g.lineStyle(2, 0x37474f);
+            g.strokeCircle(0, 0, 22);
+            // 2. Corps central blindé (Anguleux)
+            g.fillStyle(hullColor);
+            g.beginPath();
+            g.moveTo(-15, -15);
+            g.lineTo(25, -15);
+            g.lineTo(35, 0);
+            g.lineTo(25, 15);
+            g.lineTo(-15, 15);
+            g.closePath();
+            g.fill();
+            g.lineStyle(2, 0x90a4ae);
+            g.strokePath();
+            // Détails techniques sur le dessus
+            g.fillStyle(0x263238);
+            g.fillRect(-5, -8, 15, 16); // Trappe maintenance
+            g.fillStyle(accent);
+            g.fillRect(20, -5, 4, 10); // Indicateur de tir
+            // 3. Pods de missiles latéraux (Gauche et Droite)
+            const drawPod = (offsetY)=>{
+                // Structure du pod
+                g.fillStyle(darkHull);
+                g.fillRoundedRect(-10, offsetY - 10, 35, 20, 4);
+                g.lineStyle(1, 0x000000);
+                g.strokeRoundedRect(-10, offsetY - 10, 35, 20, 4);
+                // Têtes de missiles visibles
+                g.fillStyle(0x000000);
+                g.fillCircle(25, offsetY, 6); // Le trou
+                g.fillStyle(0xff0000);
+                g.fillCircle(25, offsetY, 3); // La tête du missile
+                // Lumière d'état sur le pod
+                g.fillStyle(glow);
+                g.fillRect(0, offsetY - 2, 8, 4);
+            };
+            drawPod(-20); // Pod Gauche
+            drawPod(20); // Pod Droit
+            // 4. Radar/Optique sur le côté
+            g.lineStyle(2, glow, 0.6);
+            g.strokeCircle(10, 0, 8);
+            g.fillStyle(glow, 0.3);
+            g.fillCircle(10, 0, 3);
+        }
+        container.add(g);
+        // Badge niveau
+        const badge = scene.add.container(-20, 20);
+        let badgeColorStr = "#ffffff";
+        let badgeColorHex = 0xffffff;
+        if (level === 2) {
+            badgeColorStr = "#00ffff";
+            badgeColorHex = 0x00ffff;
+        } else if (level === 3) {
+            badgeColorStr = "#ff00aa";
+            badgeColorHex = 0xff00aa;
+        }
+        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.55);
+        badgeBg.setStrokeStyle(1, badgeColorHex, 0.9);
+        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
+            fontSize: "10px",
+            fontFamily: "Arial",
+            color: badgeColorStr,
+            fontStyle: "bold"
+        }).setOrigin(0.5);
+        badge.add([
+            badgeBg,
+            lvlText
+        ]);
+        container.add(badge);
+    },
+    // ============================================================
+    // LOGIQUE DE TIR
+    // ============================================================
+    onFire: (scene, turret, target)=>{
+        if (!scene || !turret || !target || !target.active) return;
+        const level = turret.level || 1;
+        if (level < 3) {
+            // --- LOGIQUE NIV 1 & 2 : OBUS EN CLOCHE (INCHANGÉ) ---
+            const spread = 5;
+            const impactX = target.x + (Math.random() - 0.5) * spread;
+            const impactY = target.y + (Math.random() - 0.5) * spread;
+            const blastRadius = turret.config.aoe;
+            const damageAmount = turret.config.damage;
+            const muzzle = scene.add.circle(turret.x, turret.y, 10, 0xffaa00, 0.8);
+            scene.tweens.add({
+                targets: muzzle,
+                scale: 2,
+                alpha: 0,
+                duration: 100,
+                onComplete: ()=>muzzle.destroy()
+            });
+            const shell = scene.add.circle(turret.x, turret.y, 4, 0x000000, 1);
+            shell.setStrokeStyle(2, 0x555555);
+            shell.setDepth(200);
+            const shadow = scene.add.ellipse(turret.x, turret.y, 8, 4, 0x000000, 0.3);
+            shadow.setDepth(5);
+            const dist = Phaser.Math.Distance.Between(turret.x, turret.y, impactX, impactY);
+            const flightTime = Phaser.Math.Clamp(dist * 2.5, 400, 800);
+            const peakHeight = 150;
+            scene.tweens.add({
+                targets: [
+                    shell,
+                    shadow
+                ],
+                x: impactX,
+                y: impactY,
+                duration: flightTime,
+                ease: "Linear"
+            });
+            scene.tweens.add({
+                targets: shell,
+                z: 1,
+                duration: flightTime,
+                ease: "Linear",
+                onUpdate: (tween)=>{
+                    const progress = tween.progress;
+                    const heightOffset = Math.sin(progress * Math.PI) * peakHeight;
+                    shell.y = turret.y + (impactY - turret.y) * progress - heightOffset;
+                },
+                onComplete: ()=>{
+                    shell.destroy();
+                    shadow.destroy();
+                    triggerExplosion(scene, impactX, impactY, blastRadius, damageAmount, level);
+                }
+            });
+        } else // --- LOGIQUE NIV 3 : MISSILE CINÉMATIQUE ---
+        launchRealisticMissile(scene, turret, target);
+    }
+};
+// ============================================================
+// NOUVEAU SYSTÈME DE MISSILE (PLUS FLUIDE ET RÉALISTE)
+// ============================================================
+function launchRealisticMissile(scene, turret, target) {
+    const damageAmount = turret.config.damage * 2.5;
+    const blastRadius = turret.config.aoe * 1.8;
+    const flightDuration = 2500; // 3 secondes
+    // 1. Design du Missile (Plus détaillé)
+    const missile = scene.add.container(turret.x, turret.y);
+    missile.setDepth(300);
+    const mg = scene.add.graphics();
+    // Flamme du réacteur (animée plus tard)
+    mg.fillStyle(0x00ffff);
+    mg.fillTriangle(0, 15, -4, 25, 4, 25);
+    // Corps
+    mg.fillStyle(0xffffff);
+    mg.fillRoundedRect(-5, -20, 10, 35, 2);
+    // Tête nucléaire
+    mg.fillStyle(0xff0000);
+    mg.fillTriangle(0, -30, -5, -20, 5, -20);
+    // Ailerons arrière
+    mg.fillStyle(0x445566);
+    mg.beginPath();
+    mg.moveTo(-5, 0);
+    mg.lineTo(-14, 15);
+    mg.lineTo(-5, 15);
+    mg.fill(); // Gauche
+    mg.beginPath();
+    mg.moveTo(5, 0);
+    mg.lineTo(14, 15);
+    mg.lineTo(5, 15);
+    mg.fill(); // Droite
+    missile.add(mg);
+    missile.setScale(0.6);
+    // 2. Définition de la trajectoire COURBE (Pas de zigzag sec)
+    // On crée un point de contrôle pour faire un bel arc de cercle
+    // Le point de contrôle est décalé perpendiculairement à la cible
+    const startX = turret.x;
+    const startY = turret.y;
+    // Angle initial vers la cible
+    const angleToTarget = Phaser.Math.Angle.Between(startX, startY, target.x, target.y);
+    // On détermine aléatoirement si l'arc part à gauche ou à droite (-1 ou 1)
+    const arcSide = Math.random() > 0.5 ? 1 : -1;
+    const arcIntensity = 200; // Amplitude de la courbe
+    // Variables de suivi
+    let prevX = startX;
+    let prevY = startY;
+    let smokeTimer = 0;
+    // Flash de départ
+    const flash = scene.add.circle(startX, startY, 25, 0xffaa00, 1);
+    scene.tweens.add({
+        targets: flash,
+        scale: 2,
+        alpha: 0,
+        duration: 200,
+        onComplete: ()=>flash.destroy()
+    });
+    // 3. TWEEN AVEC COURBE DE BÉZIER DYNAMIQUE
+    scene.tweens.add({
+        targets: missile,
+        z: 1,
+        duration: flightDuration,
+        ease: "Quad.easeIn",
+        onUpdate: (tween, targetParam, param2, progress)=>{
+            if (!missile.active) return;
+            // Position actuelle de la cible (ou dernière connue)
+            const tx = target.active ? target.x : target.lastX || target.x;
+            const ty = target.active ? target.y : target.lastY || target.y;
+            // --- CALCUL DE LA POSITION ---
+            // On calcule une courbe de Bézier quadratique à la volée.
+            // P0 = Départ
+            // P1 = Point de contrôle (qui bouge un peu pour faire "vivant")
+            // P2 = Cible
+            // Calcul du point de contrôle P1 :
+            // Il est au milieu du trajet, mais décalé sur le côté pour créer l'arc
+            const midX = (startX + tx) / 2;
+            const midY = (startY + ty) / 2;
+            // Vecteur perpendiculaire pour le décalage
+            const dx = tx - startX;
+            const dy = ty - startY;
+            // Normalisation approximative pour le décalage
+            const perpX = -dy * 0.5;
+            const perpY = dx * 0.5;
+            // Le point de contrôle se rapproche de la ligne directe à la fin (progress)
+            // pour que le missile "rentre" dans la cible
+            const currentArc = arcIntensity * (1 - progress);
+            // Ajout d'une petite turbulence (Noise) pour le réalisme, pas un zigzag mathématique
+            const turbulence = Math.sin(progress * 20) * 10 * (1 - progress); // Vibre moins à la fin
+            const controlX = midX + perpX * arcSide / (Math.abs(dx) + Math.abs(dy)) * currentArc + turbulence;
+            const controlY = midY + perpY * arcSide / (Math.abs(dx) + Math.abs(dy)) * currentArc + turbulence;
+            // Formule de Bézier Quadratique : (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+            const t = progress;
+            const x = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * controlX + t * t * tx;
+            const y = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * controlY + t * t * ty;
+            missile.x = x;
+            missile.y = y;
+            // --- CALCUL DE LA ROTATION (LISSÉE) ---
+            // On regarde la différence avec la frame d'avant
+            const angle = Math.atan2(y - prevY, x - prevX);
+            // + PI/2 car le dessin pointe vers le haut (-Y)
+            missile.setRotation(angle + Math.PI / 2);
+            prevX = x;
+            prevY = y;
+            // --- FX DE TRAINÉE (SMOKE) ---
+            smokeTimer += scene.game.loop.delta;
+            if (smokeTimer > 20) {
+                // Très dense
+                smokeTimer = 0;
+                const p = scene.add.circle(missile.x, missile.y, 4, 0x999999, 0.6);
+                p.setDepth(290);
+                scene.tweens.add({
+                    targets: p,
+                    scale: {
+                        from: 1,
+                        to: 3
+                    },
+                    alpha: {
+                        from: 0.6,
+                        to: 0
+                    },
+                    duration: 600,
+                    onComplete: ()=>p.destroy()
+                });
+                // Petit cœur de flamme
+                const f = scene.add.circle(missile.x, missile.y, 2, 0x00ffff, 1);
+                f.setDepth(291);
+                scene.tweens.add({
+                    targets: f,
+                    scale: 0,
+                    duration: 200,
+                    onComplete: ()=>f.destroy()
+                });
+            }
+        },
+        onComplete: ()=>{
+            const finalX = target.active ? target.x : missile.x;
+            const finalY = target.active ? target.y : missile.y;
+            missile.destroy();
+            triggerExplosion(scene, finalX, finalY, blastRadius, damageAmount, 3);
+        }
+    });
+}
+// ============================================================
+// EXPLOSION (INCHANGÉE MAIS OPTIMISÉE)
+// ============================================================
+function triggerExplosion(scene, x, y, radius, damage, level) {
+    const hitboxBuffer = 8;
+    const effectiveRadius = radius + hitboxBuffer;
+    const isLvl3 = level === 3;
+    // Trace au sol
+    const scorch = scene.add.circle(x, y, effectiveRadius, isLvl3 ? 0x001122 : 0x000000, 0.6);
+    scorch.setDepth(4);
+    scorch.scaleY = 0.6;
+    scene.tweens.add({
+        targets: scorch,
+        alpha: 0,
+        duration: 2000,
+        delay: 500,
+        onComplete: ()=>scorch.destroy()
+    });
+    // Flash
+    const flash = scene.add.circle(x, y, radius, isLvl3 ? 0xccffff : 0xffaa00, 1);
+    flash.setDepth(350);
+    scene.tweens.add({
+        targets: flash,
+        scale: 1.5,
+        alpha: 0,
+        duration: 200,
+        onComplete: ()=>flash.destroy()
+    });
+    // Onde de choc
+    const shock = scene.add.graphics();
+    shock.setDepth(340);
+    shock.lineStyle(isLvl3 ? 8 : 4, isLvl3 ? 0x00ffff : 0xffaa00);
+    shock.strokeCircle(0, 0, radius);
+    shock.setPosition(x, y);
+    shock.setScale(0.1);
+    scene.tweens.add({
+        targets: shock,
+        scale: 1.2,
+        alpha: 0,
+        duration: 400,
+        onComplete: ()=>shock.destroy()
+    });
+    // Particules
+    const pCount = isLvl3 ? 20 : 8;
+    for(let i = 0; i < pCount; i++){
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * radius * 0.5;
+        const px = x + Math.cos(angle) * dist;
+        const py = y + Math.sin(angle) * dist;
+        // Mixte feu/fumée ou plasma/fumée
+        const color = isLvl3 ? Math.random() > 0.5 ? 0x00ffff : 0x555555 : 0x666666;
+        const p = scene.add.circle(px, py, Math.random() * 4 + 2, color, 1);
+        p.setDepth(345);
+        scene.tweens.add({
+            targets: p,
+            x: px + Math.cos(angle) * radius,
+            y: py + Math.sin(angle) * radius - 50,
+            alpha: 0,
+            scale: 0.5,
+            duration: Math.random() * 500 + 500,
+            onComplete: ()=>p.destroy()
+        });
+    }
+    // Dégâts
+    if (scene.enemies) scene.enemies.children.each((e)=>{
+        if (e.active && Phaser.Math.Distance.Between(x, y, e.x, e.y) <= effectiveRadius) {
+            e.damage(damage);
+            if (e.bodyGroup) scene.tweens.add({
+                targets: e.bodyGroup,
+                tint: isLvl3 ? 0x00ffff : 0xff0000,
+                duration: 100,
+                yoyo: true
+            });
+        }
+    });
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bgZGw":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "zap", ()=>zap);
+const zap = {
+    key: "zap",
+    name: "\xc9clair",
+    cost: 350,
+    range: 120,
+    damage: 50,
+    rate: 1800,
+    color: 0x00ffff,
+    maxLevel: 3,
+    maxChainTargets: 3,
+    description: "G\xe9n\xe9rateur \xe9lectrique avec propagation en cha\xeene.\n\n\u2705 Avantages:\n\u2022 Propagation d'\xe9clair entre ennemis proches\n\u2022 D\xe9g\xe2ts instantan\xe9s\n\u2022 Efficace contre les groupes serr\xe9s\n\n\u274C Inconv\xe9nients:\n\u2022 Co\xfbt tr\xe8s \xe9lev\xe9\n\u2022 Port\xe9e moyenne\n\u2022 Moins efficace si ennemis espac\xe9s",
+    // --- DESSIN ÉVOLUTIF (Design Électrique) ---
+    onDrawBarrel: (scene, container, color, turret)=>{
+        const g = scene.add.graphics();
+        const level = turret.level || 1;
+        // Palette de couleurs électriques
+        const electricBlue = 0x00ffff;
+        const electricYellow = 0xffff00;
+        const electricPurple = 0xaa00ff;
+        const darkMetal = 0x111111;
+        const lightMetal = 0x444444;
+        const energyCore = 0xffffff;
+        if (level === 1) {
+            // === NIVEAU 1 : Générateur d'Éclair Standard ===
+            // Base circulaire avec bobines
+            g.fillStyle(darkMetal);
+            g.fillCircle(0, 0, 20);
+            g.lineStyle(2, electricBlue, 0.8);
+            g.strokeCircle(0, 0, 20);
+            // Bobines électriques (cercles concentriques)
+            g.lineStyle(1.5, electricBlue, 0.6);
+            g.strokeCircle(0, 0, 12);
+            g.strokeCircle(0, 0, 8);
+            // Canon électrique (pointant vers l'avant)
+            g.fillStyle(electricBlue, 0.7);
+            g.fillRect(0, -4, 35, 8);
+            g.lineStyle(2, electricYellow, 0.9);
+            g.strokeRect(0, -4, 35, 8);
+            // Noyau d'énergie
+            g.fillStyle(energyCore, 0.9);
+            g.fillCircle(35, 0, 5);
+        } else if (level === 2) {
+            // === NIVEAU 2 : Générateur Renforcé ===
+            // Base plus grande avec plus de bobines
+            g.fillStyle(darkMetal);
+            g.fillCircle(0, 0, 24);
+            g.lineStyle(2, electricBlue, 0.9);
+            g.strokeCircle(0, 0, 24);
+            // Bobines multiples
+            g.lineStyle(1.5, electricBlue, 0.7);
+            g.strokeCircle(0, 0, 16);
+            g.strokeCircle(0, 0, 12);
+            g.strokeCircle(0, 0, 8);
+            // Canon électrique plus long
+            g.fillStyle(electricBlue, 0.8);
+            g.fillRect(0, -5, 45, 10);
+            g.lineStyle(2, electricYellow, 1);
+            g.strokeRect(0, -5, 45, 10);
+            // Énergie pulsante (cercles concentriques)
+            g.lineStyle(1, electricYellow, 0.5);
+            g.strokeCircle(45, 0, 8);
+            g.strokeCircle(45, 0, 6);
+            // Noyau d'énergie plus gros
+            g.fillStyle(energyCore, 1);
+            g.fillCircle(45, 0, 6);
+        } else {
+            // === NIVEAU 3 : Générateur Élite (Tesla) ===
+            // Base massive avec bobines complexes
+            g.fillStyle(darkMetal);
+            g.fillCircle(0, 0, 28);
+            g.lineStyle(3, electricPurple, 1);
+            g.strokeCircle(0, 0, 28);
+            // Bobines en spirale
+            g.lineStyle(2, electricPurple, 0.8);
+            g.strokeCircle(0, 0, 20);
+            g.strokeCircle(0, 0, 16);
+            g.strokeCircle(0, 0, 12);
+            g.strokeCircle(0, 0, 8);
+            // Canon Tesla (très long)
+            g.fillStyle(electricPurple, 0.9);
+            g.fillRect(0, -6, 55, 12);
+            g.lineStyle(3, electricYellow, 1);
+            g.strokeRect(0, -6, 55, 12);
+            // Énergie Tesla (aura multiple)
+            g.lineStyle(2, electricYellow, 0.6);
+            g.strokeCircle(55, 0, 10);
+            g.strokeCircle(55, 0, 7);
+            g.strokeCircle(55, 0, 4);
+            // Noyau d'énergie Tesla (brillant)
+            g.fillStyle(energyCore, 1);
+            g.fillCircle(55, 0, 7);
+            g.fillStyle(electricYellow, 0.8);
+            g.fillCircle(55, 0, 4);
+            // Particules d'énergie (petits points)
+            g.fillStyle(electricYellow, 1);
+            g.fillCircle(-8, -8, 2);
+            g.fillCircle(8, -8, 2);
+            g.fillCircle(-8, 8, 2);
+            g.fillCircle(8, 8, 2);
+        }
+        // Pivot central
+        g.fillStyle(0x000000);
+        g.fillCircle(0, 0, 4);
+        container.add(g);
+        // --- INDICATEUR DE NIVEAU ---
+        const badge = scene.add.container(-20, 20);
+        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.7);
+        const badgeColor = level === 3 ? electricPurple : electricBlue;
+        badgeBg.setStrokeStyle(1, badgeColor);
+        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
+            fontSize: "10px",
+            fontFamily: "Arial",
+            color: level === 3 ? "#aa00ff" : "#00ffff",
+            fontStyle: "bold"
+        }).setOrigin(0.5);
+        badge.add([
+            badgeBg,
+            lvlText
+        ]);
+        container.add(badge);
+    },
+    // --- LOGIQUE DE TIR AVEC PROPAGATION D'ÉCLAIR ---
+    onFire: (scene, turret, target)=>{
+        const level = turret.level || 1;
+        const angle = turret.barrelGroup.rotation;
+        // Nombre max de cibles selon le niveau
+        const maxChainTargets = level === 1 ? 3 : level === 2 ? 5 : 7;
+        const chainDistance = 80; // 1/2 case = 32 pixels donc environ 1.2 cases
+        // Longueur du canon
+        const barrelLen = level === 1 ? 32 : level === 2 ? 40 : 48;
+        const tipX = turret.x + Math.cos(angle) * barrelLen;
+        const tipY = turret.y + Math.sin(angle) * barrelLen;
+        // --- EFFET VISUEL INITIAL ---
+        const flashColor = level === 3 ? 0xaa00ff : level === 2 ? 0x00ffff : 0x00aaff;
+        const flashSize = level === 3 ? 25 : level === 2 ? 20 : 15;
+        const flash = scene.add.circle(tipX, tipY, flashSize, flashColor, 0.9);
+        scene.tweens.add({
+            targets: flash,
+            scale: 2,
+            alpha: 0,
+            duration: 200,
+            onComplete: ()=>flash.destroy()
+        });
+        // --- PROPAGATION D'ÉCLAIR ---
+        const allEnemies = scene.enemies.getChildren();
+        const hitEnemies = new Set(); // Pour éviter de toucher deux fois le même ennemi
+        const chainSequence = []; // Pour l'animation de la chaîne
+        // Fonction récursive pour la propagation
+        const chainLightning = (currentTarget, depth, fromX, fromY)=>{
+            if (depth >= maxChainTargets || !currentTarget || !currentTarget.active) return;
+            // Marquer comme touché
+            hitEnemies.add(currentTarget);
+            chainSequence.push({
+                target: currentTarget,
+                fromX: fromX,
+                fromY: fromY,
+                depth: depth
+            });
+            // Infliger des dégâts
+            currentTarget.damage(turret.config.damage);
+            // Trouver le prochain ennemi à proximité
+            let nearestEnemy = null;
+            let minDist = chainDistance;
+            allEnemies.forEach((enemy)=>{
+                if (enemy.active && !hitEnemies.has(enemy) && enemy !== currentTarget) {
+                    const dist = Phaser.Math.Distance.Between(currentTarget.x, currentTarget.y, enemy.x, enemy.y);
+                    if (dist <= chainDistance && dist < minDist) {
+                        minDist = dist;
+                        nearestEnemy = enemy;
+                    }
+                }
+            });
+            // Si on trouve un ennemi proche, continuer la chaîne
+            if (nearestEnemy) chainLightning(nearestEnemy, depth + 1, currentTarget.x, currentTarget.y);
+        };
+        // Démarrer la chaîne depuis la cible initiale
+        chainLightning(target, 0, tipX, tipY);
+        // --- ANIMATION DE LA CHAÎNE D'ÉCLAIR ---
+        chainSequence.forEach((link, index)=>{
+            const delay = index * 50; // Délai progressif pour l'effet de chaîne
+            scene.time.delayedCall(delay, ()=>{
+                // Ligne d'éclair zigzagante
+                const lightning = scene.add.graphics();
+                const lightningColor = level === 3 ? 0xaa00ff : 0x00ffff;
+                const lightningWidth = level === 3 ? 4 : 3;
+                // Créer un zigzag pour l'effet éclair
+                const steps = 8;
+                const dx = link.target.x - link.fromX;
+                const dy = link.target.y - link.fromY;
+                lightning.lineStyle(lightningWidth, lightningColor, 1);
+                lightning.beginPath();
+                lightning.moveTo(link.fromX, link.fromY);
+                for(let i = 1; i <= steps; i++){
+                    const t = i / steps;
+                    const x = link.fromX + dx * t;
+                    const y = link.fromY + dy * t;
+                    // Ajouter un décalage aléatoire pour l'effet zigzag
+                    const offsetX = (Math.random() - 0.5) * 8;
+                    const offsetY = (Math.random() - 0.5) * 8;
+                    lightning.lineTo(x + offsetX, y + offsetY);
+                }
+                lightning.lineTo(link.target.x, link.target.y);
+                lightning.strokePath();
+                // Ligne principale (plus épaisse)
+                lightning.lineStyle(lightningWidth + 2, 0xffffff, 0.8);
+                lightning.beginPath();
+                lightning.moveTo(link.fromX, link.fromY);
+                lightning.lineTo(link.target.x, link.target.y);
+                lightning.strokePath();
+                lightning.setDepth(100);
+                // Disparition rapide
+                scene.tweens.add({
+                    targets: lightning,
+                    alpha: 0,
+                    duration: 150,
+                    onComplete: ()=>lightning.destroy()
+                });
+                // Impact sur la cible
+                const impactColor = level === 3 ? 0xaa00ff : 0x00ffff;
+                const impactSize = level === 3 ? 15 : 12;
+                const impact = scene.add.circle(link.target.x, link.target.y, impactSize, impactColor, 0.9);
+                impact.setDepth(99);
+                scene.tweens.add({
+                    targets: impact,
+                    scale: 0,
+                    alpha: 0,
+                    duration: 200,
+                    onComplete: ()=>impact.destroy()
+                });
+                // Particules d'électricité
+                for(let i = 0; i < 5; i++){
+                    const particle = scene.add.circle(link.target.x + (Math.random() - 0.5) * 20, link.target.y + (Math.random() - 0.5) * 20, 2, lightningColor, 1);
+                    particle.setDepth(101);
+                    scene.tweens.add({
+                        targets: particle,
+                        x: particle.x + (Math.random() - 0.5) * 30,
+                        y: particle.y + (Math.random() - 0.5) * 30,
+                        alpha: 0,
+                        scale: 0,
+                        duration: 300,
+                        onComplete: ()=>particle.destroy()
+                    });
+                }
+            });
+        });
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"9rF1d":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "barracks", ()=>barracks);
+const barracks = {
+    key: "barracks",
+    name: "Caserne",
+    cost: 200,
+    range: 0,
+    damage: 0,
+    rate: 0,
+    color: 0x8b4513,
+    maxLevel: 3,
+    description: "B\xe2timent qui produit des soldats pour bloquer les ennemis.\n\n\u2705 Avantages:\n\u2022 Soldats bloquent temporairement les ennemis\n\u2022 Les soldats se r\xe9g\xe9n\xe8rent automatiquement\n\u2022 Compl\xe9mentaire aux tourelles\n\u2022 Peut \xeatre am\xe9lior\xe9 pour plus de soldats\n\n\u274C Inconv\xe9nients:\n\u2022 Pas de d\xe9g\xe2ts directs\n\u2022 Les soldats peuvent mourir\n\u2022 N\xe9cessite un placement strat\xe9gique",
+    // Nombre de soldats par niveau
+    soldiersCount: [
+        2,
+        3,
+        4
+    ],
+    // Temps de respawn en millisecondes
+    respawnTime: [
+        12000,
+        10000,
+        8000
+    ],
+    // Vie des soldats par niveau
+    soldierHp: [
+        100,
+        130,
+        170
+    ],
+    // --- DESSIN ÉVOLUTIF (Bâtiment militaire) ---
+    onDrawBarrel: (scene, container, color, turret)=>{
+        const g = scene.add.graphics();
+        const level = turret.level || 1;
+        // Palette de couleurs
+        const woodBrown = 0x8b4513;
+        const darkWood = 0x654321;
+        const stoneGray = 0x696969;
+        const darkStone = 0x404040;
+        const metalGray = 0x708090;
+        const flagRed = 0xcc0000;
+        const flagBlue = 0x0000cc;
+        if (level === 1) {
+            // === NIVEAU 1 : Baraque Simple ===
+            // Base en bois
+            g.fillStyle(woodBrown);
+            g.fillRect(-20, -20, 40, 40);
+            g.lineStyle(2, darkWood);
+            g.strokeRect(-20, -20, 40, 40);
+            // Toit
+            g.fillStyle(darkWood);
+            g.fillTriangle(-22, -20, 0, -30, 22, -20);
+            g.lineStyle(2, 0x000000);
+            g.strokeTriangle(-22, -20, 0, -30, 22, -20);
+            // Porte
+            g.fillStyle(0x000000);
+            g.fillRect(-6, 0, 12, 20);
+            g.lineStyle(1, darkWood);
+            g.strokeRect(-6, 0, 12, 20);
+            // Fenêtre
+            g.fillStyle(0xffffaa, 0.8);
+            g.fillRect(-12, -12, 8, 8);
+            g.fillRect(4, -12, 8, 8);
+        } else if (level === 2) {
+            // === NIVEAU 2 : Caserne Renforcée ===
+            // Base en pierre
+            g.fillStyle(stoneGray);
+            g.fillRect(-24, -24, 48, 48);
+            g.lineStyle(2, darkStone);
+            g.strokeRect(-24, -24, 48, 48);
+            // Toit plus imposant
+            g.fillStyle(darkStone);
+            g.fillTriangle(-26, -24, 0, -36, 26, -24);
+            g.lineStyle(3, 0x000000);
+            g.strokeTriangle(-26, -24, 0, -36, 26, -24);
+            // Porte renforcée
+            g.fillStyle(0x000000);
+            g.fillRect(-8, 2, 16, 24);
+            g.lineStyle(2, metalGray);
+            g.strokeRect(-8, 2, 16, 24);
+            // Fenêtres avec barreaux
+            g.fillStyle(0xffffaa, 0.8);
+            g.fillRect(-14, -14, 10, 10);
+            g.fillRect(4, -14, 10, 10);
+            g.lineStyle(1, 0x000000);
+            g.strokeRect(-14, -14, 10, 10);
+            g.strokeRect(4, -14, 10, 10);
+            // Barreaux
+            g.lineStyle(1, 0x000000);
+            g.lineBetween(-14, -9, -4, -9);
+            g.lineBetween(-9, -14, -9, -4);
+            g.lineBetween(4, -9, 14, -9);
+            g.lineBetween(9, -14, 9, -4);
+            // Drapeau simple
+            g.fillStyle(flagRed);
+            g.fillRect(20, -30, 4, 12);
+        } else {
+            // === NIVEAU 3 : Forteresse ===
+            // Base massive en pierre
+            g.fillStyle(stoneGray);
+            g.fillRect(-28, -28, 56, 56);
+            g.lineStyle(3, darkStone);
+            g.strokeRect(-28, -28, 56, 56);
+            // Détails de pierre
+            g.lineStyle(1, darkStone);
+            for(let i = -24; i < 24; i += 8)g.lineBetween(i, -28, i, 28);
+            // Toit imposant avec créneaux
+            g.fillStyle(darkStone);
+            g.fillRect(-30, -40, 60, 12);
+            g.fillStyle(0x000000);
+            // Créneaux
+            for(let i = -28; i < 28; i += 8)g.fillRect(i, -40, 4, 4);
+            // Porte massive
+            g.fillStyle(0x000000);
+            g.fillRect(-10, 4, 20, 28);
+            g.lineStyle(3, metalGray);
+            g.strokeRect(-10, 4, 20, 28);
+            // Clous
+            g.fillStyle(metalGray);
+            g.fillCircle(-5, 10, 2);
+            g.fillCircle(5, 10, 2);
+            g.fillCircle(-5, 20, 2);
+            g.fillCircle(5, 20, 2);
+            // Fenêtres avec barreaux
+            g.fillStyle(0xffffaa, 0.8);
+            g.fillRect(-16, -16, 12, 12);
+            g.fillRect(4, -16, 12, 12);
+            g.lineStyle(2, 0x000000);
+            g.strokeRect(-16, -16, 12, 12);
+            g.strokeRect(4, -16, 12, 12);
+            // Barreaux épais
+            g.lineStyle(2, 0x000000);
+            g.lineBetween(-16, -11, -4, -11);
+            g.lineBetween(-10, -16, -10, -4);
+            g.lineBetween(4, -11, 16, -11);
+            g.lineBetween(10, -16, 10, -4);
+            // Drapeau avec mât
+            g.fillStyle(0x654321);
+            g.fillRect(24, -42, 3, 20);
+            g.fillStyle(flagRed);
+            g.fillRect(27, -40, 8, 6);
+            g.fillStyle(flagBlue);
+            g.fillRect(27, -34, 8, 6);
+            // Tourelles latérales
+            g.fillStyle(stoneGray);
+            g.fillCircle(-26, -26, 6);
+            g.fillCircle(26, -26, 6);
+            g.lineStyle(2, darkStone);
+            g.strokeCircle(-26, -26, 6);
+            g.strokeCircle(26, -26, 6);
+        }
+        // Pivot central
+        g.fillStyle(0x000000);
+        g.fillCircle(0, 0, 3);
+        container.add(g);
+        // --- INDICATEUR DE NIVEAU ---
+        const badge = scene.add.container(-20, 20);
+        const badgeBg = scene.add.rectangle(0, 0, 24, 14, 0x000000, 0.7);
+        const badgeColor = level === 3 ? 0xffd700 : level === 2 ? 0x00ffff : 0xffffff;
+        badgeBg.setStrokeStyle(1, badgeColor);
+        const lvlText = scene.add.text(0, 0, `Lv.${level}`, {
+            fontSize: "10px",
+            fontFamily: "Arial",
+            color: level === 3 ? "#ffd700" : level === 2 ? "#00ffff" : "#ffffff",
+            fontStyle: "bold"
+        }).setOrigin(0.5);
+        badge.add([
+            badgeBg,
+            lvlText
+        ]);
+        container.add(badge);
+    },
+    // --- LOGIQUE SPÉCIALE : Pas de tir, mais gestion des soldats ---
+    onFire: null,
+    // Fonction appelée lors de la création du bâtiment
+    onBuild: (scene, barracks)=>{
+    // Cette fonction sera appelée depuis GameScene après la création
+    // Les soldats seront créés et déployés automatiquement
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"k759O":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "witch", ()=>witch);
+const witch = {
+    name: "Sorci\xe8re",
+    speed: 28,
+    hp: 800,
+    reward: 150,
+    playerDamage: 4,
+    color: 0x6a1b9a,
+    damage: 15,
+    attackSpeed: 1200,
+    spawnInterval: 5000,
+    spawnCount: 4,
+    spawnType: "zombie_minion",
+    scale: 1.2,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Stocker les références pour l'animation
+        enemyInstance.legs = {};
+        enemyInstance.staff = null;
+        enemyInstance.hat = null;
+        // 1. Jambe Arrière
+        enemyInstance.legs.back = scene.add.container(0, 8);
+        const legB = scene.add.graphics();
+        legB.fillStyle(0x4a148c); // Violet foncé
+        legB.fillRoundedRect(-3, 0, 6, 20, 2);
+        legB.fillRoundedRect(-4, 18, 8, 4, 2); // Botte pointue
+        enemyInstance.legs.back.add(legB);
+        container.add(enemyInstance.legs.back);
+        // 2. Robe (longue et ample)
+        const robe = scene.add.graphics();
+        robe.fillStyle(color);
+        // Robe en forme de trapèze
+        robe.beginPath();
+        robe.moveTo(-8, -5);
+        robe.lineTo(8, -5);
+        robe.lineTo(12, 20);
+        robe.lineTo(-12, 20);
+        robe.closePath();
+        robe.fillPath();
+        // Bordure dorée
+        robe.lineStyle(2, 0xffd700);
+        robe.strokePath();
+        // Détails de la robe (étoiles, runes)
+        robe.fillStyle(0xffd700, 0.6);
+        robe.fillCircle(-5, 5, 2);
+        robe.fillCircle(5, 5, 2);
+        robe.fillCircle(0, 12, 1.5);
+        container.add(robe);
+        // 3. Tête et chapeau pointu
+        const head = scene.add.graphics();
+        head.fillStyle(0xffdbac); // Peau
+        head.fillCircle(0, -12, 6);
+        // Yeux brillants (magie)
+        head.fillStyle(0x00ffff); // Cyan magique
+        head.fillCircle(-2, -13, 1.5);
+        head.fillCircle(2, -13, 1.5);
+        // Chapeau pointu
+        enemyInstance.hat = scene.add.graphics();
+        enemyInstance.hat.fillStyle(0x4a148c);
+        enemyInstance.hat.beginPath();
+        enemyInstance.hat.moveTo(-6, -18);
+        enemyInstance.hat.lineTo(6, -18);
+        enemyInstance.hat.lineTo(0, -30);
+        enemyInstance.hat.closePath();
+        enemyInstance.hat.fillPath();
+        enemyInstance.hat.lineStyle(2, 0xffd700);
+        enemyInstance.hat.strokePath();
+        // Étoile sur le chapeau
+        enemyInstance.hat.fillStyle(0xffd700);
+        enemyInstance.hat.fillCircle(0, -24, 2);
+        container.add(head);
+        container.add(enemyInstance.hat);
+        // 4. Bâton magique (tenu à la main)
+        const staffContainer = scene.add.container(0, 0);
+        const staff = scene.add.graphics();
+        staff.fillStyle(0x8b4513); // Marron pour le bâton
+        staff.fillRect(8, -8, 3, 25);
+        staffContainer.add(staff);
+        // Orbe magique au bout (objet séparé pour l'animation)
+        enemyInstance.orb = scene.add.circle(9.5, 18, 4, 0x00ffff, 0.8);
+        enemyInstance.orb.setStrokeStyle(1, 0xffffff);
+        staffContainer.add(enemyInstance.orb);
+        enemyInstance.staff = staffContainer;
+        container.add(staffContainer);
+        // 5. Jambe Avant
+        enemyInstance.legs.front = scene.add.container(0, 8);
+        const legF = scene.add.graphics();
+        legF.fillStyle(0x4a148c);
+        legF.fillRoundedRect(-3, 0, 6, 20, 2);
+        legF.fillRoundedRect(-4, 18, 8, 4, 2);
+        enemyInstance.legs.front.add(legF);
+        container.add(enemyInstance.legs.front);
+        // Aura magique (particules autour)
+        enemyInstance.aura = scene.add.graphics();
+        enemyInstance.aura.lineStyle(1, 0x00ffff, 0.4);
+        enemyInstance.aura.strokeCircle(0, 0, 18);
+        enemyInstance.aura.strokeCircle(0, 0, 20);
+        container.add(enemyInstance.aura);
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        const speed = 0.005; // Marche très lente
+        const range = 0.3;
+        // Animation de marche
+        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+        // Animation du chapeau (légère oscillation)
+        if (enemyInstance.hat) enemyInstance.hat.rotation = Math.sin(time * 0.003) * 0.1;
+        // Animation du bâton (légère pulsation de l'orbe)
+        if (enemyInstance.orb && enemyInstance.orb.active) {
+            const pulseScale = 1 + Math.sin(time * 0.01) * 0.2;
+            enemyInstance.orb.setScale(pulseScale);
+            enemyInstance.orb.setAlpha(0.6 + Math.sin(time * 0.015) * 0.3);
+        }
+        // Animation de l'aura
+        if (enemyInstance.aura) {
+            enemyInstance.aura.alpha = 0.3 + Math.sin(time * 0.008) * 0.2;
+            enemyInstance.aura.rotation += 0.002;
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bONBj":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "zombie_minion", ()=>zombie_minion);
+const zombie_minion = {
+    name: "B\xe9b\xe9 Zombie",
+    speed: 60,
+    hp: 55,
+    reward: 5,
+    playerDamage: 1,
+    color: 0x4a7a2f,
+    damage: 3,
+    attackSpeed: 1000,
+    scale: 0.7,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        enemyInstance.legs = {};
+        // 1. Jambe Arrière
+        enemyInstance.legs.back = scene.add.container(0, 3);
+        const legB = scene.add.graphics();
+        legB.fillStyle(0x2d5016); // Vert foncé
+        legB.fillRoundedRect(-2, 0, 4, 12, 1);
+        legB.fillRoundedRect(-3, 11, 6, 3, 1); // Petit pied
+        enemyInstance.legs.back.add(legB);
+        container.add(enemyInstance.legs.back);
+        // 2. Corps (petit et trapu)
+        const body = scene.add.graphics();
+        // Torse
+        body.fillStyle(color);
+        body.fillRoundedRect(-4, -6, 8, 10, 2);
+        // Tête (plus grosse proportionnellement)
+        body.fillStyle(0x3a6b1f);
+        body.fillCircle(0, -10, 5);
+        // Yeux morts (points rouges)
+        body.fillStyle(0xff0000);
+        body.fillCircle(-2, -11, 1);
+        body.fillCircle(2, -11, 1);
+        // Bras (courts)
+        body.fillStyle(color);
+        body.fillRoundedRect(-5, -4, 3, 6, 1);
+        body.fillRoundedRect(2, -4, 3, 6, 1);
+        container.add(body);
+        // 3. Jambe Avant
+        enemyInstance.legs.front = scene.add.container(0, 3);
+        const legF = scene.add.graphics();
+        legF.fillStyle(color);
+        legF.fillRoundedRect(-2, 0, 4, 12, 1);
+        legF.fillRoundedRect(-3, 11, 6, 3, 1);
+        enemyInstance.legs.front.add(legF);
+        container.add(enemyInstance.legs.front);
+        // Détails zombie (plaies, déchirures)
+        body.fillStyle(0x8b4513); // Marron pour les plaies
+        body.fillRect(-3, -2, 2, 1);
+        body.fillRect(1, 0, 2, 1);
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        const speed = 0.01; // Animation plus rapide pour les petits
+        const range = 0.4;
+        enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+        enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"lF8pq":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "bosslvl1", ()=>bosslvl1);
+const bosslvl1 = {
+    name: "DOOM",
+    speed: 11,
+    hp: 42000,
+    reward: 1000,
+    playerDamage: 20,
+    color: 0x222222,
+    damage: 70,
+    attackSpeed: 1500,
+    scale: 1,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Pas de jambes pour le boss, il flotte !
+        // 1. Cape / Aura (Flottant derrière)
+        const aura = scene.add.graphics();
+        aura.fillStyle(0xff0000, 0.3); // Rouge sang transparent
+        // Forme déchiquetée
+        aura.beginPath();
+        aura.moveTo(-30, -40);
+        aura.lineTo(30, -40);
+        aura.lineTo(40, 20);
+        aura.lineTo(20, 50);
+        aura.lineTo(0, 30);
+        aura.lineTo(-20, 50);
+        aura.lineTo(-40, 20);
+        aura.closePath();
+        aura.fillPath();
+        container.add(aura);
+        // 2. Corps (Armure noire massive à pointes)
+        const body = scene.add.graphics();
+        body.fillStyle(color); // Noir
+        body.lineStyle(4, 0xff0000); // Bordure rouge
+        // Torse massif
+        body.beginPath();
+        body.moveTo(-25, -30);
+        body.lineTo(25, -30);
+        body.lineTo(15, 30);
+        body.lineTo(-15, 30);
+        body.closePath();
+        body.fillPath();
+        body.strokePath();
+        // Épaulières à pointes
+        body.fillStyle(0xff0000);
+        body.beginPath();
+        body.moveTo(-25, -30);
+        body.lineTo(-45, -40);
+        body.lineTo(-25, -10);
+        body.fillPath();
+        body.beginPath();
+        body.moveTo(25, -30);
+        body.lineTo(45, -40);
+        body.lineTo(25, -10);
+        body.fillPath();
+        // Tête (Casque cornu)
+        body.fillStyle(color);
+        body.fillRect(-12, -50, 24, 20);
+        // Cornes
+        body.fillStyle(0xff0000);
+        body.beginPath();
+        body.moveTo(-12, -50);
+        body.lineTo(-25, -70);
+        body.lineTo(-5, -50);
+        body.fillPath();
+        body.beginPath();
+        body.moveTo(12, -50);
+        body.lineTo(25, -70);
+        body.lineTo(5, -50);
+        body.fillPath();
+        // Yeux brillants
+        body.fillStyle(0xffff00);
+        body.fillRect(-8, -45, 6, 4);
+        body.fillRect(2, -45, 6, 4);
+        container.add(body);
+        // Le Boss est trop imposant pour tourner rapidement
+        enemyInstance.shouldRotate = false;
+        // On stocke l'aura pour l'animer
+        enemyInstance.aura = aura;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Pas de marche, mais une lévitation menaçante
+        const speed = 0.002;
+        const floatRange = 10;
+        // Flottement vertical lent
+        enemyInstance.bodyGroup.y = Math.sin(time * speed) * floatRange;
+        // L'aura ondule légèrement
+        enemyInstance.aura.scaleX = 1 + Math.sin(time * 0.005) * 0.1;
+        enemyInstance.aura.alpha = 0.3 + Math.sin(time * 0.01) * 0.1;
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hQduM":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "bosslvl2", ()=>bosslvl2);
+const bosslvl2 = {
+    name: "N\xc9ANT VORACE",
+    speed: 12,
+    hp: 90000,
+    reward: 2500,
+    playerDamage: 20,
+    color: 0x000000,
+    damage: 150,
+    attackSpeed: 800,
+    scale: 1.3,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Initialisation pour l'animation
+        enemyInstance.legs = [];
+        enemyInstance.eye = null;
+        enemyInstance.pupil = null;
+        // --- 1. LES PATTES (8 pattes d'araignée effrayantes) ---
+        // On les dessine d'abord pour qu'elles soient derrière le corps
+        for(let i = 0; i < 8; i++){
+            const leg = scene.add.graphics();
+            leg.lineStyle(4, 0x110022); // Violet très sombre
+            // Forme de patte articulée pointue
+            leg.beginPath();
+            leg.moveTo(0, 0);
+            leg.lineTo(30, -20); // Premier segment
+            leg.lineTo(55, 10); // Pointe vers le bas
+            leg.strokePath();
+            // On positionne la patte autour du corps
+            // On les groupe un peu pour laisser de la place devant
+            // Angles : -135, -90, -45, -20 (gauche) et 20, 45, 90, 135 (droite)
+            const angles = [
+                -2.2,
+                -1.5,
+                -0.8,
+                -0.3,
+                0.3,
+                0.8,
+                1.5,
+                2.2
+            ];
+            const angle = angles[i];
+            // Créer un conteneur pour la patte pour pouvoir la pivoter facilement
+            const legContainer = scene.add.container(0, 0);
+            legContainer.add(leg);
+            legContainer.rotation = angle;
+            // Stocker l'angle de base pour l'animation
+            legContainer.baseRotation = angle;
+            container.add(legContainer);
+            enemyInstance.legs.push(legContainer);
+        }
+        // --- 2. AURA DE TÉNÈBRES (Fumée noire) ---
+        const darkness = scene.add.graphics();
+        darkness.fillStyle(0x000000, 0.3);
+        for(let i = 0; i < 8; i++)darkness.fillCircle((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 50, 15 + Math.random() * 15);
+        container.add(darkness);
+        enemyInstance.darkness = darkness;
+        // --- 3. CORPS (Masse informe) ---
+        const body = scene.add.graphics();
+        body.fillStyle(0x0a000a); // Noir quasi absolu
+        body.lineStyle(3, 0x440044); // Contour violet maladif
+        // Forme irrégulière
+        body.beginPath();
+        body.moveTo(-25, -30);
+        body.lineTo(25, -30);
+        body.lineTo(35, 0);
+        body.lineTo(20, 35);
+        body.lineTo(-20, 35);
+        body.lineTo(-35, 0);
+        body.closePath();
+        body.fillPath();
+        body.strokePath();
+        container.add(body);
+        enemyInstance.bodyGraphic = body;
+        // --- 4. L'ŒIL UNIQUE (Sauron style mais organique) ---
+        // Blanc de l'œil (injecté de sang)
+        const eyeWhite = scene.add.graphics();
+        eyeWhite.fillStyle(0xffcccc);
+        eyeWhite.fillEllipse(0, -5, 15, 10);
+        container.add(eyeWhite);
+        enemyInstance.eye = eyeWhite;
+        // Pupille (Fente verticale rouge vif)
+        const pupil = scene.add.graphics();
+        pupil.fillStyle(0xff0000);
+        pupil.fillEllipse(0, -5, 3, 9);
+        container.add(pupil);
+        enemyInstance.pupil = pupil;
+        // --- CONFIG ---
+        enemyInstance.shouldRotate = false; // Il fait face au joueur
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Sécurité
+        if (!enemyInstance.legs || !enemyInstance.bodyGraphic) return;
+        // 1. ANIMATION DES PATTES (Frénétique)
+        // Elles bougent très vite et de manière désynchronisée (effet insecte)
+        const legSpeed = 0.02;
+        enemyInstance.legs.forEach((leg, index)=>{
+            // Mouvement de marche rapide et saccadé
+            const offset = index * 0.5; // Décalage pour qu'elles ne bougent pas toutes en même temps
+            const wiggle = Math.sin(time * legSpeed + offset) * 0.2;
+            // Ajout d'un "twitch" (spasme) aléatoire
+            const twitch = Math.random() > 0.95 ? 0.1 : 0;
+            leg.rotation = leg.baseRotation + wiggle + twitch;
+            // Les pointes des pattes bougent légèrement en distance
+            leg.x = Math.cos(leg.rotation) * (Math.sin(time * 0.01) * 2);
+            leg.y = Math.sin(leg.rotation) * (Math.sin(time * 0.01) * 2);
+        });
+        // 2. CORPS QUI RESPIRE / PALPITE
+        const breath = 1 + Math.sin(time * 0.005) * 0.05;
+        enemyInstance.bodyGraphic.scaleX = breath;
+        enemyInstance.bodyGraphic.scaleY = breath;
+        // 3. MOUVEMENT "GLITCH" DU BOSS
+        // Au lieu de flotter doucement, il se décale brusquement de temps en temps
+        if (Math.random() > 0.92) {
+            enemyInstance.bodyGroup.x = (Math.random() - 0.5) * 3;
+            enemyInstance.bodyGroup.y = (Math.random() - 0.5) * 3;
+        } else {
+            // Retour progressif au centre (lissage)
+            enemyInstance.bodyGroup.x *= 0.8;
+            enemyInstance.bodyGroup.y *= 0.8;
+        }
+        // 4. L'ŒIL QUI REGARDE PARTOUT
+        if (enemyInstance.pupil) {
+            // La pupille bouge nerveusement
+            enemyInstance.pupil.x = (Math.random() - 0.5) * 4;
+            enemyInstance.pupil.y = -5 + (Math.random() - 0.5) * 2;
+            // Clignement de l'œil (disparition brève)
+            if (Math.random() > 0.99) {
+                enemyInstance.eye.visible = false;
+                enemyInstance.pupil.visible = false;
+                // Réapparaît après 100ms
+                setTimeout(()=>{
+                    if (enemyInstance.active) {
+                        enemyInstance.eye.visible = true;
+                        enemyInstance.pupil.visible = true;
+                    }
+                }, 100);
+            }
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"bnkzu":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "tortue_dragon", ()=>tortue_dragon);
+const tortue_dragon = {
+    name: "Tortue-Dragon",
+    speed: 35,
+    hp: 2800,
+    reward: 200,
+    playerDamage: 4,
+    color: 0x4a5d23,
+    damage: 25,
+    attackSpeed: 1000,
+    scale: 1.1,
+    // Paramètres spécifiques
+    shellThreshold: 0.3,
+    shellDuration: 4000,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Initialisation des états
+        enemyInstance.legs = {};
+        enemyInstance.shellGroup = null; // Groupe visuel carapace fermée
+        enemyInstance.normalGroup = null; // Groupe visuel normal
+        enemyInstance.isInShell = false;
+        enemyInstance.hasUsedShell = false; // Pour ne le faire qu'une fois
+        // --- 1. GROUPE NORMAL (Marche) ---
+        const normalGroup = scene.add.container(0, 0);
+        // a) Pattes Arrière
+        const legBack = scene.add.graphics();
+        legBack.fillStyle(0x3a4d13);
+        legBack.fillRoundedRect(-4, 0, 8, 18, 3); // Cuisse
+        legBack.fillRoundedRect(-5, 15, 12, 6, 2); // Pied
+        const legBackContainer = scene.add.container(-10, 5);
+        legBackContainer.add(legBack);
+        normalGroup.add(legBackContainer);
+        enemyInstance.legs.back = legBackContainer;
+        // b) Pattes Avant (Ajouté pour le réalisme)
+        const legFront = scene.add.graphics();
+        legFront.fillStyle(0x3a4d13);
+        legFront.fillRoundedRect(-4, 0, 8, 18, 3);
+        legFront.fillRoundedRect(-5, 15, 12, 6, 2);
+        const legFrontContainer = scene.add.container(12, 5);
+        legFrontContainer.add(legFront);
+        normalGroup.add(legFrontContainer);
+        enemyInstance.legs.front = legFrontContainer;
+        // c) Queue
+        const tail = scene.add.graphics();
+        tail.fillStyle(color);
+        tail.fillTriangle(-20, 0, -35, -5, -35, 5);
+        normalGroup.add(tail);
+        // d) Corps/Carapace Ouverte
+        const body = scene.add.graphics();
+        body.fillStyle(color);
+        body.fillEllipse(0, -5, 42, 32); // Corps principal
+        body.lineStyle(3, 0x2a3d13);
+        body.strokeEllipse(0, -5, 42, 32); // Contour
+        // Écailles décoratives
+        body.fillStyle(0x2a3d13);
+        body.fillEllipse(-10, -8, 8, 6);
+        body.fillEllipse(0, -10, 10, 8);
+        body.fillEllipse(10, -8, 8, 6);
+        normalGroup.add(body);
+        // e) Tête
+        const head = scene.add.graphics();
+        head.fillStyle(0x5a6d33);
+        head.fillRoundedRect(15, -15, 20, 14, 5); // Cou/Tête
+        // Yeux
+        head.fillStyle(0xff0000);
+        head.fillCircle(28, -11, 2);
+        // Corne/Museau
+        head.fillStyle(0xffffaa);
+        head.fillTriangle(32, -15, 38, -12, 32, -9);
+        normalGroup.add(head);
+        container.add(normalGroup);
+        enemyInstance.normalGroup = normalGroup;
+        // --- 2. GROUPE CARAPACE (Caché) ---
+        const shellGroup = scene.add.container(0, 0);
+        const shellGraphic = scene.add.graphics();
+        // Ombre sous la carapace
+        shellGraphic.fillStyle(0x000000, 0.3);
+        shellGraphic.fillEllipse(0, 10, 40, 10);
+        // La carapace fermée
+        shellGraphic.fillStyle(0x3a4d13); // Plus sombre
+        shellGraphic.fillEllipse(0, 0, 46, 36);
+        shellGraphic.lineStyle(4, 0x1a2d03);
+        shellGraphic.strokeEllipse(0, 0, 46, 36);
+        // Pics sur la carapace fermée
+        shellGraphic.fillStyle(0x1a2d03);
+        shellGraphic.fillTriangle(-15, -10, -15, -20, -5, -12);
+        shellGraphic.fillTriangle(0, -15, 0, -25, 10, -15);
+        shellGraphic.fillTriangle(15, -10, 15, -20, 25, -12);
+        shellGroup.add(shellGraphic);
+        shellGroup.visible = false; // Invisible au départ
+        container.add(shellGroup);
+        enemyInstance.shellGroup = shellGroup;
+        // Désactiver la rotation automatique du sprite car on gère le flip dans Enemy.js
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // --- LOGIQUE "SE CACHER" ---
+        if (!enemyInstance.isInShell && !enemyInstance.hasUsedShell) // Vérifier si HP < 30%
+        {
+            if (enemyInstance.hp / enemyInstance.maxHp <= 0.3) {
+                enemyInstance.isInShell = true;
+                enemyInstance.hasUsedShell = true;
+                // 1. Arrêter le mouvement
+                if (enemyInstance.follower && enemyInstance.follower.tween) enemyInstance.follower.tween.pause();
+                // 2. Visuel : Passage en mode coquille
+                enemyInstance.normalGroup.visible = false;
+                enemyInstance.shellGroup.visible = true;
+                // 3. Timer pour ressortir (4 secondes)
+                enemyInstance.scene.time.delayedCall(4000, ()=>{
+                    // Vérifier si l'ennemi n'est pas mort entre temps
+                    if (enemyInstance.active) {
+                        enemyInstance.isInShell = false;
+                        // Reprendre le mouvement
+                        if (enemyInstance.follower && enemyInstance.follower.tween) enemyInstance.follower.tween.resume();
+                        // Visuel : Retour normal
+                        enemyInstance.normalGroup.visible = true;
+                        enemyInstance.shellGroup.visible = false;
+                    // Petit soin optionnel (bonus) : +10% HP
+                    // enemyInstance.hp = Math.min(enemyInstance.maxHp, enemyInstance.hp + (enemyInstance.maxHp * 0.1));
+                    // enemyInstance.updateHealthBar();
+                    }
+                });
+            }
+        }
+        // --- ANIMATIONS ---
+        if (enemyInstance.isInShell) // Animation : Tremblement quand caché
+        {
+            if (enemyInstance.shellGroup) {
+                enemyInstance.shellGroup.x = Math.sin(time * 0.05) * 1.5; // Tremble horizontalement
+                enemyInstance.shellGroup.rotation = Math.sin(time * 0.02) * 0.05; // Oscille un peu
+            }
+        } else {
+            // Animation : Marche normale
+            const speed = 0.006;
+            const range = 0.5;
+            // Animation des pattes (marche croisée)
+            if (enemyInstance.legs.front) enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+            if (enemyInstance.legs.back) enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range; // Opposé
+            // Animation du corps (léger rebond)
+            if (enemyInstance.normalGroup) enemyInstance.normalGroup.y = Math.sin(time * speed * 2) * 1;
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8mFrl":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "shaman_gobelin", ()=>shaman_gobelin);
+const shaman_gobelin = {
+    name: "Shaman Gobelin",
+    speed: 45,
+    hp: 1200,
+    reward: 120,
+    playerDamage: 2,
+    color: 0x8b4513,
+    damage: 12,
+    attackSpeed: 1500,
+    scale: 0.9,
+    // Stats spécifiques au healer
+    healAmount: 60,
+    healInterval: 2000,
+    healRadius: 3,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Initialisation des états
+        enemyInstance.legs = {};
+        enemyInstance.healArea = null;
+        enemyInstance.orb = null;
+        enemyInstance.lastHealTime = 0; // Important pour le cooldown du soin
+        // --- 1. ZONE DE SOIN (Au sol, tout en bas) ---
+        const CONFIG = {
+            TILE_SIZE: 64
+        };
+        const tileSize = CONFIG.TILE_SIZE * (scene.scaleFactor || 1);
+        // On convertit le rayon "cases" en pixels
+        const radiusInPixels = shaman_gobelin.healRadius * tileSize;
+        const healArea = scene.add.graphics();
+        healArea.lineStyle(2, 0x00ff00, 0.5); // Bordure fine
+        healArea.strokeCircle(0, 0, radiusInPixels);
+        healArea.fillStyle(0x00ff00, 0.1); // Fond très transparent
+        healArea.fillCircle(0, 0, radiusInPixels);
+        // On l'ajoute au container mais avec un z-index négatif simulé par l'ordre d'ajout
+        // Astuce : On le met dans un container 'background' attaché au container principal
+        const bgContainer = scene.add.container(0, 0);
+        bgContainer.add(healArea);
+        container.add(bgContainer);
+        bgContainer.sendToBack(healArea); // S'assurer qu'il est derrière
+        enemyInstance.healArea = healArea;
+        enemyInstance.healRadiusPixels = radiusInPixels; // Stocker pour la logique
+        // --- 2. JAMBE ARRIÈRE ---
+        enemyInstance.legs.back = scene.add.container(-4, 6);
+        const legB = scene.add.graphics();
+        legB.fillStyle(0x5a3510); // Marron plus foncé pour l'arrière
+        legB.fillRoundedRect(-3, 0, 6, 14, 2); // Cuisse
+        legB.fillRoundedRect(-4, 12, 9, 5, 2); // Pied
+        enemyInstance.legs.back.add(legB);
+        container.add(enemyInstance.legs.back);
+        // --- 3. CORPS (Robe & Masque) ---
+        const bodyGroup = scene.add.container(0, 0);
+        const body = scene.add.graphics();
+        // Robe
+        body.fillStyle(color);
+        body.fillRoundedRect(-10, -15, 20, 24, 6);
+        body.lineStyle(2, 0x5a3510);
+        body.strokeRoundedRect(-10, -15, 20, 24, 6);
+        // Détails de la robe (ceinture)
+        body.fillStyle(0xccaa00); // Doré
+        body.fillRect(-10, -2, 20, 4);
+        // Collier d'os
+        body.fillStyle(0xeeeeee);
+        body.fillCircle(-6, -10, 2);
+        body.fillCircle(0, -8, 2);
+        body.fillCircle(6, -10, 2);
+        // Masque Tribal
+        body.fillStyle(0x222222); // Masque noir
+        body.fillRoundedRect(-8, -22, 16, 12, 3);
+        // Peinture de guerre sur le masque
+        body.fillStyle(0xff0000);
+        body.fillRect(-6, -20, 2, 8);
+        body.fillRect(4, -20, 2, 8);
+        // Yeux brillants
+        body.fillStyle(0x00ff00);
+        body.fillCircle(-4, -16, 2);
+        body.fillCircle(4, -16, 2);
+        bodyGroup.add(body);
+        container.add(bodyGroup);
+        // --- 4. BÂTON MAGIQUE ---
+        const staffContainer = scene.add.container(12, -5);
+        const staff = scene.add.graphics();
+        // Manche
+        staff.fillStyle(0x654321);
+        staff.fillRoundedRect(-2, -15, 4, 35, 1);
+        // Tête du bâton (Crâne ou bois)
+        staff.fillStyle(0xdddddd);
+        staff.fillCircle(0, -15, 5);
+        // Orbe magique (séparé pour animer l'alpha)
+        const orb = scene.add.circle(0, -15, 6, 0x00ff00, 0.6);
+        enemyInstance.orb = orb;
+        staffContainer.add(staff);
+        staffContainer.add(orb);
+        container.add(staffContainer);
+        enemyInstance.staff = staffContainer;
+        // --- 5. JAMBE AVANT ---
+        enemyInstance.legs.front = scene.add.container(4, 6);
+        const legF = scene.add.graphics();
+        legF.fillStyle(color);
+        legF.fillRoundedRect(-3, 0, 6, 14, 2);
+        legF.fillRoundedRect(-4, 12, 9, 5, 2);
+        enemyInstance.legs.front.add(legF);
+        container.add(enemyInstance.legs.front);
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // 1. Animation de Marche (Classique)
+        const speed = 0.007;
+        const range = 0.5;
+        if (enemyInstance.legs.front) enemyInstance.legs.front.rotation = Math.sin(time * speed) * range;
+        if (enemyInstance.legs.back) enemyInstance.legs.back.rotation = Math.sin(time * speed + Math.PI) * range;
+        // Petit rebond du bâton
+        if (enemyInstance.staff) enemyInstance.staff.y = -5 + Math.sin(time * speed * 2) * 2;
+        // 2. Animation Orbe & Zone (Pulsation passive)
+        if (enemyInstance.orb) {
+            enemyInstance.orb.alpha = 0.5 + Math.sin(time * 0.005) * 0.4;
+            const s = 1 + Math.sin(time * 0.01) * 0.2;
+            enemyInstance.orb.setScale(s);
+        }
+        if (enemyInstance.healArea) // La zone "respire" doucement
+        enemyInstance.healArea.alpha = 0.3 + Math.sin(time * 0.002) * 0.1;
+        // --- 3. LOGIQUE DE SOIN ---
+        if (!enemyInstance.scene || !enemyInstance.active) return;
+        const now = enemyInstance.scene.time.now;
+        // Vérifier le Cooldown (healInterval)
+        if (now - enemyInstance.lastHealTime > enemyInstance.stats.healInterval) {
+            let hasHealedSomeone = false;
+            const r2 = enemyInstance.healRadiusPixels * enemyInstance.healRadiusPixels; // Distance au carré pour perf
+            // Parcourir tous les ennemis
+            enemyInstance.scene.enemies.children.each((ally)=>{
+                // Ne pas soigner si : soi-même, mort, ou déjà full vie
+                if (ally === enemyInstance || !ally.active || ally.hp >= ally.maxHp) return;
+                // Calcul distance
+                const dx = ally.x - enemyInstance.x;
+                const dy = ally.y - enemyInstance.y;
+                const distSq = dx * dx + dy * dy;
+                // Si à portée
+                if (distSq <= r2) {
+                    // APPLIQUER LE SOIN
+                    const amount = enemyInstance.stats.healAmount;
+                    ally.hp = Math.min(ally.maxHp, ally.hp + amount);
+                    ally.updateHealthBar(); // Mise à jour visuelle de la barre de vie
+                    hasHealedSomeone = true;
+                    // Effet visuel sur l'allié soigné (Particules +HP)
+                    if (enemyInstance.scene.add) {
+                        const txt = enemyInstance.scene.add.text(ally.x, ally.y - 40, `+${amount}`, {
+                            fontSize: '16px',
+                            fill: '#00ff00',
+                            fontStyle: 'bold',
+                            stroke: '#000',
+                            strokeThickness: 2
+                        }).setOrigin(0.5);
+                        enemyInstance.scene.tweens.add({
+                            targets: txt,
+                            y: ally.y - 80,
+                            alpha: 0,
+                            duration: 1000,
+                            onComplete: ()=>txt.destroy()
+                        });
+                    }
+                }
+            });
+            // Si on a soigné au moins une personne, on déclenche l'animation de cast
+            if (hasHealedSomeone) {
+                enemyInstance.lastHealTime = now;
+                // Flash de la zone au sol
+                if (enemyInstance.healArea) {
+                    enemyInstance.healArea.alpha = 0.8;
+                    enemyInstance.scene.tweens.add({
+                        targets: enemyInstance.healArea,
+                        alpha: 0.1,
+                        duration: 500
+                    });
+                }
+                // Flash de l'orbe
+                if (enemyInstance.orb) {
+                    enemyInstance.orb.setScale(2);
+                    enemyInstance.scene.tweens.add({
+                        targets: enemyInstance.orb,
+                        scaleX: 1,
+                        scaleY: 1,
+                        duration: 300
+                    });
+                }
+            }
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"7ppi2":[function(require,module,exports,__globalThis) {
+// ==========================================
+// 3. DIVISEUR (Le Boss, se divise en moyens)
+// ==========================================
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "diviseur", ()=>diviseur);
+const diviseur = {
+    name: "Diviseur",
+    speed: 30,
+    hp: 3500,
+    reward: 180,
+    playerDamage: 4,
+    color: 0x00ff00,
+    damage: 20,
+    attackSpeed: 1200,
+    scale: 1.3,
+    // --- LOGIQUE DE DIVISION ---
+    onDeath: (enemy)=>{
+        if (!enemy.scene || !enemy.active) return;
+        // Paramètres
+        const childKey = "slime_medium";
+        const count = 2; // Se divise en 2 moyens
+        // Splash visuel à la mort du gros
+        const splash = enemy.scene.add.circle(enemy.x, enemy.y, 10, 0x00ff00);
+        enemy.scene.tweens.add({
+            targets: splash,
+            scale: 5,
+            alpha: 0,
+            duration: 400,
+            onComplete: ()=>splash.destroy()
+        });
+        // Création des enfants
+        const ChildClass = enemy.constructor;
+        for(let i = 0; i < count; i++){
+            const child = new ChildClass(enemy.scene, enemy.path, childKey);
+            child.follower.t = Math.max(0, enemy.follower.t - i * 0.02);
+            const point = enemy.path.getPoint(child.follower.t);
+            child.setPosition(point.x, point.y);
+            child.targetPathOffset = (Math.random() - 0.5) * 35;
+            child.currentPathOffset = child.targetPathOffset;
+            child.spawn();
+            enemy.scene.enemies.add(child);
+            child.bodyGroup.y = -25;
+            enemy.scene.tweens.add({
+                targets: child.bodyGroup,
+                y: 0,
+                duration: 400,
+                ease: 'Bounce.Out'
+            });
+        }
+    },
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Slime géant : forme de goutte massive
+        const body = scene.add.graphics();
+        // Corps principal (grosse goutte)
+        body.fillStyle(color);
+        body.fillEllipse(0, 0, 50, 45);
+        body.lineStyle(3, 0x00cc00);
+        body.strokeEllipse(0, 0, 50, 45);
+        // Reflets brillants
+        body.fillStyle(0x88ff88);
+        body.fillEllipse(-8, -10, 15, 12);
+        body.fillEllipse(5, -8, 10, 8);
+        // Yeux multiples
+        body.fillStyle(0x000000);
+        body.fillCircle(-12, -5, 4);
+        body.fillCircle(0, -8, 4);
+        body.fillCircle(12, -5, 4);
+        // Petites bulles à la surface
+        body.fillStyle(0x88ff88);
+        for(let i = 0; i < 5; i++){
+            const angle = i / 5 * Math.PI * 2;
+            const dist = 18;
+            body.fillCircle(Math.cos(angle) * dist, Math.sin(angle) * dist, 3);
+        }
+        container.add(body);
+        enemyInstance.body = body;
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Animation de tremblement/ondulation
+        if (enemyInstance.body) {
+            const wobble = Math.sin(time * 0.008) * 0.1;
+            enemyInstance.body.scaleX = 1 + wobble;
+            enemyInstance.body.scaleY = 1 - wobble * 0.5;
+            // Mouvement vertical de rebond
+            enemyInstance.bodyGroup.y = Math.sin(time * 0.01) * 3;
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"j7fMh":[function(require,module,exports,__globalThis) {
+// ==========================================
+// 2. SLIME MOYEN (Se divise en petits)
+// ==========================================
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "slime_medium", ()=>slime_medium);
+const slime_medium = {
+    name: "Slime Moyen",
+    speed: 40,
+    hp: 800,
+    reward: 50,
+    playerDamage: 2,
+    color: 0x44ff44,
+    damage: 12,
+    attackSpeed: 1000,
+    scale: 0.9,
+    // --- LOGIQUE DE DIVISION ---
+    onDeath: (enemy)=>{
+        if (!enemy.scene || !enemy.active) return;
+        // Paramètres
+        const childKey = "slime_small";
+        const count = 2; // Se divise en 2 petits
+        // Création des enfants
+        const ChildClass = enemy.constructor;
+        for(let i = 0; i < count; i++){
+            const child = new ChildClass(enemy.scene, enemy.path, childKey);
+            // Positionnement légèrement décalé
+            child.follower.t = Math.max(0, enemy.follower.t - i * 0.015);
+            const point = enemy.path.getPoint(child.follower.t);
+            child.setPosition(point.x, point.y);
+            // Dispersion latérale
+            child.targetPathOffset = (Math.random() - 0.5) * 25;
+            child.currentPathOffset = child.targetPathOffset;
+            child.spawn();
+            enemy.scene.enemies.add(child);
+            // Petit saut à l'apparition
+            child.bodyGroup.y = -15;
+            enemy.scene.tweens.add({
+                targets: child.bodyGroup,
+                y: 0,
+                duration: 250,
+                ease: 'Bounce.Out'
+            });
+        }
+    },
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Slime moyen : forme de goutte
+        const body = scene.add.graphics();
+        // Corps principal
+        body.fillStyle(color);
+        body.fillEllipse(0, 0, 35, 30);
+        body.lineStyle(2, 0x33cc33);
+        body.strokeEllipse(0, 0, 35, 30);
+        // Reflets
+        body.fillStyle(0x66ff66);
+        body.fillEllipse(-5, -6, 10, 8);
+        body.fillEllipse(3, -5, 7, 6);
+        // Yeux
+        body.fillStyle(0x000000);
+        body.fillCircle(-8, -3, 3);
+        body.fillCircle(8, -3, 3);
+        // Petites bulles
+        body.fillStyle(0x66ff66);
+        for(let i = 0; i < 3; i++){
+            const angle = i / 3 * Math.PI * 2;
+            const dist = 12;
+            body.fillCircle(Math.cos(angle) * dist, Math.sin(angle) * dist, 2);
+        }
+        container.add(body);
+        enemyInstance.body = body;
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Animation de tremblement
+        if (enemyInstance.body) {
+            const wobble = Math.sin(time * 0.01) * 0.08;
+            enemyInstance.body.scaleX = 1 + wobble;
+            enemyInstance.body.scaleY = 1 - wobble * 0.5;
+            // Mouvement vertical
+            enemyInstance.bodyGroup.y = Math.sin(time * 0.012) * 2;
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"KCZbL":[function(require,module,exports,__globalThis) {
+// ==========================================
+// 1. PETIT SLIME (Dernier stade, ne se divise plus)
+// ==========================================
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "slime_small", ()=>slime_small);
+const slime_small = {
+    name: "Petit Slime",
+    speed: 50,
+    hp: 300,
+    reward: 20,
+    playerDamage: 1,
+    color: 0x88ff88,
+    damage: 8,
+    attackSpeed: 800,
+    scale: 0.6,
+    // Pas de onDeath car c'est la fin de la chaîne
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Petit slime : forme de goutte petite
+        const body = scene.add.graphics();
+        // Corps principal
+        body.fillStyle(color);
+        body.fillEllipse(0, 0, 22, 18);
+        body.lineStyle(2, 0x66ff66);
+        body.strokeEllipse(0, 0, 22, 18);
+        // Reflet
+        body.fillStyle(0xaaffaa);
+        body.fillEllipse(-3, -4, 6, 5);
+        // Yeux
+        body.fillStyle(0x000000);
+        body.fillCircle(-5, -2, 2);
+        body.fillCircle(5, -2, 2);
+        // Petite bulle
+        body.fillStyle(0xaaffaa);
+        body.fillCircle(0, 6, 1.5);
+        container.add(body);
+        enemyInstance.body = body;
+        enemyInstance.shouldRotate = false;
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Animation de tremblement rapide
+        if (enemyInstance.body) {
+            const wobble = Math.sin(time * 0.015) * 0.06;
+            enemyInstance.body.scaleX = 1 + wobble;
+            enemyInstance.body.scaleY = 1 - wobble * 0.5;
+            // Mouvement vertical rapide
+            enemyInstance.bodyGroup.y = Math.sin(time * 0.018) * 1.5;
+        }
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8MdQT":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "bosslvl3", ()=>bosslvl3);
+const bosslvl3 = {
+    name: "OMEGA-TITAN",
+    speed: 8,
+    hp: 180000,
+    reward: 5000,
+    playerDamage: 20,
+    color: 0xff4400,
+    damage: 500,
+    attackSpeed: 2000,
+    scale: 1.6,
+    onDraw: (scene, container, color, enemyInstance)=>{
+        // Initialisation des références pour l'animation
+        enemyInstance.gears = [];
+        enemyInstance.pistons = [];
+        // --- 1. FUMÉE VOLCANIQUE (Arrière-plan) ---
+        // Des cercles gris qui tourneront autour de lui
+        const smokeGroup = scene.add.container(0, 0);
+        for(let i = 0; i < 6; i++){
+            const smoke = scene.add.graphics();
+            smoke.fillStyle(0x333333, 0.5);
+            smoke.fillCircle(0, 0, 10 + Math.random() * 10);
+            // Position aléatoire autour du centre
+            smoke.x = (Math.random() - 0.5) * 60;
+            smoke.y = (Math.random() - 0.5) * 60;
+            smokeGroup.add(smoke);
+        }
+        container.add(smokeGroup);
+        enemyInstance.smokeGroup = smokeGroup;
+        // --- 2. JAMBES BLINDÉES ---
+        // Deux gros rectangles noirs pour les pieds
+        const legs = scene.add.graphics();
+        legs.fillStyle(0x1a1a1a); // Acier noir
+        legs.lineStyle(2, 0xff4400); // Bordure en fusion
+        // Jambe G
+        legs.fillRect(-30, 10, 20, 30);
+        // Jambe D
+        legs.fillRect(10, 10, 20, 30);
+        legs.strokeRect(-30, 10, 20, 30);
+        legs.strokeRect(10, 10, 20, 30);
+        container.add(legs);
+        // --- 3. CORPS (TORSE MASSIF) ---
+        const torso = scene.add.graphics();
+        torso.fillStyle(0x222222); // Gris foncé
+        // Forme trapézoïdale pour faire "costaud"
+        torso.beginPath();
+        torso.moveTo(-40, -20); // Haut G
+        torso.lineTo(40, -20); // Haut D
+        torso.lineTo(30, 20); // Bas D
+        torso.lineTo(-30, 20); // Bas G
+        torso.closePath();
+        torso.fillPath();
+        container.add(torso);
+        // --- 4. CŒUR DE FUSION (Le point faible visuel) ---
+        // Un cercle qui va pulser
+        const core = scene.add.graphics();
+        core.fillStyle(0xffaa00); // Jaune/Orange très vif
+        core.fillCircle(0, 0, 12);
+        container.add(core);
+        enemyInstance.coreGraphic = core;
+        // --- 5. ÉPAULIÈRES ROTATIVES (Engrenages) ---
+        // Deux engrenages sur les épaules qui tournent
+        const createGear = (x, y)=>{
+            const gear = scene.add.graphics();
+            gear.lineStyle(3, 0x555555);
+            gear.fillStyle(0x333333);
+            // Dessin d'un engrenage simple
+            const radius = 18;
+            const teeth = 8;
+            gear.beginPath();
+            for(let i = 0; i < teeth * 2; i++){
+                const angle = Math.PI * 2 * i / (teeth * 2);
+                const r = i % 2 === 0 ? radius : radius - 5;
+                const px = Math.cos(angle) * r;
+                const py = Math.sin(angle) * r;
+                if (i === 0) gear.moveTo(px, py);
+                else gear.lineTo(px, py);
+            }
+            gear.closePath();
+            gear.fillPath();
+            gear.strokePath();
+            // Centre de l'engrenage
+            gear.fillStyle(0xff0000);
+            gear.fillCircle(0, 0, 5);
+            const gearCont = scene.add.container(x, y);
+            gearCont.add(gear);
+            return gearCont;
+        };
+        const leftGear = createGear(-45, -25);
+        const rightGear = createGear(45, -25);
+        container.add(leftGear);
+        container.add(rightGear);
+        enemyInstance.gears.push(leftGear, rightGear);
+        // --- 6. TÊTE (Casque) ---
+        const head = scene.add.graphics();
+        head.fillStyle(0x111111); // Noir
+        head.fillRect(-15, -45, 30, 25);
+        // Visière cylon (rouge/orange)
+        head.fillStyle(0xff0000);
+        head.fillRect(-12, -35, 24, 4);
+        container.add(head);
+        // --- CONFIG ---
+        enemyInstance.shouldRotate = false; // Il reste droit (comme un mech)
+    },
+    onUpdateAnimation: (time, enemyInstance)=>{
+        // Sécurité
+        if (!enemyInstance.coreGraphic || !enemyInstance.smokeGroup) return;
+        // 1. MARCHE LOURDE (Pilonnage)
+        // Au lieu de trembler, il monte et descend lourdement
+        // Sinus lent mais grande amplitude
+        const walkCycle = Math.sin(time * 0.008);
+        // On déplace tout le conteneur du corps (offset Y)
+        // Note: on modifie les éléments graphiques internes pour ne pas casser le x/y global de l'ennemi sur le chemin
+        enemyInstance.bodyGroup.y = Math.abs(walkCycle) * -5; // Il s'écrase au sol à 0, monte à -5
+        // 2. PULSATION DU CŒUR (Thermique)
+        // La chaleur monte et descend
+        const heat = 0.8 + Math.abs(Math.sin(time * 0.01)) * 0.5;
+        enemyInstance.coreGraphic.scaleX = heat;
+        enemyInstance.coreGraphic.scaleY = heat;
+        enemyInstance.coreGraphic.alpha = 0.5 + heat / 3;
+        // 3. ROTATION DES ENGRENAGES (Mécanique)
+        // Ils tournent en sens inverse l'un de l'autre
+        if (enemyInstance.gears) {
+            enemyInstance.gears[0].rotation -= 0.02; // Gauche
+            enemyInstance.gears[1].rotation += 0.02; // Droite
+        }
+        // 4. FUMÉE EN ORBITE
+        // La fumée tourne lentement autour du boss
+        enemyInstance.smokeGroup.rotation += 0.005;
+        // Et palpite légèrement
+        enemyInstance.smokeGroup.scaleX = 1 + Math.sin(time * 0.002) * 0.1;
+        enemyInstance.smokeGroup.scaleY = 1 + Math.sin(time * 0.002) * 0.1;
+    }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hW1Gp":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Enemy", ()=>Enemy);
@@ -15731,6 +16291,6 @@ class Hero extends Phaser.GameObjects.Container {
     }
 }
 
-},{"../config/settings.js":"9kTMs","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["fILKw"], "fILKw", "parcelRequirebaba", {})
+},{"../config/settings.js":"9kTMs","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["fILKw"], "fILKw", "parcelRequirebaba", {}, "./", "/")
 
 //# sourceMappingURL=towerdefense.1fcc916e.js.map
