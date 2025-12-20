@@ -41,7 +41,12 @@ export class UIManager {
   }
 
   updateUI() {
-    const currentWave = (this.scene.currentWaveIndex || 0) + 1;
+    const wavesStarted = this.scene.currentWaveIndex || 0;
+    const wavesCompleted = this.scene.wavesCompleted || 0;
+    let currentWave = wavesCompleted + 1;
+    if (this.scene.isWaveRunning) {
+      currentWave = Math.max(currentWave, wavesStarted);
+    }
     let totalWaves = 0;
 
     // Essayer d'abord avec levelConfig
@@ -54,7 +59,7 @@ export class UIManager {
         totalWaves = levelData.data.waves.length;
       } else {
         // Fallback final selon le levelID
-        if (this.scene.levelID === 3) {
+    if (this.scene.levelID === 3) {
           totalWaves = 10;
         } else if (this.scene.levelID === 2) {
           totalWaves = 8;
@@ -68,6 +73,7 @@ export class UIManager {
     if (totalWaves < 1) {
       totalWaves = 1;
     }
+    currentWave = Math.min(currentWave, totalWaves);
 
     if (this.hud) {
       this.hud.update(this.scene.money, this.scene.lives, currentWave, totalWaves);
