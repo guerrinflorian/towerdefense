@@ -28,32 +28,31 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.blockedBy = null;
     this.hasUsedShell = false;
 
-    // Système de lanes plus réactif - pas de collision, juste évitement visuel
-    this.laneOffset = (Math.random() - 0.5) * 12;
+    // Système de lanes amélioré - évitement sans blocage
+    this.laneOffset = (Math.random() - 0.5) * 15;
     this.targetLaneOffset = this.laneOffset;
-    this.avoidanceRadius = 32; // Distance à partir de laquelle on commence à éviter
-    this.minDistance = 20; // Distance minimale souhaitée entre ennemis
-    this.maxLaneWidth = 20;
+    this.avoidanceRadius = 40; // Distance de détection des voisins
+    this.personalSpace = 25; // Espace personnel minimum
+    this.maxLaneWidth = 30; // Largeur maximale des lanes
     
-    // Vitesses de réaction
-    this.laneChangeSpeed = 0.15; // Plus rapide pour éviter les blocages
+    // Vitesses de réaction plus rapides
+    this.laneChangeSpeed = 0.2; // Changement de lane rapide
     this.tangentSmoothSpeed = 0.35;
     this.previousTangent = null;
 
+    // Pas de ralentissement - juste de l'évitement latéral
+    this.baseSpeedVariation = 0.95 + Math.random() * 0.1; // Petite variation naturelle
+
     this.isParalyzed = false;
     this.paralysisTimer = null;
-    this.paralysisPosition = null; // Position où l'ennemi a été paralysé
+    this.paralysisPosition = null;
     this.isInShell = false;
     this.isInvulnerable = false;
     this.shellThreshold = this.stats.shellThreshold || null;
     this.lastHealTime = 0;
     this.healInterval = this.stats.healInterval || null;
     this.lastSpawnTime = 0;
-    this.lastDamageSource = null; // Source du dernier dégât reçu (pour savoir qui a tué l'ennemi)
-
-    // Pour la variation de vitesse fluide
-    this.speedMultiplier = 1.0;
-    this.targetSpeedMultiplier = 1.0;
+    this.lastDamageSource = null;
 
     this.initVisuals();
 
@@ -112,31 +111,29 @@ export class Enemy extends Phaser.GameObjects.Container {
   update(time, delta) {
     if (!this.active || !this.scene || this.scene.isPaused) return;
 
-    // Si paralysé, maintenir la position et ne rien faire d'autre
+    // Si paralysé, maintenir la position
     if (this.isParalyzed) {
       if (this.paralysisPosition) {
-        // Forcer l'ennemi à rester à sa position de paralysie
         this.setPosition(this.paralysisPosition.x, this.paralysisPosition.y);
       }
-      // Toujours appeler onUpdateAnimation même si paralysé
       if (this.stats.onUpdateAnimation) {
         this.stats.onUpdateAnimation(time, this);
       }
       return;
     }
 
-    // Si en carapace, ne pas bouger ni combattre, mais permettre l'animation
+    // Si en carapace, ne pas bouger
     if (this.isInShell) {
-      // Toujours appeler onUpdateAnimation pour gérer l'animation de la carapace
       if (this.stats.onUpdateAnimation) {
         this.stats.onUpdateAnimation(time, this);
       }
       return;
     }
 
-    // Toujours calculer l'évitement, même si bloqué par un soldat
+    // Calculer l'évitement (toujours actif, même si bloqué par un soldat)
     this.calculateAvoidance(delta);
 
+    // Mouvement : toujours actif sauf si bloqué par un soldat
     if (this.isMoving && !this.isBlocked && this.path) {
       this.handleMovement(delta);
     }
@@ -157,9 +154,9 @@ export class Enemy extends Phaser.GameObjects.Container {
   calculateAvoidance(delta) {
     if (!this.scene?.enemies) return;
 
-    let avoidanceLeft = 0;
-    let avoidanceRight = 0;
-    let slowDown = false;
+    let totalAvoidanceX = 0;
+    let totalAvoidanceY = 0;
+    let neighborCount = 0;
     
     const neighbors = this.scene.enemies.getChildren();
     
@@ -170,66 +167,49 @@ export class Enemy extends Phaser.GameObjects.Container {
       const dy = this.y - other.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Si trop proche, on s'écarte sur les côtés
+      // Si dans la zone d'évitement
       if (dist < this.avoidanceRadius && dist > 0.1) {
-        // Calculer de quel côté l'autre ennemi se trouve
-        if (this.previousTangent) {
-          const normalX = -this.previousTangent.y;
-          const normalY = this.previousTangent.x;
-          
-          // Produit scalaire pour savoir si c'est à gauche ou droite
-          const side = dx * normalX + dy * normalY;
-          const strength = (this.avoidanceRadius - dist) / this.avoidanceRadius;
-          
-          if (side > 0) {
-            avoidanceRight += strength;
-          } else {
-            avoidanceLeft += strength;
-          }
-        }
-
-        // Ralentir si collision frontale imminente
-        const progressDiff = other.progress - this.progress;
-        if (progressDiff > 0 && progressDiff < 0.015 && dist < this.minDistance) {
-          slowDown = true;
-        }
+        // Calculer la force d'évitement (plus fort quand plus proche)
+        const strength = Math.pow((this.avoidanceRadius - dist) / this.avoidanceRadius, 2);
+        
+        // Direction pour s'éloigner de l'autre ennemi
+        const avoidX = (dx / dist) * strength;
+        const avoidY = (dy / dist) * strength;
+        
+        totalAvoidanceX += avoidX;
+        totalAvoidanceY += avoidY;
+        neighborCount++;
       }
     }
 
-    // Décision d'évitement : aller du côté opposé
-    if (avoidanceLeft > avoidanceRight) {
-      this.targetLaneOffset += avoidanceLeft * 3.0;
-    } else if (avoidanceRight > avoidanceLeft) {
-      this.targetLaneOffset -= avoidanceRight * 3.0;
-    }
-
-    // Retour progressif au centre si pas d'évitement nécessaire
-    if (avoidanceLeft === 0 && avoidanceRight === 0) {
-      this.targetLaneOffset *= 0.95;
-    }
-
-    // Ajustement de vitesse fluide pour éviter les blocages
-    if (slowDown) {
-      this.targetSpeedMultiplier = 0.4;
+    // Si on a des voisins, calculer l'évitement latéral
+    if (neighborCount > 0 && this.previousTangent) {
+      // Moyenne de l'évitement
+      totalAvoidanceX /= neighborCount;
+      totalAvoidanceY /= neighborCount;
+      
+      // Projeter l'évitement sur la normale du chemin (mouvement latéral seulement)
+      const normalX = -this.previousTangent.y;
+      const normalY = this.previousTangent.x;
+      
+      // Composante latérale de l'évitement
+      const lateralAvoidance = totalAvoidanceX * normalX + totalAvoidanceY * normalY;
+      
+      // Ajuster le lane offset en fonction de l'évitement
+      this.targetLaneOffset += lateralAvoidance * 50; // Multiplier pour un effet plus visible
     } else {
-      this.targetSpeedMultiplier = 1.0;
+      // Retour progressif vers le centre quand pas de voisins
+      this.targetLaneOffset *= 0.92;
     }
 
-    // Lissage de la vitesse
-    this.speedMultiplier = Phaser.Math.Linear(
-      this.speedMultiplier,
-      this.targetSpeedMultiplier,
-      0.1
-    );
-
-    // Clamp de l'offset
+    // Limiter l'offset
     this.targetLaneOffset = Phaser.Math.Clamp(
       this.targetLaneOffset,
       -this.maxLaneWidth,
       this.maxLaneWidth
     );
 
-    // Application progressive de l'offset
+    // Application progressive et fluide de l'offset
     this.laneOffset = Phaser.Math.Linear(
       this.laneOffset,
       this.targetLaneOffset,
@@ -240,8 +220,8 @@ export class Enemy extends Phaser.GameObjects.Container {
   handleMovement(delta) {
     if (!this.pathLength) return;
 
-    // Vitesse de base modulée par le multiplicateur fluide
-    const effectiveSpeed = this.speed * this.speedMultiplier;
+    // Vitesse constante avec juste une petite variation naturelle
+    const effectiveSpeed = this.speed * this.baseSpeedVariation;
     const step = (effectiveSpeed * (delta / 1000)) / this.pathLength;
 
     this.progress += step;
@@ -330,7 +310,6 @@ export class Enemy extends Phaser.GameObjects.Container {
   damage(amount, metadata = {}) {
     if (this.isInvulnerable || !this.active) return;
 
-    // Stocker la source des dégâts pour savoir qui a tué l'ennemi
     if (metadata?.source) {
       this.lastDamageSource = metadata.source;
     }
@@ -338,7 +317,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.hp -= amount;
     this.updateHealthBar();
 
-    // Feedback visuel (flash)
+    // Feedback visuel
     this.scene.tweens.add({
         targets: this.bodyGroup,
         alpha: 0.5,
@@ -413,7 +392,6 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   handleSpecialAbilities(time) {
-    // Le heal n'est géré que si pas d'animation personnalisée (pour éviter les conflits)
     if (!this.stats.onUpdateAnimation) {
       if (this.healInterval && time - this.lastHealTime >= this.healInterval) {
         this.healNearbyEnemies();
@@ -421,7 +399,6 @@ export class Enemy extends Phaser.GameObjects.Container {
       }
     }
 
-    // Le spawn de minions fonctionne toujours, même avec une animation personnalisée
     if (this.stats.spawnInterval && time - this.lastSpawnTime >= this.stats.spawnInterval) {
       this.spawnMinions();
       this.lastSpawnTime = time;
@@ -446,17 +423,17 @@ export class Enemy extends Phaser.GameObjects.Container {
   enterShell() {
     this.isInShell = true;
     this.isInvulnerable = true;
-    this.hasUsedShell = true; // Empêche de recommencer à l'infini
-    this.isMoving = false;    // Stop le mouvement proprement
+    this.hasUsedShell = true;
+    this.isMoving = false;
 
     this.scene.time.delayedCall(this.stats.shellDuration || 3000, () => {
         if (this.active) {
             this.isInShell = false;
             this.isInvulnerable = false;
-            this.isMoving = true; // Reprend le mouvement
+            this.isMoving = true;
         }
     });
-}
+  }
 
   spawnMinions() {
     if (!this.stats.spawnType || !this.scene?.enemies) return;
@@ -553,22 +530,15 @@ export class Enemy extends Phaser.GameObjects.Container {
   paralyze(duration) {
     if (!this.active || !this.scene) return;
     
-    // Annuler toute paralysie précédente
     if (this.paralysisTimer) {
       this.paralysisTimer.remove();
       this.paralysisTimer = null;
     }
     
-    // Sauvegarder la position actuelle où l'ennemi est paralysé
     this.paralysisPosition = { x: this.x, y: this.y };
-    
-    // Mettre l'ennemi en état de paralysie
     this.isParalyzed = true;
-    
-    // Arrêter le mouvement
     this.isMoving = false;
     
-    // Si l'ennemi était bloqué par un soldat, le libérer
     if (this.isBlocked && this.blockedBy) {
       this.isBlocked = false;
       if (this.blockedBy.releaseEnemy) {
@@ -577,12 +547,11 @@ export class Enemy extends Phaser.GameObjects.Container {
       this.blockedBy = null;
     }
     
-    // Créer un timer pour libérer l'ennemi après la durée spécifiée
     this.paralysisTimer = this.scene.time.delayedCall(duration, () => {
       if (this.active) {
         this.isParalyzed = false;
         this.paralysisPosition = null;
-        this.isMoving = true; // Reprendre le mouvement
+        this.isMoving = true;
         this.paralysisTimer = null;
       }
     });

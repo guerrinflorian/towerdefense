@@ -59,26 +59,27 @@ export const LEVEL_3 = {
     ],
 
     // VAGUE 2 : La vitesse
-    [{ count: 25, type: "runner", interval: 400, startDelay: 0 }],
+    [{ count: 20, type: "runner", interval: 400, startDelay: 0 }],
 
     // VAGUE 3 : INTRODUCTION DU SHAMAN
     // Les Grunts servent de bouclier de chair, les Shamans les soignent derrière.
     [
       { count: 20, type: "grunt", interval: 600, startDelay: 0 },
-      { count: 3, type: "shaman_gobelin", interval: 4000, startDelay: 5000 }, // Il arrive et soigne ceux devant
+      { count: 3, type: "shaman_gobelin", interval: 3000, startDelay: 3000 }, // Il arrive et soigne ceux devant
     ],
 
     // VAGUE 4 : Le Mur immortel
     // Shields (haute défense) + Shaman (Soin) = Très dur à tuer sans gros DPS.
     [
-      { count: 10, type: "shield", interval: 1200, startDelay: 0 },
-      { count: 4, type: "shaman_gobelin", interval: 3000, startDelay: 4000 },
-      { count: 15, type: "runner", interval: 400, startDelay: 12000 }, // Pour punir si le joueur n'a que des tours lentes
+      { count: 2, type: "shaman_gobelin", interval: 3000, startDelay: 0 },
+      { count: 10, type: "shield", interval: 1200, startDelay: 8000 },
+      { count: 15, type: "runner", interval: 400, startDelay: 19000 }, // Pour punir si le joueur n'a que des tours lentes
     ],
 
     // VAGUE 5 : Lourdeur Mécanique
     [
-      { count: 10, type: "tortue_dragon", interval: 4000, startDelay: 1000 }, // Unité très juggernaut_iglooy du lvl 2
+      { count: 4, type: "tortue_dragon", interval: 4000, startDelay: 1000 },
+      { count: 2, type: "juggernaut_igloo", interval: 2500, startDelay: 15000 }, // Unité très juggernaut_iglooy du lvl 2
     ],
 
     // VAGUE 6 : Division et Multiplication
@@ -101,7 +102,7 @@ export const LEVEL_3 = {
     // VAGUE 8 : Chaos Total
     // Ça vient de partout.
     [
-      { count: 60, type: "runner", interval: 250, startDelay: 0 }, // Flux continu ultra rapide
+      { count: 50, type: "runner", interval: 250, startDelay: 0 }, // Flux continu ultra rapide
       { count: 8, type: "diviseur", interval: 3500, startDelay: 5000 },
       { count: 5, type: "shaman_gobelin", interval: 4000, startDelay: 10000 },
     ],
@@ -109,9 +110,10 @@ export const LEVEL_3 = {
     // VAGUE 9 : Avant la tempête
     // Des unités très résistantes pour vider les munitions/énergie du joueur.
     [
-      { count: 10, type: "tortue_dragon", interval: 2500, startDelay: 0 },
-      { count: 10, type: "shield", interval: 1000, startDelay: 5000 },
-      { count: 6, type: "shaman_gobelin", interval: 3000, startDelay: 10000 }, // Soignent les tortues
+      { count: 7, type: "tortue_dragon", interval: 2500, startDelay: 0 },
+      { count: 1, type: "juggernaut_igloo", interval: 2500, startDelay: 10000 },
+      { count: 10, type: "shield", interval: 1000, startDelay: 15000 },
+      { count: 6, type: "shaman_gobelin", interval: 3000, startDelay: 23000 }, // Soignent les tortues
     ],
 
     // VAGUE 10 : LE SEIGNEUR DE GUERRE (Boss Lvl 3)

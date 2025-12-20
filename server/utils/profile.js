@@ -11,8 +11,8 @@ async function ensureHeroStats(playerId) {
 
   const inserted = await query(
     `INSERT INTO hero_stats 
-      (player_id, max_hp, base_damage, attack_interval_ms, move_speed, upgrade_points_spent)
-     VALUES ($1, $2, $3, $4, $5, $6)
+      (player_id, max_hp, base_damage, attack_interval_ms, move_speed, upgrade_points_spent, kills)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
     [
       playerId,
@@ -21,6 +21,7 @@ async function ensureHeroStats(playerId) {
       HERO_BASE_STATS.attack_interval_ms,
       HERO_BASE_STATS.move_speed,
       HERO_BASE_STATS.upgrade_points_spent,
+      0, // kills initialisé à 0
     ]
   );
   return inserted.rows[0];

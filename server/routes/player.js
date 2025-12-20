@@ -185,12 +185,32 @@ router.get("/levels/best", async (req, res) => {
 
 router.post("/hero/kill", async (req, res) => {
   try {
-    const kills = Number.isInteger(req.body?.kills) && req.body.kills > 0 ? req.body.kills : 1;
+    const kills = Number.isInteger(req.body?.kills) && req.body.kills >= 0 ? req.body.kills : 0;
+    
+    // Mettre à jour les points disponibles
     const updated = await query(
       "UPDATE players SET hero_points_available = hero_points_available + $1 WHERE id = $2 RETURNING hero_points_available",
       [kills, req.user.id]
     );
-    return res.json({ heroPointsAvailable: updated.rows[0].hero_points_available });
+    
+    // Mettre à jour les kills dans hero_stats
+    await query(
+      `UPDATE hero_stats 
+       SET kills = COALESCE(kills, 0) + $1 
+       WHERE player_id = $2`,
+      [kills, req.user.id]
+    );
+    
+    // Récupérer les stats mises à jour
+    const heroStatsResult = await query(
+      "SELECT * FROM hero_stats WHERE player_id = $1",
+      [req.user.id]
+    );
+    
+    return res.json({ 
+      heroPointsAvailable: updated.rows[0].hero_points_available,
+      heroStats: heroStatsResult.rows[0] || null
+    });
   } catch (err) {
     console.error("Erreur incrément point héros:", err);
     return res.status(500).json({ error: "Erreur serveur" });

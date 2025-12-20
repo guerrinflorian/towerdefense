@@ -163,6 +163,8 @@ export class SpawnWaveControls {
 
     container.on("pointerdown", () => {
       if (this.isLocked) return;
+      // Vérifier aussi si on peut vraiment lancer la vague suivante
+      if (this.scene.isWaveRunning && !this.scene.canCallNextWave) return;
 
       this.scene.startWave();
       this.hideWavePreview();
@@ -399,6 +401,7 @@ export class SpawnWaveControls {
           this.setBonusVisible(icon, bonus > 0); // ✅ ici ça doit s’afficher
         } else {
           icon.container.setAlpha(0.6);
+          icon.container.disableInteractive();
           icon.countdownText.setText("Anticiper");
           this.setBonusVisible(icon, false);
         }
