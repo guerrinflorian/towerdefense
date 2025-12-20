@@ -209,6 +209,7 @@
   }
 })({"fILKw":[function(require,module,exports,__globalThis) {
 var _mainMenuSceneJs = require("./scenes/MainMenuScene.js");
+var _mapSceneJs = require("./scenes/MapScene.js");
 var _gameSceneJs = require("./scenes/GameScene.js");
 var _settingsJs = require("./config/settings.js");
 var _authOverlayJs = require("./services/authOverlay.js");
@@ -237,6 +238,7 @@ const config = {
     },
     scene: [
         (0, _mainMenuSceneJs.MainMenuScene),
+        (0, _mapSceneJs.MapScene),
         (0, _gameSceneJs.GameScene)
     ],
     physics: {
@@ -276,11 +278,10 @@ document.addEventListener("touchend", (event)=>{
     lastTouchEnd = now;
 }, false);
 
-},{"./scenes/MainMenuScene.js":"4CleT","./scenes/GameScene.js":"bDbTi","./config/settings.js":"9kTMs","./services/authOverlay.js":"g1JuO","./services/authManager.js":"cvKjF"}],"4CleT":[function(require,module,exports,__globalThis) {
+},{"./scenes/MainMenuScene.js":"4CleT","./scenes/GameScene.js":"bDbTi","./config/settings.js":"9kTMs","./services/authOverlay.js":"g1JuO","./services/authManager.js":"cvKjF","./scenes/MapScene.js":"60Yvj"}],"4CleT":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "MainMenuScene", ()=>MainMenuScene);
-var _indexJs = require("../config/levels/index.js");
 var _authManagerJs = require("../services/authManager.js");
 var _authOverlayJs = require("../services/authOverlay.js");
 var _leaderboardUIJs = require("./components/LeaderboardUI.js");
@@ -296,207 +297,76 @@ class MainMenuScene extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
         const cx = width / 2;
-        const padding = 40;
+        const padding = 40; // Marge identique pour la gauche et la droite
         // --- 1. AMBIANCE & FOND ---
         this.addBackground(cx, height);
         // --- 2. TITRE PRINCIPAL ---
-        this.addTitle(cx);
-        // --- 3. COLONNE GAUCHE : HERO PANEL ---
-        this.heroPanel = new (0, _heroUpgradeUIJs.HeroUpgradeUI)(this, padding, height * 0.3);
-        // --- 4. COLONNE DROITE : LEADERBOARD ---
-        const lbWidth = 500;
-        this.leaderboard = new (0, _leaderboardUIJs.LeaderboardUI)(this, width - lbWidth - padding, height * 0.15);
-        // --- 5. COLONNE CENTRALE : LISTE DES NIVEAUX ---
-        this.createLevelList(cx, height);
-        // --- 6. PIED DE PAGE : DÉCONNEXION ---
+        const title = this.add.text(cx, height * 0.3, "LAST OUTPOST", {
+            fontFamily: "Impact, sans-serif",
+            fontSize: "82px",
+            color: "#ffffff"
+        }).setOrigin(0.5).setShadow(0, 0, "#00f2ff", 30, true, true);
+        // --- 3. BOUTON DÉPLOYER (CENTRE) ---
+        this.createPlayButton(cx, height * 0.55);
+        // --- 4. COMPOSANTS INTERFACE ---
+        // À GAUCHE : Amélioration du Héros
+        this.heroPanel = new (0, _heroUpgradeUIJs.HeroUpgradeUI)(this, padding, height * 0.25);
+        // À DROITE : Leaderboard (Fixé pour ne plus être coupé)
+        // Largeur du leaderboard = 460. Position = Largeur totale - Largeur composant - Marge
+        const leaderboardWidth = 460;
+        const lbX = width - leaderboardWidth - padding;
+        this.leaderboard = new (0, _leaderboardUIJs.LeaderboardUI)(this, lbX, height * 0.15);
+        // --- 5. PIED DE PAGE ---
         this.createLogoutButton(height - 40);
-        // --- 7. GESTION DES ÉVÉNEMENTS ---
+        // --- 6. ÉVÉNEMENTS ---
         this.setupEventListeners();
-        // Chargement initial des données
+        // Initialisation
         (0, _authManagerJs.ensureProfileLoaded)().then(()=>{
             if (this.heroPanel) this.heroPanel.refresh();
         });
     }
+    createPlayButton(x, y) {
+        const playBtn = this.add.container(x, y);
+        const bg = this.add.graphics();
+        const btnW = 300;
+        const btnH = 80;
+        const drawBtn = (isOver)=>{
+            bg.clear();
+            bg.fillStyle(0x00f2ff, isOver ? 0.4 : 0.2);
+            bg.lineStyle(3, 0x00f2ff, 1);
+            bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 10);
+            bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 10);
+        };
+        drawBtn(false);
+        const txt = this.add.text(0, 0, "D\xc9PLOYER", {
+            fontSize: "32px",
+            fontFamily: "Orbitron, sans-serif",
+            color: "#fff",
+            fontWeight: "bold",
+            letterSpacing: 4
+        }).setOrigin(0.5);
+        playBtn.add([
+            bg,
+            txt
+        ]);
+        playBtn.setInteractive(new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH), Phaser.Geom.Rectangle.Contains);
+        playBtn.on("pointerover", ()=>{
+            drawBtn(true);
+            playBtn.setScale(1.05);
+        });
+        playBtn.on("pointerout", ()=>{
+            drawBtn(false);
+            playBtn.setScale(1);
+        });
+        playBtn.on("pointerdown", ()=>this.scene.start("MapScene"));
+    }
     addBackground(cx, height) {
         this.cameras.main.setBackgroundColor("#020508");
         if (this.textures.exists("background")) {
-            const bg = this.add.image(cx, height / 2, "background");
-            bg.setScrollFactor(0);
-            bg.setDepth(-1);
-            const scaleX = this.scale.width / bg.width;
-            const scaleY = this.scale.height / bg.height;
-            const scale = Math.max(scaleX, scaleY);
+            const bg = this.add.image(cx, height / 2, "background").setDepth(-1).setScrollFactor(0).setTint(0x333333); // Un peu plus sombre pour faire ressortir l'UI
+            const scale = Math.max(this.scale.width / bg.width, this.scale.height / bg.height);
             bg.setScale(scale);
-            bg.setTint(0x888888);
         }
-    }
-    addTitle(cx) {
-        const title = this.add.text(cx, 60, "LAST OUTPOST", {
-            fontFamily: "Impact, sans-serif",
-            fontSize: "64px",
-            color: "#ffffff",
-            letterSpacing: 12
-        }).setOrigin(0.5).setShadow(0, 0, "#00f2ff", 20, true, true);
-        const line = this.add.graphics();
-        line.lineStyle(2, 0x00f2ff, 0.5);
-        line.lineBetween(cx - 200, 100, cx + 200, 100);
-    }
-    createLevelList(cx, height) {
-        const startY = 180;
-        const bottomMargin = 80; // Espace pour le bouton de déconnexion
-        const availableHeight = height - startY - bottomMargin;
-        const cardSpacing = 110;
-        const cardHeight = 90;
-        this.levelContainer = this.add.container(cx, startY);
-        let currentY = 0;
-        const levelReached = (0, _authManagerJs.getUnlockedLevel)();
-        // Créer toutes les cartes de niveau
-        (0, _indexJs.LEVELS_CONFIG).forEach((level)=>{
-            const isLocked = level.id > levelReached;
-            const card = this.createLevelCard(0, currentY, level, isLocked);
-            this.levelContainer.add(card);
-            currentY += cardSpacing;
-        });
-        // Calculer la hauteur totale du contenu
-        const totalContentHeight = (0, _indexJs.LEVELS_CONFIG).length * cardSpacing;
-        // Déterminer si le scroll est nécessaire
-        const needsScroll = totalContentHeight > availableHeight;
-        if (needsScroll) {
-            // Activer le masque et le scroll uniquement si nécessaire
-            const maskShape = this.make.graphics();
-            maskShape.fillStyle(0xffffff);
-            maskShape.fillRect(cx - 250, startY, 500, availableHeight);
-            this.levelContainer.setMask(maskShape.createGeometryMask());
-            this.setupScrollLogic(startY, totalContentHeight, availableHeight);
-            // Ajouter des indicateurs visuels de scroll
-            this.addScrollIndicators(cx, startY, availableHeight, totalContentHeight);
-        } else {
-            // Pas de scroll nécessaire - centrer verticalement le contenu
-            const verticalOffset = (availableHeight - totalContentHeight) / 2;
-            this.levelContainer.y = startY + verticalOffset;
-        }
-    }
-    createLevelCard(x, y, level, isLocked) {
-        const container = this.add.container(x, y);
-        const cardWidth = 400;
-        const cardHeight = 90;
-        const bg = this.add.graphics();
-        const drawBg = (over = false)=>{
-            bg.clear();
-            const fillColor = isLocked ? 0x111111 : over ? 0x003366 : 0x050a15;
-            const strokeColor = isLocked ? 0x333333 : over ? 0x00f2ff : 0x0088ff;
-            bg.fillStyle(fillColor, 0.9);
-            bg.lineStyle(2, strokeColor, 1);
-            bg.fillRoundedRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight, 10);
-            bg.strokeRoundedRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight, 10);
-        };
-        drawBg();
-        const title = this.add.text(-cardWidth / 2 + 25, -22, `MISSION ${level.id.toString().padStart(2, '0')}`, {
-            fontSize: "14px",
-            fontFamily: "Orbitron, sans-serif",
-            color: isLocked ? "#555" : "#00ccff"
-        });
-        const name = this.add.text(-cardWidth / 2 + 25, 2, level.name.toUpperCase(), {
-            fontSize: "22px",
-            fontFamily: "Impact, sans-serif",
-            color: isLocked ? "#333" : "#fff"
-        });
-        container.add([
-            bg,
-            title,
-            name
-        ]);
-        if (!isLocked) {
-            const zone = this.add.zone(0, 0, cardWidth, cardHeight).setInteractive({
-                useHandCursor: true
-            });
-            zone.on("pointerover", ()=>{
-                drawBg(true);
-                container.setScale(1.03);
-            });
-            zone.on("pointerout", ()=>{
-                drawBg(false);
-                container.setScale(1);
-            });
-            zone.on("pointerdown", ()=>{
-                if (!(0, _authManagerJs.isAuthenticated)()) return (0, _authOverlayJs.showAuth)();
-                this.scene.start("GameScene", {
-                    level: level.id,
-                    heroStats: (0, _authManagerJs.getHeroStats)()
-                });
-            });
-            container.add(zone);
-        } else {
-            const lockIcon = this.add.text(cardWidth / 2 - 40, 0, "\uD83D\uDD12", {
-                fontSize: "20px"
-            }).setOrigin(0.5);
-            container.add(lockIcon);
-        }
-        return container;
-    }
-    setupScrollLogic(startY, totalContentHeight, viewHeight) {
-        const bottomLimit = startY - (totalContentHeight - viewHeight);
-        let isScrolling = false;
-        // Gestion de la molette
-        this.input.on("wheel", (pointer, gameObjects, deltaX, deltaY)=>{
-            const newY = Phaser.Math.Clamp(this.levelContainer.y - deltaY * 0.5, bottomLimit, startY);
-            this.levelContainer.y = newY;
-            this.updateScrollIndicators(startY, bottomLimit);
-        });
-        // Support du drag tactile/souris
-        let dragStartY = 0;
-        let containerStartY = 0;
-        this.input.on("pointerdown", (pointer)=>{
-            // Vérifier si le pointeur est dans la zone de scroll
-            const cx = this.scale.width / 2;
-            if (pointer.x > cx - 250 && pointer.x < cx + 250) {
-                isScrolling = true;
-                dragStartY = pointer.y;
-                containerStartY = this.levelContainer.y;
-            }
-        });
-        this.input.on("pointermove", (pointer)=>{
-            if (isScrolling && pointer.isDown) {
-                const deltaY = pointer.y - dragStartY;
-                const newY = Phaser.Math.Clamp(containerStartY + deltaY, bottomLimit, startY);
-                this.levelContainer.y = newY;
-                this.updateScrollIndicators(startY, bottomLimit);
-            }
-        });
-        this.input.on("pointerup", ()=>{
-            isScrolling = false;
-        });
-    }
-    addScrollIndicators(cx, startY, viewHeight, totalHeight) {
-        // Indicateur en haut
-        this.scrollTopIndicator = this.add.triangle(cx, startY - 10, 0, 10, 10, 0, -10, 0, 0x00f2ff, 0.5).setOrigin(0.5);
-        // Indicateur en bas
-        this.scrollBottomIndicator = this.add.triangle(cx, startY + viewHeight + 10, 0, 0, 10, 10, -10, 10, 0x00f2ff, 0.5).setOrigin(0.5);
-        // Masquer l'indicateur du haut au départ (on est en haut)
-        this.scrollTopIndicator.setVisible(false);
-    }
-    updateScrollIndicators(topLimit, bottomLimit) {
-        if (!this.scrollTopIndicator || !this.scrollBottomIndicator) return;
-        // Afficher/masquer les indicateurs selon la position
-        const atTop = this.levelContainer.y >= topLimit - 5;
-        const atBottom = this.levelContainer.y <= bottomLimit + 5;
-        this.scrollTopIndicator.setVisible(!atTop);
-        this.scrollBottomIndicator.setVisible(!atBottom);
-        // Animation de pulsation
-        if (this.scrollTopIndicator.visible) this.tweens.add({
-            targets: this.scrollTopIndicator,
-            alpha: 0.3,
-            duration: 800,
-            yoyo: true,
-            repeat: -1
-        });
-        if (this.scrollBottomIndicator.visible) this.tweens.add({
-            targets: this.scrollBottomIndicator,
-            alpha: 0.3,
-            duration: 800,
-            yoyo: true,
-            repeat: -1
-        });
     }
     createLogoutButton(y) {
         const btn = this.add.text(this.scale.width / 2, y, "D\xc9CONNEXION DU SYST\xc8ME", {
@@ -516,7 +386,9 @@ class MainMenuScene extends Phaser.Scene {
         });
     }
     setupEventListeners() {
-        this.profileUpdatedHandler = ()=>this.scene.restart();
+        this.profileUpdatedHandler = ()=>{
+            if (this.heroPanel) this.heroPanel.refresh();
+        };
         window.addEventListener("auth:profile-updated", this.profileUpdatedHandler);
         this.events.once("shutdown", ()=>{
             window.removeEventListener("auth:profile-updated", this.profileUpdatedHandler);
@@ -524,525 +396,7 @@ class MainMenuScene extends Phaser.Scene {
     }
 }
 
-},{"../config/levels/index.js":"8fcfE","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../services/authManager.js":"cvKjF","../services/authOverlay.js":"g1JuO","./components/LeaderboardUI.js":"fNAJL","./components/HeroUpgradeUI.js":"cwcYt","95ddb640642c8907":"hLiDk"}],"8fcfE":[function(require,module,exports,__globalThis) {
-// src/levels/index.js
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "LEVELS_CONFIG", ()=>LEVELS_CONFIG);
-var _level1Js = require("./level1.js");
-var _level2Js = require("./level2.js");
-var _level3Js = require("./level3.js");
-const LEVELS_CONFIG = [
-    {
-        id: 1,
-        name: "Les Bocages",
-        data: (0, _level1Js.LEVEL_1)
-    },
-    {
-        id: 2,
-        name: "Double Front",
-        data: (0, _level2Js.LEVEL_2)
-    },
-    {
-        id: 3,
-        name: "Forteresse de neige",
-        data: (0, _level3Js.LEVEL_3)
-    }
-];
-
-},{"./level1.js":"4Dl0R","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./level2.js":"alrw9","./level3.js":"c2Phu"}],"4Dl0R":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "LEVEL_1", ()=>LEVEL_1);
-const LEVEL_1 = {
-    // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont
-    map: [
-        [
-            1,
-            1,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            3,
-            3,
-            3
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            3,
-            3
-        ],
-        [
-            0,
-            0,
-            1,
-            4,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            3
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            3
-        ],
-        [
-            5,
-            0,
-            1,
-            3,
-            0,
-            5,
-            5,
-            5,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            3
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            5,
-            5,
-            5,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            5,
-            5,
-            5,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            4,
-            1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            3,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            1,
-            0,
-            3,
-            3,
-            3
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            3
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            0
-        ],
-        [
-            3,
-            3,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            2
-        ]
-    ],
-    // LISTE DES CHEMINS POSSIBLES (paths au pluriel)
-    paths: [
-        // CHEMIN A : Passe par le pont du HAUT
-        [
-            {
-                x: 0,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 2
-            },
-            {
-                x: 10,
-                y: 2
-            },
-            {
-                x: 10,
-                y: 10
-            },
-            {
-                x: 10,
-                y: 12
-            },
-            {
-                x: 13,
-                y: 12
-            },
-            {
-                x: 13,
-                y: 13
-            },
-            {
-                x: 13,
-                y: 14
-            },
-            {
-                x: 14,
-                y: 14
-            }
-        ],
-        // CHEMIN B : Passe par le pont du BAS
-        [
-            {
-                x: 0,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 8
-            },
-            {
-                x: 6,
-                y: 8
-            },
-            {
-                x: 6,
-                y: 10
-            },
-            {
-                x: 10,
-                y: 10
-            },
-            {
-                x: 10,
-                y: 12
-            },
-            {
-                x: 13,
-                y: 12
-            },
-            {
-                x: 13,
-                y: 13
-            },
-            {
-                x: 13,
-                y: 14
-            },
-            {
-                x: 14,
-                y: 14
-            }
-        ]
-    ],
-    waves: [
-        // VAGUE 1 : Soldats (La seconde escouade arrive après 10 secondes)
-        [
-            {
-                count: 24,
-                type: "grunt",
-                interval: 1000,
-                startDelay: 0
-            },
-            {
-                count: 15,
-                type: "grunt",
-                interval: 1000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 2 : Runners (Rush immédiat)
-        [
-            {
-                count: 21,
-                type: "runner",
-                interval: 450,
-                startDelay: 0
-            },
-            {
-                count: 1,
-                type: "shield",
-                interval: 1500,
-                startDelay: 3000
-            }
-        ],
-        // VAGUE 3 : Mixte (Chair à canon d'abord, Boucliers ensuite, Runners en traître)
-        [
-            {
-                count: 12,
-                type: "grunt",
-                interval: 600,
-                startDelay: 0
-            },
-            {
-                count: 6,
-                type: "shield",
-                interval: 1500,
-                startDelay: 4000
-            },
-            {
-                count: 10,
-                type: "runner",
-                interval: 800,
-                startDelay: 12000
-            }
-        ],
-        // VAGUE 4 : Tank (Escorte progressive)
-        [
-            {
-                count: 12,
-                type: "grunt",
-                interval: 600,
-                startDelay: 0
-            },
-            {
-                count: 20,
-                type: "runner",
-                interval: 400,
-                startDelay: 5000
-            },
-            {
-                count: 4,
-                type: "shield",
-                interval: 1500,
-                startDelay: 15000
-            },
-            {
-                count: 4,
-                type: "tank",
-                interval: 4000,
-                startDelay: 25000
-            }
-        ],
-        // VAGUE 5 : Invasion (Longue bataille)
-        [
-            {
-                count: 60,
-                type: "grunt",
-                interval: 500,
-                startDelay: 0
-            },
-            {
-                count: 10,
-                type: "runner",
-                interval: 400,
-                startDelay: 8000
-            },
-            {
-                count: 8,
-                type: "shield",
-                interval: 1500,
-                startDelay: 18000
-            },
-            {
-                count: 7,
-                type: "tank",
-                interval: 4000,
-                startDelay: 30000
-            }
-        ],
-        // VAGUE 6 : BOSS (Le Final)
-        [
-            {
-                count: 68,
-                type: "grunt",
-                interval: 700,
-                startDelay: 0
-            },
-            {
-                count: 36,
-                type: "runner",
-                interval: 1500,
-                startDelay: 12000
-            },
-            {
-                count: 6,
-                type: "tank",
-                interval: 5000,
-                startDelay: 35000
-            },
-            {
-                count: 1,
-                type: "bosslvl1",
-                interval: 3000,
-                startDelay: 45000
-            }
-        ]
-    ]
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"jnFvT":[function(require,module,exports,__globalThis) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","../services/authManager.js":"cvKjF","../services/authOverlay.js":"g1JuO","./components/LeaderboardUI.js":"fNAJL","./components/HeroUpgradeUI.js":"cwcYt","95ddb640642c8907":"hLiDk"}],"jnFvT":[function(require,module,exports,__globalThis) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -1072,1103 +426,7 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}],"alrw9":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "LEVEL_2", ()=>LEVEL_2);
-const LEVEL_2 = {
-    // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont, 5=Rocher/Decor
-    map: [
-        [
-            0,
-            0,
-            0,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            5,
-            5,
-            5,
-            0
-        ],
-        [
-            1,
-            1,
-            1,
-            4,
-            1,
-            1,
-            1,
-            1,
-            1,
-            0,
-            0,
-            5,
-            5,
-            5,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            5,
-            5,
-            5,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1
-        ],
-        [
-            0,
-            3,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1
-        ],
-        [
-            1,
-            1,
-            1,
-            3,
-            3,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            1
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            0,
-            0,
-            1,
-            1,
-            1,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            3,
-            1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            1,
-            4,
-            1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            0,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            0,
-            0,
-            3,
-            3,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-            0,
-            0
-        ],
-        [
-            3,
-            3,
-            3,
-            3,
-            3,
-            0,
-            5,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            2
-        ]
-    ],
-    // LISTE DES CHEMINS (Identiques à ta version corrigée)
-    paths: [
-        // --- CHEMIN A : Départ HAUT GAUCHE ---
-        [
-            {
-                x: 0,
-                y: 2
-            },
-            {
-                x: 8,
-                y: 2
-            },
-            {
-                x: 8,
-                y: 5
-            },
-            {
-                x: 14,
-                y: 5
-            },
-            {
-                x: 14,
-                y: 8
-            },
-            {
-                x: 11,
-                y: 8
-            },
-            {
-                x: 11,
-                y: 14
-            },
-            {
-                x: 14,
-                y: 14
-            }
-        ],
-        // --- CHEMIN B : Départ BAS GAUCHE (Le zig-zag) ---
-        [
-            {
-                x: 0,
-                y: 8
-            },
-            {
-                x: 2,
-                y: 8
-            },
-            {
-                x: 2,
-                y: 11
-            },
-            {
-                x: 4,
-                y: 11
-            },
-            {
-                x: 4,
-                y: 10
-            },
-            {
-                x: 6,
-                y: 10
-            },
-            {
-                x: 6,
-                y: 9
-            },
-            {
-                x: 8,
-                y: 9
-            },
-            {
-                x: 8,
-                y: 8
-            },
-            {
-                x: 11,
-                y: 8
-            },
-            {
-                x: 11,
-                y: 14
-            },
-            {
-                x: 14,
-                y: 14
-            }
-        ]
-    ],
-    // CONFIGURATION DES 8 VAGUES (Sans Shaman, Difficile)
-    waves: [
-        // VAGUE 1 : Mise en bouche (2 chemins)
-        [
-            {
-                count: 12,
-                type: "grunt",
-                interval: 1000,
-                startDelay: 0
-            },
-            {
-                count: 12,
-                type: "grunt",
-                interval: 1000,
-                startDelay: 6000
-            },
-            {
-                count: 5,
-                type: "runner",
-                interval: 800,
-                startDelay: 15000
-            }
-        ],
-        // VAGUE 2 : Le Mur de Boucliers
-        [
-            {
-                count: 8,
-                type: "shield",
-                interval: 1500,
-                startDelay: 0
-            },
-            {
-                count: 20,
-                type: "runner",
-                interval: 400,
-                startDelay: 5000
-            }
-        ],
-        // VAGUE 3 : Introduction Tortue Dragon (Tanky)
-        [
-            {
-                count: 25,
-                type: "grunt",
-                interval: 600,
-                startDelay: 0
-            },
-            {
-                count: 3,
-                type: "tortue_dragon",
-                interval: 3000,
-                startDelay: 10000
-            },
-            {
-                count: 10,
-                type: "runner",
-                interval: 500,
-                startDelay: 18000
-            }
-        ],
-        // VAGUE 4 : L'Escorte Blindée
-        [
-            {
-                count: 30,
-                type: "grunt",
-                interval: 500,
-                startDelay: 0
-            },
-            {
-                count: 5,
-                type: "tank",
-                interval: 3000,
-                startDelay: 10000
-            },
-            {
-                count: 5,
-                type: "shield",
-                interval: 1200,
-                startDelay: 12000
-            }
-        ],
-        // VAGUE 5 : Division Cellulaire (Introduction Diviseur)
-        [
-            {
-                count: 4,
-                type: "diviseur",
-                interval: 4000,
-                startDelay: 0
-            },
-            {
-                count: 20,
-                type: "runner",
-                interval: 350,
-                startDelay: 8000
-            },
-            {
-                count: 15,
-                type: "grunt",
-                interval: 500,
-                startDelay: 12000
-            }
-        ],
-        // VAGUE 6 : Le Combo Lourd
-        [
-            {
-                count: 5,
-                type: "tortue_dragon",
-                interval: 3500,
-                startDelay: 0
-            },
-            {
-                count: 4,
-                type: "tank",
-                interval: 3000,
-                startDelay: 5000
-            },
-            {
-                count: 6,
-                type: "diviseur",
-                interval: 4000,
-                startDelay: 20000
-            }
-        ],
-        // VAGUE 7 : Submersion (Test de DPS)
-        [
-            {
-                count: 50,
-                type: "grunt",
-                interval: 300,
-                startDelay: 0
-            },
-            {
-                count: 15,
-                type: "shield",
-                interval: 1000,
-                startDelay: 5000
-            },
-            {
-                count: 15,
-                type: "runner",
-                interval: 300,
-                startDelay: 15000
-            },
-            {
-                count: 5,
-                type: "diviseur",
-                interval: 3000,
-                startDelay: 25000
-            }
-        ],
-        // VAGUE 8 : BOSS FINAL (Boss Lvl 2)
-        [
-            {
-                count: 30,
-                type: "runner",
-                interval: 350,
-                startDelay: 0
-            },
-            {
-                count: 8,
-                type: "tortue_dragon",
-                interval: 3000,
-                startDelay: 10000
-            },
-            {
-                count: 8,
-                type: "tank",
-                interval: 3000,
-                startDelay: 20000
-            },
-            {
-                count: 1,
-                type: "bosslvl2",
-                interval: 5000,
-                startDelay: 40000
-            }
-        ]
-    ]
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"c2Phu":[function(require,module,exports,__globalThis) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "LEVEL_3", ()=>LEVEL_3);
-const LEVEL_3 = {
-    // THEME : Désert de Glace
-    // 6=Sol Neige, 7=Chemin Glacé, 8=Eau Glacée, 9=Montagne Neige, 2=Base
-    map: [
-        // 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
-        [
-            7,
-            7,
-            7,
-            6,
-            6,
-            6,
-            8,
-            8,
-            8,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            8,
-            8,
-            8,
-            6,
-            9,
-            9,
-            9,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            7,
-            7,
-            7,
-            7,
-            7,
-            6,
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            8,
-            8,
-            6,
-            6,
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            8,
-            8,
-            6,
-            6,
-            6,
-            6,
-            7,
-            7,
-            7,
-            7,
-            7,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            7,
-            7,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            7,
-            6,
-            7,
-            6,
-            7,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            7,
-            6,
-            7,
-            7,
-            7,
-            7,
-            7,
-            7,
-            2
-        ],
-        [
-            6,
-            6,
-            9,
-            9,
-            9,
-            6,
-            7,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            7,
-            7,
-            7,
-            7,
-            7,
-            7,
-            6,
-            7,
-            8,
-            8,
-            8,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            6,
-            7,
-            8,
-            8,
-            8,
-            6,
-            6,
-            6,
-            6
-        ],
-        [
-            6,
-            6,
-            6,
-            6,
-            6,
-            7,
-            7,
-            7,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6,
-            6
-        ]
-    ],
-    paths: [
-        // CHEMIN 1 : HAUT GAUCHE vers BASE (suivre uniquement les cases 7)
-        [
-            {
-                x: 0,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 0
-            },
-            {
-                x: 2,
-                y: 3
-            },
-            {
-                x: 6,
-                y: 3
-            },
-            {
-                x: 6,
-                y: 6
-            },
-            {
-                x: 10,
-                y: 6
-            },
-            {
-                x: 10,
-                y: 10
-            },
-            {
-                x: 14,
-                y: 10
-            }
-        ],
-        // CHEMIN 2 : BAS GAUCHE vers BASE (suivre uniquement les cases 7)
-        [
-            {
-                x: 0,
-                y: 12
-            },
-            {
-                x: 5,
-                y: 12
-            },
-            {
-                x: 5,
-                y: 14
-            },
-            {
-                x: 7,
-                y: 14
-            },
-            {
-                x: 7,
-                y: 11
-            },
-            {
-                x: 6,
-                y: 11
-            },
-            {
-                x: 6,
-                y: 8
-            },
-            {
-                x: 8,
-                y: 8
-            },
-            {
-                x: 8,
-                y: 10
-            },
-            {
-                x: 14,
-                y: 10
-            }
-        ]
-    ],
-    // 10 VAGUES - DIFFICULTÉ "CAUCHEMAR TACTIQUE"
-    waves: [
-        // VAGUE 1 : Échauffement bilatéral
-        // Le joueur doit placer des tours aux deux spawn ou au centre.
-        [
-            {
-                count: 10,
-                type: "grunt",
-                interval: 800,
-                startDelay: 0
-            },
-            {
-                count: 10,
-                type: "grunt",
-                interval: 800,
-                startDelay: 5000
-            }
-        ],
-        // VAGUE 2 : La vitesse
-        [
-            {
-                count: 25,
-                type: "runner",
-                interval: 400,
-                startDelay: 0
-            }
-        ],
-        // VAGUE 3 : INTRODUCTION DU SHAMAN
-        // Les Grunts servent de bouclier de chair, les Shamans les soignent derrière.
-        [
-            {
-                count: 20,
-                type: "grunt",
-                interval: 600,
-                startDelay: 0
-            },
-            {
-                count: 3,
-                type: "shaman_gobelin",
-                interval: 4000,
-                startDelay: 5000
-            }
-        ],
-        // VAGUE 4 : Le Mur immortel
-        // Shields (haute défense) + Shaman (Soin) = Très dur à tuer sans gros DPS.
-        [
-            {
-                count: 10,
-                type: "shield",
-                interval: 1200,
-                startDelay: 0
-            },
-            {
-                count: 4,
-                type: "shaman_gobelin",
-                interval: 3000,
-                startDelay: 4000
-            },
-            {
-                count: 15,
-                type: "runner",
-                interval: 400,
-                startDelay: 12000
-            }
-        ],
-        // VAGUE 5 : Lourdeur Mécanique
-        [
-            {
-                count: 6,
-                type: "tank",
-                interval: 3000,
-                startDelay: 0
-            },
-            {
-                count: 4,
-                type: "tortue_dragon",
-                interval: 4000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 6 : Division et Multiplication
-        // Les Diviseurs explosent en petits slimes, les Shamans soignent les petits slimes.
-        [
-            {
-                count: 5,
-                type: "diviseur",
-                interval: 4000,
-                startDelay: 0
-            },
-            {
-                count: 40,
-                type: "grunt",
-                interval: 300,
-                startDelay: 8000
-            },
-            {
-                count: 4,
-                type: "shaman_gobelin",
-                interval: 4000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 7 : L'Escouade d'Élite
-        // Un mélange compact et dangereux.
-        [
-            {
-                count: 5,
-                type: "shield",
-                interval: 1000,
-                startDelay: 0
-            },
-            {
-                count: 3,
-                type: "tortue_dragon",
-                interval: 3000,
-                startDelay: 2000
-            },
-            {
-                count: 3,
-                type: "shaman_gobelin",
-                interval: 3000,
-                startDelay: 4000
-            },
-            {
-                count: 5,
-                type: "tank",
-                interval: 2500,
-                startDelay: 15000
-            }
-        ],
-        // VAGUE 8 : Chaos Total
-        // Ça vient de partout.
-        [
-            {
-                count: 60,
-                type: "runner",
-                interval: 250,
-                startDelay: 0
-            },
-            {
-                count: 8,
-                type: "diviseur",
-                interval: 3500,
-                startDelay: 5000
-            },
-            {
-                count: 5,
-                type: "shaman_gobelin",
-                interval: 4000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 9 : Avant la tempête
-        // Des unités très résistantes pour vider les munitions/énergie du joueur.
-        [
-            {
-                count: 10,
-                type: "tortue_dragon",
-                interval: 2500,
-                startDelay: 0
-            },
-            {
-                count: 10,
-                type: "shield",
-                interval: 1000,
-                startDelay: 5000
-            },
-            {
-                count: 6,
-                type: "shaman_gobelin",
-                interval: 3000,
-                startDelay: 10000
-            }
-        ],
-        // VAGUE 10 : LE SEIGNEUR DE GUERRE (Boss Lvl 3)
-        [
-            // L'avant-garde
-            {
-                count: 30,
-                type: "grunt",
-                interval: 300,
-                startDelay: 0
-            },
-            {
-                count: 20,
-                type: "runner",
-                interval: 300,
-                startDelay: 5000
-            },
-            // La garde rapprochée
-            {
-                count: 8,
-                type: "tank",
-                interval: 2000,
-                startDelay: 20000
-            },
-            {
-                count: 6,
-                type: "shaman_gobelin",
-                interval: 2000,
-                startDelay: 25000
-            },
-            // LE BOSS
-            {
-                count: 1,
-                type: "bosslvl3",
-                interval: 10000,
-                startDelay: 35000
-            },
-            // Les renforts de dernière chance
-            {
-                count: 10,
-                type: "runner",
-                interval: 200,
-                startDelay: 49000
-            }
-        ]
-    ]
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"cvKjF":[function(require,module,exports,__globalThis) {
+},{}],"cvKjF":[function(require,module,exports,__globalThis) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "isAuthenticated", ()=>isAuthenticated);
@@ -2256,9 +514,12 @@ function logout() {
     setToken(null);
     currentProfile = null;
 }
-async function recordHeroKill() {
+async function recordHeroKill(kills = 1) {
     if (!isAuthenticated()) return null;
-    const response = await (0, _apiClientJs.apiClient).post("/api/player/hero/kill");
+    const killsToRecord = Number.isInteger(kills) && kills > 0 ? kills : 1;
+    const response = await (0, _apiClientJs.apiClient).post("/api/player/hero/kill", {
+        kills: killsToRecord
+    });
     if (currentProfile?.player) currentProfile.player.hero_points_available = response.data.heroPointsAvailable;
     return response.data;
 }
@@ -7884,6 +6145,8 @@ class GameScene extends Phaser.Scene {
         this.pausedTweens = []; // Liste des tweens en pause
         this.elapsedTimeMs = 0; // Chronomètre de session
         this.isTimerRunning = false;
+        this.heroKillCount = 0;
+        this.heroKillReportPromise = null;
     }
     preload() {
         // Générer les textures seulement si le système est prêt
@@ -8042,10 +6305,19 @@ class GameScene extends Phaser.Scene {
         this.waveManager.finishWave();
     }
     levelComplete() {
+        this.reportHeroKillsOnce();
         this.waveManager.levelComplete();
     }
     handleEnemyKilled(payload) {
-        if (payload?.source === "hero") (0, _authManagerJs.recordHeroKill)().catch(()=>{});
+        if (payload?.source === "hero") this.heroKillCount += 1;
+    }
+    reportHeroKillsOnce() {
+        if (this.heroKillCount <= 0) return null;
+        if (this.heroKillReportPromise) return this.heroKillReportPromise;
+        const killsToReport = this.heroKillCount;
+        this.heroKillCount = 0;
+        this.heroKillReportPromise = (0, _authManagerJs.recordHeroKill)(killsToReport).catch(()=>{});
+        return this.heroKillReportPromise;
     }
     // =========================================================
     // GESTION CLICS & MENUS
@@ -8197,6 +6469,7 @@ class GameScene extends Phaser.Scene {
     showGameOverNotification() {
         // Mettre le jeu en pause
         this.isPaused = true;
+        this.reportHeroKillsOnce();
         const bg = this.add.rectangle(this.cameras.main.centerX, this.cameras.main.centerY, 500 * this.scaleFactor, 300 * this.scaleFactor, 0x000000, 0.9).setDepth(200);
         const txt = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY - 30 * this.scaleFactor, "PERDU !", {
             fontSize: `${Math.max(30, 50 * this.scaleFactor)}px`,
@@ -11033,6 +9306,1620 @@ const bosslvl3 = {
         enemyInstance.smokeGroup.scaleX = 1 + Math.sin(time * 0.002) * 0.1;
         enemyInstance.smokeGroup.scaleY = 1 + Math.sin(time * 0.002) * 0.1;
     }
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"8fcfE":[function(require,module,exports,__globalThis) {
+// src/levels/index.js
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LEVELS_CONFIG", ()=>LEVELS_CONFIG);
+var _level1Js = require("./level1.js");
+var _level2Js = require("./level2.js");
+var _level3Js = require("./level3.js");
+const LEVELS_CONFIG = [
+    {
+        id: 1,
+        name: "Les Bocages",
+        data: (0, _level1Js.LEVEL_1)
+    },
+    {
+        id: 2,
+        name: "Double Front",
+        data: (0, _level2Js.LEVEL_2)
+    },
+    {
+        id: 3,
+        name: "Forteresse de neige",
+        data: (0, _level3Js.LEVEL_3)
+    }
+];
+
+},{"./level1.js":"4Dl0R","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT","./level2.js":"alrw9","./level3.js":"c2Phu"}],"4Dl0R":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LEVEL_1", ()=>LEVEL_1);
+const LEVEL_1 = {
+    // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont
+    map: [
+        [
+            1,
+            1,
+            1,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            3,
+            3
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            3
+        ],
+        [
+            0,
+            0,
+            1,
+            4,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            5,
+            0,
+            1,
+            3,
+            0,
+            5,
+            5,
+            5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            5,
+            5,
+            5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            5,
+            5,
+            5,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            4,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            3,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            3,
+            3,
+            3
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            3
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0
+        ],
+        [
+            3,
+            3,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            2
+        ]
+    ],
+    // LISTE DES CHEMINS POSSIBLES (paths au pluriel)
+    paths: [
+        // CHEMIN A : Passe par le pont du HAUT
+        [
+            {
+                x: 0,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 2
+            },
+            {
+                x: 10,
+                y: 2
+            },
+            {
+                x: 10,
+                y: 10
+            },
+            {
+                x: 10,
+                y: 12
+            },
+            {
+                x: 13,
+                y: 12
+            },
+            {
+                x: 13,
+                y: 13
+            },
+            {
+                x: 13,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            }
+        ],
+        // CHEMIN B : Passe par le pont du BAS
+        [
+            {
+                x: 0,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 8
+            },
+            {
+                x: 6,
+                y: 8
+            },
+            {
+                x: 6,
+                y: 10
+            },
+            {
+                x: 10,
+                y: 10
+            },
+            {
+                x: 10,
+                y: 12
+            },
+            {
+                x: 13,
+                y: 12
+            },
+            {
+                x: 13,
+                y: 13
+            },
+            {
+                x: 13,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            }
+        ]
+    ],
+    waves: [
+        // VAGUE 1 : Soldats (La seconde escouade arrive après 10 secondes)
+        [
+            {
+                count: 24,
+                type: "grunt",
+                interval: 1000,
+                startDelay: 0
+            },
+            {
+                count: 15,
+                type: "grunt",
+                interval: 1000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 2 : Runners (Rush immédiat)
+        [
+            {
+                count: 21,
+                type: "runner",
+                interval: 450,
+                startDelay: 0
+            },
+            {
+                count: 1,
+                type: "shield",
+                interval: 1500,
+                startDelay: 3000
+            }
+        ],
+        // VAGUE 3 : Mixte (Chair à canon d'abord, Boucliers ensuite, Runners en traître)
+        [
+            {
+                count: 12,
+                type: "grunt",
+                interval: 600,
+                startDelay: 0
+            },
+            {
+                count: 6,
+                type: "shield",
+                interval: 1500,
+                startDelay: 4000
+            },
+            {
+                count: 10,
+                type: "runner",
+                interval: 800,
+                startDelay: 12000
+            }
+        ],
+        // VAGUE 4 : Tank (Escorte progressive)
+        [
+            {
+                count: 12,
+                type: "grunt",
+                interval: 600,
+                startDelay: 0
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 400,
+                startDelay: 5000
+            },
+            {
+                count: 4,
+                type: "shield",
+                interval: 1500,
+                startDelay: 15000
+            },
+            {
+                count: 4,
+                type: "tank",
+                interval: 4000,
+                startDelay: 25000
+            }
+        ],
+        // VAGUE 5 : Invasion (Longue bataille)
+        [
+            {
+                count: 60,
+                type: "grunt",
+                interval: 500,
+                startDelay: 0
+            },
+            {
+                count: 10,
+                type: "runner",
+                interval: 400,
+                startDelay: 8000
+            },
+            {
+                count: 8,
+                type: "shield",
+                interval: 1500,
+                startDelay: 18000
+            },
+            {
+                count: 7,
+                type: "tank",
+                interval: 4000,
+                startDelay: 30000
+            }
+        ],
+        // VAGUE 6 : BOSS (Le Final)
+        [
+            {
+                count: 68,
+                type: "grunt",
+                interval: 700,
+                startDelay: 0
+            },
+            {
+                count: 36,
+                type: "runner",
+                interval: 1500,
+                startDelay: 12000
+            },
+            {
+                count: 6,
+                type: "tank",
+                interval: 5000,
+                startDelay: 35000
+            },
+            {
+                count: 1,
+                type: "bosslvl1",
+                interval: 3000,
+                startDelay: 45000
+            }
+        ]
+    ]
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"alrw9":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LEVEL_2", ()=>LEVEL_2);
+const LEVEL_2 = {
+    // 0=Herbe, 1=Chemin, 2=Base, 3=Eau, 4=Pont, 5=Rocher/Decor
+    map: [
+        [
+            0,
+            0,
+            0,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            5,
+            5,
+            0
+        ],
+        [
+            1,
+            1,
+            1,
+            4,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            5,
+            5,
+            5,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            5,
+            5,
+            5,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
+        [
+            0,
+            3,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+        ],
+        [
+            1,
+            1,
+            1,
+            3,
+            3,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            3,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            1,
+            4,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            0,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        [
+            3,
+            3,
+            3,
+            3,
+            3,
+            0,
+            5,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            2
+        ]
+    ],
+    // LISTE DES CHEMINS (Identiques à ta version corrigée)
+    paths: [
+        // --- CHEMIN A : Départ HAUT GAUCHE ---
+        [
+            {
+                x: 0,
+                y: 2
+            },
+            {
+                x: 8,
+                y: 2
+            },
+            {
+                x: 8,
+                y: 5
+            },
+            {
+                x: 14,
+                y: 5
+            },
+            {
+                x: 14,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            }
+        ],
+        // --- CHEMIN B : Départ BAS GAUCHE (Le zig-zag) ---
+        [
+            {
+                x: 0,
+                y: 8
+            },
+            {
+                x: 2,
+                y: 8
+            },
+            {
+                x: 2,
+                y: 11
+            },
+            {
+                x: 4,
+                y: 11
+            },
+            {
+                x: 4,
+                y: 10
+            },
+            {
+                x: 6,
+                y: 10
+            },
+            {
+                x: 6,
+                y: 9
+            },
+            {
+                x: 8,
+                y: 9
+            },
+            {
+                x: 8,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 8
+            },
+            {
+                x: 11,
+                y: 14
+            },
+            {
+                x: 14,
+                y: 14
+            }
+        ]
+    ],
+    // CONFIGURATION DES 8 VAGUES (Sans Shaman, Difficile)
+    waves: [
+        // VAGUE 1 : Mise en bouche (2 chemins)
+        [
+            {
+                count: 12,
+                type: "grunt",
+                interval: 1000,
+                startDelay: 0
+            },
+            {
+                count: 12,
+                type: "grunt",
+                interval: 1000,
+                startDelay: 6000
+            },
+            {
+                count: 5,
+                type: "runner",
+                interval: 800,
+                startDelay: 15000
+            }
+        ],
+        // VAGUE 2 : Le Mur de Boucliers
+        [
+            {
+                count: 8,
+                type: "shield",
+                interval: 1500,
+                startDelay: 0
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 400,
+                startDelay: 5000
+            }
+        ],
+        // VAGUE 3 : Introduction Tortue Dragon (Tanky)
+        [
+            {
+                count: 25,
+                type: "grunt",
+                interval: 600,
+                startDelay: 0
+            },
+            {
+                count: 3,
+                type: "tortue_dragon",
+                interval: 3000,
+                startDelay: 10000
+            },
+            {
+                count: 10,
+                type: "runner",
+                interval: 500,
+                startDelay: 18000
+            }
+        ],
+        // VAGUE 4 : L'Escorte Blindée
+        [
+            {
+                count: 30,
+                type: "grunt",
+                interval: 500,
+                startDelay: 0
+            },
+            {
+                count: 5,
+                type: "tank",
+                interval: 3000,
+                startDelay: 10000
+            },
+            {
+                count: 5,
+                type: "shield",
+                interval: 1200,
+                startDelay: 12000
+            }
+        ],
+        // VAGUE 5 : Division Cellulaire (Introduction Diviseur)
+        [
+            {
+                count: 4,
+                type: "diviseur",
+                interval: 4000,
+                startDelay: 0
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 350,
+                startDelay: 8000
+            },
+            {
+                count: 15,
+                type: "grunt",
+                interval: 500,
+                startDelay: 12000
+            }
+        ],
+        // VAGUE 6 : Le Combo Lourd
+        [
+            {
+                count: 5,
+                type: "tortue_dragon",
+                interval: 3500,
+                startDelay: 0
+            },
+            {
+                count: 4,
+                type: "tank",
+                interval: 3000,
+                startDelay: 5000
+            },
+            {
+                count: 6,
+                type: "diviseur",
+                interval: 4000,
+                startDelay: 20000
+            }
+        ],
+        // VAGUE 7 : Submersion (Test de DPS)
+        [
+            {
+                count: 50,
+                type: "grunt",
+                interval: 300,
+                startDelay: 0
+            },
+            {
+                count: 15,
+                type: "shield",
+                interval: 1000,
+                startDelay: 5000
+            },
+            {
+                count: 15,
+                type: "runner",
+                interval: 300,
+                startDelay: 15000
+            },
+            {
+                count: 5,
+                type: "diviseur",
+                interval: 3000,
+                startDelay: 25000
+            }
+        ],
+        // VAGUE 8 : BOSS FINAL (Boss Lvl 2)
+        [
+            {
+                count: 30,
+                type: "runner",
+                interval: 350,
+                startDelay: 0
+            },
+            {
+                count: 8,
+                type: "tortue_dragon",
+                interval: 3000,
+                startDelay: 10000
+            },
+            {
+                count: 8,
+                type: "tank",
+                interval: 3000,
+                startDelay: 20000
+            },
+            {
+                count: 1,
+                type: "bosslvl2",
+                interval: 5000,
+                startDelay: 40000
+            }
+        ]
+    ]
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"c2Phu":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "LEVEL_3", ()=>LEVEL_3);
+const LEVEL_3 = {
+    // THEME : Désert de Glace
+    // 6=Sol Neige, 7=Chemin Glacé, 8=Eau Glacée, 9=Montagne Neige, 2=Base
+    map: [
+        // 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
+        [
+            7,
+            7,
+            7,
+            6,
+            6,
+            6,
+            8,
+            8,
+            8,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            8,
+            8,
+            8,
+            6,
+            9,
+            9,
+            9,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            7,
+            7,
+            7,
+            7,
+            7,
+            6,
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            8,
+            8,
+            6,
+            6,
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            8,
+            8,
+            6,
+            6,
+            6,
+            6,
+            7,
+            7,
+            7,
+            7,
+            7,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            7,
+            7,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            7,
+            6,
+            7,
+            6,
+            7,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            7,
+            6,
+            7,
+            7,
+            7,
+            7,
+            7,
+            7,
+            2
+        ],
+        [
+            6,
+            6,
+            9,
+            9,
+            9,
+            6,
+            7,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            7,
+            7,
+            7,
+            7,
+            7,
+            7,
+            6,
+            7,
+            8,
+            8,
+            8,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            6,
+            7,
+            8,
+            8,
+            8,
+            6,
+            6,
+            6,
+            6
+        ],
+        [
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            7,
+            7,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6,
+            6
+        ]
+    ],
+    paths: [
+        // CHEMIN 1 : HAUT GAUCHE vers BASE (suivre uniquement les cases 7)
+        [
+            {
+                x: 0,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 0
+            },
+            {
+                x: 2,
+                y: 3
+            },
+            {
+                x: 6,
+                y: 3
+            },
+            {
+                x: 6,
+                y: 6
+            },
+            {
+                x: 10,
+                y: 6
+            },
+            {
+                x: 10,
+                y: 10
+            },
+            {
+                x: 14,
+                y: 10
+            }
+        ],
+        // CHEMIN 2 : BAS GAUCHE vers BASE (suivre uniquement les cases 7)
+        [
+            {
+                x: 0,
+                y: 12
+            },
+            {
+                x: 5,
+                y: 12
+            },
+            {
+                x: 5,
+                y: 14
+            },
+            {
+                x: 7,
+                y: 14
+            },
+            {
+                x: 7,
+                y: 11
+            },
+            {
+                x: 6,
+                y: 11
+            },
+            {
+                x: 6,
+                y: 8
+            },
+            {
+                x: 8,
+                y: 8
+            },
+            {
+                x: 8,
+                y: 10
+            },
+            {
+                x: 14,
+                y: 10
+            }
+        ]
+    ],
+    // 10 VAGUES - DIFFICULTÉ "CAUCHEMAR TACTIQUE"
+    waves: [
+        // VAGUE 1 : Échauffement bilatéral
+        // Le joueur doit placer des tours aux deux spawn ou au centre.
+        [
+            {
+                count: 10,
+                type: "grunt",
+                interval: 800,
+                startDelay: 0
+            },
+            {
+                count: 10,
+                type: "grunt",
+                interval: 800,
+                startDelay: 5000
+            }
+        ],
+        // VAGUE 2 : La vitesse
+        [
+            {
+                count: 25,
+                type: "runner",
+                interval: 400,
+                startDelay: 0
+            }
+        ],
+        // VAGUE 3 : INTRODUCTION DU SHAMAN
+        // Les Grunts servent de bouclier de chair, les Shamans les soignent derrière.
+        [
+            {
+                count: 20,
+                type: "grunt",
+                interval: 600,
+                startDelay: 0
+            },
+            {
+                count: 3,
+                type: "shaman_gobelin",
+                interval: 4000,
+                startDelay: 5000
+            }
+        ],
+        // VAGUE 4 : Le Mur immortel
+        // Shields (haute défense) + Shaman (Soin) = Très dur à tuer sans gros DPS.
+        [
+            {
+                count: 10,
+                type: "shield",
+                interval: 1200,
+                startDelay: 0
+            },
+            {
+                count: 4,
+                type: "shaman_gobelin",
+                interval: 3000,
+                startDelay: 4000
+            },
+            {
+                count: 15,
+                type: "runner",
+                interval: 400,
+                startDelay: 12000
+            }
+        ],
+        // VAGUE 5 : Lourdeur Mécanique
+        [
+            {
+                count: 6,
+                type: "tank",
+                interval: 3000,
+                startDelay: 0
+            },
+            {
+                count: 4,
+                type: "tortue_dragon",
+                interval: 4000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 6 : Division et Multiplication
+        // Les Diviseurs explosent en petits slimes, les Shamans soignent les petits slimes.
+        [
+            {
+                count: 5,
+                type: "diviseur",
+                interval: 4000,
+                startDelay: 0
+            },
+            {
+                count: 40,
+                type: "grunt",
+                interval: 300,
+                startDelay: 8000
+            },
+            {
+                count: 4,
+                type: "shaman_gobelin",
+                interval: 4000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 7 : L'Escouade d'Élite
+        // Un mélange compact et dangereux.
+        [
+            {
+                count: 5,
+                type: "shield",
+                interval: 1000,
+                startDelay: 0
+            },
+            {
+                count: 3,
+                type: "tortue_dragon",
+                interval: 3000,
+                startDelay: 2000
+            },
+            {
+                count: 3,
+                type: "shaman_gobelin",
+                interval: 3000,
+                startDelay: 4000
+            },
+            {
+                count: 5,
+                type: "tank",
+                interval: 2500,
+                startDelay: 15000
+            }
+        ],
+        // VAGUE 8 : Chaos Total
+        // Ça vient de partout.
+        [
+            {
+                count: 60,
+                type: "runner",
+                interval: 250,
+                startDelay: 0
+            },
+            {
+                count: 8,
+                type: "diviseur",
+                interval: 3500,
+                startDelay: 5000
+            },
+            {
+                count: 5,
+                type: "shaman_gobelin",
+                interval: 4000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 9 : Avant la tempête
+        // Des unités très résistantes pour vider les munitions/énergie du joueur.
+        [
+            {
+                count: 10,
+                type: "tortue_dragon",
+                interval: 2500,
+                startDelay: 0
+            },
+            {
+                count: 10,
+                type: "shield",
+                interval: 1000,
+                startDelay: 5000
+            },
+            {
+                count: 6,
+                type: "shaman_gobelin",
+                interval: 3000,
+                startDelay: 10000
+            }
+        ],
+        // VAGUE 10 : LE SEIGNEUR DE GUERRE (Boss Lvl 3)
+        [
+            // L'avant-garde
+            {
+                count: 30,
+                type: "grunt",
+                interval: 300,
+                startDelay: 0
+            },
+            {
+                count: 20,
+                type: "runner",
+                interval: 300,
+                startDelay: 5000
+            },
+            // La garde rapprochée
+            {
+                count: 8,
+                type: "tank",
+                interval: 2000,
+                startDelay: 20000
+            },
+            {
+                count: 6,
+                type: "shaman_gobelin",
+                interval: 2000,
+                startDelay: 25000
+            },
+            // LE BOSS
+            {
+                count: 1,
+                type: "bosslvl3",
+                interval: 10000,
+                startDelay: 35000
+            },
+            // Les renforts de dernière chance
+            {
+                count: 10,
+                type: "runner",
+                interval: 200,
+                startDelay: 49000
+            }
+        ]
+    ]
 };
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"hW1Gp":[function(require,module,exports,__globalThis) {
@@ -16291,6 +16178,248 @@ class Hero extends Phaser.GameObjects.Container {
     }
 }
 
-},{"../config/settings.js":"9kTMs","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["fILKw"], "fILKw", "parcelRequirebaba", {}, "./", "/")
+},{"../config/settings.js":"9kTMs","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}],"60Yvj":[function(require,module,exports,__globalThis) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "MapScene", ()=>MapScene);
+var _indexJs = require("../config/levels/index.js");
+var _authManagerJs = require("../services/authManager.js");
+var _authOverlayJs = require("../services/authOverlay.js");
+class MapScene extends Phaser.Scene {
+    constructor(){
+        super("MapScene");
+        this.biomes = {
+            grass: {
+                top: 0x55aa44,
+                side: 0x3d2b1f,
+                light: 0x77cc66,
+                prop: 0x225522,
+                glow: 0x00ff00
+            },
+            lava: {
+                top: 0x333333,
+                side: 0x221100,
+                light: 0xff4400,
+                prop: 0xff0000,
+                glow: 0xff4400
+            },
+            ice: {
+                top: 0xeeddfb,
+                side: 0x4466aa,
+                light: 0xffffff,
+                prop: 0xaaddff,
+                glow: 0x00ffff
+            },
+            sand: {
+                top: 0xedc9af,
+                side: 0x8b5a2b,
+                light: 0xffe4b5,
+                prop: 0xd2b48c,
+                glow: 0xffcc00
+            },
+            cyber: {
+                top: 0x1a1a2e,
+                side: 0x0f0f1b,
+                light: 0x00f2ff,
+                prop: 0x0055ff,
+                glow: 0x00f2ff
+            }
+        };
+    }
+    create() {
+        const { width, height } = this.scale;
+        this.createDeepSea(width, height);
+        this.mapContainer = this.add.container(0, 0);
+        this.draw3DMap(width / 2, height);
+        // Titre
+        this.add.text(width / 2, 50, "CARTOGRAPHIE DES SECTEURS", {
+            fontFamily: "Impact",
+            fontSize: "42px",
+            color: "#fff"
+        }).setOrigin(0.5).setShadow(0, 0, "#00f2ff", 20, true, true);
+        const back = this.add.text(width / 2, height - 40, "\u21A9 RETOUR AU QG", {
+            fontFamily: "Orbitron",
+            fontSize: "18px",
+            color: "#00f2ff"
+        }).setOrigin(0.5).setInteractive({
+            useHandCursor: true
+        });
+        back.on("pointerdown", ()=>this.scene.start("MainMenuScene"));
+    }
+    createDeepSea(w, h) {
+        const bg = this.add.graphics();
+        bg.fillGradientStyle(0x02101a, 0x02101a, 0x00050a, 0x00050a, 1);
+        bg.fillRect(0, 0, w, h);
+    }
+    draw3DMap(cx, height) {
+        const unlocked = (0, _authManagerJs.getUnlockedLevel)();
+        const points = [
+            {
+                x: cx - 220,
+                y: height * 0.75,
+                b: 'grass'
+            },
+            {
+                x: cx + 180,
+                y: height * 0.60,
+                b: 'sand'
+            },
+            {
+                x: cx - 150,
+                y: height * 0.42,
+                b: 'ice'
+            },
+            {
+                x: cx + 220,
+                y: height * 0.28,
+                b: 'lava'
+            },
+            {
+                x: cx,
+                y: height * 0.12,
+                b: 'cyber'
+            }
+        ];
+        const pathGfx = this.add.graphics();
+        this.mapContainer.add(pathGfx);
+        for(let i = 0; i < (0, _indexJs.LEVELS_CONFIG).length; i++){
+            const p = points[i % points.length];
+            const isLocked = i + 1 > unlocked;
+            if (i < (0, _indexJs.LEVELS_CONFIG).length - 1) this.drawBridge(pathGfx, p, points[(i + 1) % points.length], isLocked);
+            const island = this.create3DIsland(p.x, p.y, i + 1, p.b, isLocked);
+            this.mapContainer.add(island);
+        }
+    }
+    create3DIsland(x, y, id, biomeType, isLocked) {
+        const container = this.add.container(x, y);
+        const biome = this.biomes[biomeType];
+        const levelData = (0, _indexJs.LEVELS_CONFIG)[id - 1];
+        const s = 1.2;
+        // 1. OMBRE PORTÉE
+        const shadow = this.add.graphics();
+        shadow.fillStyle(0x000000, 0.5).fillEllipse(0, 60, 100 * s, 50 * s);
+        // 2. SOCLE (FALAISE 3D)
+        const cliff = this.add.graphics();
+        const cliffColor = isLocked ? 0x1a1a1a : biome.side;
+        cliff.fillStyle(cliffColor);
+        cliff.beginPath();
+        cliff.moveTo(-60 * s, 0);
+        cliff.lineTo(-40 * s, 50 * s);
+        cliff.lineTo(40 * s, 50 * s);
+        cliff.lineTo(60 * s, 0);
+        cliff.closePath();
+        cliff.fillPath();
+        // 3. SURFACE
+        const surface = this.add.graphics();
+        const topColor = isLocked ? 0x2d2d2d : biome.top;
+        surface.fillGradientStyle(isLocked ? 0x333333 : biome.light, isLocked ? 0x333333 : biome.light, topColor, topColor, 1);
+        const p = [
+            -60,
+            -10,
+            -40,
+            -30,
+            0,
+            -35,
+            40,
+            -30,
+            60,
+            -10,
+            50,
+            20,
+            0,
+            30,
+            -50,
+            25
+        ];
+        surface.beginPath();
+        surface.moveTo(p[0] * s, p[1] * s);
+        for(let i = 2; i < p.length; i += 2)surface.lineTo(p[i] * s, p[i + 1] * s);
+        surface.closePath();
+        surface.fillPath();
+        surface.lineStyle(2, 0xffffff, isLocked ? 0.05 : 0.4);
+        surface.strokePath();
+        // 4. ÉTIQUETTE DE NOM (HOLOGRAPHIQUE)
+        const labelBox = this.add.graphics();
+        labelBox.fillStyle(0x000000, 0.8);
+        labelBox.lineStyle(1, isLocked ? 0x333333 : biome.light, 1);
+        labelBox.fillRoundedRect(-75, 65, 150, 26, 6);
+        labelBox.strokeRoundedRect(-75, 65, 150, 26, 6);
+        // 5. ÉLÉMENTS TEXTUELS
+        const txtId = this.add.text(0, -12, id, {
+            fontSize: "44px",
+            fontFamily: "Impact",
+            color: isLocked ? "#444" : "#fff"
+        }).setOrigin(0.5);
+        const txtName = this.add.text(0, 78, levelData.name.toUpperCase(), {
+            fontSize: "11px",
+            fontFamily: "Orbitron",
+            color: isLocked ? "#555" : "#fff",
+            fontWeight: "bold"
+        }).setOrigin(0.5);
+        container.add([
+            shadow,
+            cliff,
+            surface,
+            labelBox,
+            txtId,
+            txtName
+        ]);
+        // 6. LE CADENA (Si verrouillé)
+        if (isLocked) {
+            const lock = this.add.text(0, 0, "\uD83D\uDD12", {
+                fontSize: "40px"
+            }).setOrigin(0.5).setAlpha(0.6);
+            container.add(lock);
+            container.setAlpha(0.8); // Rend toute l'île légèrement transparente
+        }
+        // ANIMATION DE FLOTTAISON
+        this.tweens.add({
+            targets: container,
+            y: y - 15,
+            duration: 2500 + id * 200,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut"
+        });
+        // INTERACTIONS (Seulement si débloqué)
+        if (!isLocked) {
+            container.setInteractive(new Phaser.Geom.Circle(0, 0, 70), Phaser.Geom.Circle.Contains);
+            container.on("pointerover", ()=>{
+                this.tweens.add({
+                    targets: container,
+                    scale: 1.1,
+                    duration: 150
+                });
+                labelBox.lineStyle(2, 0xffffff, 1).strokeRoundedRect(-75, 65, 150, 26, 6);
+            });
+            container.on("pointerout", ()=>{
+                this.tweens.add({
+                    targets: container,
+                    scale: 1,
+                    duration: 150
+                });
+                labelBox.clear().fillStyle(0x000000, 0.8).lineStyle(1, biome.light, 1).fillRoundedRect(-75, 65, 150, 26, 6).strokeRoundedRect(-75, 65, 150, 26, 6);
+            });
+            container.on("pointerdown", ()=>{
+                if (!(0, _authManagerJs.isAuthenticated)()) return (0, _authOverlayJs.showAuth)();
+                this.scene.start("GameScene", {
+                    level: id,
+                    heroStats: (0, _authManagerJs.getHeroStats)()
+                });
+            });
+        }
+        return container;
+    }
+    drawBridge(gfx, p1, p2, isLocked) {
+        const color = isLocked ? 0x222222 : 0x00f2ff;
+        const curve = new Phaser.Curves.QuadraticBezier(new Phaser.Math.Vector2(p1.x, p1.y + 10), new Phaser.Math.Vector2((p1.x + p2.x) / 2, (p1.y + p2.y) / 2 - 40), new Phaser.Math.Vector2(p2.x, p2.y + 10));
+        gfx.lineStyle(8, 0x000000, 0.3);
+        curve.draw(gfx);
+        gfx.lineStyle(2, color, isLocked ? 0.1 : 0.6);
+        curve.draw(gfx);
+    }
+}
+
+},{"../config/levels/index.js":"8fcfE","../services/authManager.js":"cvKjF","../services/authOverlay.js":"g1JuO","@parcel/transformer-js/src/esmodule-helpers.js":"jnFvT"}]},["fILKw"], "fILKw", "parcelRequirebaba", {}, "./", "/")
 
 //# sourceMappingURL=towerdefense.1fcc916e.js.map
