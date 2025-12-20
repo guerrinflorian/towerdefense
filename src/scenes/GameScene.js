@@ -38,7 +38,10 @@ export class GameScene extends Phaser.Scene {
     this.barracks = [];
     this.paths = [];
     this.currentWaveIndex = 0;
+    this.wavesCompleted = 0;
     this.isWaveRunning = false;
+    this.hasWaveFinishedSpawning = false;
+    this.canCallNextWave = false;
     this.enemies = null;
     this.soldiers = null;
     this.coins = null;
@@ -289,6 +292,8 @@ export class GameScene extends Phaser.Scene {
   // =========================================================
 
   startWave() {
+    this.grantEarlyWaveBonus();
+
     // Annuler le timer automatique si le joueur lance manuellement
     if (this.nextWaveAutoTimer) {
       this.nextWaveAutoTimer.remove();
@@ -297,6 +302,63 @@ export class GameScene extends Phaser.Scene {
     }
     this.waveManager.spawnControls?.clearCountdown();
     this.waveManager.startWave();
+  }
+
+  grantEarlyWaveBonus() {
+    if (!this.shouldGrantEarlyWaveBonus()) return;
+
+    const bonus = this.calculateEarlyWaveBonus();
+    if (bonus <= 0) return;
+
+    this.earnMoney(bonus);
+    this.showEarlyWaveBonusText(bonus);
+    // Empêcher un double déclenchement si le bouton est spammé
+    this.canCallNextWave = false;
+  }
+
+  shouldGrantEarlyWaveBonus() {
+    const hasEnemiesAlive =
+      this.enemies && this.enemies.getLength && this.enemies.getLength() > 0;
+    return this.isWaveRunning && this.canCallNextWave && hasEnemiesAlive;
+  }
+
+  calculateEarlyWaveBonus() {
+    if (!this.enemies) return 0;
+
+    const baseReward = this.enemies.getChildren().reduce((sum, enemy) => {
+      if (!enemy || !enemy.active) return sum;
+      const damageValue = enemy.playerDamage || enemy.stats?.playerDamage || 0;
+      return sum + damageValue;
+    }, 0);
+
+    return baseReward * 2;
+  }
+
+  showEarlyWaveBonusText(bonus) {
+    const text = this.add
+      .text(
+        this.gameWidth / 2,
+        40 * this.scaleFactor,
+        `+${bonus} pièces (appel anticipé)`,
+        {
+          fontSize: `${Math.max(16, 22 * this.scaleFactor)}px`,
+          color: "#ffd166",
+          fontStyle: "bold",
+          stroke: "#000",
+          strokeThickness: 3,
+        }
+      )
+      .setOrigin(0.5)
+      .setDepth(500);
+
+    this.tweens.add({
+      targets: text,
+      y: text.y - 25 * this.scaleFactor,
+      alpha: 0,
+      duration: 1200,
+      ease: "Cubic.easeOut",
+      onComplete: () => text.destroy(),
+    });
   }
 
   startSessionTimer() {

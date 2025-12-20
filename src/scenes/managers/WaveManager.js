@@ -33,9 +33,13 @@ export class WaveManager {
 
   startWave() {
     // 1. Vérifications de sécurité
-    if (this.scene.isWaveRunning) return;
-    if (this.scene.currentWaveIndex >= this.scene.levelConfig.waves.length)
-      return;
+    const totalWaves = this.scene.levelConfig?.waves?.length || 0;
+    const hasMoreWaves = this.scene.currentWaveIndex < totalWaves;
+    const canChainWhileRunning =
+      !this.scene.isWaveRunning || this.scene.canCallNextWave;
+
+    if (!hasMoreWaves) return;
+    if (!canChainWhileRunning) return;
     if (this.scene.isPaused) return;
 
     // 2. Nettoyage (Timer Auto et Timers de spawn précédents)
@@ -55,6 +59,8 @@ export class WaveManager {
 
     // 3. Initialisation de l'état de la vague
     this.scene.isWaveRunning = true;
+    this.scene.hasWaveFinishedSpawning = false;
+    this.scene.canCallNextWave = false;
     this.spawnControls?.setLockedState(true);
     this.spawnControls?.clearCountdown();
     this.spawnControls?.updateWaveRunningState();
@@ -63,8 +69,17 @@ export class WaveManager {
       this.scene.startSessionTimer();
     }
 
-    const waveGroups =
-      this.scene.levelConfig.waves[this.scene.currentWaveIndex];
+    const waveIndex = this.scene.currentWaveIndex;
+    const waveGroups = this.scene.levelConfig.waves[waveIndex];
+    if (!waveGroups || !waveGroups.length) {
+      this.scene.isWaveRunning = false;
+      this.spawnControls?.setLockedState(false);
+      this.spawnControls?.updateWaveRunningState();
+      return;
+    }
+    // Préparer l'index pour la vague suivante
+    this.scene.currentWaveIndex = waveIndex + 1;
+    this.scene.updateUI();
 
     // Calcul du nombre total d'ennemis pour savoir quand la vague finit
     let totalEnemiesInWave = 0;
@@ -105,6 +120,14 @@ export class WaveManager {
 
               // Vérifier si c'était le tout dernier ennemi de TOUTE la vague
               if (spawnedTotal >= totalEnemiesInWave) {
+                this.scene.hasWaveFinishedSpawning = true;
+                const hasUpcomingWave =
+                  this.scene.currentWaveIndex < totalWaves;
+                this.scene.canCallNextWave = hasUpcomingWave;
+                if (hasUpcomingWave) {
+                  this.spawnControls?.setLockedState(false);
+                }
+                this.spawnControls?.updateWaveRunningState();
                 this.monitorWaveEnd();
               }
             },
@@ -140,13 +163,20 @@ export class WaveManager {
       this.scene.endCheckTimer.remove();
     }
     this.scene.isWaveRunning = false;
-    this.scene.currentWaveIndex++;
-    this.scene.earnMoney(50 + this.scene.currentWaveIndex * 20);
+    this.scene.hasWaveFinishedSpawning = false;
+    this.scene.canCallNextWave = false;
+
+    this.scene.wavesCompleted = Math.max(
+      this.scene.wavesCompleted,
+      this.scene.currentWaveIndex
+    );
+    const completedWaveNumber = this.scene.wavesCompleted;
+    this.scene.earnMoney(50 + completedWaveNumber * 20);
 
     // Mettre à jour l'affichage de la vague
     this.scene.updateUI();
 
-    if (this.scene.currentWaveIndex >= this.scene.levelConfig.waves.length) {
+    if (this.scene.wavesCompleted >= this.scene.levelConfig.waves.length) {
       this.levelComplete();
     } else {
       this.spawnControls?.setLockedState(false);
@@ -157,6 +187,13 @@ export class WaveManager {
   }
 
   startNextWaveCountdown() {
+    if (
+      !this.scene.levelConfig?.waves ||
+      this.scene.currentWaveIndex >= this.scene.levelConfig.waves.length
+    ) {
+      return;
+    }
+
     // Annuler un timer existant si présent
     if (this.scene.nextWaveAutoTimer) {
       this.scene.nextWaveAutoTimer.remove();
@@ -204,7 +241,7 @@ export class WaveManager {
       levelId: this.scene.levelID,
       completionTimeMs: Math.round(this.scene.elapsedTimeMs || 0),
       livesRemaining: this.scene.lives,
-      wavesCompleted: this.scene.currentWaveIndex + 1,
+      wavesCompleted: this.scene.wavesCompleted,
       moneyEarned: this.scene.money,
       starsEarned: this.scene.lives === CONFIG.STARTING_LIVES ? 3 : 1,
       isPerfectRun: this.scene.lives === CONFIG.STARTING_LIVES,
