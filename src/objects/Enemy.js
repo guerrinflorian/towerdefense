@@ -476,6 +476,8 @@ export class Enemy extends Phaser.GameObjects.Container {
     if (this.scene?.events) {
       this.scene.events.emit("enemy-killed", {
         source: this.lastDamageSource || null,
+        x: this.x,
+        y: this.y,
       });
     }
 
