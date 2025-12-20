@@ -1,4 +1,5 @@
 import { MainMenuScene } from "./scenes/MainMenuScene.js";
+import { MapScene } from "./scenes/MapScene.js";
 import { GameScene } from "./scenes/GameScene.js";
 import { CONFIG } from "./config/settings.js";
 import { setupAuthOverlay } from "./services/authOverlay.js";
@@ -32,7 +33,7 @@ const config = {
     smoothFactor: 0,
   },
 
-  scene: [MainMenuScene, GameScene],
+  scene: [MainMenuScene, MapScene, GameScene],
   
   physics: {
     default: "arcade",
