@@ -5,7 +5,7 @@ export const LEVEL_1 = {
     [0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3],
     [0, 0, 1, 4, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 3], // y=2  : Pont du haut (x=3)
     [0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3], // Bifurcation (x=2, y=2)
-    [5, 0, 1, 3, 0, 5, 5, 5, 0, 0, 1, 0, 0, 0, 3],
+    [0, 0, 1, 3, 0, 5, 5, 5, 0, 0, 1, 0, 0, 0, 3],
     [0, 0, 1, 3, 0, 5, 5, 5, 0, 0, 1, 0, 0, 0, 0],
     [0, 0, 1, 3, 0, 5, 5, 5, 0, 0, 1, 0, 0, 0, 0],
     [0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
@@ -57,7 +57,7 @@ export const LEVEL_1 = {
     ],
 
     // VAGUE 2 : Runners (Rush immédiat)
-    [{ count: 21, type: "runner", interval: 450, startDelay: 0 },
+    [{ count: 21, type: "runner", interval: 370, startDelay: 0 },
      { count: 1, type: "shield", interval: 1500, startDelay: 3000 }], // 2. Les tanks absorbent les coups
 
     // VAGUE 3 : Mixte (Chair à canon d'abord, Boucliers ensuite, Runners en traître)
