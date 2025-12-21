@@ -21,15 +21,15 @@ export class HUD {
   create() {
     const s = this.scene.scaleFactor;
 
-    // Utiliser la largeur spécifique de la sidebar droite (qui s'étire jusqu'à la map)
-    const columnWidth = this.scene.rightToolbarWidth || this.scene.toolbarWidth;
-    const columnHeight = this.scene.toolbarHeight;
+    // Utiliser la largeur spécifique de la zone HUD (droite en paysage, bas en portrait)
+    const columnWidth = this.scene.rightToolbarWidth || this.scene.hudWidth || this.scene.toolbarWidth;
+    const columnHeight = this.scene.hudHeight || this.scene.toolbarHeight;
     const padding = 18 * s;
     const fontSize = Math.max(16, 20 * s);
     const smallFontSize = Math.max(12, 16 * s);
-    const startX = this.scene.rightToolbarOffsetX;
+    const startX = this.scene.rightToolbarOffsetX ?? this.scene.hudOffsetX ?? 0;
     // Les sidebars commencent en haut (y=0) pour s'étirer sur toute la hauteur
-    const startY = this.scene.toolbarOffsetY || 0;
+    const startY = this.scene.hudOffsetY ?? this.scene.toolbarOffsetY ?? 0;
 
     // Container principal à droite
     const rightPanel = this.scene.add.container(startX, startY).setDepth(200);
@@ -211,12 +211,12 @@ export class HUD {
     if (!this.topBar || !this.bgBar) return;
 
     const s = this.scene.scaleFactor;
-    // Utiliser la largeur spécifique de la sidebar droite (qui s'étire jusqu'à la map)
-    const columnWidth = this.scene.rightToolbarWidth || this.scene.toolbarWidth;
-    const columnHeight = this.scene.toolbarHeight;
+    // Utiliser la largeur spécifique de la zone HUD (droite en paysage, bas en portrait)
+    const columnWidth = this.scene.rightToolbarWidth || this.scene.hudWidth || this.scene.toolbarWidth;
+    const columnHeight = this.scene.hudHeight || this.scene.toolbarHeight;
     const padding = 18 * s;
-    const startX = this.scene.rightToolbarOffsetX;
-    const startY = this.scene.toolbarOffsetY;
+    const startX = this.scene.rightToolbarOffsetX ?? this.scene.hudOffsetX ?? 0;
+    const startY = this.scene.hudOffsetY ?? this.scene.toolbarOffsetY ?? 0;
 
     this.topBar.setPosition(startX, startY);
 

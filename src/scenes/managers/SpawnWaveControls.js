@@ -146,31 +146,75 @@ export class SpawnWaveControls {
     container.bringToTop();
 
     // EVENTS
-    container.on("pointerover", () => {
-      if (this.isLocked) return;
-      if (this.scene.isWaveRunning && !this.scene.canCallNextWave) return;
+    const canLaunch = () =>
+      !this.isLocked &&
+      !(this.scene.isWaveRunning && !this.scene.canCallNextWave);
 
+    const interactionState = { pressTimer: null, holdPreview: false };
+    const clearPressTimer = () => {
+      if (interactionState.pressTimer) {
+        interactionState.pressTimer.remove(false);
+        interactionState.pressTimer = null;
+      }
+    };
+
+    const showPreview = () => {
+      if (!canLaunch()) return;
       container.setScale(1.1);
       this.drawArrow(arrow, 0xffffff, size * 0.6);
       this.showWavePreview(container);
-    });
+    };
 
-    container.on("pointerout", () => {
+    const hidePreview = () => {
+      interactionState.holdPreview = false;
       container.setScale(1.0);
       this.drawArrow(arrow, 0x00ffc2, size * 0.55);
       this.hideWavePreview();
+    };
+
+    container.on("pointerover", () => {
+      showPreview();
+    });
+
+    container.on("pointerout", () => {
+      clearPressTimer();
+      hidePreview();
     });
 
     container.on("pointerdown", () => {
-      if (this.isLocked) return;
-      // Vérifier aussi si on peut vraiment lancer la vague suivante
-      if (this.scene.isWaveRunning && !this.scene.canCallNextWave) return;
+      clearPressTimer();
+      if (!canLaunch()) return;
+
+      interactionState.pressTimer = this.scene.time.delayedCall(
+        200,
+        () => {
+          interactionState.holdPreview = true;
+          showPreview();
+        },
+        [],
+        this
+      );
+    });
+
+    container.on("pointerup", () => {
+      clearPressTimer();
+      if (interactionState.holdPreview) {
+        hidePreview();
+        return;
+      }
+
+      if (!canLaunch()) return;
 
       this.scene.startWave();
-      this.hideWavePreview();
+      hidePreview();
 
       container.setScale(0.9);
       this.scene.time.delayedCall(100, () => container.setScale(1.0));
+    });
+
+    container.on("pointerupoutside", () => {
+      clearPressTimer();
+      hidePreview();
     });
 
     return { container, bg, arrow, countdownText, bonusText, size };
