@@ -72,13 +72,13 @@ export const LEVEL_3 = {
     // Shields (haute défense) + Shaman (Soin) = Très dur à tuer sans gros DPS.
     [
       { count: 2, type: "shaman_gobelin", interval: 3000, startDelay: 0 },
-      { count: 10, type: "shield", interval: 1200, startDelay: 8000 },
-      { count: 15, type: "runner", interval: 400, startDelay: 19000 }, // Pour punir si le joueur n'a que des tours lentes
+      { count: 8, type: "shield", interval: 1200, startDelay: 8000 },
+      { count: 12, type: "runner", interval: 400, startDelay: 19000 }, // Pour punir si le joueur n'a que des tours lentes
     ],
 
     // VAGUE 5 : Lourdeur Mécanique
     [
-      { count: 4, type: "tortue_dragon", interval: 4000, startDelay: 1000 },
+      { count: 3, type: "tortue_dragon", interval: 4000, startDelay: 1000 },
       { count: 2, type: "juggernaut_igloo", interval: 2500, startDelay: 15000 }, // Unité très juggernaut_iglooy du lvl 2
     ],
 
@@ -87,7 +87,7 @@ export const LEVEL_3 = {
     [
       { count: 5, type: "diviseur", interval: 2500, startDelay: 0 },
       { count: 20, type: "grunt", interval: 500, startDelay: 8000 }, // Noyade sous le nombre
-      { count: 4, type: "shaman_gobelin", interval: 4000, startDelay: 13000 },
+      { count: 3, type: "shaman_gobelin", interval: 4000, startDelay: 13000 },
     ],
 
     // VAGUE 7 : L'Escouade d'Élite
@@ -96,7 +96,7 @@ export const LEVEL_3 = {
       { count: 5, type: "shield", interval: 1000, startDelay: 0 },
       { count: 3, type: "tortue_dragon", interval: 3000, startDelay: 2000 },
       { count: 3, type: "shaman_gobelin", interval: 3000, startDelay: 4000 }, // Protégés par les tortues
-      { count: 5, type: "juggernaut_igloo", interval: 2500, startDelay: 15000 },
+      { count: 4, type: "juggernaut_igloo", interval: 2500, startDelay: 15000 },
     ],
 
     // VAGUE 8 : Chaos Total
