@@ -23,6 +23,8 @@ export class Turret extends Phaser.GameObjects.Container {
 
     this.level = 1;
     this.lastFired = 0;
+    this.isCursed = false;
+    this.curseCost = 0;
 
     // --- VISUEL ---
     this.base = scene.add.graphics();
@@ -202,6 +204,155 @@ export class Turret extends Phaser.GameObjects.Container {
     });
   }
 
+  applyCurse(cost = 25) {
+    if (this.isCursed) return;
+
+    this.isCursed = true;
+    this.curseCost = cost;
+
+    // Border violet pulsant autour de la tour
+    const border = this.scene.add.graphics();
+    border.lineStyle(4, 0x9b59b6, 1);
+    border.strokeCircle(0, 0, 32);
+    border.setDepth(this.depth + 1);
+    this.add(border);
+    this.curseBorder = border;
+    
+    // Animation du border (pulsation)
+    this.scene.tweens.add({
+      targets: border,
+      alpha: { from: 0.3, to: 1 },
+      scaleX: { from: 0.9, to: 1.1 },
+      scaleY: { from: 0.9, to: 1.1 },
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Effet visuel de flammes violettes/noires plus visible
+    const flame = this.scene.add.graphics();
+    flame.fillStyle(0x6a1b9a, 0.7);
+    flame.fillEllipse(0, 0, 40, 30);
+    flame.fillStyle(0x442244, 0.5);
+    flame.fillEllipse(0, -5, 30, 20);
+    flame.setDepth(this.depth + 1);
+    this.add(flame);
+    this.scene.tweens.add({
+      targets: flame,
+      y: -10,
+      alpha: { from: 0.4, to: 0.8 },
+      scaleX: { from: 0.95, to: 1.15 },
+      scaleY: { from: 0.95, to: 1.15 },
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+    });
+    this.curseFlame = flame;
+
+    // Overlay violet/rouge sombre plus visible
+    const overlay = this.scene.add.graphics();
+    overlay.fillStyle(0x4a1a5a, 0.5);
+    overlay.fillCircle(0, 0, 32);
+    overlay.setDepth(this.depth);
+    this.add(overlay);
+    this.curseOverlay = overlay;
+    
+    // Animation de l'overlay
+    this.scene.tweens.add({
+      targets: overlay,
+      alpha: { from: 0.3, to: 0.6 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    // Tooltip coût réparation - Positionné juste au-dessus de la tour
+    const tooltipContainer = this.scene.add.container(0, -45);
+    tooltipContainer.setDepth(2500); // Z-index très élevé pour être au-dessus de tout
+    
+    // Texte "Réparer"
+    const repairText = this.scene.add.text(0, 0, "Réparer", {
+      fontSize: "16px",
+      fontFamily: "Arial",
+      color: "#ffddcc",
+      fontStyle: "bold",
+    }).setOrigin(0.5, 0.5);
+    
+    // Icône de pièce
+    const coinIcon = this.scene.add.graphics();
+    const coinSize = 10;
+    coinIcon.fillStyle(0xf4d35e, 1);
+    coinIcon.fillCircle(0, 0, coinSize);
+    coinIcon.lineStyle(2, 0xe7b029, 1);
+    coinIcon.strokeCircle(0, 0, coinSize);
+    coinIcon.fillStyle(0xe7b029, 1);
+    coinIcon.fillRoundedRect(-5, -7, 10, 14, 2);
+    
+    // Texte du montant
+    const costText = this.scene.add.text(0, 0, `${cost}`, {
+      fontSize: "16px",
+      fontFamily: "Arial",
+      color: "#ffd700",
+      fontStyle: "bold",
+    }).setOrigin(0.5, 0.5);
+    
+    // Calculer les positions pour centrer le tout
+    const textWidth = repairText.width;
+    const coinWidth = coinSize * 2 + 6;
+    const costWidth = costText.width;
+    const totalWidth = textWidth + 10 + coinWidth + costWidth;
+    
+    repairText.setX(-totalWidth / 2 + textWidth / 2);
+    coinIcon.setX(-totalWidth / 2 + textWidth + 5 + coinSize);
+    costText.setX(-totalWidth / 2 + textWidth + 5 + coinWidth + costWidth / 2);
+    
+    // Fond semi-transparent
+    const bg = this.scene.add.graphics();
+    bg.fillStyle(0x000000, 0.85);
+    bg.fillRoundedRect(-totalWidth / 2 - 8, -12, totalWidth + 16, 24, 5);
+    bg.lineStyle(2, 0xffd700, 0.8);
+    bg.strokeRoundedRect(-totalWidth / 2 - 8, -12, totalWidth + 16, 24, 5);
+    
+    tooltipContainer.add([bg, repairText, coinIcon, costText]);
+    this.add(tooltipContainer);
+    this.curseTooltip = tooltipContainer;
+  }
+
+  removeCurse(pay = true) {
+    if (!this.isCursed) return false;
+
+    if (pay && this.scene.money < this.curseCost) {
+      this.scene.cameras.main.shake(80, 0.006);
+      return false;
+    }
+
+    if (pay) {
+      this.scene.money -= this.curseCost;
+      this.scene.updateUI();
+    }
+
+    this.isCursed = false;
+    if (this.curseFlame) {
+      this.curseFlame.destroy();
+      this.curseFlame = null;
+    }
+    if (this.curseOverlay) {
+      this.curseOverlay.destroy();
+      this.curseOverlay = null;
+    }
+    if (this.curseBorder) {
+      this.curseBorder.destroy();
+      this.curseBorder = null;
+    }
+    if (this.curseTooltip) {
+      this.curseTooltip.destroy();
+      this.curseTooltip = null;
+    }
+
+    return true;
+  }
+
   // Calculer le coût total déboursé (base + améliorations)
   getTotalCost() {
     const baseCost = TURRETS[this.config.key]?.cost || 100;
@@ -227,6 +378,10 @@ export class Turret extends Phaser.GameObjects.Container {
   update(time, enemies) {
     // Si la tourelle a une 'rate' définie, on l'utilise, sinon valeur par défaut
     const rate = this.config.rate || 1000;
+
+    if (this.isCursed) {
+      return;
+    }
 
     if (time > this.lastFired) {
       const target = this.findTarget(enemies);

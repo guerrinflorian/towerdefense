@@ -326,10 +326,10 @@ export class Soldier extends Phaser.GameObjects.Container {
     // Vérifier les limites
     if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) return false;
     
-    // Vérifier le type de tile (1 = chemin, 4 = pont, 7 = neige, 13 = cimetière)
+    // Vérifier le type de tile (1 = chemin, 4 = pont, 7 = neige, 13 = cimetière, 14 = lave)
     const map = this.scene.levelConfig.map;
     const tileType = map[ty][tx];
-    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13;
+    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14;
   }
   
   // Trouver la position sur le chemin le plus proche
@@ -393,7 +393,7 @@ export class Soldier extends Phaser.GameObjects.Container {
     for (let y = 0; y < map.length; y++) {
       for (let x = 0; x < map[y].length; x++) {
         const tileType = map[y][x];
-        if (tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13) {
+        if (tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14) {
           const tileX = mapStartX + x * T + T / 2;
           const tileY = mapStartY + y * T + T / 2;
           const dist = Phaser.Math.Distance.Between(this.x, this.y, tileX, tileY);
@@ -474,7 +474,7 @@ export class Soldier extends Phaser.GameObjects.Container {
         // Le soldat attaque l'ennemi
         const soldierDamage = 15;
         if (enemy && typeof enemy.damage === 'function') {
-          enemy.damage(soldierDamage);
+          enemy.damage(soldierDamage, { source: "soldier" });
         }
         
         // L'ennemi attaque le soldat avec ses propres dégâts

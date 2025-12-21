@@ -12,6 +12,10 @@ export class InputManager {
     this.longPressDelay = 500;
     this.longPressTriggered = false;
     this.hero = null;
+    // Ignorer les clics pendant les 500ms après le démarrage de la scène
+    // pour éviter que le clic sur l'île dans MapScene déclenche un déplacement du héros
+    this.ignoreInputUntil = 0;
+    this.ignoreFirstPointerUp = false;
   }
 
   setUIManager(uiManager) {
@@ -24,6 +28,15 @@ export class InputManager {
   }
 
   setupInputHandlers() {
+    // Vérifier si le pointer est déjà enfoncé (venant de MapScene)
+    const activePointer = this.scene.input.activePointer;
+    if (activePointer && activePointer.isDown) {
+      this.ignoreFirstPointerUp = true;
+      this.ignoreInputUntil = this.scene.time.now + 500;
+    } else {
+      this.ignoreInputUntil = this.scene.time.now + 300;
+    }
+
     this.scene.input.on("pointermove", (pointer) => {
       // Vérifier si le pointeur est sur un bouton de vague
       if (this.scene.spawnControls) {
@@ -140,6 +153,17 @@ export class InputManager {
     });
 
     this.scene.input.on("pointerup", (pointer) => {
+      // Ignorer le premier pointerup si le pointer était déjà enfoncé au démarrage
+      if (this.ignoreFirstPointerUp) {
+        this.ignoreFirstPointerUp = false;
+        if (this.longPressTimer) {
+          this.longPressTimer.remove();
+          this.longPressTimer = null;
+        }
+        this.longPressTriggered = false;
+        return;
+      }
+
       const isOnToolbar = this.isPointerOnToolbar(pointer);
       const isOnMap = this.isPointerInsideMap(pointer);
 
@@ -236,13 +260,35 @@ export class InputManager {
     }
 
     if (clickedTurret) {
+      if (clickedTurret.isCursed) {
+        const removed = clickedTurret.removeCurse(true);
+        if (removed) {
+          const txt = this.scene.add
+            .text(clickedTurret.x, clickedTurret.y - 50, "Réparée !", {
+              fontSize: "16px",
+              color: "#ffddaa",
+              backgroundColor: "rgba(0,0,0,0.7)",
+              padding: { x: 6, y: 3 },
+            })
+            .setOrigin(0.5)
+            .setDepth(2400);
+          this.scene.tweens.add({
+            targets: txt,
+            y: txt.y - 25,
+            alpha: 0,
+            duration: 700,
+            onComplete: () => txt.destroy(),
+          });
+        }
+        return;
+      }
       this.uiManager.openUpgradeMenu(pointer, clickedTurret);
       return;
     }
 
     const tileType = this.scene.levelConfig.map[ty][tx];
 
-    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12) {
+    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12 && tileType !== 16) {
       return;
     }
 
@@ -255,6 +301,12 @@ export class InputManager {
   }
 
   handleNormalClick(pointer) {
+    // Ignorer les clics qui arrivent juste après le démarrage de la scène
+    // pour éviter que le clic sur l'île dans MapScene déclenche un déplacement du héros
+    if (this.scene.time.now < this.ignoreInputUntil) {
+      return;
+    }
+
     // Ne pas déplacer le héros si on est en train de placer un sort
     if (this.spellManager && this.spellManager.isPlacingSpell()) {
       return;
@@ -347,6 +399,6 @@ export class InputManager {
   }
 
   isPathTile(tileType) {
-    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13;
+    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14;
   }
 }
