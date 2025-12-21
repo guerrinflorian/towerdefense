@@ -6,6 +6,13 @@ const DEFAULT_CONVERSION = {
   move_speed_per_point: 4,
 };
 
+// Limites maximales des stats
+const MAX_STATS = {
+  max_hp: 2500,
+  base_damage: 450,
+  move_speed: 200,
+};
+
 export async function getHeroPointConversion(client = null) {
   const executor = client ? client.query.bind(client) : query;
   const conversionRes = await executor(
@@ -55,17 +62,64 @@ export async function upgradeHeroStats(playerId, { stat, points }) {
       throw error;
     }
 
+    // Récupérer les stats actuelles pour vérifier les limites
+    const currentStatsRes = await client.query(
+      "SELECT max_hp, base_damage, move_speed FROM hero_stats WHERE player_id = $1",
+      [playerId]
+    );
+    
+    if (currentStatsRes.rows.length === 0) {
+      const error = new Error("HERO_STATS_NOT_FOUND");
+      error.code = "HERO_STATS_NOT_FOUND";
+      throw error;
+    }
+
+    const currentStats = currentStatsRes.rows[0];
+    const currentHp = Number(currentStats.max_hp || 0);
+    const currentDamage = parseFloat(currentStats.base_damage || 0);
+    const currentSpeed = Number(currentStats.move_speed || 0);
+
     // Convertir les valeurs de conversion en nombres (elles peuvent être des strings depuis la DB)
     const hpPerPoint = parseFloat(conversion.hp_per_point) || 0;
     const damagePerPoint = parseFloat(conversion.damage_per_point) || 0;
     const speedPerPoint = parseFloat(conversion.move_speed_per_point) || 0;
 
-    // Calculer les deltas
-    // base_damage est NUMERIC(10,2) donc on peut utiliser des décimales
-    // max_hp et move_speed peuvent être INTEGER donc on arrondit
-    const deltaHp = statKey === "hp" ? Math.round(hpPerPoint * cleanPoints) : 0;
-    const deltaDamage = statKey === "damage" ? parseFloat((damagePerPoint * cleanPoints).toFixed(2)) : 0; // Préserver 2 décimales pour NUMERIC(10,2)
-    const deltaSpeed = statKey === "move_speed" ? Math.round(speedPerPoint * cleanPoints) : 0;
+    // Calculer les deltas avec limitation aux maximums
+    let deltaHp = 0;
+    let deltaDamage = 0;
+    let deltaSpeed = 0;
+    
+    if (statKey === "hp") {
+      const potentialHp = currentHp + Math.round(hpPerPoint * cleanPoints);
+      const maxHp = MAX_STATS.max_hp;
+      deltaHp = Math.min(Math.round(hpPerPoint * cleanPoints), maxHp - currentHp);
+      if (deltaHp <= 0) {
+        const error = new Error("STAT_MAX_REACHED");
+        error.code = "STAT_MAX_REACHED";
+        error.message = `HP maximum atteint (${maxHp})`;
+        throw error;
+      }
+    } else if (statKey === "damage") {
+      const potentialDamage = currentDamage + parseFloat((damagePerPoint * cleanPoints).toFixed(2));
+      const maxDamage = MAX_STATS.base_damage;
+      deltaDamage = Math.min(parseFloat((damagePerPoint * cleanPoints).toFixed(2)), maxDamage - currentDamage);
+      if (deltaDamage <= 0) {
+        const error = new Error("STAT_MAX_REACHED");
+        error.code = "STAT_MAX_REACHED";
+        error.message = `Dégâts maximum atteint (${maxDamage})`;
+        throw error;
+      }
+    } else if (statKey === "move_speed") {
+      const potentialSpeed = currentSpeed + Math.round(speedPerPoint * cleanPoints);
+      const maxSpeed = MAX_STATS.move_speed;
+      deltaSpeed = Math.min(Math.round(speedPerPoint * cleanPoints), maxSpeed - currentSpeed);
+      if (deltaSpeed <= 0) {
+        const error = new Error("STAT_MAX_REACHED");
+        error.code = "STAT_MAX_REACHED";
+        error.message = `Agilité maximum atteinte (${maxSpeed})`;
+        throw error;
+      }
+    }
 
     const heroRes = await client.query(
       `UPDATE hero_stats
@@ -169,19 +223,48 @@ export async function upgradeHeroStatsBatch(playerId, upgrades) {
       throw error;
     }
 
+    // Récupérer les stats actuelles pour vérifier les limites
+    const currentStatsRes = await client.query(
+      "SELECT max_hp, base_damage, move_speed FROM hero_stats WHERE player_id = $1",
+      [playerId]
+    );
+    
+    if (currentStatsRes.rows.length === 0) {
+      const error = new Error("HERO_STATS_NOT_FOUND");
+      error.code = "HERO_STATS_NOT_FOUND";
+      throw error;
+    }
+
+    const currentStats = currentStatsRes.rows[0];
+    const currentHp = Number(currentStats.max_hp || 0);
+    const currentDamage = parseFloat(currentStats.base_damage || 0);
+    const currentSpeed = Number(currentStats.move_speed || 0);
+
     // Convertir les valeurs de conversion en nombres
     const hpPerPoint = parseFloat(conversion.hp_per_point) || 0;
     const damagePerPoint = parseFloat(conversion.damage_per_point) || 0;
     const speedPerPoint = parseFloat(conversion.move_speed_per_point) || 0;
 
-    // Calculer les deltas totaux
+    // Calculer les deltas totaux avec limitation aux maximums
     const totalHpPoints = statsMap.get("hp") || 0;
     const totalDamagePoints = statsMap.get("damage") || 0;
     const totalSpeedPoints = statsMap.get("move_speed") || 0;
 
-    const deltaHp = Math.round(hpPerPoint * totalHpPoints);
-    const deltaDamage = parseFloat((damagePerPoint * totalDamagePoints).toFixed(2));
-    const deltaSpeed = Math.round(speedPerPoint * totalSpeedPoints);
+    const potentialHp = currentHp + Math.round(hpPerPoint * totalHpPoints);
+    const potentialDamage = currentDamage + parseFloat((damagePerPoint * totalDamagePoints).toFixed(2));
+    const potentialSpeed = currentSpeed + Math.round(speedPerPoint * totalSpeedPoints);
+
+    const deltaHp = Math.min(Math.round(hpPerPoint * totalHpPoints), MAX_STATS.max_hp - currentHp);
+    const deltaDamage = Math.min(parseFloat((damagePerPoint * totalDamagePoints).toFixed(2)), MAX_STATS.base_damage - currentDamage);
+    const deltaSpeed = Math.min(Math.round(speedPerPoint * totalSpeedPoints), MAX_STATS.move_speed - currentSpeed);
+
+    // Vérifier qu'au moins une amélioration peut être appliquée
+    if (deltaHp <= 0 && deltaDamage <= 0 && deltaSpeed <= 0) {
+      const error = new Error("STAT_MAX_REACHED");
+      error.code = "STAT_MAX_REACHED";
+      error.message = "Toutes les stats ont atteint leur maximum";
+      throw error;
+    }
 
     // Appliquer toutes les améliorations en une seule requête
     const heroRes = await client.query(

@@ -297,6 +297,12 @@ router.post("/hero/upgrade", async (req, res) => {
     if (err.code === "NOT_ENOUGH_POINTS") {
       return res.status(400).json({ error: "Points insuffisants" });
     }
+    if (err.code === "STAT_MAX_REACHED") {
+      return res.status(400).json({ error: err.message || "Statistique au maximum" });
+    }
+    if (err.code === "HERO_STATS_NOT_FOUND") {
+      return res.status(404).json({ error: "Stats du héros introuvables" });
+    }
     console.error("Erreur upgrade héros:", err);
     return res.status(500).json({ error: "Erreur serveur" });
   }
@@ -328,6 +334,12 @@ router.post("/hero/upgrade/batch", async (req, res) => {
     }
     if (err.code === "NOT_ENOUGH_POINTS") {
       return res.status(400).json({ error: "Points insuffisants" });
+    }
+    if (err.code === "STAT_MAX_REACHED") {
+      return res.status(400).json({ error: err.message || "Statistique au maximum" });
+    }
+    if (err.code === "HERO_STATS_NOT_FOUND") {
+      return res.status(404).json({ error: "Stats du héros introuvables" });
     }
     if (err.code === "PLAYER_NOT_FOUND") {
       return res.status(404).json({ error: "Joueur introuvable" });

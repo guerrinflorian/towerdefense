@@ -131,6 +131,13 @@ let upgradeQueue = new Map(); // Map<stat, points>
 let upgradeDebounceTimer = null;
 const UPGRADE_DEBOUNCE_DELAY = 500; // 500ms après le dernier clic
 
+// Limites maximales des stats (doivent correspondre au serveur)
+const MAX_STATS = {
+  max_hp: 2500,
+  base_damage: 450,
+  move_speed: 200,
+};
+
 // Mise à jour optimiste locale (sans appel API)
 function applyOptimisticUpgrade(stat, points) {
   if (!currentProfile?.heroStats) return;
@@ -143,13 +150,19 @@ function applyOptimisticUpgrade(stat, points) {
   const damagePerPoint = parseFloat(conversion.damage_per_point) || 0;
   const speedPerPoint = parseFloat(conversion.move_speed_per_point) || 0;
   
-  // Mettre à jour les stats localement
+  // Mettre à jour les stats localement avec limitation aux maximums
   if (stat === "hp") {
-    stats.max_hp = (Number(stats.max_hp) || 0) + Math.round(hpPerPoint * points);
+    const currentHp = Number(stats.max_hp) || 0;
+    const delta = Math.round(hpPerPoint * points);
+    stats.max_hp = Math.min(currentHp + delta, MAX_STATS.max_hp);
   } else if (stat === "damage") {
-    stats.base_damage = parseFloat((parseFloat(stats.base_damage || 0) + damagePerPoint * points).toFixed(2));
+    const currentDamage = parseFloat(stats.base_damage || 0);
+    const delta = parseFloat((damagePerPoint * points).toFixed(2));
+    stats.base_damage = Math.min(parseFloat((currentDamage + delta).toFixed(2)), MAX_STATS.base_damage);
   } else if (stat === "move_speed") {
-    stats.move_speed = (Number(stats.move_speed) || 0) + Math.round(speedPerPoint * points);
+    const currentSpeed = Number(stats.move_speed) || 0;
+    const delta = Math.round(speedPerPoint * points);
+    stats.move_speed = Math.min(currentSpeed + delta, MAX_STATS.move_speed);
   }
   
   // Décrémenter les points disponibles

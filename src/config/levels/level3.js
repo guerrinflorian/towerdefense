@@ -78,8 +78,8 @@ export const LEVEL_3 = {
 
     // VAGUE 5 : Lourdeur Mécanique
     [
-      { count: 2, type: "tortue_dragon", interval: 4000, startDelay: 0 },
-      { count: 2, type: "shield", interval: 1200, startDelay: 8000 },
+      { count: 3, type: "tortue_dragon", interval: 4000, startDelay: 0 },
+      { count: 3, type: "shield", interval: 1200, startDelay: 8000 },
       { count: 1, type: "juggernaut_igloo", interval: 2500, startDelay: 22000 }, // Unité très juggernaut_iglooy du lvl 2
     ],
 
