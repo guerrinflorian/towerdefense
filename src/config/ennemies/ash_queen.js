@@ -9,10 +9,10 @@ export const ash_queen = {
   attackSpeed: 1400,
   scale: 1.3,
 
-  eggSpawnInterval: 5000,
+  eggSpawnInterval: 8000,
   eggSpawnType: "ash_egg",
   eggScarabType: "flame_scarab",
-  eggScarabCount: 2,
+  eggScarabCount: 3,
   eggDamageOnDestroy: 1200,
 
   onDraw: (scene, container, color, enemyInstance) => {
