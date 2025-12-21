@@ -1,9 +1,9 @@
 import { pool, query } from "../db.js";
 
 const DEFAULT_CONVERSION = {
-  hp_per_point: 12,
-  damage_per_point: 2,
-  move_speed_per_point: 4,
+  hp_per_point: 1,
+  damage_per_point: 0.2,
+  move_speed_per_point: 0.75,
 };
 
 // Limites maximales des stats

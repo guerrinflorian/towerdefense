@@ -86,9 +86,9 @@ export const LEVEL_3 = {
     // VAGUE 6 : Division et Multiplication
     // Les Diviseurs explosent en petits slimes, les Shamans soignent les petits slimes.
     [
-      { count: 4, type: "diviseur", interval: 2500, startDelay: 0 },
+      { count: 3, type: "diviseur", interval: 2500, startDelay: 0 },
       { count: 20, type: "grunt", interval: 500, startDelay: 8000 }, // Noyade sous le nombre
-      { count: 3, type: "shaman_gobelin", interval: 4000, startDelay: 13000 },
+      { count: 2, type: "shaman_gobelin", interval: 4000, startDelay: 13000 },
     ],
 
     // VAGUE 7 : L'Escouade d'Élite
@@ -104,8 +104,9 @@ export const LEVEL_3 = {
     // Ça vient de partout.
     [
       { count: 50, type: "runner", interval: 250, startDelay: 0 }, // Flux continu ultra rapide
-      { count: 8, type: "diviseur", interval: 3500, startDelay: 5000 },
-      { count: 5, type: "shaman_gobelin", interval: 4000, startDelay: 10000 },
+      { count: 6, type: "diviseur", interval: 3500, startDelay: 5000 },
+      { count: 4, type: "shaman_gobelin", interval: 4000, startDelay: 12000 },
+      { count: 1, type: "juggernaut_igloo", interval: 2500, startDelay: 18000 },
     ],
 
     // VAGUE 9 : Avant la tempête
