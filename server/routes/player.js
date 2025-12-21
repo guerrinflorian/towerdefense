@@ -24,18 +24,41 @@ router.get("/me", async (req, res) => {
 
 async function getGlobalLeaderboard() {
     const result = await query(
-      `SELECT p.username,
-            MAX(lc.level_id) AS max_level,
-            COALESCE(SUM(20 - COALESCE(lc.lives_remaining, 20)), 0) AS total_lives_lost,
-            COALESCE(SUM(lc.completion_time_ms), 0) AS total_time_ms
-         FROM players p
-       LEFT JOIN level_completions lc ON lc.player_id = p.id
-      GROUP BY p.id, p.username
-      HAVING MAX(lc.level_id) IS NOT NULL
-      ORDER BY 
-               MAX(lc.level_id) DESC,
-               COALESCE(SUM(20 - COALESCE(lc.lives_remaining, 20)), 0) ASC,
-               COALESCE(SUM(lc.completion_time_ms), 0) ASC
+      `WITH ranked_runs AS (
+          SELECT 
+            lc.level_id,
+            lc.player_id,
+            p.username,
+            (20 - COALESCE(lc.lives_remaining, 20)) AS lives_lost,
+            lc.completion_time_ms,
+            ROW_NUMBER() OVER (
+              PARTITION BY lc.level_id, lc.player_id 
+              ORDER BY (20 - COALESCE(lc.lives_remaining, 20)), lc.completion_time_ms, lc.created_at
+            ) AS player_rank
+          FROM level_completions lc
+          JOIN players p ON p.id = lc.player_id
+        ),
+        best_per_level AS (
+          SELECT 
+            player_id,
+            username,
+            level_id,
+            lives_lost,
+            completion_time_ms
+          FROM ranked_runs
+          WHERE player_rank = 1
+        )
+        SELECT 
+          username,
+          MAX(level_id) AS max_level,
+          COALESCE(SUM(lives_lost), 0) AS total_lives_lost,
+          COALESCE(SUM(completion_time_ms), 0) AS total_time_ms
+        FROM best_per_level
+        GROUP BY player_id, username
+        ORDER BY 
+          MAX(level_id) DESC,
+          COALESCE(SUM(lives_lost), 0) ASC,
+          COALESCE(SUM(completion_time_ms), 0) ASC
         LIMIT 10`
     );
 

@@ -14,13 +14,13 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     
     // --- Configuration du Design ---
     this.config = {
-      width: 380,           // Élargi pour éviter les chevauchements
-      height: 300,
+      width: 420,           // Élargi pour éviter les chevauchements
+      height: 340,
       padding: 20,
       accentColor: 0x00eaff,
       bgColor: 0x050a10,
-      rowHeight: 55,
-      avatarSize: 80
+      rowHeight: 60,
+      avatarSize: 85
     };
 
     this.statElements = new Map(); // Pour stocker les références proprement
@@ -59,12 +59,14 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     this.add(bg);
 
     // 2. Titre stylisé
+    const resolution = window.devicePixelRatio || 1;
     const title = this.scene.add.text(width / 2, -15, " SYSTÈME HÉROS ", {
       fontFamily: "Impact, sans-serif",
-      fontSize: "24px",
+      fontSize: "26px",
       color: "#ffffff",
       backgroundColor: "#050a10",
-      padding: { x: 10, y: 2 }
+      padding: { x: 10, y: 2 },
+      resolution
     }).setOrigin(0.5);
     this.add(title);
 
@@ -80,21 +82,23 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
 
     const statsStartX = padding + this.config.avatarSize + 25; // Espace après l'avatar
     statsData.forEach((stat, idx) => {
-      this.createStatRow(stat, statsStartX, 60 + (idx * this.config.rowHeight));
+      this.createStatRow(stat, statsStartX, 65 + (idx * this.config.rowHeight));
     });
 
     // 5. Footer (Points & Coût)
-    this.pointsText = this.scene.add.text(width / 2, height - 50, "", {
-      fontSize: "16px",
+    this.pointsText = this.scene.add.text(width / 2, height - 55, "", {
+      fontSize: "18px",
       fontFamily: "Orbitron, sans-serif",
       color: "#7dd0ff",
-      fontWeight: "bold"
+      fontWeight: "bold",
+      resolution
     }).setOrigin(0.5);
 
-    this.costText = this.scene.add.text(width / 2, height - 25, "", {
-      fontSize: "11px",
+    this.costText = this.scene.add.text(width / 2, height - 30, "", {
+      fontSize: "12px",
       fontFamily: "Arial",
-      color: "#aaaaaa"
+      color: "#aaaaaa",
+      resolution
     }).setOrigin(0.5);
 
     this.add([this.pointsText, this.costText]);
@@ -225,7 +229,8 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     // Bouton stylo pour changer la couleur (en haut à droite de l'avatar)
     const penBtn = this.scene.add.container(x + size - 5, y + 5);
     const penBg = this.scene.add.circle(0, 0, 12, 0x00eaff, 0.2).setStrokeStyle(1, 0x00eaff);
-    const penIcon = this.scene.add.text(0, 0, "✏️", { fontSize: "14px" }).setOrigin(0.5);
+    const resolution = window.devicePixelRatio || 1;
+    const penIcon = this.scene.add.text(0, 0, "✏️", { fontSize: "14px", resolution }).setOrigin(0.5);
     penBtn.add([penBg, penIcon]);
     penBtn.setSize(24, 24).setInteractive({ useHandCursor: true });
     
@@ -244,10 +249,11 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     
     // Afficher les kills en dessous de l'avatar
     this.killsText = this.scene.add.text(x + size / 2, y + size + 15, "", {
-      fontSize: "14px",
+      fontSize: "15px",
       fontFamily: "Arial",
       color: "#ff6b6b",
-      fontWeight: "bold"
+      fontWeight: "bold",
+      resolution
     }).setOrigin(0.5);
     this.add(this.killsText);
     
@@ -379,41 +385,46 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
   }
 
   createStatRow(stat, x, y) {
-    const barWidth = 180;
+    const barWidth = 200;
+    const resolution = window.devicePixelRatio || 1;
     
     // Label de la stat
-    const label = this.scene.add.text(x, y - 20, stat.label, {
-      fontSize: "11px",
+    const label = this.scene.add.text(x, y - 22, stat.label, {
+      fontSize: "13px",
       fontWeight: "bold",
       color: "#ffffff",
-      letterSpacing: 1
+      letterSpacing: 1,
+      resolution
     });
 
     // Valeur numérique
-    const valText = this.scene.add.text(x + barWidth, y - 20, "0", {
-      fontSize: "12px",
-      color: "#00eaff"
+    const valText = this.scene.add.text(x + barWidth, y - 22, "0", {
+      fontSize: "14px",
+      color: "#00eaff",
+      fontWeight: "bold",
+      resolution
     }).setOrigin(1, 0);
 
     // Texte de conversion (ex: "+0.4 par point")
-    const conversionText = this.scene.add.text(x, y + 15, "", {
-      fontSize: "9px",
+    const conversionText = this.scene.add.text(x, y + 18, "", {
+      fontSize: "11px",
       color: "#7dd0ff",
-      fontStyle: "italic"
+      fontStyle: "italic",
+      resolution
     });
 
     // Fond de la barre (vaisseau)
     const barBg = this.scene.add.graphics();
     barBg.fillStyle(0xffffff, 0.1);
-    barBg.fillRoundedRect(x, y, barWidth, 10, 5);
+    barBg.fillRoundedRect(x, y, barWidth, 12, 5);
 
     // Barre de progression (le remplissage)
     const barFill = this.scene.add.graphics();
     
     // Bouton "+" stylisé
-    const btn = this.scene.add.container(x + barWidth + 25, y + 5);
-    const btnBg = this.scene.add.circle(0, 0, 12, 0x00eaff, 0.2).setStrokeStyle(1, 0x00eaff);
-    const btnPlus = this.scene.add.text(0, 0, "+", { fontSize: "18px", color: "#00eaff" }).setOrigin(0.5);
+    const btn = this.scene.add.container(x + barWidth + 25, y + 6);
+    const btnBg = this.scene.add.circle(0, 0, 13, 0x00eaff, 0.2).setStrokeStyle(1, 0x00eaff);
+    const btnPlus = this.scene.add.text(0, 0, "+", { fontSize: "20px", color: "#00eaff", fontWeight: "bold", resolution }).setOrigin(0.5);
     btn.add([btnBg, btnPlus]);
     btn.setSize(24, 24).setInteractive({ useHandCursor: true });
 
@@ -502,7 +513,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         onUpdate: (tween) => {
           el.barFill.clear();
           el.barFill.fillStyle(el.color, 1);
-          el.barFill.fillRoundedRect(el.x, el.y, el.barWidth * tween.getValue(), 10, 5);
+          el.barFill.fillRoundedRect(el.x, el.y, el.barWidth * tween.getValue(), 12, 5);
         }
       });
 
