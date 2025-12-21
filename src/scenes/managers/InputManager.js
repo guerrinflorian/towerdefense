@@ -10,6 +10,7 @@ export class InputManager {
     this.tileHighlight = null;
     this.longPressTimer = null;
     this.longPressDelay = 500;
+    this.longPressTriggered = false;
     this.hero = null;
   }
 
@@ -127,9 +128,11 @@ export class InputManager {
       if (pointer.rightButtonDown()) {
         this.handleRightClick(pointer);
       } else if (pointer.isDown) {
+        this.longPressTriggered = false;
         this.longPressTimer = this.scene.time.delayedCall(
           this.longPressDelay,
           () => {
+            this.longPressTriggered = true;
             this.handleRightClick(pointer);
           }
         );
@@ -137,39 +140,53 @@ export class InputManager {
     });
 
     this.scene.input.on("pointerup", (pointer) => {
+      const isOnToolbar = this.isPointerOnToolbar(pointer);
+      const isOnMap = this.isPointerInsideMap(pointer);
+
       if (this.longPressTimer) {
         this.longPressTimer.remove();
         this.longPressTimer = null;
-        if (
-          !this.dragHandler.draggingTurret &&
-          !this.isPointerOnToolbar(pointer)
-        ) {
-          this.handleNormalClick(pointer);
+      }
+
+      if (this.dragHandler.draggingTurret) {
+        if (isOnToolbar || !isOnMap) {
+          this.cancelDrag();
+        } else {
+          const placed = this.dragHandler.placeDraggedTurret(pointer);
+          if (!placed) {
+            this.cancelDrag();
+          }
         }
+        this.longPressTriggered = false;
+        return;
       }
 
-      if (
-        this.dragHandler.draggingTurret &&
-        pointer.leftButtonReleased() &&
-        !this.isPointerOnToolbar(pointer)
-      ) {
-        this.dragHandler.placeDraggedTurret(pointer);
+      if (this.spellManager.isPlacingSpell()) {
+        if (pointer.rightButtonReleased && pointer.rightButtonReleased()) {
+          this.spellManager.cancelSpellPlacement();
+          this.longPressTriggered = false;
+          return;
+        }
+
+        if (isOnToolbar || !isOnMap) {
+          this.spellManager.cancelSpellPlacement();
+        } else {
+          this.spellManager.placeLightning(pointer.worldX, pointer.worldY);
+        }
+        this.longPressTriggered = false;
+        return;
       }
 
-      if (
-        this.spellManager.isPlacingSpell() &&
-        pointer.leftButtonReleased() &&
-        !this.isPointerOnToolbar(pointer)
-      ) {
-        this.spellManager.placeLightning(pointer.worldX, pointer.worldY);
+      if (this.isPointerOnSpawnButton(pointer)) {
+        this.longPressTriggered = false;
+        return;
       }
 
-      if (
-        this.spellManager.isPlacingSpell() &&
-        pointer.rightButtonReleased()
-      ) {
-        this.spellManager.cancelSpellPlacement();
+      if (!this.longPressTriggered && !isOnToolbar) {
+        this.handleNormalClick(pointer);
       }
+
+      this.longPressTriggered = false;
     });
 
     this.scene.input.keyboard.on("keydown-ESC", () => {
@@ -317,6 +334,16 @@ export class InputManager {
 
   cancelDrag() {
     this.dragHandler.cancelDrag();
+  }
+
+  isPointerInsideMap(pointer) {
+    const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
+    return !(
+      pointer.worldY < this.scene.mapStartY ||
+      pointer.worldY > this.scene.mapStartY + 15 * T ||
+      pointer.worldX < this.scene.mapStartX ||
+      pointer.worldX > this.scene.mapStartX + 15 * T
+    );
   }
 
   isPathTile(tileType) {
