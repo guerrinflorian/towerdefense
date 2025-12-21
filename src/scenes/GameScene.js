@@ -154,28 +154,11 @@ export class GameScene extends Phaser.Scene {
     const mapSize = 15 * CONFIG.TILE_SIZE;
     // Réduire les marges pour maximiser l'espace de la map, surtout sur mobile
     const padding = Math.max(6, Math.min(this.gameWidth, this.gameHeight) * 0.006);
-    
-    // Largeur minimale et maximale pour les sidebars (pour éviter qu'elles soient trop petites ou trop grandes)
-    const minSidebarWidth =
-      this.gameWidth < 1100 ? 140 : 180;
-    const maxSidebarWidth = 320;
-    const targetSidebarWidth = Phaser.Math.Clamp(this.gameWidth * 0.15, minSidebarWidth, maxSidebarWidth);
+    const isPortrait = this.gameHeight >= this.gameWidth;
 
-    // Calculer d'abord la taille de la map en fonction de l'espace disponible
-    const usableHeight = this.gameHeight - padding * 2;
-    // Espace central estimé (on va l'ajuster après)
-    const estimatedCenterWidth = this.gameWidth - 2 * targetSidebarWidth - 2 * padding;
-
-    const scaleByHeight = usableHeight / mapSize;
-    const scaleByWidth = estimatedCenterWidth / mapSize;
-    this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.4, 2);
-
-    // Si malgré tout la map dépasse la hauteur disponible (écrans très allongés),
-    // on réduit légèrement l'échelle pour que les 15 cases soient visibles.
-    const projectedMapSize = mapSize * this.scaleFactor;
-    if (projectedMapSize > usableHeight) {
-      this.scaleFactor = Math.min(this.scaleFactor, usableHeight / mapSize);
-    }
+    if (isPortrait) {
+      const topBarHeight = Math.max(140, this.gameHeight * 0.16);
+      const bottomBarHeight = Math.max(140, this.gameHeight * 0.2);
 
       const usableHeight = this.gameHeight - padding * 2 - topBarHeight - bottomBarHeight;
       const usableWidth = this.gameWidth - padding * 2;
@@ -225,16 +208,19 @@ export class GameScene extends Phaser.Scene {
       };
     } else {
       // Mise en page paysage (PC / tablettes horizontales)
-      const minSidebarWidth =
-        this.gameWidth < 1100 ? 140 : 180;
+      const minSidebarWidth = this.gameWidth < 1100 ? 140 : 180;
       const maxSidebarWidth = 320;
-      const targetSidebarWidth = Phaser.Math.Clamp(this.gameWidth * 0.15, minSidebarWidth, maxSidebarWidth);
+      const targetSidebarWidth = Phaser.Math.Clamp(
+        this.gameWidth * 0.15,
+        minSidebarWidth,
+        maxSidebarWidth
+      );
 
       // Calculer d'abord la taille de la map en fonction de l'espace disponible
       const usableHeight = this.gameHeight - padding * 2;
       // Espace central estimé (on va l'ajuster après)
       const estimatedCenterWidth = this.gameWidth - 2 * targetSidebarWidth - 2 * padding;
-      
+
       const scaleByHeight = usableHeight / mapSize;
       const scaleByWidth = estimatedCenterWidth / mapSize;
       this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
@@ -247,7 +233,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       this.mapPixelSize = mapSize * this.scaleFactor;
-      
+
       // Centrer la map horizontalement dans l'écran
       this.mapOffsetX = (this.gameWidth - this.mapPixelSize) / 2;
       this.mapOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
@@ -260,11 +246,11 @@ export class GameScene extends Phaser.Scene {
       // Sidebar gauche : de padding jusqu'à mapOffsetX
       this.toolbarOffsetX = padding;
       this.toolbarWidth = this.mapOffsetX - padding;
-      
+
       // Sidebar droite : de (mapOffsetX + mapPixelSize) jusqu'à (gameWidth - padding)
       this.rightToolbarOffsetX = this.mapOffsetX + this.mapPixelSize;
-      this.rightToolbarWidth = (this.gameWidth - padding) - this.rightToolbarOffsetX;
-      
+      this.rightToolbarWidth = this.gameWidth - padding - this.rightToolbarOffsetX;
+
       // Les sidebars prennent toute la hauteur de l'écran pour remplir l'espace
       this.toolbarHeight = this.gameHeight;
       // Les sidebars commencent en haut de l'écran (y = 0) pour s'étirer jusqu'en bas
