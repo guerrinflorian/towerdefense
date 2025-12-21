@@ -67,7 +67,7 @@ export const LEVEL_4 = {
     ],
 
     // VAGUE 2 : La vitesse
-    [{ count: 30, type: "runner", interval: 400, startDelay: 0 }],
+    [{ count: 30, type: "soul_messenger_runner", interval: 400, startDelay: 0 }],
 
     // VAGUE 3 : INTRODUCTION DU SHAMAN
     [
@@ -79,7 +79,7 @@ export const LEVEL_4 = {
     [
       { count: 12, type: "shield", interval: 1200, startDelay: 0 },
       { count: 5, type: "shaman_gobelin", interval: 3000, startDelay: 4000 },
-      { count: 20, type: "runner", interval: 400, startDelay: 12000 },
+      { count: 20, type: "soul_messenger_runner", interval: 400, startDelay: 12000 },
     ],
 
     // VAGUE 5 : Lourdeur Mécanique
@@ -105,7 +105,7 @@ export const LEVEL_4 = {
 
     // VAGUE 8 : Chaos Total
     [
-      { count: 70, type: "runner", interval: 250, startDelay: 0 },
+      { count: 70, type: "soul_messenger_runner", interval: 250, startDelay: 0 },
       { count: 10, type: "diviseur", interval: 3500, startDelay: 5000 },
       { count: 6, type: "shaman_gobelin", interval: 4000, startDelay: 10000 },
     ],
@@ -115,23 +115,24 @@ export const LEVEL_4 = {
       { count: 12, type: "tortue_dragon", interval: 2500, startDelay: 0 },
       { count: 12, type: "shield", interval: 1000, startDelay: 5000 },
       { count: 8, type: "shaman_gobelin", interval: 3000, startDelay: 10000 },
+      { count: 20, type: "soul_messenger_runner", interval: 450, startDelay: 22000 },
     ],
 
     // VAGUE 10 : LE SEIGNEUR DES MORTS (Boss Lvl 4 - à créer plus tard)
     [
       // L'avant-garde
       { count: 40, type: "grunt", interval: 300, startDelay: 0 },
-      { count: 25, type: "runner", interval: 300, startDelay: 5000 },
+      { count: 25, type: "soul_messenger_runner", interval: 300, startDelay: 5000 },
 
       // La garde rapprochée
-      { count: 10, type: "tank", interval: 2000, startDelay: 20000 },
+      { count: 14, type: "tank", interval: 2000, startDelay: 20000 },
       { count: 8, type: "shaman_gobelin", interval: 2000, startDelay: 25000 },
 
       // LE BOSS (à remplacer par bosslvl4 quand créé)
       { count: 1, type: "bosslvl4", interval: 10000, startDelay: 35000 },
 
       // Les renforts de dernière chance
-      { count: 15, type: "runner", interval: 200, startDelay: 49000 },
+      { count: 15, type: "soul_messenger_runner", interval: 200, startDelay: 49000 },
     ],
   ],
 };
