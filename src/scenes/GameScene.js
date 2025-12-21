@@ -152,13 +152,14 @@ export class GameScene extends Phaser.Scene {
     this.baseHeight = this.game.baseHeight || CONFIG.GAME_HEIGHT;
 
     const mapSize = 15 * CONFIG.TILE_SIZE;
-    // Réduire les marges pour maximiser l'espace de la map
-    const padding = Math.max(8, Math.min(this.gameWidth, this.gameHeight) * 0.008);
+    // Réduire les marges pour maximiser l'espace de la map, surtout sur mobile
+    const padding = Math.max(6, Math.min(this.gameWidth, this.gameHeight) * 0.006);
     
     // Largeur minimale et maximale pour les sidebars (pour éviter qu'elles soient trop petites ou trop grandes)
-    const minSidebarWidth = 180;
+    const minSidebarWidth =
+      this.gameWidth < 1100 ? 140 : 180;
     const maxSidebarWidth = 320;
-    const targetSidebarWidth = Math.max(minSidebarWidth, Math.min(maxSidebarWidth, this.gameWidth * 0.15));
+    const targetSidebarWidth = Phaser.Math.Clamp(this.gameWidth * 0.15, minSidebarWidth, maxSidebarWidth);
 
     // Calculer d'abord la taille de la map en fonction de l'espace disponible
     const usableHeight = this.gameHeight - padding * 2;
@@ -167,7 +168,14 @@ export class GameScene extends Phaser.Scene {
 
     const scaleByHeight = usableHeight / mapSize;
     const scaleByWidth = estimatedCenterWidth / mapSize;
-    this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
+    this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.4, 2);
+
+    // Si malgré tout la map dépasse la hauteur disponible (écrans très allongés),
+    // on réduit légèrement l'échelle pour que les 15 cases soient visibles.
+    const projectedMapSize = mapSize * this.scaleFactor;
+    if (projectedMapSize > usableHeight) {
+      this.scaleFactor = Math.min(this.scaleFactor, usableHeight / mapSize);
+    }
 
     this.mapPixelSize = mapSize * this.scaleFactor;
     
