@@ -626,7 +626,9 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.combatGraphics.clear();
     
     // Mettre à jour le temps du dernier combat pour démarrer le délai de régénération
-    this.lastCombatTime = this.scene.time.now;
+    if (this.scene && this.scene.time) {
+      this.lastCombatTime = this.scene.time.now;
+    }
   }
   
   // Démarrer la régénération
@@ -673,6 +675,8 @@ export class Soldier extends Phaser.GameObjects.Container {
   
   // Prendre des dégâts
   takeDamage(amount) {
+    if (!this.scene || !this.scene.time) return;
+    
     this.hp -= amount;
     
     // Mettre à jour le temps du dernier combat
@@ -797,7 +801,7 @@ export class Soldier extends Phaser.GameObjects.Container {
     }
     
     // Gérer la régénération de PV
-    if (!this.blockingEnemy && this.hp < this.maxHp) {
+    if (!this.blockingEnemy && this.hp < this.maxHp && this.scene && this.scene.time) {
       const timeSinceCombat = this.scene.time.now - this.lastCombatTime;
       
       // Si 3 secondes se sont écoulées depuis le dernier combat, démarrer la régénération
