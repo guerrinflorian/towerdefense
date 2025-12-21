@@ -86,7 +86,7 @@ export const LEVEL_3 = {
     // VAGUE 6 : Division et Multiplication
     // Les Diviseurs explosent en petits slimes, les Shamans soignent les petits slimes.
     [
-      { count: 5, type: "diviseur", interval: 2500, startDelay: 0 },
+      { count: 4, type: "diviseur", interval: 2500, startDelay: 0 },
       { count: 20, type: "grunt", interval: 500, startDelay: 8000 }, // Noyade sous le nombre
       { count: 3, type: "shaman_gobelin", interval: 4000, startDelay: 13000 },
     ],
