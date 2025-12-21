@@ -501,8 +501,16 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         el.conversionText.setText(`+${formattedValue} par point`);
       }
 
-      // Calcul du pourcentage (ex: max 500 pour le visuel)
-      const targetScale = Phaser.Math.Clamp(val / 500, 0.1, 1);
+      // Valeurs maximales pour le visuel des barres
+      const maxValues = {
+        hp: 2500,
+        damage: 450,
+        move_speed: 200
+      };
+      const maxValue = maxValues[key] || 500;
+      
+      // Calcul du pourcentage selon la valeur maximale de chaque stat
+      const targetScale = Phaser.Math.Clamp(val / maxValue, 0.1, 1);
       
       // Animation fluide de la barre
       this.scene.tweens.addCounter({
@@ -517,9 +525,12 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         }
       });
 
-      // Activer/désactiver le bouton selon les points disponibles
+      // Activer/désactiver le bouton selon les points disponibles et les limites maximales
       if (el.btn && el.btnBg && el.btnPlus) {
-        if (available > 0) {
+        const isMaxReached = val >= maxValue;
+        const canUpgrade = available > 0 && !isMaxReached;
+        
+        if (canUpgrade) {
           // Activer le bouton
           el.btn.setInteractive({ useHandCursor: true });
           el.btn.setAlpha(1);
@@ -527,12 +538,13 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
           el.btnBg.setStrokeStyle(1, 0x00eaff);
           el.btnPlus.setColor("#00eaff");
         } else {
-          // Désactiver le bouton
+          // Désactiver le bouton (pas de points ou maximum atteint)
           el.btn.disableInteractive();
           el.btn.setAlpha(0.4);
-          el.btnBg.setFillStyle(0x666666, 0.2);
-          el.btnBg.setStrokeStyle(1, 0x666666);
-          el.btnPlus.setColor("#666666");
+          const disabledColor = isMaxReached ? 0xffaa00 : 0x666666; // Orange si max atteint, gris si pas de points
+          el.btnBg.setFillStyle(disabledColor, 0.2);
+          el.btnBg.setStrokeStyle(1, disabledColor);
+          el.btnPlus.setColor(isMaxReached ? "#ffaa00" : "#666666");
         }
       }
     });
