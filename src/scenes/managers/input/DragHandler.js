@@ -162,7 +162,7 @@ export class DragHandler {
   }
 
   placeDraggedTurret(pointer) {
-    if (!this.draggingTurret) return;
+    if (!this.draggingTurret) return false;
 
     const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
 
@@ -178,12 +178,15 @@ export class DragHandler {
           if (success) {
             this.cancelDrag();
             this.uiManager.updateToolbarCounts();
+            return true;
           }
         } else {
           this.scene.cameras.main.shake(50, 0.005);
         }
       }
     }
+
+    return false;
   }
 
   cancelDrag() {
