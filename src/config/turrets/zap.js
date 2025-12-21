@@ -186,6 +186,11 @@ export const zap = {
 
       // Infliger des dégâts
       currentTarget.damage(turret.config.damage);
+      
+      // Paralyser l'ennemi pendant 0.15 secondes
+      if (currentTarget.paralyze) {
+        currentTarget.paralyze(150);
+      }
 
       // Trouver le prochain ennemi à proximité
       let nearestEnemy = null;
