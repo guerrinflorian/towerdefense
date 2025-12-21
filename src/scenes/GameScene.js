@@ -51,6 +51,7 @@ export class GameScene extends Phaser.Scene {
     this.endCheckTimer = null; // Timer de vérification de fin de vague
     this.selectedTurret = null;
     this.maxBarracks = 5;
+    this.maxSnipers = 10;
     this.upgradeTextLines = []; // Pour stocker les lignes de texte du menu
     this.spawnControls = null;
     this.hero = null;
@@ -586,8 +587,9 @@ export class GameScene extends Phaser.Scene {
       return false;
     }
 
-    // ... Le reste de ta méthode reste identique ...
+    // ... Le reste de ta méthode reste identique ... 
     const isBarracks = turretConfig.key === "barracks";
+    const isSniper = turretConfig.key === "sniper";
 
     // Limiter les barracks à 5 maximum
     if (isBarracks && this.barracks.length >= this.maxBarracks) {
@@ -614,6 +616,36 @@ export class GameScene extends Phaser.Scene {
         onComplete: () => errorText.destroy(),
       });
       return false;
+    }
+
+    // Limiter les snipers à 10 maximum
+    if (isSniper) {
+      const sniperCount = this.turrets.filter((t) => t.config.key === "sniper").length;
+      if (sniperCount >= this.maxSnipers) {
+        this.cameras.main.shake(50, 0.005);
+        const errorText = this.add
+          .text(
+            this.gameWidth / 2,
+            this.gameHeight / 2,
+            `Maximum ${this.maxSnipers} snipers!`,
+            {
+              fontSize: `${Math.max(16, 24 * this.scaleFactor)}px`,
+              fill: "#ff0000",
+              fontStyle: "bold",
+            }
+          )
+          .setOrigin(0.5)
+          .setDepth(300);
+
+        this.tweens.add({
+          targets: errorText,
+          alpha: 0,
+          y: errorText.y - 30,
+          duration: 2000,
+          onComplete: () => errorText.destroy(),
+        });
+        return false;
+      }
     }
 
     // Pour les barracks, vérifier qu'on peut poser uniquement sur les cases adjacentes aux chemins

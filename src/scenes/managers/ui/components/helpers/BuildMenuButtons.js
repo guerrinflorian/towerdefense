@@ -40,6 +40,9 @@ export function applyBuildBtnStateOctagon(scene, btnContainer) {
   let isDisabled = false;
   if (cfg.key === "barracks") {
     isDisabled = scene.barracks.length >= scene.maxBarracks;
+  } else if (cfg.key === "sniper") {
+    const sniperCount = scene.turrets.filter((t) => t.config.key === "sniper").length;
+    isDisabled = sniperCount >= scene.maxSnipers;
   }
 
   const shouldDisable = !canAfford || isDisabled;
@@ -189,8 +192,11 @@ export function createBuildBtnOctagon(buildMenu, x, y, size, turretConfig) {
     const isBarracksMaxed =
       turretConfig.key === "barracks" &&
       scene.barracks.length >= scene.maxBarracks;
+    const isSniperMaxed =
+      turretConfig.key === "sniper" &&
+      scene.turrets.filter((t) => t.config.key === "sniper").length >= scene.maxSnipers;
 
-    if (!canAfford || isBarracksMaxed) return;
+    if (!canAfford || isBarracksMaxed || isSniperMaxed) return;
 
     drawOctagon(
       scene,
@@ -238,8 +244,11 @@ export function createBuildBtnOctagon(buildMenu, x, y, size, turretConfig) {
     const isBarracksMaxed =
       turretConfig.key === "barracks" &&
       scene.barracks.length >= scene.maxBarracks;
+    const isSniperMaxed =
+      turretConfig.key === "sniper" &&
+      scene.turrets.filter((t) => t.config.key === "sniper").length >= scene.maxSnipers;
 
-    if (!canAfford || isBarracksMaxed) {
+    if (!canAfford || isBarracksMaxed || isSniperMaxed) {
       scene.cameras.main.shake(50, 0.005);
       return;
     }
