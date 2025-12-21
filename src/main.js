@@ -108,6 +108,18 @@ if (isMobileBlocked) {
       window.addEventListener("orientationchange", () => {
         setTimeout(handleResize, 100);
       });
+      
+      // Forcer l'envoi des améliorations en attente avant de quitter la page
+      window.addEventListener("beforeunload", async () => {
+        const { flushPendingUpgrades } = await import("./services/authManager.js");
+        await flushPendingUpgrades();
+      });
+      
+      // Forcer l'envoi lors des changements de scène
+      game.scene.events.on("transitionstart", async () => {
+        const { flushPendingUpgrades } = await import("./services/authManager.js");
+        await flushPendingUpgrades();
+      });
     });
 
   // Empêcher le double-tap zoom sur mobile

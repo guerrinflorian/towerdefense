@@ -1,7 +1,7 @@
 export const bosslvl3 = {
   name: "KROVAR LE PRIMORDIAL",
   speed: 10,
-  hp: 88000,
+  hp: 115000,
   reward: 6500,
   playerDamage: 25,
   color: 0xffffff,

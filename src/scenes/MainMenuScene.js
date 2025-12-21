@@ -57,8 +57,11 @@ export class MainMenuScene extends Phaser.Scene {
 
     this.applyResponsiveLayout();
     this.scale.on("resize", this.applyResponsiveLayout, this);
-    this.events.once("shutdown", () => {
+    this.events.once("shutdown", async () => {
       this.scale.off("resize", this.applyResponsiveLayout, this);
+      // Forcer l'envoi des améliorations en attente avant de quitter la scène
+      const { flushPendingUpgrades } = await import("../services/authManager.js");
+      await flushPendingUpgrades();
     });
 
     // Initialisation

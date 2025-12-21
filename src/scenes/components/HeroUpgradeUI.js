@@ -2,7 +2,7 @@ import {
   getHeroStats, 
   getHeroPointsAvailable, 
   getHeroPointConversion, 
-  upgradeHero, 
+  queueHeroUpgrade, 
   updateHeroColor,
   isAuthenticated 
 } from "../../services/authManager.js";
@@ -24,6 +24,17 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     };
 
     this.statElements = new Map(); // Pour stocker les références proprement
+    
+    // Écouter les événements de mise à jour des améliorations
+    this.upgradeCompleteHandler = () => {
+      this.refresh();
+    };
+    window.addEventListener("hero:upgrade-complete", this.upgradeCompleteHandler);
+    
+    // Nettoyer le listener quand le composant est détruit
+    this.scene.events.once("shutdown", () => {
+      window.removeEventListener("hero:upgrade-complete", this.upgradeCompleteHandler);
+    });
     
     this.setupMainPanel();
     this.refresh();
@@ -430,7 +441,9 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     if (!isAuthenticated()) return showAuth();
     try {
       this.scene.cameras.main.shake(100, 0.002); // Petit feedback visuel
-      await upgradeHero(key, 1);
+      // Utiliser la queue au lieu d'un appel direct
+      queueHeroUpgrade(key, 1);
+      // L'UI sera mise à jour automatiquement via les événements
       this.refresh();
     } catch (err) {
       console.error("Échec upgrade:", err);
