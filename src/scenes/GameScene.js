@@ -177,45 +177,119 @@ export class GameScene extends Phaser.Scene {
       this.scaleFactor = Math.min(this.scaleFactor, usableHeight / mapSize);
     }
 
-    this.mapPixelSize = mapSize * this.scaleFactor;
-    
-    // Centrer la map horizontalement dans l'écran
-    this.mapOffsetX = (this.gameWidth - this.mapPixelSize) / 2;
-    this.mapOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
+      const usableHeight = this.gameHeight - padding * 2 - topBarHeight - bottomBarHeight;
+      const usableWidth = this.gameWidth - padding * 2;
 
-    // Stocker les offsets pour utilisation dans createMap
-    this.mapStartX = this.mapOffsetX;
-    this.mapStartY = this.mapOffsetY;
+      const scaleByHeight = usableHeight / mapSize;
+      const scaleByWidth = usableWidth / mapSize;
+      this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.45, 2);
 
-    // Sidebars qui s'étirent jusqu'à la map (pas de largeur fixe)
-    // Sidebar gauche : de padding jusqu'à mapOffsetX
-    this.toolbarOffsetX = padding;
-    this.toolbarWidth = this.mapOffsetX - padding;
-    
-    // Sidebar droite : de (mapOffsetX + mapPixelSize) jusqu'à (gameWidth - padding)
-    this.rightToolbarOffsetX = this.mapOffsetX + this.mapPixelSize;
-    this.rightToolbarWidth = (this.gameWidth - padding) - this.rightToolbarOffsetX;
-    
-    // Les sidebars prennent toute la hauteur de l'écran pour remplir l'espace
-    this.toolbarHeight = this.gameHeight;
-    // Les sidebars commencent en haut de l'écran (y = 0) pour s'étirer jusqu'en bas
-    this.toolbarOffsetY = 0;
+      const projectedMapSize = mapSize * this.scaleFactor;
+      if (projectedMapSize > usableHeight) {
+        this.scaleFactor = Math.min(this.scaleFactor, usableHeight / mapSize);
+      }
 
-    // HUD maintenant à droite (plus besoin de calculer hudX/hudY en haut)
-    // Les valeurs sont calculées automatiquement via rightToolbarOffsetX et toolbarOffsetY
+      this.mapPixelSize = mapSize * this.scaleFactor;
 
-    this.leftToolbarBounds = {
-      x: this.toolbarOffsetX,
-      y: this.toolbarOffsetY,
-      width: this.toolbarWidth,
-      height: this.toolbarHeight,
-    };
-    this.rightToolbarBounds = {
-      x: this.rightToolbarOffsetX,
-      y: this.toolbarOffsetY,
-      width: this.rightToolbarWidth,
-      height: this.toolbarHeight,
-    };
+      this.mapOffsetX = padding + (usableWidth - this.mapPixelSize) / 2;
+      this.mapOffsetY = padding + topBarHeight + (usableHeight - this.mapPixelSize) / 2;
+
+      this.mapStartX = this.mapOffsetX;
+      this.mapStartY = this.mapOffsetY;
+
+      // Barre de construction en haut
+      this.toolbarOffsetX = padding;
+      this.toolbarWidth = this.gameWidth - padding * 2;
+      this.toolbarHeight = topBarHeight;
+      this.toolbarOffsetY = padding;
+
+      // HUD en bas
+      this.hudOffsetX = padding;
+      this.hudWidth = this.toolbarWidth;
+      this.hudHeight = bottomBarHeight;
+      this.hudOffsetY = this.gameHeight - bottomBarHeight - padding;
+
+      this.leftToolbarBounds = {
+        x: this.toolbarOffsetX,
+        y: this.toolbarOffsetY,
+        width: this.toolbarWidth,
+        height: this.toolbarHeight,
+      };
+      this.rightToolbarOffsetX = this.hudOffsetX;
+      this.rightToolbarWidth = this.hudWidth;
+      this.rightToolbarBounds = {
+        x: this.hudOffsetX,
+        y: this.hudOffsetY,
+        width: this.hudWidth,
+        height: this.hudHeight,
+      };
+    } else {
+      // Mise en page paysage (PC / tablettes horizontales)
+      const minSidebarWidth =
+        this.gameWidth < 1100 ? 140 : 180;
+      const maxSidebarWidth = 320;
+      const targetSidebarWidth = Phaser.Math.Clamp(this.gameWidth * 0.15, minSidebarWidth, maxSidebarWidth);
+
+      // Calculer d'abord la taille de la map en fonction de l'espace disponible
+      const usableHeight = this.gameHeight - padding * 2;
+      // Espace central estimé (on va l'ajuster après)
+      const estimatedCenterWidth = this.gameWidth - 2 * targetSidebarWidth - 2 * padding;
+      
+      const scaleByHeight = usableHeight / mapSize;
+      const scaleByWidth = estimatedCenterWidth / mapSize;
+      this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
+
+      // Si malgré tout la map dépasse la hauteur disponible (écrans très allongés),
+      // on réduit légèrement l'échelle pour que les 15 cases soient visibles.
+      const projectedMapSize = mapSize * this.scaleFactor;
+      if (projectedMapSize > usableHeight) {
+        this.scaleFactor = Math.min(this.scaleFactor, usableHeight / mapSize);
+      }
+
+      this.mapPixelSize = mapSize * this.scaleFactor;
+      
+      // Centrer la map horizontalement dans l'écran
+      this.mapOffsetX = (this.gameWidth - this.mapPixelSize) / 2;
+      this.mapOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
+
+      // Stocker les offsets pour utilisation dans createMap
+      this.mapStartX = this.mapOffsetX;
+      this.mapStartY = this.mapOffsetY;
+
+      // Sidebars qui s'étirent jusqu'à la map (pas de largeur fixe)
+      // Sidebar gauche : de padding jusqu'à mapOffsetX
+      this.toolbarOffsetX = padding;
+      this.toolbarWidth = this.mapOffsetX - padding;
+      
+      // Sidebar droite : de (mapOffsetX + mapPixelSize) jusqu'à (gameWidth - padding)
+      this.rightToolbarOffsetX = this.mapOffsetX + this.mapPixelSize;
+      this.rightToolbarWidth = (this.gameWidth - padding) - this.rightToolbarOffsetX;
+      
+      // Les sidebars prennent toute la hauteur de l'écran pour remplir l'espace
+      this.toolbarHeight = this.gameHeight;
+      // Les sidebars commencent en haut de l'écran (y = 0) pour s'étirer jusqu'en bas
+      this.toolbarOffsetY = 0;
+      this.hudOffsetY = this.toolbarOffsetY;
+      this.hudHeight = this.toolbarHeight;
+      this.hudWidth = this.rightToolbarWidth;
+      this.hudOffsetX = this.rightToolbarOffsetX;
+
+      // HUD maintenant à droite (plus besoin de calculer hudX/hudY en haut)
+      // Les valeurs sont calculées automatiquement via rightToolbarOffsetX et toolbarOffsetY
+
+      this.leftToolbarBounds = {
+        x: this.toolbarOffsetX,
+        y: this.toolbarOffsetY,
+        width: this.toolbarWidth,
+        height: this.toolbarHeight,
+      };
+      this.rightToolbarBounds = {
+        x: this.rightToolbarOffsetX,
+        y: this.toolbarOffsetY,
+        width: this.rightToolbarWidth,
+        height: this.toolbarHeight,
+      };
+    }
   }
 
   // Gérer le redimensionnement
