@@ -103,6 +103,14 @@ export function createTurretButtons(
           countText.setText(`${count}/${max}`);
           isDisabled = count >= max;
           countText.setColor(count >= max ? "#ff0000" : "#ffffff");
+        } else if (item.key === "sniper") {
+          const count = scene.turrets.filter(
+            (t) => t.config.key === "sniper"
+          ).length;
+          const max = scene.maxSnipers;
+          countText.setText(`${count}/${max}`);
+          isDisabled = count >= max;
+          countText.setColor(count >= max ? "#ff0000" : "#ffffff");
         } else {
           const count = scene.turrets.filter(
             (t) => t.config.key === item.key
@@ -164,6 +172,13 @@ export function createTurretButtons(
       if (
         item.key === "barracks" &&
         scene.barracks.length >= scene.maxBarracks
+      ) {
+        scene.cameras.main.shake(50, 0.005);
+        return;
+      }
+      if (
+        item.key === "sniper" &&
+        scene.turrets.filter((t) => t.config.key === "sniper").length >= scene.maxSnipers
       ) {
         scene.cameras.main.shake(50, 0.005);
         return;
