@@ -121,18 +121,18 @@ export const LEVEL_3 = {
     // VAGUE 10 : LE SEIGNEUR DE GUERRE (Boss Lvl 3)
     [
       // L'avant-garde
-      { count: 30, type: "grunt", interval: 300, startDelay: 0 },
+      { count: 40, type: "grunt", interval: 320, startDelay: 0 },
       { count: 20, type: "runner", interval: 300, startDelay: 5000 },
 
       // La garde rapprochée
-      { count: 8, type: "juggernaut_igloo", interval: 2000, startDelay: 20000 },
-      { count: 6, type: "shaman_gobelin", interval: 2000, startDelay: 25000 }, // ILS SONT LÀ POUR SOIGNER LE BOSS
+      { count: 8, type: "juggernaut_igloo", interval: 2000, startDelay: 23000 },
+      { count: 6, type: "shaman_gobelin", interval: 2000, startDelay: 28000 }, // ILS SONT LÀ POUR SOIGNER LE BOSS
 
       // LE BOSS
-      { count: 1, type: "bosslvl3", interval: 10000, startDelay: 35000 }, // Arrive tard, très PV
+      { count: 1, type: "bosslvl3", interval: 10000, startDelay: 39000 }, // Arrive tard, très PV
 
       // Les renforts de dernière chance
-      { count: 10, type: "runner", interval: 200, startDelay: 49000 },
+      { count: 12, type: "runner", interval: 200, startDelay: 49000 },
     ],
   ],
 };
