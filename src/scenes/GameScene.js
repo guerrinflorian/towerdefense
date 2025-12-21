@@ -164,7 +164,7 @@ export class GameScene extends Phaser.Scene {
     const usableHeight = this.gameHeight - padding * 2;
     // Espace central estimé (on va l'ajuster après)
     const estimatedCenterWidth = this.gameWidth - 2 * targetSidebarWidth - 2 * padding;
-    
+
     const scaleByHeight = usableHeight / mapSize;
     const scaleByWidth = estimatedCenterWidth / mapSize;
     this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);

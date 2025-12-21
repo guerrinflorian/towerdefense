@@ -2,7 +2,7 @@ import { pool, query } from "../db.js";
 import { HERO_BASE_STATS } from "../constants.js";
 import { getHeroPointConversion } from "./heroUpgrades.js";
 
-async function ensureHeroStats(playerId) {
+export async function ensureHeroStats(playerId) {
   const existing = await query(
     "SELECT * FROM hero_stats WHERE player_id = $1 LIMIT 1",
     [playerId]
