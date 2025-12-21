@@ -32,7 +32,7 @@ export class GameScene extends Phaser.Scene {
 
     this.heroStats = data.heroStats || null;
 
-    this.money = CONFIG.STARTING_MONEY;
+    this.money = this.levelConfig.startingMoney || CONFIG.STARTING_MONEY;
     this.lives = CONFIG.STARTING_LIVES;
     this.turrets = [];
     this.barracks = [];

@@ -1,6 +1,6 @@
 import { CONFIG } from "../config/settings.js";
 
-const PATH_TYPES = [1, 4, 7, 13];
+const PATH_TYPES = [1, 4, 7, 13, 14];
 
 export class Hero extends Phaser.GameObjects.Container {
   constructor(scene, tileX, tileY, stats = {}) {
