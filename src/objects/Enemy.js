@@ -58,6 +58,10 @@ export class Enemy extends Phaser.GameObjects.Container {
 
     this.scene.add.existing(this);
     this.setSize(32, 32);
+    const mobileScale = scene.isPortrait ? 0.72 : 0.92;
+    this.setScale(
+      Phaser.Math.Clamp((scene.scaleFactor || 1) * mobileScale, 0.6, 1.05)
+    );
     this.setInteractive();
 
     this.on("pointerover", () => this.showHpTooltip());

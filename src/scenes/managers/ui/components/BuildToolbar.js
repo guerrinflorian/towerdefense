@@ -21,9 +21,14 @@ export class BuildToolbar {
     const toolbarY = this.scene.toolbarOffsetY || 0;
     const columnWidth = this.scene.toolbarWidth;
     const columnHeight = this.scene.toolbarHeight;
-    const padding = 18 * this.scene.scaleFactor;
-    const itemSize = 82 * this.scene.scaleFactor;
-    const itemSpacing = Math.max(110 * this.scene.scaleFactor, itemSize + 24);
+    const padding =
+      (this.scene.isPortrait ? 14 : 18) * this.scene.scaleFactor;
+    const itemSize =
+      (this.scene.isPortrait ? 98 : 82) * this.scene.scaleFactor;
+    const itemSpacing = Math.max(
+      (this.scene.isPortrait ? 118 : 110) * this.scene.scaleFactor,
+      itemSize + padding
+    );
 
     // Colonne gauche : tourelles en haut, sorts en dessous
     this.leftColumn = this.scene.add
@@ -49,7 +54,7 @@ export class BuildToolbar {
 
     // Zone des tourelles
     const turretGridStartY = towerTitle.y + towerTitle.height + padding * 0.8;
-    const turretGridHeight = columnHeight * 0.65; // 65% de la hauteur pour les tourelles
+    const turretGridHeight = columnHeight * (this.scene.isPortrait ? 0.7 : 0.65); // un peu plus de place en portrait
     const turretGridWidth = columnWidth - padding * 2;
     const columns = 2;
     const rows = Math.ceil(5 / columns);
