@@ -503,7 +503,7 @@ function triggerExplosion(scene, x, y, radius, damage, level) {
         e.active &&
         Phaser.Math.Distance.Between(x, y, e.x, e.y) <= effectiveRadius
       ) {
-        e.damage(damage);
+        e.damage(damage, { source: "turret" });
         if (e.bodyGroup) {
           scene.tweens.add({
             targets: e.bodyGroup,

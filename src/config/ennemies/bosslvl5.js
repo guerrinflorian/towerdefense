@@ -1,150 +1,139 @@
 export const bosslvl5 = {
   name: "OMEGA-TITAN",
-  speed: 8, // Très lent (c'est un tank ultime)
-  hp: 130000, // Une barre de vie colossale
+  speed: 8, 
+  hp: 180000, 
   reward: 5000,
   playerDamage: 20,
-  color: 0xff4400, // Orange lave
-  damage: 500, // One-shot presque tout
-  attackSpeed: 2000, // Frappe lentement mais fort
-  scale: 1.6, // Il est énorme
+  color: 0xff4400, 
+  damage: 500, 
+  attackSpeed: 2000, 
+  scale: 1.6, 
 
   onDraw: (scene, container, color, enemyInstance) => {
-    // Initialisation des références pour l'animation
+    // Initialisation des listes pour l'animation
     enemyInstance.gears = [];
-    enemyInstance.pistons = [];
-
+    
     // --- 1. FUMÉE VOLCANIQUE (Arrière-plan) ---
-    // Des cercles gris qui tourneront autour de lui
     const smokeGroup = scene.add.container(0, 0);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const smoke = scene.add.graphics();
-      smoke.fillStyle(0x333333, 0.5);
-      smoke.fillCircle(0, 0, 10 + Math.random() * 10);
-      // Position aléatoire autour du centre
-      smoke.x = (Math.random() - 0.5) * 60;
-      smoke.y = (Math.random() - 0.5) * 60;
+      smoke.fillStyle(0x333333, 0.4);
+      smoke.fillCircle(0, 0, 12 + Math.random() * 8);
+      smoke.x = (Math.random() - 0.5) * 80;
+      smoke.y = (Math.random() - 0.5) * 80;
       smokeGroup.add(smoke);
     }
     container.add(smokeGroup);
     enemyInstance.smokeGroup = smokeGroup;
 
-    // --- 2. JAMBES BLINDÉES ---
-    // Deux gros rectangles noirs pour les pieds
+    // --- 2. JAMBES MÉCANIQUES ---
     const legs = scene.add.graphics();
-    legs.fillStyle(0x1a1a1a); // Acier noir
-    legs.lineStyle(2, 0xff4400); // Bordure en fusion
+    legs.fillStyle(0x1a1a1a);
+    legs.lineStyle(3, 0xff4400); // Lave entre les plaques
     // Jambe G
-    legs.fillRect(-30, 10, 20, 30);
+    legs.fillRoundedRect(-35, 10, 25, 35, 5);
+    legs.strokeRoundedRect(-35, 10, 25, 35, 5);
     // Jambe D
-    legs.fillRect(10, 10, 20, 30);
-    legs.strokeRect(-30, 10, 20, 30);
-    legs.strokeRect(10, 10, 20, 30);
+    legs.fillRoundedRect(10, 10, 25, 35, 5);
+    legs.strokeRoundedRect(10, 10, 25, 35, 5);
     container.add(legs);
 
-    // --- 3. CORPS (TORSE MASSIF) ---
+    // --- 3. TORSE (BLINDAGE TRAPÉZOÏDAL) ---
     const torso = scene.add.graphics();
-    torso.fillStyle(0x222222); // Gris foncé
-    // Forme trapézoïdale pour faire "costaud"
-    torso.beginPath();
-    torso.moveTo(-40, -20); // Haut G
-    torso.lineTo(40, -20); // Haut D
-    torso.lineTo(30, 20); // Bas D
-    torso.lineTo(-30, 20); // Bas G
-    torso.closePath();
-    torso.fillPath();
+    torso.fillStyle(0x222222);
+    torso.lineStyle(2, 0x444444);
+    
+    const torsoPath = [-50, -25, 50, -25, 40, 25, -40, 25];
+    torso.fillPoints(torsoPath.map((v, i) => (i % 2 === 0 ? v : v)), true);
+    torso.strokePoints(torsoPath.map((v, i) => (i % 2 === 0 ? v : v)), true);
     container.add(torso);
 
-    // --- 4. CŒUR DE FUSION (Le point faible visuel) ---
-    // Un cercle qui va pulser
+    // --- 4. CŒUR DE FUSION (PULSE) ---
     const core = scene.add.graphics();
-    core.fillStyle(0xffaa00); // Jaune/Orange très vif
-    core.fillCircle(0, 0, 12);
+    core.fillStyle(0xffaa00);
+    core.fillCircle(0, 0, 15);
+    // Halo lumineux
+    core.lineStyle(4, 0xff4400, 0.5);
+    core.strokeCircle(0, 0, 18);
     container.add(core);
     enemyInstance.coreGraphic = core;
 
-    // --- 5. ÉPAULIÈRES ROTATIVES (Engrenages) ---
-    // Deux engrenages sur les épaules qui tournent
+    // --- 5. ENGRENAGES D'ÉPAULES ---
     const createGear = (x, y) => {
       const gear = scene.add.graphics();
-      gear.lineStyle(3, 0x555555);
-      gear.fillStyle(0x333333);
+      gear.lineStyle(3, 0x444444);
+      gear.fillStyle(0x2a2a2a);
 
-      // Dessin d'un engrenage simple
-      const radius = 18;
+      const radius = 22;
       const teeth = 8;
       gear.beginPath();
       for (let i = 0; i < teeth * 2; i++) {
         const angle = (Math.PI * 2 * i) / (teeth * 2);
-        const r = i % 2 === 0 ? radius : radius - 5;
+        const r = i % 2 === 0 ? radius : radius - 7;
         const px = Math.cos(angle) * r;
         const py = Math.sin(angle) * r;
-        if (i === 0) gear.moveTo(px, py);
-        else gear.lineTo(px, py);
+        if (i === 0) gear.moveTo(px, py); else gear.lineTo(px, py);
       }
       gear.closePath();
       gear.fillPath();
       gear.strokePath();
 
-      // Centre de l'engrenage
-      gear.fillStyle(0xff0000);
-      gear.fillCircle(0, 0, 5);
+      // Centre du mécanisme
+      gear.fillStyle(0x111111);
+      gear.fillCircle(0, 0, 6);
 
       const gearCont = scene.add.container(x, y);
       gearCont.add(gear);
-      return gearCont;
+      container.add(gearCont);
+      return gear; // On retourne le graphique pour le faire pivoter
     };
 
-    const leftGear = createGear(-45, -25);
-    const rightGear = createGear(45, -25);
-    container.add(leftGear);
-    container.add(rightGear);
-    enemyInstance.gears.push(leftGear, rightGear);
+    enemyInstance.gears.push(createGear(-55, -25));
+    enemyInstance.gears.push(createGear(55, -25));
 
-    // --- 6. TÊTE (Casque) ---
+    // --- 6. TÊTE (COMMANDEMENT) ---
     const head = scene.add.graphics();
-    head.fillStyle(0x111111); // Noir
-    head.fillRect(-15, -45, 30, 25);
-    // Visière cylon (rouge/orange)
+    head.fillStyle(0x111111);
+    head.fillRoundedRect(-18, -55, 36, 30, 4);
+    // Visière lumineuse
     head.fillStyle(0xff0000);
-    head.fillRect(-12, -35, 24, 4);
+    head.fillRect(-14, -45, 28, 6);
     container.add(head);
 
-    // --- CONFIG ---
-    enemyInstance.shouldRotate = false; // Il reste droit (comme un mech)
+    enemyInstance.shouldRotate = false;
   },
 
   onUpdateAnimation: (time, enemyInstance) => {
-    // Sécurité
-    if (!enemyInstance.coreGraphic || !enemyInstance.smokeGroup) return;
+    // Sécurités pour éviter les erreurs si l'ennemi est détruit
+    if (!enemyInstance.active || !enemyInstance.coreGraphic) return;
 
-    // 1. MARCHE LOURDE (Pilonnage)
-    // Au lieu de trembler, il monte et descend lourdement
-    // Sinus lent mais grande amplitude
-    const walkCycle = Math.sin(time * 0.008);
-    // On déplace tout le conteneur du corps (offset Y)
-    // Note: on modifie les éléments graphiques internes pour ne pas casser le x/y global de l'ennemi sur le chemin
-    enemyInstance.bodyGroup.y = Math.abs(walkCycle) * -5; // Il s'écrase au sol à 0, monte à -5
+    // 1. MARCHE DU TITAN (Effet de poids massif)
+    // On utilise Math.cos pour un impact au sol bien marqué
+    const walk = Math.cos(time * 0.005);
+    enemyInstance.bodyGroup.y = Math.max(0, walk * 8) - 4; 
 
-    // 2. PULSATION DU CŒUR (Thermique)
-    // La chaleur monte et descend
-    const heat = 0.8 + Math.abs(Math.sin(time * 0.01)) * 0.5;
-    enemyInstance.coreGraphic.scaleX = heat;
-    enemyInstance.coreGraphic.scaleY = heat;
-    enemyInstance.coreGraphic.alpha = 0.5 + heat / 3;
+    // 2. PULSATION THERMIQUE DU CŒUR
+    const heat = 1 + Math.sin(time * 0.01) * 0.15;
+    enemyInstance.coreGraphic.setScale(heat);
+    enemyInstance.coreGraphic.alpha = 0.7 + Math.sin(time * 0.01) * 0.3;
 
-    // 3. ROTATION DES ENGRENAGES (Mécanique)
-    // Ils tournent en sens inverse l'un de l'autre
+    // 3. ROTATION DES MÉCANISMES
     if (enemyInstance.gears) {
-      enemyInstance.gears[0].rotation -= 0.02; // Gauche
-      enemyInstance.gears[1].rotation += 0.02; // Droite
+      enemyInstance.gears[0].rotation -= 0.03; 
+      enemyInstance.gears[1].rotation += 0.03; 
     }
 
-    // 4. FUMÉE EN ORBITE
-    // La fumée tourne lentement autour du boss
-    enemyInstance.smokeGroup.rotation += 0.005;
-    // Et palpite légèrement
-    enemyInstance.smokeGroup.scaleX = 1 + Math.sin(time * 0.002) * 0.1;
-    enemyInstance.smokeGroup.scaleY = 1 + Math.sin(time * 0.002) * 0.1;
+    // 4. TURBULENCE DE LA FUMÉE
+    if (enemyInstance.smokeGroup) {
+      enemyInstance.smokeGroup.rotation += 0.002;
+      enemyInstance.smokeGroup.setScale(1 + Math.sin(time * 0.003) * 0.05);
+    }
+    
+    // 5. TREMBLEMENT DE TERRE ALÉATOIRE (Subtile)
+    if (Math.random() > 0.98) {
+        enemyInstance.bodyGroup.x = (Math.random() - 0.5) * 2;
+    } else {
+        enemyInstance.bodyGroup.x *= 0.9;
+    }
   },
 };

@@ -49,6 +49,12 @@ export class MapManager {
         if (type === 12) key = "tile_graveyard"; // Sol de cimetière
         if (type === 13) key = "tile_graveyard_path"; // Chemin de cimetière
 
+        // --- BIOME VOLCAN (14-17) ---
+        if (type === 14) key = "tile_lava_path"; // Chemin Lave Noire
+        if (type === 15) key = "tile_volcanic_crevasse"; // Crevasses Volcaniques
+        if (type === 16) key = "tile_volcanic_ground"; // Sol Roche Cramée (constructible)
+        if (type === 17) key = "tile_flowing_lava"; // Lave qui Coule
+
         const tile = this.scene.add
           .image(px, py, key)
           .setOrigin(0, 0)
@@ -62,7 +68,8 @@ export class MapManager {
           (biome === "grass" && type === 0) || // Herbe pour biome grass
           (biome === "sand" && (type === 0 || type === 10)) || // Herbe ou sable pour biome sand
           (biome === "ice" && type === 6) || // Neige pour biome ice
-          (biome === "cimetiere" && type === 12); // Sol cimetière pour biome cimetiere
+          (biome === "cimetiere" && type === 12) || // Sol cimetière pour biome cimetiere
+          (biome === "lava" && type === 16); // Sol roche cramée pour biome lava
 
         if (shouldPlaceTree) {
           const canPlaceBarracks = this.isAdjacentToPath(x, y);
@@ -469,6 +476,75 @@ export class MapManager {
         g.fillCircle(4 * scale, -4 * scale, 1 * scale);
         g.fillCircle(6 * scale, -4 * scale, 1 * scale);
       }
+    } else if (biome === "lava" || biome === "lavaland") {
+      // --- BIOME VOLCAN : Troncs calcinés et roches volcaniques ---
+      const treeType = Math.random();
+      
+      if (treeType < 0.6) {
+        // TRONC CALCINÉ (60% de chance)
+        // Tronc principal (noir/cramé)
+        g.fillStyle(0x1a0a05); // Noir charbon
+        g.fillRect(-3 * scale, 4 * scale, 6 * scale, 14 * scale);
+        
+        // Détails de brûlure (marron foncé)
+        g.fillStyle(0x3a1f13, 0.8);
+        g.fillRect(-2 * scale, 6 * scale, 4 * scale, 10 * scale);
+        
+        // Fissures avec lueur de lave
+        g.lineStyle(1, 0xff4400, 0.6);
+        g.beginPath();
+        g.moveTo(-1 * scale, 8 * scale);
+        g.lineTo(0, 12 * scale);
+        g.strokePath();
+        g.beginPath();
+        g.moveTo(1 * scale, 10 * scale);
+        g.lineTo(2 * scale, 14 * scale);
+        g.strokePath();
+        
+        // Braises (points lumineux)
+        g.fillStyle(0xff6a2e, 0.9);
+        g.fillCircle(-1 * scale, 6 * scale, 1.6 * scale);
+        g.fillCircle(2 * scale, 10 * scale, 1.2 * scale);
+        g.fillCircle(-2 * scale, 12 * scale, 1.2 * scale);
+        g.fillCircle(0, 8 * scale, 1 * scale);
+        
+        // Braises plus petites
+        g.fillStyle(0xffaa00, 0.7);
+        g.fillCircle(-1.5 * scale, 9 * scale, 0.8 * scale);
+        g.fillCircle(1.5 * scale, 13 * scale, 0.8 * scale);
+      } else {
+        // ROCHE VOLCANIQUE (40% de chance)
+        // Base de la roche (noir/gris foncé)
+        g.fillStyle(0x2a1a0a);
+        g.fillRoundedRect(-5 * scale, 8 * scale, 10 * scale, 10 * scale, 2 * scale);
+        
+        // Détails de roche
+        g.fillStyle(0x1a0a05, 0.7);
+        g.fillRoundedRect(-4 * scale, 10 * scale, 8 * scale, 8 * scale, 1 * scale);
+        
+        // Crevasses avec lueur de lave
+        g.lineStyle(1.5, 0xff2200, 0.8);
+        g.beginPath();
+        g.moveTo(-3 * scale, 12 * scale);
+        g.lineTo(3 * scale, 14 * scale);
+        g.strokePath();
+        g.beginPath();
+        g.moveTo(-2 * scale, 10 * scale);
+        g.lineTo(2 * scale, 16 * scale);
+        g.strokePath();
+        
+        // Points de lueur rouge/orange dans les crevasses
+        g.fillStyle(0xff4400, 0.8);
+        g.fillCircle(-2 * scale, 12 * scale, 1.5 * scale);
+        g.fillCircle(2 * scale, 14 * scale, 1.2 * scale);
+        g.fillCircle(0, 13 * scale, 1 * scale);
+        
+        // Fumée (petits points gris)
+        g.fillStyle(0x4a4a4a, 0.4);
+        g.fillCircle(-3 * scale, 6 * scale, 1.5 * scale);
+        g.fillCircle(3 * scale, 5 * scale, 1.2 * scale);
+        g.fillCircle(0, 4 * scale, 1 * scale);
+      }
     } else {
       // --- ARBRES CLASSIQUES (Biome Grass) ---
       const treeType = Math.floor(Math.random() * 3);
@@ -514,8 +590,8 @@ export class MapManager {
 
   isAdjacentToPath(tx, ty) {
     const map = this.scene.levelConfig.map;
-    // On considère 1 et 4 (Volcan), 7 (Neige), et 13 (Cimetière) comme des chemins
-    const pathTypes = [1, 4, 7, 13];
+    // On considère 1 et 4 (Volcan), 7 (Neige), 13 (Cimetière), et 14 (Lave) comme des chemins
+    const pathTypes = [1, 4, 7, 13, 14];
     const directions = [
       { x: 0, y: -1 },
       { x: 0, y: 1 },

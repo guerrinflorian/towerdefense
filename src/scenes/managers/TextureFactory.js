@@ -336,6 +336,147 @@ export class TextureFactory {
       g.fillRect(T - 3, 0, 3, T);
     });
 
+    // --- TEXTURES BIOME VOLCAN ---
+
+    // tile_lava_path (Chemin Lave Noire - ID 14)
+    generateIfNotExists("tile_lava_path", () => {
+      // Fond lave noire/rouge foncé
+      g.fillStyle(0x1a0a0a, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Texture de lave noire avec reflets rouges
+      g.fillStyle(0x2a0a0a, 0.8);
+      for (let i = 0; i < 50; i++) {
+        const size = Math.random() * 2 + 1;
+        g.fillCircle(Math.random() * T, Math.random() * T, size);
+      }
+
+      // Reflets de lave rouge/orange
+      g.fillStyle(0xff4400, 0.3);
+      for (let i = 0; i < 15; i++) {
+        const x = Math.random() * T;
+        const y = Math.random() * T;
+        g.fillCircle(x, y, Math.random() * 3 + 1);
+      }
+
+      // Fissures lumineuses (lave qui brille)
+      g.lineStyle(1, 0xff6600, 0.6);
+      for (let i = 0; i < 6; i++) {
+        const sx = Math.random() * T;
+        const sy = Math.random() * T;
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.lineTo(sx + (Math.random() - 0.5) * 12, sy + (Math.random() - 0.5) * 12);
+        g.strokePath();
+      }
+
+      // Bordure du chemin (lave plus claire)
+      g.fillStyle(0x3a1a1a, 0.5);
+      g.fillRect(0, 0, T, 3);
+      g.fillRect(0, T - 3, T, 3);
+      g.fillRect(0, 0, 3, T);
+      g.fillRect(T - 3, 0, 3, T);
+    });
+
+    // tile_volcanic_crevasse (Crevasses Volcaniques - ID 15)
+    generateIfNotExists("tile_volcanic_crevasse", () => {
+      // Fond roche volcanique sombre
+      g.fillStyle(0x2a1a0a, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Texture de roche volcanique
+      g.fillStyle(0x1a0a05, 0.7);
+      for (let i = 0; i < 40; i++) {
+        const size = Math.random() * 3 + 1;
+        g.fillCircle(Math.random() * T, Math.random() * T, size);
+      }
+
+      // Crevasses avec lueur de lave
+      g.lineStyle(2, 0xff2200, 0.8);
+      for (let i = 0; i < 4; i++) {
+        const sx = Math.random() * T;
+        const sy = Math.random() * T;
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.lineTo(sx + (Math.random() - 0.5) * 20, sy + (Math.random() - 0.5) * 20);
+        g.strokePath();
+      }
+
+      // Points de lueur rouge/orange dans les crevasses
+      g.fillStyle(0xff4400, 0.5);
+      for (let i = 0; i < 8; i++) {
+        g.fillCircle(Math.random() * T, Math.random() * T, 2);
+      }
+    });
+
+    // tile_volcanic_ground (Sol Roche Cramée - ID 16)
+    generateIfNotExists("tile_volcanic_ground", () => {
+      // Fond roche volcanique cramée (constructible)
+      g.fillStyle(0x3a2a1a, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Texture de roche avec variations
+      g.fillStyle(0x2a1a0a, 0.6);
+      for (let i = 0; i < 45; i++) {
+        const size = Math.random() * 2 + 1;
+        g.fillCircle(Math.random() * T, Math.random() * T, size);
+      }
+
+      // Détails plus clairs (roche cramée)
+      g.fillStyle(0x4a3a2a, 0.4);
+      for (let i = 0; i < 20; i++) {
+        g.fillCircle(Math.random() * T, Math.random() * T, 1);
+      }
+
+      // Petites fissures sombres
+      g.lineStyle(1, 0x1a0a05, 0.5);
+      for (let i = 0; i < 4; i++) {
+        const sx = Math.random() * T;
+        const sy = Math.random() * T;
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.lineTo(sx + (Math.random() - 0.5) * 10, sy + (Math.random() - 0.5) * 10);
+        g.strokePath();
+      }
+    });
+
+    // tile_flowing_lava (Lave qui Coule - ID 17)
+    generateIfNotExists("tile_flowing_lava", () => {
+      // Fond lave rouge/orange
+      g.fillStyle(0xff4400, 1);
+      g.fillRect(0, 0, T, T);
+
+      // Texture de lave avec variations de couleur
+      g.fillStyle(0xff6600, 0.7);
+      for (let i = 0; i < 30; i++) {
+        const size = Math.random() * 4 + 2;
+        g.fillCircle(Math.random() * T, Math.random() * T, size);
+      }
+
+      // Zones plus sombres (lave refroidie)
+      g.fillStyle(0xcc2200, 0.6);
+      for (let i = 0; i < 15; i++) {
+        g.fillCircle(Math.random() * T, Math.random() * T, Math.random() * 3 + 1);
+      }
+
+      // Zones plus claires (lave très chaude)
+      g.fillStyle(0xffaa00, 0.5);
+      for (let i = 0; i < 10; i++) {
+        g.fillCircle(Math.random() * T, Math.random() * T, 2);
+      }
+
+      // Effet de mouvement (lignes de flux)
+      g.lineStyle(1, 0xff8800, 0.4);
+      for (let i = 0; i < 5; i++) {
+        const sx = Math.random() * T;
+        const sy = Math.random() * T;
+        g.beginPath();
+        g.moveTo(sx, sy);
+        g.lineTo(sx + (Math.random() - 0.5) * 25, sy + (Math.random() - 0.5) * 25);
+        g.strokePath();
+      }
+    });
+
     // Ne pas détruire l'objet Graphics ici car il peut être réutilisé
     // Il sera nettoyé automatiquement par Phaser quand la scène est détruite
   }

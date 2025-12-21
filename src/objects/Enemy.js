@@ -1,4 +1,4 @@
-import { ENEMIES } from "../config/settings.js";
+import { CONFIG, ENEMIES } from "../config/settings.js";
 
 export class Enemy extends Phaser.GameObjects.Container {
   constructor(scene, path, typeKey) {
@@ -86,7 +86,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   spawn() {
-    this.isMoving = true;
+    this.isMoving = !this.stats?.isStationary;
     this.progress = 0;
     if (this.path) {
       this.pathLength = this.path.getLength();
@@ -318,7 +318,44 @@ export class Enemy extends Phaser.GameObjects.Container {
       this.lastDamageSource = metadata.source;
     }
 
-    this.hp -= amount;
+    const potentialHp = this.hp - amount;
+    // L'aura ne protège que contre les dégâts des tourelles, pas des soldats/héros
+    const damageSource = metadata?.source || "turret"; // Par défaut, on considère que c'est une tourelle si non spécifié
+    if (potentialHp <= 0 && this.isDeathPreventedByAura(damageSource)) {
+      this.hp = Math.max(1, this.hp - Math.max(0, amount));
+      this.updateHealthBar();
+
+      // Feedback visuel spécifique à l'aura de survie
+      const txt = this.scene.add
+        .text(this.x, this.y - 50, "Protégé!", {
+          fontSize: "12px",
+          color: "#ffcc66",
+          backgroundColor: "rgba(0,0,0,0.6)",
+          padding: { x: 4, y: 2 },
+        })
+        .setOrigin(0.5)
+        .setDepth(2500);
+
+      this.scene.tweens.add({
+        targets: txt,
+        y: txt.y - 20,
+        alpha: 0,
+        duration: 600,
+        onComplete: () => txt.destroy(),
+      });
+
+      this.scene.tweens.add({
+        targets: this,
+        alpha: 0.6,
+        duration: 120,
+        yoyo: true,
+        repeat: 1,
+      });
+
+      return;
+    }
+
+    this.hp = potentialHp;
     this.updateHealthBar();
 
     // Feedback visuel
@@ -407,6 +444,29 @@ export class Enemy extends Phaser.GameObjects.Container {
       this.spawnMinions();
       this.lastSpawnTime = time;
     }
+
+    if (this.stats.curseInterval) {
+      if (!this.lastCurseTime) this.lastCurseTime = 0;
+      if (time - this.lastCurseTime >= this.stats.curseInterval) {
+        this.triggerTurretCurse();
+        this.lastCurseTime = time;
+      }
+    }
+
+    if (this.stats.eggSpawnInterval) {
+      if (!this.lastEggSpawn) this.lastEggSpawn = 0;
+      if (time - this.lastEggSpawn >= this.stats.eggSpawnInterval) {
+        this.spawnEgg();
+        this.lastEggSpawn = time;
+      }
+    }
+
+    if (this.stats.isEgg && !this.hatchTimer && this.scene?.time) {
+      const hatchDelay = this.stats.hatchTime || 5000;
+      this.hatchTimer = this.scene.time.delayedCall(hatchDelay, () => {
+        this.hatchEgg();
+      });
+    }
   }
 
   healNearbyEnemies() {
@@ -449,6 +509,84 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
   }
 
+  triggerTurretCurse() {
+    if (!this.scene?.turrets || this.scene.turrets.length === 0) return;
+
+    const viableTurrets = this.scene.turrets.filter((t) => t?.active && !t.isCursed);
+    if (viableTurrets.length === 0) return;
+
+    const target = Phaser.Utils.Array.GetRandom(viableTurrets);
+    if (target?.applyCurse) {
+      target.applyCurse(this.stats.curseCost || 25);
+
+      const flame = this.scene.add.graphics();
+      flame.fillStyle(0x331122, 0.7);
+      flame.fillCircle(0, 0, 14);
+      flame.x = this.x;
+      flame.y = this.y - 10;
+      flame.setDepth(2400);
+      this.scene.tweens.add({
+        targets: flame,
+        x: target.x,
+        y: target.y - 20,
+        alpha: 0,
+        scale: 1.4,
+        duration: 500,
+        onComplete: () => flame.destroy(),
+      });
+    }
+  }
+
+  spawnEgg() {
+    if (!this.stats.eggSpawnType || !this.scene?.enemies || !this.path) return;
+
+    const egg = new Enemy(this.scene, this.path, this.stats.eggSpawnType);
+    egg.spawn();
+    egg.progress = Math.max(0, this.progress - 0.02);
+    const point = this.path.getPoint(egg.progress);
+    egg.setPosition(point.x, point.y);
+    egg.previousTangent = egg.calculateTangent(egg.progress);
+    egg.linkedQueen = this;
+    egg.hatchDamageToQueen = this.stats.eggDamageOnDestroy || 800;
+    egg.hatchSpawnType = this.stats.eggScarabType;
+    egg.hatchSpawnCount = this.stats.eggScarabCount || 2;
+    egg.isMoving = false;
+
+    this.scene.enemies.add(egg);
+  }
+
+  hatchEgg() {
+    if (this.hasHatched || !this.scene || !this.stats.isEgg) return;
+
+    this.hasHatched = true;
+
+    const hatchCount = this.hatchSpawnCount || this.stats.hatchCount || 2;
+    const spawnType = this.hatchSpawnType || this.stats.hatchSpawnType;
+
+    for (let i = 0; i < hatchCount; i++) {
+      if (!spawnType) continue;
+      const child = new Enemy(this.scene, this.path, spawnType);
+      child.spawn();
+      child.progress = this.progress;
+      const point = this.path.getPoint(child.progress);
+      child.setPosition(point.x, point.y);
+      child.previousTangent = child.calculateTangent(child.progress);
+      this.scene.enemies.add(child);
+    }
+
+    // Effet visuel d'éclosion
+    const blast = this.scene.add.circle(this.x, this.y, 16, 0xff6600, 0.4);
+    this.scene.tweens.add({
+      targets: blast,
+      scale: 2,
+      alpha: 0,
+      duration: 450,
+      onComplete: () => blast.destroy(),
+    });
+
+    this.destroy();
+  }
+
   drawHealthBar() {
     const width = 40;
     const height = 5;
@@ -472,7 +610,43 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.refreshHpTooltip();
   }
 
+  isDeathPreventedByAura(damageSource = "turret") {
+    // L'aura ne protège que contre les dégâts des tourelles
+    // Les dégâts des soldats ("soldier") et du héros ("hero") ne sont pas protégés
+    if (damageSource === "soldier" || damageSource === "hero") {
+      return false;
+    }
+
+    if (!this.scene?.enemies) return false;
+
+    const tileSize = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
+    const allies = this.scene.enemies.getChildren();
+
+    for (const ally of allies) {
+      if (
+        ally !== this &&
+        ally.active &&
+        ally.stats?.preventDeathAura &&
+        !ally.isParalyzed &&
+        !ally.isInShell
+      ) {
+        const radiusPx = (ally.stats.survivalAuraRadius || 0) * tileSize;
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, ally.x, ally.y);
+        if (dist <= radiusPx) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   die() {
+    if (this.hatchTimer) {
+      this.hatchTimer.remove();
+      this.hatchTimer = null;
+    }
+
     if (this.isBlocked && this.blockedBy?.releaseEnemy) {
       this.blockedBy.releaseEnemy();
     }
@@ -565,6 +739,10 @@ export class Enemy extends Phaser.GameObjects.Container {
     if (this.paralysisTimer) {
       this.paralysisTimer.remove();
       this.paralysisTimer = null;
+    }
+    if (this.hatchTimer) {
+      this.hatchTimer.remove();
+      this.hatchTimer = null;
     }
     this.hideHpTooltip();
     super.destroy(fromScene);
