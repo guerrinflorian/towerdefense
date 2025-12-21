@@ -5,6 +5,26 @@ import { CONFIG } from "./config/settings.js";
 import { setupAuthOverlay } from "./services/authOverlay.js";
 import { ensureProfileLoaded } from "./services/authManager.js";
 
+function isMobileDevice() {
+  const ua = (navigator.userAgent || navigator.vendor || "").toLowerCase();
+  const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  const smallViewport = Math.min(window.innerWidth, window.innerHeight) < 900;
+  const mobileRegex = /android|iphone|ipad|ipod|mobile|blackberry|iemobile|opera mini/i;
+  return mobileRegex.test(ua) || (hasTouch && smallViewport);
+}
+
+function showMobileBlockOverlay() {
+  const warning = document.getElementById("orientation-warning");
+  if (warning) {
+    warning.classList.remove("hidden");
+  }
+  const gameContainer = document.getElementById("game-container");
+  if (gameContainer) {
+    gameContainer.classList.add("blocked");
+  }
+  document.body?.classList.add("mobile-blocked");
+}
+
 const config = {
   type: Phaser.AUTO,
   parent: "game-container",
@@ -41,56 +61,62 @@ const config = {
   },
 };
 
-setupAuthOverlay();
+const isMobileBlocked = isMobileDevice();
 
-let game = null;
+if (isMobileBlocked) {
+  showMobileBlockOverlay();
+} else {
+  setupAuthOverlay();
 
-ensureProfileLoaded()
-  .catch(() => {
-    // L'overlay demandera une reconnexion si besoin
-  })
-  .finally(() => {
-    game = new Phaser.Game(config);
+  let game = null;
 
-    // Forcer le retour sur le menu principal au démarrage,
-    // même si une autre scène était active (HMR / rechargement).
-    const sceneManager = game.scene;
-    if (sceneManager && !sceneManager.isActive("MainMenuScene")) {
-      sceneManager.stop("GameScene");
-      sceneManager.stop("MapScene");
-      sceneManager.start("MainMenuScene");
-    }
-    
-    // Exposer game globalement pour pouvoir y accéder depuis authOverlay
-    window.game = game;
+  ensureProfileLoaded()
+    .catch(() => {
+      // L'overlay demandera une reconnexion si besoin
+    })
+    .finally(() => {
+      game = new Phaser.Game(config);
 
-    // Stocker les infos de taille dans le jeu pour y accéder depuis les scènes
-    game.baseWidth = CONFIG.GAME_WIDTH;
-    game.baseHeight = CONFIG.GAME_HEIGHT;
+      // Forcer le retour sur le menu principal au démarrage,
+      // même si une autre scène était active (HMR / rechargement).
+      const sceneManager = game.scene;
+      if (sceneManager && !sceneManager.isActive("MainMenuScene")) {
+        sceneManager.stop("GameScene");
+        sceneManager.stop("MapScene");
+        sceneManager.start("MainMenuScene");
+      }
+      
+      // Exposer game globalement pour pouvoir y accéder depuis authOverlay
+      window.game = game;
 
-    // Gérer le redimensionnement
-    function handleResize() {
-      // Notifier la scène active sans jamais la redémarrer
-      if (game.scene.isActive("GameScene")) {
-        const scene = game.scene.getScene("GameScene");
-        if (scene && scene.handleResize) {
-          scene.handleResize();
+      // Stocker les infos de taille dans le jeu pour y accéder depuis les scènes
+      game.baseWidth = CONFIG.GAME_WIDTH;
+      game.baseHeight = CONFIG.GAME_HEIGHT;
+
+      // Gérer le redimensionnement
+      function handleResize() {
+        // Notifier la scène active sans jamais la redémarrer
+        if (game.scene.isActive("GameScene")) {
+          const scene = game.scene.getScene("GameScene");
+          if (scene && scene.handleResize) {
+            scene.handleResize();
+          }
         }
       }
-    }
 
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("orientationchange", () => {
-      setTimeout(handleResize, 100);
+      window.addEventListener("resize", handleResize);
+      window.addEventListener("orientationchange", () => {
+        setTimeout(handleResize, 100);
+      });
     });
-  });
 
-// Empêcher le double-tap zoom sur mobile
-let lastTouchEnd = 0;
-document.addEventListener("touchend", (event) => {
-  const now = Date.now();
-  if (now - lastTouchEnd <= 300) {
-    event.preventDefault();
-  }
-  lastTouchEnd = now;
-}, false);
+  // Empêcher le double-tap zoom sur mobile
+  let lastTouchEnd = 0;
+  document.addEventListener("touchend", (event) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+      event.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, false);
+}

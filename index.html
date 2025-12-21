@@ -66,7 +66,16 @@
       }
 
       #orientation-warning {
-        display: none !important;
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: radial-gradient(circle at 20% 20%, rgba(0, 242, 255, 0.06), transparent 45%),
+                    radial-gradient(circle at 80% 30%, rgba(255, 0, 0, 0.05), transparent 40%),
+                    rgba(0, 0, 0, 0.78);
+        z-index: 30;
       }
 
       #orientation-warning .card {
@@ -106,7 +115,17 @@
   <body>
     <div id="game-container"></div>
 
-    <div id="orientation-warning" aria-live="polite" class="hidden"></div>
+    <div id="orientation-warning" aria-live="polite" class="hidden">
+      <div class="card">
+        <div class="icon" aria-hidden="true">🖥️</div>
+        <h1>Version PC requise</h1>
+        <p>
+          Last Outpost n’est pas jouable sur mobile pour le moment.
+          Merci d’utiliser un ordinateur de bureau ou un ordinateur portable
+          pour profiter du jeu.
+        </p>
+      </div>
+    </div>
 
     <div id="auth-overlay" class="auth-overlay hidden" aria-live="polite">
       <div class="auth-card" id="login-card">
