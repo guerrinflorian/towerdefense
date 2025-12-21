@@ -171,70 +171,7 @@ export class MainMenuScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const padding = Math.max(20, Math.min(width, height) * 0.04);
     const uiScale = Phaser.Math.Clamp(Math.min(width / 1400, height / 900), 0.6, 1);
-    const isPortrait = height > width * 0.9;
 
-    if (isPortrait) {
-      // Mise en colonne pour les petits écrans en mode portrait
-      const colWidth = width - padding * 2;
-      const baseScale = Phaser.Math.Clamp(width / 900, 0.65, 1);
-
-      if (this.heroPanel) {
-        this.heroPanel.setScale(baseScale);
-        this.heroPanel.setPosition((width - colWidth) / 2, padding);
-      }
-
-      if (this.leaderboard) {
-        const baseHeight = this.leaderboard.uiConfig?.height || 500;
-        const baseWidth = this.leaderboard.uiConfig?.width || 560;
-        let lbScale = Math.min(
-          Phaser.Math.Clamp(width / (baseWidth + padding * 2), 0.5, 1),
-          Phaser.Math.Clamp((height - padding * 3) / (baseHeight + 200), 0.7, 1)
-        );
-        lbScale = Phaser.Math.Clamp(lbScale, 0.55, 1);
-        this.leaderboard.setScale(lbScale);
-
-        const lbWidth = baseWidth * lbScale;
-        const lbHeight = baseHeight * lbScale;
-        const lbX = (width - lbWidth) / 2;
-        const lbY = (this.heroPanel ? this.heroPanel.y + (this.heroPanel.config?.height || 300) * (this.heroPanel.scaleY || 1) + padding : padding);
-        this.leaderboard.setPosition(lbX, lbY);
-      }
-
-      const heroBottom = this.heroPanel
-        ? this.heroPanel.y + (this.heroPanel.config?.height || 300) * (this.heroPanel.scaleY || 1)
-        : padding;
-      const lbBottom = this.leaderboard
-        ? this.leaderboard.y + (this.leaderboard.uiConfig?.height || 500) * (this.leaderboard.scaleY || 1)
-        : heroBottom;
-      const panelsBottom = Math.max(heroBottom, lbBottom);
-
-      if (this.titleText) {
-        this.titleText.setScale(baseScale);
-        this.titleText.setPosition(width / 2, panelsBottom + padding * 0.8);
-      }
-
-      if (this.userDisplayText) {
-        this.userDisplayText.setScale(baseScale);
-        this.userDisplayText.setPosition(width / 2, (this.titleText?.y || panelsBottom) - 60 * baseScale);
-      }
-
-      if (this.playButton) {
-        const playHeight = 80 * baseScale;
-        const desiredY = panelsBottom + padding + playHeight * 0.6;
-        const clampedY = Math.min(height - padding - playHeight * 0.5, desiredY);
-        this.playButton.baseScale = baseScale;
-        this.playButton.setScale(baseScale);
-        this.playButton.setPosition(width / 2, clampedY);
-      }
-
-      if (this.logoutButton) {
-        this.logoutButton.setScale(baseScale);
-        this.logoutButton.setPosition(width / 2, height - padding);
-      }
-      return;
-    }
-
-    // Mise en page paysage (inchangée pour PC/tablettes)
     if (this.heroPanel) {
       this.heroPanel.setScale(uiScale);
       const heroHeight = (this.heroPanel.config?.height || 300) * this.heroPanel.scaleY;

@@ -5,13 +5,13 @@ export const bosslvl1 = {
   reward: 1000,
   playerDamage: 20,
   color: 0x4b3621, // Brun écorce sombre
-  damage: 70,
-  attackSpeed: 1500,
+  damage: 70, 
+  attackSpeed: 1500, 
   scale: 0.67, // Réduit d'environ 1.8x (1.2 / 1.8 ≈ 0.67)
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.arms = [];
-    
+
     // --- 1. BASE (Racines animées qui s'enfoncent) ---
     const roots = scene.add.graphics();
     roots.lineStyle(2, 0x2e1d0b);
@@ -28,7 +28,7 @@ export const bosslvl1 = {
     const torso = scene.add.graphics();
     torso.fillStyle(color);
     torso.lineStyle(1, 0x2e1d0b);
-    
+
     // Forme de tronc robuste et irrégulière
     const trunkPoints = [-19, -22, 19, -22, 17, 17, -17, 17];
     torso.fillPoints(trunkPoints, true);
@@ -80,7 +80,7 @@ export const bosslvl1 = {
         armGfx.lineTo(side * 4, 33);
         armGfx.lineTo(side * 3, 39);
         armGfx.strokePath();
-        
+
         // Main/Griffe en bois
         armGfx.fillStyle(0x4b3621);
         armGfx.fillTriangle(side * 3, 39, side * 11, 33, side * -6, 33);

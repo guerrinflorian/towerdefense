@@ -3,6 +3,7 @@ import {
   getHeroPointsAvailable, 
   getHeroPointConversion, 
   upgradeHero, 
+  updateHeroColor,
   isAuthenticated 
 } from "../../services/authManager.js";
 import { showAuth } from "../../services/authOverlay.js";
@@ -88,6 +89,13 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     this.add([this.pointsText, this.costText]);
   }
 
+  hexToNumber(hex) {
+    // Convertir une couleur hexadécimale (#RRGGBB) en nombre pour Phaser
+    if (!hex) return 0x2b2b2b; // Couleur par défaut
+    const cleanHex = hex.replace("#", "");
+    return parseInt(cleanHex, 16);
+  }
+
   createAvatar(x, y) {
     const size = this.config.avatarSize;
     const container = this.scene.add.container(x, y);
@@ -116,13 +124,16 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     frame.fillStyle(0x0d0d18, 0.35);
     frame.fillEllipse(centerX - 6 * scale, centerY + 10 * scale, 14 * scale, 24 * scale);
     
-    // Armure (corps)
-    frame.fillStyle(0x505050, 1);
+    // Armure (corps) - utiliser la couleur personnalisée pour le plastron
+    const stats = getHeroStats();
+    const heroColor = stats?.color || "#2b2b2b";
+    const chestplateColor = this.hexToNumber(heroColor);
+    frame.fillStyle(chestplateColor, 1);
     frame.fillRoundedRect(centerX - 12 * scale, centerY - 18 * scale, 24 * scale, 34 * scale, 7 * scale);
     frame.lineStyle(2 * scale, 0x242424, 1);
     frame.strokeRoundedRect(centerX - 12 * scale, centerY - 18 * scale, 24 * scale, 34 * scale, 7 * scale);
     
-    // Plastron
+    // Plastron (détail) - trait vertical au milieu
     frame.lineStyle(2 * scale, 0x6a6a6a, 0.6);
     frame.beginPath();
     frame.moveTo(centerX, centerY - 16 * scale);
@@ -147,8 +158,9 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     frame.fillStyle(0xffd4a3, 1);
     frame.fillCircle(centerX, centerY - 24 * scale, 8 * scale);
     
-    // Casque / cheveux
-    frame.fillStyle(0x2b2b2b, 1);
+    // Casque / cheveux - utiliser la couleur personnalisée
+    const hatColor = this.hexToNumber(heroColor);
+    frame.fillStyle(hatColor, 1);
     frame.fillRoundedRect(centerX - 10 * scale, centerY - 33 * scale, 20 * scale, 8 * scale, 3 * scale);
     
     // Yeux (regard)
@@ -156,11 +168,15 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     frame.fillCircle(centerX - 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
     frame.fillCircle(centerX + 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
 
-    // Épée (comme dans Hero.js) - utiliser un container pour la rotation
+    // Ajouter le frame (fond + héros) d'abord
+    container.add(frame);
+    
+    // Épée (comme dans Hero.js) - utiliser un container pour la rotation, ajoutée APRÈS pour être au premier plan
     const swordPivotX = centerX + 12 * scale;
     const swordPivotY = centerY - 4 * scale;
     const swordPivot = this.scene.add.container(swordPivotX, swordPivotY);
     swordPivot.setRotation(-0.3);
+    swordPivot.setDepth(10); // S'assurer que l'épée est au premier plan
     
     const sword = this.scene.add.graphics();
     
@@ -191,10 +207,29 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     sword.fillCircle(-9.2 * scale, 0.5 * scale, 2.2 * scale);
     
     swordPivot.add(sword);
-    container.add(swordPivot);
-
-    container.add(frame);
+    container.add(swordPivot); // Ajouter l'épée APRÈS le frame pour qu'elle soit au premier plan
+    
     this.add(container);
+    
+    // Bouton stylo pour changer la couleur (en haut à droite de l'avatar)
+    const penBtn = this.scene.add.container(x + size - 5, y + 5);
+    const penBg = this.scene.add.circle(0, 0, 12, 0x00eaff, 0.2).setStrokeStyle(1, 0x00eaff);
+    const penIcon = this.scene.add.text(0, 0, "✏️", { fontSize: "14px" }).setOrigin(0.5);
+    penBtn.add([penBg, penIcon]);
+    penBtn.setSize(24, 24).setInteractive({ useHandCursor: true });
+    
+    penBtn.on("pointerover", () => {
+      penBg.setFillStyle(0x00eaff, 0.5);
+    });
+    penBtn.on("pointerout", () => {
+      penBg.setFillStyle(0x00eaff, 0.2);
+    });
+    penBtn.on("pointerdown", () => {
+      this.openColorPicker();
+    });
+    
+    this.add(penBtn);
+    this.penBtn = penBtn;
     
     // Afficher les kills en dessous de l'avatar
     this.killsText = this.scene.add.text(x + size / 2, y + size + 15, "", {
@@ -204,6 +239,132 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       fontWeight: "bold"
     }).setOrigin(0.5);
     this.add(this.killsText);
+    
+    // Stocker la référence à l'avatar pour le redessiner
+    this.avatarContainer = container;
+    this.avatarFrame = frame;
+    this.swordPivot = swordPivot; // Stocker aussi la référence à l'épée
+    this.avatarX = x;
+    this.avatarY = y;
+  }
+  
+  openColorPicker() {
+    if (!isAuthenticated()) {
+      showAuth();
+      return;
+    }
+    
+    // Créer un input color HTML
+    const stats = getHeroStats();
+    const currentColor = stats?.color || "#2b2b2b";
+    
+    // Créer un input color invisible
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.value = currentColor;
+    colorInput.style.position = "absolute";
+    colorInput.style.opacity = "0";
+    colorInput.style.width = "1px";
+    colorInput.style.height = "1px";
+    colorInput.style.pointerEvents = "none";
+    document.body.appendChild(colorInput);
+    
+    // Simuler un clic pour ouvrir le color picker
+    colorInput.click();
+    
+    // Écouter les changements
+    colorInput.addEventListener("change", async (e) => {
+      const newColor = e.target.value;
+      try {
+        await updateHeroColor(newColor);
+        // Redessiner l'avatar avec la nouvelle couleur
+        this.redrawAvatar(newColor);
+        // Rafraîchir l'affichage
+        this.refresh();
+      } catch (err) {
+        console.error("Erreur mise à jour couleur:", err);
+      } finally {
+        document.body.removeChild(colorInput);
+      }
+    });
+    
+    // Si l'utilisateur ferme sans choisir, nettoyer
+    colorInput.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (document.body.contains(colorInput)) {
+          document.body.removeChild(colorInput);
+        }
+      }, 100);
+    });
+  }
+  
+  redrawAvatar(color) {
+    // Redessiner l'avatar avec la nouvelle couleur - redessiner TOUT dans le bon ordre
+    const size = this.config.avatarSize;
+    const scale = size / 50;
+    const centerX = size / 2;
+    const centerY = size / 2;
+    const hatColor = this.hexToNumber(color);
+    const chestplateColor = this.hexToNumber(color);
+    
+    // Effacer et redessiner depuis le début
+    this.avatarFrame.clear();
+    
+    // Redessiner la bordure et le fond
+    this.avatarFrame.lineStyle(2, this.config.accentColor, 0.5);
+    this.avatarFrame.strokeRect(-2, -2, size + 4, size + 4);
+    this.avatarFrame.fillStyle(0x1a2a3a, 1);
+    this.avatarFrame.fillRect(0, 0, size, size);
+    
+    // Ombre au sol
+    this.avatarFrame.fillStyle(0x000000, 0.18);
+    this.avatarFrame.fillEllipse(centerX, centerY + 18 * scale, 26 * scale, 10 * scale);
+    
+    // Cape
+    this.avatarFrame.fillStyle(0x151526, 0.92);
+    this.avatarFrame.fillEllipse(centerX - 2 * scale, centerY + 8 * scale, 22 * scale, 30 * scale);
+    this.avatarFrame.fillStyle(0x0d0d18, 0.35);
+    this.avatarFrame.fillEllipse(centerX - 6 * scale, centerY + 10 * scale, 14 * scale, 24 * scale);
+    
+    // Armure (corps) - avec la nouvelle couleur
+    this.avatarFrame.fillStyle(chestplateColor, 1);
+    this.avatarFrame.fillRoundedRect(centerX - 12 * scale, centerY - 18 * scale, 24 * scale, 34 * scale, 7 * scale);
+    this.avatarFrame.lineStyle(2 * scale, 0x242424, 1);
+    this.avatarFrame.strokeRoundedRect(centerX - 12 * scale, centerY - 18 * scale, 24 * scale, 34 * scale, 7 * scale);
+    
+    // Plastron (détail) - trait vertical au milieu
+    this.avatarFrame.lineStyle(2 * scale, 0x6a6a6a, 0.6);
+    this.avatarFrame.beginPath();
+    this.avatarFrame.moveTo(centerX, centerY - 16 * scale);
+    this.avatarFrame.lineTo(centerX, centerY + 10 * scale);
+    this.avatarFrame.strokePath();
+    
+    // Épaulières (dessinées PAR-DESSUS l'armure)
+    this.avatarFrame.fillStyle(0x7a7a7a, 1);
+    this.avatarFrame.fillCircle(centerX - 11 * scale, centerY - 12 * scale, 7 * scale);
+    this.avatarFrame.fillCircle(centerX + 11 * scale, centerY - 12 * scale, 7 * scale);
+    this.avatarFrame.lineStyle(2 * scale, 0x2a2a2a, 0.9);
+    this.avatarFrame.strokeCircle(centerX - 11 * scale, centerY - 12 * scale, 7 * scale);
+    this.avatarFrame.strokeCircle(centerX + 11 * scale, centerY - 12 * scale, 7 * scale);
+    
+    // Ceinture
+    this.avatarFrame.fillStyle(0x8b5a2b, 1);
+    this.avatarFrame.fillRoundedRect(centerX - 12 * scale, centerY + 6 * scale, 24 * scale, 5 * scale, 2 * scale);
+    this.avatarFrame.fillStyle(0xd2b48c, 0.9);
+    this.avatarFrame.fillRect(centerX - 2 * scale, centerY + 6 * scale, 4 * scale, 5 * scale);
+    
+    // Tête
+    this.avatarFrame.fillStyle(0xffd4a3, 1);
+    this.avatarFrame.fillCircle(centerX, centerY - 24 * scale, 8 * scale);
+    
+    // Casque / cheveux - avec la nouvelle couleur
+    this.avatarFrame.fillStyle(hatColor, 1);
+    this.avatarFrame.fillRoundedRect(centerX - 10 * scale, centerY - 33 * scale, 20 * scale, 8 * scale, 3 * scale);
+    
+    // Yeux
+    this.avatarFrame.fillStyle(0x111111, 0.9);
+    this.avatarFrame.fillCircle(centerX - 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
+    this.avatarFrame.fillCircle(centerX + 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
   }
 
   createStatRow(stat, x, y) {
@@ -359,6 +520,11 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     if (this.killsText) {
       const kills = Number(stats.kills) || 0;
       this.killsText.setText(`💀 ${kills.toLocaleString()} kills`);
+    }
+    
+    // Mettre à jour la couleur de l'avatar si elle a changé
+    if (this.avatarFrame && stats?.color) {
+      this.redrawAvatar(stats.color);
     }
   }
 }

@@ -19,6 +19,7 @@ export class Hero extends Phaser.GameObjects.Container {
     this.damage = stats.base_damage ?? 25;
     this.attackInterval = stats.attack_interval_ms ?? 1200;
     this.moveSpeed = (stats.move_speed ?? 100) * s;
+    this.heroColor = stats.color || "#2b2b2b"; // Couleur par défaut (noir)
 
     // --- State ---
     this.isAlive = true;
@@ -86,6 +87,13 @@ export class Hero extends Phaser.GameObjects.Container {
   // -----------------------------
   // Drawing
   // -----------------------------
+  hexToNumber(hex) {
+    // Convertir une couleur hexadécimale (#RRGGBB) en nombre pour Phaser
+    if (!hex) return 0x2b2b2b; // Couleur par défaut
+    const cleanHex = hex.replace("#", "");
+    return parseInt(cleanHex, 16);
+  }
+
   drawBody() {
     const s = this.scene.scaleFactor || 1;
     const k = this.baseScale; // appliqué déjà par setScale, mais utile pour proportions internes
@@ -103,13 +111,14 @@ export class Hero extends Phaser.GameObjects.Container {
     g.fillStyle(0x0d0d18, 0.35);
     g.fillEllipse(-6 * s * k, 10 * s * k, 14 * s * k, 24 * s * k);
 
-    // Armure (corps)
-    g.fillStyle(0x505050, 1);
+    // Armure (corps) - utiliser la couleur personnalisée pour le plastron
+    const chestplateColor = this.hexToNumber(this.heroColor);
+    g.fillStyle(chestplateColor, 1);
     g.fillRoundedRect(-12 * s * k, -18 * s * k, 24 * s * k, 34 * s * k, 7 * s * k);
     g.lineStyle(2 * s * k, 0x242424, 1);
     g.strokeRoundedRect(-12 * s * k, -18 * s * k, 24 * s * k, 34 * s * k, 7 * s * k);
 
-    // Plastron (détail)
+    // Plastron (détail) - trait vertical au milieu
     g.lineStyle(2 * s * k, 0x6a6a6a, 0.6);
     g.beginPath();
     g.moveTo(0, -16 * s * k);
@@ -134,8 +143,9 @@ export class Hero extends Phaser.GameObjects.Container {
     g.fillStyle(0xffd4a3, 1);
     g.fillCircle(0, -24 * s * k, 8 * s * k);
 
-    // Casque / cheveux
-    g.fillStyle(0x2b2b2b, 1);
+    // Casque / cheveux - utiliser la couleur personnalisée
+    const hatColor = this.hexToNumber(this.heroColor);
+    g.fillStyle(hatColor, 1);
     g.fillRoundedRect(-10 * s * k, -33 * s * k, 20 * s * k, 8 * s * k, 3 * s * k);
 
     // Petit “regard” (vite fait mais ça donne de la vie)
@@ -381,8 +391,8 @@ export class Hero extends Phaser.GameObjects.Container {
           this.releaseEnemy();
         } else {
           // Sinon, continuer à attaquer
-          this.tryAttack(now);
-        }
+        this.tryAttack(now);
+      }
       }
     } else {
       // Si on n'est pas en combat, vérifier si on peut engager un ennemi
@@ -437,9 +447,9 @@ export class Hero extends Phaser.GameObjects.Container {
         const timeSinceDamage = this.scene.time.now - this.lastDamageTime;
         if (timeSinceDamage < this.regenDelay || this.blockingEnemy) {
           this.stopRegeneration();
-          return;
-        }
-        
+      return;
+    }
+
         // Régénérer 3% de la vie max
         const healAmount = Math.ceil(this.maxHp * this.regenPercent);
         const oldHp = this.hp;

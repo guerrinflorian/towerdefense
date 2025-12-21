@@ -1,7 +1,7 @@
 import express from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { query } from "../db.js";
-import { buildPlayerProfile, recordLevelCompletion } from "../utils/profile.js";
+import { buildPlayerProfile, recordLevelCompletion, ensureHeroStats } from "../utils/profile.js";
 import { upgradeHeroStats } from "../utils/heroUpgrades.js";
 import { HERO_BASE_STATS } from "../constants.js";
 
@@ -23,12 +23,12 @@ router.get("/me", async (req, res) => {
 });
 
 async function getGlobalLeaderboard() {
-  const result = await query(
-    `SELECT p.username,
+    const result = await query(
+      `SELECT p.username,
             MAX(lc.level_id) AS max_level,
             COALESCE(SUM(20 - COALESCE(lc.lives_remaining, 20)), 0) AS total_lives_lost,
             COALESCE(SUM(lc.completion_time_ms), 0) AS total_time_ms
-       FROM players p
+         FROM players p
        LEFT JOIN level_completions lc ON lc.player_id = p.id
       GROUP BY p.id, p.username
       HAVING MAX(lc.level_id) IS NOT NULL
@@ -36,8 +36,8 @@ async function getGlobalLeaderboard() {
                MAX(lc.level_id) DESC,
                COALESCE(SUM(20 - COALESCE(lc.lives_remaining, 20)), 0) ASC,
                COALESCE(SUM(lc.completion_time_ms), 0) ASC
-      LIMIT 10`
-  );
+        LIMIT 10`
+    );
 
   return result.rows;
 }
@@ -275,6 +275,53 @@ router.post("/hero/upgrade", async (req, res) => {
       return res.status(400).json({ error: "Points insuffisants" });
     }
     console.error("Erreur upgrade héros:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.post("/hero/color", async (req, res) => {
+  const { color } = req.body || {};
+  
+  // Valider le format hexadécimal (ex: #FF5733 ou FF5733)
+  const hexColor = String(color || "").trim();
+  const isValidHex = /^#?[0-9A-Fa-f]{6}$/.test(hexColor);
+  
+  if (!isValidHex) {
+    return res.status(400).json({ error: "Couleur invalide. Format attendu: #RRGGBB" });
+  }
+  
+  // Normaliser en format avec #
+  const normalizedColor = hexColor.startsWith("#") ? hexColor : `#${hexColor}`;
+  
+  try {
+    // S'assurer que hero_stats existe
+    await ensureHeroStats(req.user.id);
+    
+    // Mettre à jour la couleur dans hero_stats
+    const result = await query(
+      `UPDATE hero_stats 
+       SET color = $1 
+       WHERE player_id = $2 
+       RETURNING *`,
+      [normalizedColor, req.user.id]
+    );
+    
+    if (result.rows.length === 0) {
+      // Si la mise à jour n'a rien retourné, réessayer après avoir créé les stats
+      await ensureHeroStats(req.user.id);
+      const retryResult = await query(
+        `UPDATE hero_stats 
+         SET color = $1 
+         WHERE player_id = $2 
+         RETURNING *`,
+        [normalizedColor, req.user.id]
+      );
+      return res.json({ heroStats: retryResult.rows[0] });
+    }
+    
+    return res.json({ heroStats: result.rows[0] });
+  } catch (err) {
+    console.error("Erreur mise à jour couleur héros:", err);
     return res.status(500).json({ error: "Erreur serveur" });
   }
 });

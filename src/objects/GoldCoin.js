@@ -6,7 +6,7 @@ export class GoldCoin extends Phaser.GameObjects.Container {
     this.amount = amount;
     this.spawnedAt = scene?.time?.now || 0;
     this.lifetime = 15000;
-    this.pickupRadius = 26 * (scene.scaleFactor || 1);
+    this.pickupRadius = 45 * (scene.scaleFactor || 1); // Augmenté de 26 à 45 pour faciliter le ramassage
     this.isCollected = false;
 
     this.setDepth(55);

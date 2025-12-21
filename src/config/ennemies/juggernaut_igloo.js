@@ -37,7 +37,7 @@ export const juggernaut_igloo = {
       // Ombre à la base du dôme
       body.fillStyle(0x000000, 0.2);
       body.fillEllipse(0, 8, 38, 13);
-
+  
       // Le dôme de neige
       body.fillStyle(color);
       body.lineStyle(2, 0x90caf9, 0.5); // Bordures de briques bleu clair
@@ -60,13 +60,13 @@ export const juggernaut_igloo = {
       body.closePath();
       body.fillPath();
       body.strokePath();
-
+  
       // Motifs de briques de glace
       body.lineStyle(1, 0x90caf9, 0.3);
       body.moveTo(-13, -13); body.lineTo(13, -13); // Ligne horizontale 1
       body.moveTo(-17, -4); body.lineTo(17, -4);   // Ligne horizontale 2
       body.strokePath();
-
+  
       // 3. MEURTRIÈRE (Fente de vision)
       body.fillStyle(0x111111); // Noir profond
       body.fillRoundedRect(-13, -19, 26, 7, 2);
@@ -74,7 +74,7 @@ export const juggernaut_igloo = {
       bodyGroup.add(body);
       container.add(bodyGroup);
       enemyInstance.bodyGroup = bodyGroup;
-
+  
       // Yeux rouges brillants
       const eyeGlow = scene.add.graphics();
       eyeGlow.fillStyle(0xff0000);
