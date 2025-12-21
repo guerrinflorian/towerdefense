@@ -66,20 +66,7 @@
       }
 
       #orientation-warning {
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        background: radial-gradient(circle at 30% 30%, #1a1a1a 0, #050505 55%);
-        color: #ffffff;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 24px;
-      }
-
-      #orientation-warning.visible {
-        display: flex;
+        display: none !important;
       }
 
       #orientation-warning .card {
@@ -119,16 +106,7 @@
   <body>
     <div id="game-container"></div>
 
-    <div id="orientation-warning" aria-live="polite">
-      <div class="card">
-        <div class="icon">📱↔️</div>
-        <h1>Tourne ton écran</h1>
-        <p>
-          Le jeu se joue en mode paysage pour profiter d'une grande carte carrée.
-          Passe ton téléphone ou ta tablette à l'horizontale pour continuer.
-        </p>
-      </div>
-    </div>
+    <div id="orientation-warning" aria-live="polite" class="hidden"></div>
 
     <div id="auth-overlay" class="auth-overlay hidden" aria-live="polite">
       <div class="auth-card" id="login-card">
@@ -183,21 +161,6 @@
     </div>
 
     <script type="module" src="./src/main.js"></script>
-    <script>
-      const warning = document.getElementById("orientation-warning");
-
-      function toggleOrientationWarning() {
-        const isPortrait = window.innerHeight > window.innerWidth;
-        if (warning) {
-          warning.classList.toggle("visible", isPortrait);
-        }
-      }
-
-      toggleOrientationWarning();
-      window.addEventListener("resize", toggleOrientationWarning);
-      window.addEventListener("orientationchange", () => {
-        setTimeout(toggleOrientationWarning, 150);
-      });
-    </script>
+    <script></script>
   </body>
 </html>
