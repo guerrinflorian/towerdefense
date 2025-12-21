@@ -32,7 +32,7 @@ export class GameScene extends Phaser.Scene {
 
     this.heroStats = data.heroStats || null;
 
-    this.money = CONFIG.STARTING_MONEY;
+    this.money = this.levelConfig.startingMoney || CONFIG.STARTING_MONEY;
     this.lives = CONFIG.STARTING_LIVES;
     this.turrets = [];
     this.barracks = [];
@@ -574,10 +574,10 @@ export class GameScene extends Phaser.Scene {
 
   buildTurret(turretConfig, tileX, tileY) {
     // --- CORRECTION ICI ---
-    // Vérification stricte du terrain : Types autorisés : herbe (0), neige (6), sable (10), cimetière (12)
+    // Vérification stricte du terrain : Types autorisés : herbe (0), neige (6), sable (10), cimetière (12), roche volcanique (16)
     // Note: type 11 (rochers sable) et type 5 (rochers) ne sont pas constructibles car ce sont des décors
     const tileType = this.levelConfig.map[tileY][tileX];
-    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12) {
+    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12 && tileType !== 16) {
       this.cameras.main.shake(50, 0.005);
       return false;
     }
