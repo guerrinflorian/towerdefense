@@ -1,7 +1,25 @@
 export const LEVEL_3 = {
   biome: "ice",
-  // THEME : Désert de Glace
-  // 6=Sol Neige, 7=Chemin Glacé, 8=Eau Glacée, 9=Montagne Neige, 2=Base
+  startingMoney: 650,
+  // TYPES DE TEXTURES (0-17) :
+  // 0 = Herbe (sol constructible)
+  // 1 = Chemin (passage des ennemis)
+  // 2 = Base (destination finale)
+  // 3 = Eau (décor)
+  // 4 = Pont (chemin sur l'eau)
+  // 5 = Rocher/Décor (montagne, non constructible)
+  // 6 = Sol Neige (biome glace, constructible)
+  // 7 = Chemin Glacé (biome glace, passage des ennemis)
+  // 8 = Eau Glacée (biome glace, décor)
+  // 9 = Montagne Neige (biome glace, décor)
+  // 10 = Sable (biome désert, constructible)
+  // 11 = Rocher de Sable (biome désert, décor)
+  // 12 = Sol Cimetière (biome cimetière, constructible)
+  // 13 = Chemin Cimetière (biome cimetière, passage des ennemis)
+  // 14 = Chemin Lave Noire (biome volcan, passage des ennemis)
+  // 15 = Crevasses Volcaniques (biome volcan, décor)
+  // 16 = Sol Roche Cramée (biome volcan, constructible)
+  // 17 = Lave qui Coule (biome volcan, décor)
   map: [
     // 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
     [7, 7, 7, 6, 6, 6, 8, 8, 8, 6, 6, 6, 6, 6, 6], // y=0  Spawn 1

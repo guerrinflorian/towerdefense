@@ -111,7 +111,7 @@ export class MapScene extends Phaser.Scene {
     const container = this.add.container(x, y);
     const biome = this.biomes[biomeType];
     const levelData = LEVELS_CONFIG[id - 1];
-    const s = 1.2;
+    const s = 0.95;
 
     // 1. OMBRE
     const shadow = this.add.graphics();
@@ -197,7 +197,7 @@ export class MapScene extends Phaser.Scene {
 
     // INTERACTIONS
     if (!isLocked) {
-      container.setInteractive(new Phaser.Geom.Circle(0, 0, 70), Phaser.Geom.Circle.Contains);
+      container.setInteractive(new Phaser.Geom.Circle(0, 0, 55), Phaser.Geom.Circle.Contains);
       container.on("pointerover", () => this.tweens.add({ targets: container, scale: 1.1, duration: 150 }));
       container.on("pointerout", () => this.tweens.add({ targets: container, scale: 1, duration: 150 }));
       container.on("pointerdown", () => isAuthenticated() ? this.scene.start("GameScene", { level: id, heroStats: getHeroStats() }) : showAuth());
