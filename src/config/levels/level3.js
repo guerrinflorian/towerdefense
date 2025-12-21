@@ -55,11 +55,11 @@ export const LEVEL_3 = {
     // Le joueur doit placer des tours aux deux spawn ou au centre.
     [
       { count: 10, type: "grunt", interval: 800, startDelay: 0 },
-      { count: 10, type: "grunt", interval: 800, startDelay: 5000 }, // Arrive sur l'autre chemin (aléatoire selon ton code)
+      { count: 12, type: "grunt", interval: 800, startDelay: 5000 }, // Arrive sur l'autre chemin (aléatoire selon ton code)
     ],
 
     // VAGUE 2 : La vitesse
-    [{ count: 20, type: "runner", interval: 400, startDelay: 0 }],
+    [{ count: 21, type: "runner", interval: 400, startDelay: 0 }],
 
     // VAGUE 3 : INTRODUCTION DU SHAMAN
     // Les Grunts servent de bouclier de chair, les Shamans les soignent derrière.
@@ -72,14 +72,15 @@ export const LEVEL_3 = {
     // Shields (haute défense) + Shaman (Soin) = Très dur à tuer sans gros DPS.
     [
       { count: 2, type: "shaman_gobelin", interval: 3000, startDelay: 0 },
-      { count: 8, type: "shield", interval: 1200, startDelay: 8000 },
+      { count: 7, type: "shield", interval: 1200, startDelay: 8000 },
       { count: 12, type: "runner", interval: 400, startDelay: 19000 }, // Pour punir si le joueur n'a que des tours lentes
     ],
 
     // VAGUE 5 : Lourdeur Mécanique
     [
-      { count: 3, type: "tortue_dragon", interval: 4000, startDelay: 1000 },
-      { count: 2, type: "juggernaut_igloo", interval: 2500, startDelay: 15000 }, // Unité très juggernaut_iglooy du lvl 2
+      { count: 2, type: "tortue_dragon", interval: 4000, startDelay: 0 },
+      { count: 2, type: "shield", interval: 1200, startDelay: 8000 },
+      { count: 1, type: "juggernaut_igloo", interval: 2500, startDelay: 22000 }, // Unité très juggernaut_iglooy du lvl 2
     ],
 
     // VAGUE 6 : Division et Multiplication
