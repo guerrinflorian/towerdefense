@@ -150,7 +150,29 @@ export class UpgradeMenu {
       const refund = Math.floor(totalCost / 2);
 
       if (this.scene.selectedTurret instanceof Barracks) {
-        const index = this.scene.barracks.indexOf(this.scene.selectedTurret);
+        const barracks = this.scene.selectedTurret;
+        
+        // Détruire tous les soldats de cette barracks
+        if (barracks.soldiers) {
+          barracks.soldiers.forEach((soldier) => {
+            if (soldier && soldier.active) {
+              soldier.destroy();
+            }
+          });
+          barracks.soldiers = [];
+        }
+        
+        // Détruire aussi les soldats morts en attente de respawn
+        if (barracks.deadSoldiers) {
+          barracks.deadSoldiers.forEach((dead) => {
+            if (dead.soldier && dead.soldier.active) {
+              dead.soldier.destroy();
+            }
+          });
+          barracks.deadSoldiers = [];
+        }
+        
+        const index = this.scene.barracks.indexOf(barracks);
         if (index !== -1) {
           this.scene.barracks.splice(index, 1);
         }

@@ -128,7 +128,7 @@ export const LEVEL_4 = {
       { count: 8, type: "shaman_gobelin", interval: 2000, startDelay: 25000 },
 
       // LE BOSS (à remplacer par bosslvl4 quand créé)
-      { count: 1, type: "bosslvl3", interval: 10000, startDelay: 35000 },
+      { count: 1, type: "bosslvl4", interval: 10000, startDelay: 35000 },
 
       // Les renforts de dernière chance
       { count: 15, type: "runner", interval: 200, startDelay: 49000 },
