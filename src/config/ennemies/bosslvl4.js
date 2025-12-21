@@ -1,7 +1,7 @@
 export const bosslvl4 = {
   name: "MORVATH, SEIGNEUR DES MORTS",
   speed: 11,
-  hp: 105000,
+  hp: 142000,
   reward: 12000,
   playerDamage: 30,
   color: 0xb7c0c6, // os/acier froid
