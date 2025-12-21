@@ -20,13 +20,14 @@ export class HUD {
 
   create() {
     const s = this.scene.scaleFactor;
+    const isPortrait = this.scene.isPortrait;
 
     // Utiliser la largeur spécifique de la zone HUD (droite en paysage, bas en portrait)
     const columnWidth = this.scene.rightToolbarWidth || this.scene.hudWidth || this.scene.toolbarWidth;
     const columnHeight = this.scene.hudHeight || this.scene.toolbarHeight;
-    const padding = 18 * s;
-    const fontSize = Math.max(16, 20 * s);
-    const smallFontSize = Math.max(12, 16 * s);
+    const padding = (isPortrait ? 12 : 18) * s;
+    const fontSize = isPortrait ? Math.max(14, 18 * s) : Math.max(16, 20 * s);
+    const smallFontSize = isPortrait ? Math.max(11, 14 * s) : Math.max(12, 16 * s);
     const startX = this.scene.rightToolbarOffsetX ?? this.scene.hudOffsetX ?? 0;
     // Les sidebars commencent en haut (y=0) pour s'étirer sur toute la hauteur
     const startY = this.scene.hudOffsetY ?? this.scene.toolbarOffsetY ?? 0;
@@ -57,8 +58,8 @@ export class HUD {
 
     // Zone des informations (argent, vies, vague, chrono)
     const infoStartY = title.y + title.height + padding * 1.5;
-    const infoSpacing = 50 * s;
-    const infoItemHeight = 60 * s;
+    const infoSpacing = (isPortrait ? 40 : 50) * s;
+    const infoItemHeight = (isPortrait ? 54 : 60) * s;
 
     // Argent
     const moneyY = infoStartY;
@@ -137,8 +138,8 @@ export class HUD {
     rightPanel.add(this.scene.txtTimer);
 
     // Zone des boutons en bas
-    const buttonAreaY = columnHeight - padding - 140 * s;
-    const buttonHeight = 50 * s;
+    const buttonAreaY = columnHeight - padding - (isPortrait ? 120 : 140) * s;
+    const buttonHeight = (isPortrait ? 44 : 50) * s;
     const buttonSpacing = padding * 0.8;
     const buttonWidth = columnWidth - padding * 2;
 

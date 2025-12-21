@@ -44,6 +44,7 @@ export class MapScene extends Phaser.Scene {
     this.mapContainer = this.add.container(0, 0);
     this.draw3DMap(cx, height);
     this.loadBestRuns();
+    this.applyResponsiveScale();
 
     // Titre
     this.add.text(width/2, 50, "SÉLECTION DU SECTEUR", {
@@ -92,6 +93,18 @@ export class MapScene extends Phaser.Scene {
         const island = this.create3DIsland(p.x, p.y, i + 1, biome, isLocked);
         this.mapContainer.add(island);
     }
+  }
+
+  applyResponsiveScale() {
+    const { width, height } = this.scale;
+    const isPortrait = height >= width;
+    const targetScale = isPortrait ? 0.85 : width < 1100 ? 0.92 : 1;
+    this.mapContainer.setScale(targetScale);
+
+    // Recentrer légèrement pour éviter l'effet “zoomé” sur mobile
+    const offsetX = (width - width * targetScale) / 2;
+    const offsetY = (height - height * targetScale) / 4;
+    this.mapContainer.setPosition(offsetX, offsetY);
   }
 
   create3DIsland(x, y, id, biomeType, isLocked) {

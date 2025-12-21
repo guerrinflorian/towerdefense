@@ -40,7 +40,8 @@ export class Hero extends Phaser.GameObjects.Container {
 
     // --- Visual / Layout (un peu plus gros + mieux lisible) ---
     this.baseScale = 1.05; // <- rend le héros un peu plus gros
-    this.visualScale = this.baseScale * s;
+    const portraitBoost = scene.isPortrait ? 1.35 : 1;
+    this.visualScale = Math.max(0.78, Math.min(1.45, this.baseScale * s * portraitBoost));
 
     this.bodyGroup = scene.add.container(0, 0);
     this.add(this.bodyGroup);

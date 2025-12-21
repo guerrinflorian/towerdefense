@@ -171,30 +171,42 @@ export class MainMenuScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const padding = Math.max(20, Math.min(width, height) * 0.04);
     const uiScale = Phaser.Math.Clamp(Math.min(width / 1400, height / 900), 0.6, 1);
+    const isMobile = width < 900 || height > width * 1.05;
 
     if (this.heroPanel) {
-      this.heroPanel.setScale(uiScale);
+      const heroScale = isMobile ? uiScale * 0.9 : uiScale;
+      this.heroPanel.setScale(heroScale);
       const heroHeight = (this.heroPanel.config?.height || 300) * this.heroPanel.scaleY;
-      const targetY = Math.max(padding, height * 0.16 - heroHeight * 0.15);
-      this.heroPanel.setPosition(padding, targetY);
+      const targetY = isMobile
+        ? padding
+        : Math.max(padding, height * 0.16 - heroHeight * 0.15);
+      const targetX = isMobile ? width / 2 - (this.heroPanel.config?.width || 380) * this.heroPanel.scaleX / 2 : padding;
+      this.heroPanel.setPosition(targetX, targetY);
     }
 
     if (this.leaderboard) {
-      const targetScale = Phaser.Math.Clamp(uiScale, 0.5, 1);
+      const targetScale = Phaser.Math.Clamp(uiScale, isMobile ? 0.48 : 0.5, 1);
       const baseHeight = this.leaderboard.uiConfig?.height || 500;
       const baseWidth = this.leaderboard.uiConfig?.width || 560;
       let lbScale = Math.min(targetScale, (height - padding * 2) / baseHeight);
-      lbScale = Phaser.Math.Clamp(lbScale, 0.5, 1);
+      lbScale = Phaser.Math.Clamp(lbScale, isMobile ? 0.48 : 0.5, 1);
       this.leaderboard.setScale(lbScale);
 
       const lbWidth = baseWidth * lbScale;
       const lbHeight = baseHeight * lbScale;
-      const lbX = Math.max(padding, width - padding - lbWidth);
-      let lbY = padding;
-      if (lbY + lbHeight > height - padding) {
-        lbY = height - padding - lbHeight;
+
+      if (isMobile) {
+        const lbX = (width - lbWidth) / 2;
+        const lbY = (this.playButton?.y || height * 0.55) + padding * 0.6;
+        this.leaderboard.setPosition(lbX, lbY);
+      } else {
+        const lbX = Math.max(padding, width - padding - lbWidth);
+        let lbY = padding;
+        if (lbY + lbHeight > height - padding) {
+          lbY = height - padding - lbHeight;
+        }
+        this.leaderboard.setPosition(lbX, lbY);
       }
-      this.leaderboard.setPosition(lbX, lbY);
     }
 
     const heroBottom = this.heroPanel
@@ -203,13 +215,13 @@ export class MainMenuScene extends Phaser.Scene {
     const lbBottom = this.leaderboard
       ? this.leaderboard.y + (this.leaderboard.uiConfig?.height || 500) * (this.leaderboard.scaleY || 1)
       : padding;
-    const panelsBottom = Math.max(heroBottom, lbBottom);
+    const panelsBottom = isMobile ? Math.max(heroBottom, (this.playButton?.y || 0)) : Math.max(heroBottom, lbBottom);
 
     if (this.titleText) {
       this.titleText.setScale(uiScale);
       this.titleText.setPosition(
         width / 2,
-        Math.max(height * 0.18, panelsBottom + padding * 0.6)
+        Math.max(height * 0.14, panelsBottom + padding * 0.6)
       );
     }
 
@@ -223,14 +235,23 @@ export class MainMenuScene extends Phaser.Scene {
 
     if (this.playButton) {
       const playHeight = 80 * uiScale;
-      const desiredY = Math.max(
-        panelsBottom + padding + playHeight * 0.2,
-        height * 0.55
-      );
+      const desiredY = isMobile
+        ? Math.max(heroBottom + padding + playHeight * 0.2, height * 0.42)
+        : Math.max(panelsBottom + padding + playHeight * 0.2, height * 0.55);
       const clampedY = Math.min(height - padding - playHeight * 0.5, desiredY);
-      this.playButton.baseScale = uiScale;
-      this.playButton.setScale(uiScale);
+      this.playButton.baseScale = uiScale * (isMobile ? 0.95 : 1);
+      this.playButton.setScale(this.playButton.baseScale);
       this.playButton.setPosition(width / 2, clampedY);
+    }
+
+    if (this.leaderboard && isMobile) {
+      const baseHeight = this.leaderboard.uiConfig?.height || 500;
+      const lbHeight = baseHeight * this.leaderboard.scaleY;
+      const lbY = this.leaderboard.y;
+      if (lbY + lbHeight > height - padding * 1.6 && this.playButton) {
+        this.playButton.setY(Math.max(padding * 2, this.playButton.y - padding * 0.8));
+        this.leaderboard.setY(this.playButton.y + padding * 0.6);
+      }
     }
 
     if (this.logoutButton) {
