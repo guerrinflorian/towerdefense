@@ -16,7 +16,7 @@ export const barracks = {
   respawnTime: [12000, 10000, 8000],
 
   // Vie des soldats par niveau
-  soldierHp: [100, 130, 170],
+  soldierHp: [110, 170, 250],
 
   // --- DESSIN ÉVOLUTIF (Bâtiment militaire) ---
   onDrawBarrel: (scene, container, color, turret) => {
