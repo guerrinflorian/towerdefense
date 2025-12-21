@@ -217,27 +217,31 @@ export class MainMenuScene extends Phaser.Scene {
       : padding;
     const panelsBottom = isMobile ? Math.max(heroBottom, (this.playButton?.y || 0)) : Math.max(heroBottom, lbBottom);
 
-    if (this.titleText) {
-      this.titleText.setScale(uiScale);
-      this.titleText.setPosition(
-        width / 2,
-        Math.max(height * 0.14, panelsBottom + padding * 0.6)
-      );
-    }
-
+    // Positionner le texte "CONNECTÉ EN TANT QUE" en haut
     if (this.userDisplayText) {
       this.userDisplayText.setScale(uiScale);
-      this.userDisplayText.setPosition(
-        width / 2,
-        Math.max(padding, (this.titleText?.y || padding) - 60 * uiScale)
-      );
+      const userTextY = padding + 30 * uiScale;
+      this.userDisplayText.setPosition(width / 2, userTextY);
     }
 
+    // Positionner le titre "LAST OUTPOST" en dessous du texte utilisateur
+    if (this.titleText) {
+      this.titleText.setScale(uiScale);
+      const titleY = this.userDisplayText 
+        ? this.userDisplayText.y + 100 * uiScale // Espacement augmenté entre le texte et le titre
+        : Math.max(height * 0.14, panelsBottom + padding * 0.6);
+      this.titleText.setPosition(width / 2, titleY);
+    }
+
+    // Positionner le bouton "DÉPLOYER" au centre vertical de l'écran
     if (this.playButton) {
       const playHeight = 80 * uiScale;
-      const desiredY = isMobile
-        ? Math.max(heroBottom + padding + playHeight * 0.2, height * 0.42)
-        : Math.max(panelsBottom + padding + playHeight * 0.2, height * 0.55);
+      // Positionner au centre vertical (height / 2)
+      const centerY = height / 2;
+      // S'assurer qu'il ne chevauche pas avec les autres éléments
+      const titleBottom = this.titleText ? this.titleText.y + 50 * uiScale : 0;
+      const minY = titleBottom + padding * 2;
+      const desiredY = Math.max(centerY, minY);
       const clampedY = Math.min(height - padding - playHeight * 0.5, desiredY);
       this.playButton.baseScale = uiScale * (isMobile ? 0.95 : 1);
       this.playButton.setScale(this.playButton.baseScale);
