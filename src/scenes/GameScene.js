@@ -81,6 +81,7 @@ export class GameScene extends Phaser.Scene {
     this.isTimerRunning = false;
     this.heroKillCount = 0;
     this.heroKillReportPromise = null;
+    this.isPortrait = false;
   }
 
   preload() {
@@ -151,21 +152,36 @@ export class GameScene extends Phaser.Scene {
     this.baseWidth = this.game.baseWidth || CONFIG.GAME_WIDTH;
     this.baseHeight = this.game.baseHeight || CONFIG.GAME_HEIGHT;
 
+    // Détecter l'orientation actuelle (important pour le responsive mobile)
+    this.isPortrait = this.gameHeight >= this.gameWidth * 0.94;
+
     const mapSize = 15 * CONFIG.TILE_SIZE;
     // Réduire les marges pour maximiser l'espace de la map, surtout sur mobile
     const padding = Math.max(6, Math.min(this.gameWidth, this.gameHeight) * 0.006);
-    const isPortrait = this.gameHeight >= this.gameWidth;
+    const isPortrait = this.isPortrait;
 
     if (isPortrait) {
-      const topBarHeight = Math.max(140, this.gameHeight * 0.16);
-      const bottomBarHeight = Math.max(140, this.gameHeight * 0.2);
+      const topBarHeight = Phaser.Math.Clamp(
+        this.gameHeight * 0.12,
+        96,
+        150
+      );
+      const bottomBarHeight = Phaser.Math.Clamp(
+        this.gameHeight * 0.16,
+        110,
+        170
+      );
 
       const usableHeight = this.gameHeight - padding * 2 - topBarHeight - bottomBarHeight;
       const usableWidth = this.gameWidth - padding * 2;
 
       const scaleByHeight = usableHeight / mapSize;
       const scaleByWidth = usableWidth / mapSize;
-      this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.45, 2);
+      this.scaleFactor = Phaser.Math.Clamp(
+        Math.min(scaleByHeight, scaleByWidth),
+        0.4,
+        1.4
+      );
 
       const projectedMapSize = mapSize * this.scaleFactor;
       if (projectedMapSize > usableHeight) {

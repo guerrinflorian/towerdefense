@@ -36,9 +36,15 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.combatGraphics = scene.add.graphics();
     this.combatGraphics.setVisible(false);
     this.add(this.combatGraphics);
-    
+
     scene.add.existing(this);
     this.setDepth(15); // Au-dessus des ennemis
+    const scale = Phaser.Math.Clamp(
+      (scene.scaleFactor || 1) * (scene.isPortrait ? 0.78 : 0.95),
+      0.65,
+      1.05
+    );
+    this.setScale(scale);
     
     // Tooltip HP - définir une zone interactive
     this.hpTooltip = null;
