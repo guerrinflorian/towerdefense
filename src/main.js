@@ -35,6 +35,9 @@ const config = {
 
   backgroundColor: "#000000",
 
+  // Améliorer la qualité du rendu en utilisant la résolution de l'écran
+  resolution: window.devicePixelRatio || 1,
+
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -95,6 +98,12 @@ if (isMobileBlocked) {
 
       // Gérer le redimensionnement
       function handleResize() {
+        // Mettre à jour la résolution du jeu lors du redimensionnement
+        const newResolution = window.devicePixelRatio || 1;
+        if (game.scale && game.scale.resolution !== newResolution) {
+          game.scale.setResolution(newResolution);
+        }
+        
         // Notifier la scène active sans jamais la redémarrer
         if (game.scene.isActive("GameScene")) {
           const scene = game.scene.getScene("GameScene");

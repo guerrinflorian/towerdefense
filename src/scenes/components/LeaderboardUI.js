@@ -63,7 +63,8 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this.add(bg);
 
     // 2. NAVIGATION DES MODES (Haut)
-    const navStyle = { fontSize: "22px", fontFamily: "Impact, sans-serif", color: "#7dd0ff" };
+    const resolution = window.devicePixelRatio || 1;
+    const navStyle = { fontSize: "22px", fontFamily: "Impact, sans-serif", color: "#7dd0ff", resolution };
     
     this.btnPrevMode = this.scene.add.text(20, 28, "◀", navStyle).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
     this.btnNextMode = this.scene.add.text(width - 70, 28, "▶", navStyle).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
@@ -73,10 +74,11 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
       fontFamily: "Impact, sans-serif",
       color: "#ffffff",
       letterSpacing: 1,
+      resolution
     }).setOrigin(0.5).setShadow(0, 0, "#00eaff", 10);
 
     this.refreshBtn = this.scene.add.text(width - 30, 28, "↻", {
-      fontSize: "26px", color: "#00eaff", fontStyle: "bold"
+      fontSize: "26px", color: "#00eaff", fontStyle: "bold", resolution
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     this.add([this.btnPrevMode, this.btnNextMode, this.title, this.refreshBtn]);
@@ -89,7 +91,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     levelBg.fillStyle(0xffffff, 0.05).fillRoundedRect(20, 0, width - 40, 40, 10);
     this.levelNavContainer.add(levelBg);
 
-    const levelNavStyle = { fontSize: "14px", color: "#9ae8ff", fontFamily: "Orbitron", fontWeight: "bold" };
+    const levelNavStyle = { fontSize: "14px", color: "#9ae8ff", fontFamily: "Orbitron", fontWeight: "bold", resolution };
     
     this.btnPrevLvl = this.scene.add.text(45, 20, "⟸ NIVEAU PRÉCÉDENT", { ...levelNavStyle, fontSize: "11px" })
       .setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
@@ -107,7 +109,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this.headerContainer = this.scene.add.container(0, 130);
     this.listContainer = this.scene.add.container(0, 155);
     this.statusText = this.scene.add.text(width / 2, height / 2 + 50, "", {
-      fontSize: "14px", color: "#ffffff", fontFamily: "Courier New"
+      fontSize: "14px", color: "#ffffff", fontFamily: "Courier New", resolution
     }).setOrigin(0.5);
 
     this.add([this.headerContainer, this.listContainer, this.statusText]);
@@ -198,7 +200,8 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   }
 
   drawHeaders() {
-    const hStyle = { fontSize: "11px", color: "#7dd0ff", fontWeight: "bold", fontFamily: "Orbitron" };
+    const resolution = window.devicePixelRatio || 1;
+    const hStyle = { fontSize: "11px", color: "#7dd0ff", fontWeight: "bold", fontFamily: "Orbitron", resolution };
     this.headerContainer.removeAll(true);
     this.activeColumns = this.getColumns();
     this.activeColumns.forEach((col) => {
@@ -287,7 +290,8 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         fontSize: "13px",
           fontFamily: "Arial",
           color: (col.key === "time" || col.key === "score") ? "#00eaff" : color,
-          fontWeight: isTop1 || col.key === "rank" ? "bold" : "normal"
+          fontWeight: isTop1 || col.key === "rank" ? "bold" : "normal",
+          resolution: window.devicePixelRatio || 1
         });
 
         if (col.align === "right") cell.setOrigin(1, 0);
