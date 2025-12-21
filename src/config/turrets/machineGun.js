@@ -132,7 +132,7 @@ export const machine_gun = {
 
     // Dégâts
     if (target.active) {
-      target.damage(turret.config.damage);
+      target.damage(turret.config.damage, { source: "turret" });
       if (level >= 2) {
         // Impact visuel à partir du niveau 2
         const impact = scene.add.circle(target.x, target.y, 5, 0xffffff, 0.7);

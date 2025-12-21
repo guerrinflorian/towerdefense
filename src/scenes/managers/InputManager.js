@@ -260,13 +260,35 @@ export class InputManager {
     }
 
     if (clickedTurret) {
+      if (clickedTurret.isCursed) {
+        const removed = clickedTurret.removeCurse(true);
+        if (removed) {
+          const txt = this.scene.add
+            .text(clickedTurret.x, clickedTurret.y - 50, "Réparée !", {
+              fontSize: "16px",
+              color: "#ffddaa",
+              backgroundColor: "rgba(0,0,0,0.7)",
+              padding: { x: 6, y: 3 },
+            })
+            .setOrigin(0.5)
+            .setDepth(2400);
+          this.scene.tweens.add({
+            targets: txt,
+            y: txt.y - 25,
+            alpha: 0,
+            duration: 700,
+            onComplete: () => txt.destroy(),
+          });
+        }
+        return;
+      }
       this.uiManager.openUpgradeMenu(pointer, clickedTurret);
       return;
     }
 
     const tileType = this.scene.levelConfig.map[ty][tx];
 
-    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12) {
+    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12 && tileType !== 16) {
       return;
     }
 
@@ -377,6 +399,6 @@ export class InputManager {
   }
 
   isPathTile(tileType) {
-    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13;
+    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14;
   }
 }

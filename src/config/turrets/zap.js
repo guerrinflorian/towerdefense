@@ -185,7 +185,7 @@ export const zap = {
       });
 
       // Infliger des dégâts
-      currentTarget.damage(turret.config.damage);
+      currentTarget.damage(turret.config.damage, { source: "turret" });
       
       // Paralyser l'ennemi pendant 0.15 secondes
       if (currentTarget.paralyze) {
