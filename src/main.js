@@ -114,12 +114,6 @@ if (isMobileBlocked) {
         const { flushPendingUpgrades } = await import("./services/authManager.js");
         await flushPendingUpgrades();
       });
-      
-      // Forcer l'envoi lors des changements de scène
-      game.scene.events.on("transitionstart", async () => {
-        const { flushPendingUpgrades } = await import("./services/authManager.js");
-        await flushPendingUpgrades();
-      });
     });
 
   // Empêcher le double-tap zoom sur mobile
