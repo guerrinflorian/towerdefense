@@ -11,26 +11,28 @@ export const CONFIG = {
 };
 
 // ... Imports inchangés ...
-import { grunt } from "../config/ennemies/grunt.js";
-import { runner } from "../config/ennemies/runner.js";
-import { tank } from "../config/ennemies/tank.js";
-import { shield } from "../config/ennemies/shield.js";
-import { bosslvl1 } from "../config/ennemies/bosslvl1.js";
-import { bosslvl2 } from "../config/ennemies/bosslvl2.js";
+import { grunt } from "./ennemies/grunt.js";
+import { runner } from "./ennemies/runner.js";
+import { tank } from "./ennemies/tank.js";
+import { shield } from "./ennemies/shield.js";
+import { bosslvl1 } from "./ennemies/bosslvl1.js";
+import { bosslvl2 } from "./ennemies/bosslvl2.js";
 import { bosslvl3 } from "./ennemies/bosslvl3.js";
 import { bosslvl4 } from "./ennemies/bosslvl4.js";
 import { bosslvl5 } from "./ennemies/bosslvl5.js";
-import { tortue_dragon } from "../config/ennemies/tortue_dragon.js";
-import { shaman_gobelin } from "../config/ennemies/shaman_gobelin.js";
-import { diviseur } from "../config/ennemies/diviseur.js";
-import { slime_medium } from "../config/ennemies/slime_medium.js";
-import { slime_small } from "../config/ennemies/slime_small.js";
-import { cemeteryTank } from "../config/ennemies/cemeteryTank.js";
-import { juggernaut_igloo } from "../config/ennemies/juggernaut_igloo.js";
+import { tortue_dragon } from "./ennemies/tortue_dragon.js";
+import { shaman_gobelin } from "./ennemies/shaman_gobelin.js";
+import { diviseur } from "./ennemies/diviseur.js";
+import { slime_medium } from "./ennemies/slime_medium.js";
+import { slime_small } from "./ennemies/slime_small.js";
+import { cemeteryTank } from "./ennemies/cemeteryTank.js";
+import { juggernaut_igloo } from "./ennemies/juggernaut_igloo.js";
+import { soul_messenger_runner } from "./ennemies/soul_messenger_runner.js";
 
 export const ENEMIES = {
   grunt,
   runner,
+  soul_messenger_runner,
   tank,
   shield,
   bosslvl1,
@@ -46,9 +48,9 @@ export const ENEMIES = {
   juggernaut_igloo,
 };
 
-import { machine_gun } from "../config/turrets/machineGun.js";
-import { sniper } from "../config/turrets/sniper.js";
-import { cannon } from "../config/turrets/cannon.js";
-import { zap } from "../config/turrets/zap.js";
-import { barracks } from "../config/turrets/barracks.js";
+import { machine_gun } from "./turrets/machineGun.js";
+import { sniper } from "./turrets/sniper.js";
+import { cannon } from "./turrets/cannon.js";
+import { zap } from "./turrets/zap.js";
+import { barracks } from "./turrets/barracks.js";
 export const TURRETS = { machine_gun, sniper, cannon, zap, barracks };
