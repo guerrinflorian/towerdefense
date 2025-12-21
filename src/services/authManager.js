@@ -98,18 +98,18 @@ export async function recordHeroKill(kills = 1) {
   // Accepter 0 kills (pour forcer l'envoi même sans kills)
   const killsToRecord = Number.isInteger(kills) && kills >= 0 ? kills : 1;
   try {
-    const response = await apiClient.post("/api/player/hero/kill", {
-      kills: killsToRecord,
-    });
-    if (currentProfile?.player) {
-      currentProfile.player.hero_points_available =
-        response.data.heroPointsAvailable;
-    }
+  const response = await apiClient.post("/api/player/hero/kill", {
+    kills: killsToRecord,
+  });
+  if (currentProfile?.player) {
+    currentProfile.player.hero_points_available =
+      response.data.heroPointsAvailable;
+  }
     // Mettre à jour les heroStats si disponibles
     if (response.data?.heroStats && currentProfile) {
       currentProfile.heroStats = response.data.heroStats;
     }
-    return response.data;
+  return response.data;
   } catch (error) {
     throw error;
   }
@@ -138,6 +138,24 @@ export async function upgradeHero(stat, points) {
   }
 
   return response.data;
+}
+
+export async function updateHeroColor(color) {
+  if (!isAuthenticated()) return null;
+  try {
+    const response = await apiClient.post("/api/player/hero/color", {
+      color,
+    });
+    
+    // Mettre à jour les heroStats dans le profil
+    if (response.data?.heroStats && currentProfile) {
+      currentProfile.heroStats = response.data.heroStats;
+    }
+    
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 }
 
 export function handleAuthError(error) {

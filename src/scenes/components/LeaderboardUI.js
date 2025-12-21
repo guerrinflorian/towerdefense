@@ -13,7 +13,7 @@ import { isAuthenticated } from "../../services/authManager.js";
 export class LeaderboardUI extends Phaser.GameObjects.Container {
   constructor(scene, x, y) {
     super(scene, x, y);
-
+    
     // --- CONFIGURATION STYLE ---
     this.uiConfig = {
       width: 560,
@@ -135,12 +135,12 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     if (totalLevels === 0) return;
     this.currentLevelIndex = (this.currentLevelIndex + delta + totalLevels) % totalLevels;
     this.updateModeUI();
-    this.loadData();
-  }
+          this.loadData();
+        }
 
   updateModeUI() {
     this.title.setText(this.getTitleText());
-    
+
     // Afficher/Cacher la barre de sélection de niveau
     const isLevelMode = this.currentMode === "level";
     this.levelNavContainer.setVisible(isLevelMode);
@@ -284,7 +284,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         }
 
         const cell = this.scene.add.text(col.x, 0, value, {
-          fontSize: "13px",
+        fontSize: "13px",
           fontFamily: "Arial",
           color: (col.key === "time" || col.key === "score") ? "#00eaff" : color,
           fontWeight: isTop1 || col.key === "rank" ? "bold" : "normal"
@@ -316,15 +316,15 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   }
 
   animateRow(row, idx) {
-    row.alpha = 0;
-    row.x = -10;
-    this.scene.tweens.add({
-      targets: row,
-      alpha: 1,
-      x: 0,
-      duration: 300,
+      row.alpha = 0;
+      row.x = -10;
+      this.scene.tweens.add({
+        targets: row,
+        alpha: 1,
+        x: 0,
+        duration: 300,
       delay: idx * 40,
-    });
+      });
   }
 
   formatTime(ms) {
