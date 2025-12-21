@@ -62,7 +62,8 @@ export class MapManager {
           (biome === "grass" && type === 0) || // Herbe pour biome grass
           (biome === "sand" && (type === 0 || type === 10)) || // Herbe ou sable pour biome sand
           (biome === "ice" && type === 6) || // Neige pour biome ice
-          (biome === "cimetiere" && type === 12); // Sol cimetière pour biome cimetiere
+          (biome === "cimetiere" && type === 12) || // Sol cimetière pour biome cimetiere
+          (biome === "lavaland" && type === 0); // Sol volcanique
 
         if (shouldPlaceTree) {
           const canPlaceBarracks = this.isAdjacentToPath(x, y);
@@ -469,6 +470,18 @@ export class MapManager {
         g.fillCircle(4 * scale, -4 * scale, 1 * scale);
         g.fillCircle(6 * scale, -4 * scale, 1 * scale);
       }
+    } else if (biome === "lavaland") {
+      // --- BIOME LAVALAND : Troncs calcinés ---
+      g.fillStyle(0x3a1f13);
+      g.fillRect(-3 * scale, 4 * scale, 6 * scale, 14 * scale);
+      g.fillStyle(0x532a1a, 0.8);
+      g.fillRect(-2 * scale, 6 * scale, 4 * scale, 10 * scale);
+
+      // Braises
+      g.fillStyle(0xff6a2e, 0.7);
+      g.fillCircle(-1 * scale, 6 * scale, 1.6 * scale);
+      g.fillCircle(2 * scale, 10 * scale, 1.2 * scale);
+      g.fillCircle(-2 * scale, 12 * scale, 1.2 * scale);
     } else {
       // --- ARBRES CLASSIQUES (Biome Grass) ---
       const treeType = Math.floor(Math.random() * 3);

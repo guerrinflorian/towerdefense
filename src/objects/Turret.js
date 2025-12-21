@@ -23,6 +23,8 @@ export class Turret extends Phaser.GameObjects.Container {
 
     this.level = 1;
     this.lastFired = 0;
+    this.isCursed = false;
+    this.curseCost = 0;
 
     // --- VISUEL ---
     this.base = scene.add.graphics();
@@ -202,6 +204,79 @@ export class Turret extends Phaser.GameObjects.Container {
     });
   }
 
+  applyCurse(cost = 80) {
+    if (this.isCursed) return;
+
+    this.isCursed = true;
+    this.curseCost = cost;
+
+    // Effet visuel de flammes noires
+    const flame = this.scene.add.graphics();
+    flame.fillStyle(0x442244, 0.6);
+    flame.fillEllipse(0, 0, 34, 26);
+    flame.setDepth(2100);
+    this.add(flame);
+    this.scene.tweens.add({
+      targets: flame,
+      y: -8,
+      alpha: 0.2,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 400,
+      yoyo: true,
+      repeat: -1,
+    });
+    this.curseFlame = flame;
+
+    // Overlay rouge sombre
+    this.curseOverlay = this.scene.add.graphics();
+    this.curseOverlay.fillStyle(0x330000, 0.35);
+    this.curseOverlay.fillCircle(0, 0, 28);
+    this.curseOverlay.setDepth(2000);
+    this.add(this.curseOverlay);
+
+    // Tooltip coût réparation
+    const tooltip = this.scene.add.text(0, -60, `Réparer (clic droit) : ${cost}g`, {
+      fontSize: "12px",
+      fontFamily: "Arial",
+      color: "#ffddcc",
+      backgroundColor: "rgba(0,0,0,0.7)",
+      padding: { x: 6, y: 4 },
+    }).setOrigin(0.5).setDepth(2200);
+    this.add(tooltip);
+    this.curseTooltip = tooltip;
+  }
+
+  removeCurse(pay = true) {
+    if (!this.isCursed) return false;
+
+    if (pay && this.scene.money < this.curseCost) {
+      this.scene.cameras.main.shake(80, 0.006);
+      return false;
+    }
+
+    if (pay) {
+      this.scene.money -= this.curseCost;
+      this.scene.updateUI();
+    }
+
+    this.isCursed = false;
+    if (this.curseFlame) {
+      this.curseFlame.destroy();
+      this.curseFlame = null;
+    }
+    if (this.curseOverlay) {
+      this.curseOverlay.destroy();
+      this.curseOverlay = null;
+    }
+    if (this.curseTooltip) {
+      this.curseTooltip.destroy();
+      this.curseTooltip = null;
+    }
+
+    return true;
+  }
+
   // Calculer le coût total déboursé (base + améliorations)
   getTotalCost() {
     const baseCost = TURRETS[this.config.key]?.cost || 100;
@@ -227,6 +302,10 @@ export class Turret extends Phaser.GameObjects.Container {
   update(time, enemies) {
     // Si la tourelle a une 'rate' définie, on l'utilise, sinon valeur par défaut
     const rate = this.config.rate || 1000;
+
+    if (this.isCursed) {
+      return;
+    }
 
     if (time > this.lastFired) {
       const target = this.findTarget(enemies);
