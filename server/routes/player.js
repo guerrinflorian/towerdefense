@@ -2,7 +2,7 @@ import express from "express";
 import { authMiddleware } from "../middleware/auth.js";
 import { query } from "../db.js";
 import { buildPlayerProfile, recordLevelCompletion, ensureHeroStats } from "../utils/profile.js";
-import { upgradeHeroStats } from "../utils/heroUpgrades.js";
+import { upgradeHeroStats, upgradeHeroStatsBatch } from "../utils/heroUpgrades.js";
 import { HERO_BASE_STATS } from "../constants.js";
 
 const router = express.Router();
@@ -275,6 +275,41 @@ router.post("/hero/upgrade", async (req, res) => {
       return res.status(400).json({ error: "Points insuffisants" });
     }
     console.error("Erreur upgrade héros:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.post("/hero/upgrade/batch", async (req, res) => {
+  const { upgrades } = req.body || {};
+
+  try {
+    const result = await upgradeHeroStatsBatch(req.user.id, upgrades);
+    const profile = await buildPlayerProfile(req.user.id);
+
+    return res.json({
+      message: "Améliorations appliquées",
+      heroStats: result.heroStats,
+      heroPointsAvailable: result.heroPointsAvailable,
+      heroPointConversion: result.heroPointConversion,
+      profile,
+    });
+  } catch (err) {
+    if (err.code === "INVALID_UPGRADES") {
+      return res.status(400).json({ error: "Format d'améliorations invalide" });
+    }
+    if (err.code === "INVALID_POINTS") {
+      return res.status(400).json({ error: "Nombre de points invalide" });
+    }
+    if (err.code === "INVALID_STAT") {
+      return res.status(400).json({ error: "Statistique inconnue" });
+    }
+    if (err.code === "NOT_ENOUGH_POINTS") {
+      return res.status(400).json({ error: "Points insuffisants" });
+    }
+    if (err.code === "PLAYER_NOT_FOUND") {
+      return res.status(404).json({ error: "Joueur introuvable" });
+    }
+    console.error("Erreur upgrade batch héros:", err);
     return res.status(500).json({ error: "Erreur serveur" });
   }
 });

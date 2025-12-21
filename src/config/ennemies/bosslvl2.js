@@ -1,7 +1,7 @@
 export const bosslvl2 = {
     name: "AZAL'KOR SOUVERAIN DES SABLES",
     speed: 9,
-    hp: 63000,
+    hp: 83000,
     reward: 3000,
     playerDamage: 30,
     color: 0xead2a8, // Couleur sable clair de base
