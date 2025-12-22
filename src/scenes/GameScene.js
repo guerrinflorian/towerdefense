@@ -22,6 +22,7 @@ export class GameScene extends Phaser.Scene {
 
   init(data) {
     this.levelID = data.level || 1;
+    this.levelName = data.levelName || null;
     const src = getLevelConfigById(this.levelID) || LEVELS_CONFIG[0].data;
 
     // CLONE PROFOND pour ne jamais muter LEVELS_CONFIG
@@ -133,7 +134,10 @@ export class GameScene extends Phaser.Scene {
     this.runReportPromise = null;
     this.runTracker.startRun({
       levelId: this.levelID,
-      levelName: this.levelConfig?.name || null,
+      levelName:
+        this.levelName ||
+        this.levelConfig?.name ||
+        `Niveau ${this.levelID}`,
       biome: this.levelConfig?.biome || null,
       difficulty: this.levelConfig?.difficulty || null,
       seed: this.levelConfig?.seed || null,

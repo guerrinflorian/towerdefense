@@ -873,6 +873,7 @@ export class MapScene extends Phaser.Scene {
     }
     this.scene.start("GameScene", {
       level: level.id,
+      levelName: level.name || null,
       heroStats: getHeroStats(),
     });
   }
