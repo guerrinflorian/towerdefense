@@ -232,7 +232,8 @@ export const cannon = {
             impactY,
             blastRadius,
             damageAmount,
-            level
+            level,
+            turret.config.key
           );
         },
       });
@@ -411,7 +412,7 @@ function launchRealisticMissile(scene, turret, target) {
       const finalX = target.active ? target.x : missile.x;
       const finalY = target.active ? target.y : missile.y;
       missile.destroy();
-      triggerExplosion(scene, finalX, finalY, blastRadius, damageAmount, 3);
+      triggerExplosion(scene, finalX, finalY, blastRadius, damageAmount, 3, turret.config.key);
     },
   });
 }
@@ -419,7 +420,7 @@ function launchRealisticMissile(scene, turret, target) {
 // ============================================================
 // EXPLOSION (INCHANGÉE MAIS OPTIMISÉE)
 // ============================================================
-function triggerExplosion(scene, x, y, radius, damage, level) {
+function triggerExplosion(scene, x, y, radius, damage, level, turretType) {
   const hitboxBuffer = 8;
   const effectiveRadius = radius + hitboxBuffer;
   const isLvl3 = level === 3;
@@ -503,7 +504,7 @@ function triggerExplosion(scene, x, y, radius, damage, level) {
         e.active &&
         Phaser.Math.Distance.Between(x, y, e.x, e.y) <= effectiveRadius
       ) {
-        e.damage(damage, { source: "turret" });
+        e.damage(damage, { source: "turret", turretType: turretType });
         if (e.bodyGroup) {
           scene.tweens.add({
             targets: e.bodyGroup,

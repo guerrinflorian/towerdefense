@@ -639,7 +639,7 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.regenTimer = this.scene.time.addEvent({
       delay: this.regenInterval,
       callback: () => {
-        if (!this.isAlive || this.hp >= this.maxHp) {
+        if (!this.isAlive || !this.scene || !this.scene.time || this.hp >= this.maxHp) {
           this.stopRegeneration();
           return;
         }

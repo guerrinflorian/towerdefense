@@ -53,6 +53,7 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
     this.healInterval = this.stats.healInterval || null;
     this.lastSpawnTime = 0;
     this.lastDamageSource = null;
+    this.lastTurretType = null; // Type de tourelle qui a infligé les derniers dégâts
 
     this.initVisuals();
 
@@ -321,6 +322,14 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
 
     const damageSource = metadata?.source || this.lastDamageSource || "turret"; // Par défaut, tourelle si rien n'est précisé
     this.lastDamageSource = damageSource;
+    
+    // Si c'est une tourelle, stocker son type
+    if (damageSource === "turret" && metadata?.turretType) {
+      this.lastTurretType = metadata.turretType;
+    } else if (damageSource !== "turret") {
+      // Si ce n'est pas une tourelle, réinitialiser le type
+      this.lastTurretType = null;
+    }
 
     const potentialHp = this.hp - amount;
     // L'aura ne protège que contre les dégâts des tourelles, pas des soldats/héros
@@ -668,6 +677,7 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
       const src = this.lastDamageSource || "other";
       this.scene.events.emit("enemy-killed", {
         source: src,
+        turretType: this.lastTurretType || null, // Type de tourelle qui a tué l'ennemi
         x: this.x,
         y: this.y,
         waveIndex: this.waveIndex ?? this.scene?.activeWaveIndex ?? null,
