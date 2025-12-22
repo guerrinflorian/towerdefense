@@ -321,52 +321,54 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this._loadToken++;
 
     const stillAlive = () => {
-      if (this._destroyed) return false;
-      if (!this.active) return false;
+      const alive =
+        !this._destroyed &&
+        this.active &&
+        this.scene &&
+        this.scene.sys &&
+        !(
+          typeof this.scene.sys.settings?.status === "number" &&
+          this.scene.sys.settings.status >= 5
+        );
 
-      const s = this.scene;
-      if (!s || !s.sys) return false;
-
-      // Check optionnel (si dispo) : status scène
-      // Phaser: RUNNING=2, PAUSED=3, SLEEPING=4, SHUTDOWN=5, DESTROYED=6 (selon versions)
-      const status = s.sys.settings?.status;
-      if (typeof status === "number" && status >= 5) return false; // shutdown/destroyed
-
-      return true;
+      return alive;
     };
 
     const safeSetText = (txtObj, value) => {
-      if (!stillAlive()) return;
-      if (!txtObj || !txtObj.active) return;
-
-      // si Phaser l'a détruit, ça arrive que canvas/context soient null
-      if (!txtObj.scene || !txtObj.texture) return;
-
+      if (!stillAlive() || !txtObj || !txtObj.active) return;
       txtObj.setText(String(value ?? ""));
     };
 
     try {
-      if (!stillAlive()) return;
-
-      if (this.listContainer) this.listContainer.removeAll(true);
-
-      if (!isAuthenticated()) {
-        safeSetText(this.statusText, "CONNEXION REQUISE");
+      if (!stillAlive()) {
+        console.log("[LB] stop: not alive");
         return;
       }
 
-      safeSetText(this.statusText, "SYNCHRONISATION AVEC LE SERVEUR...");
+      if (this.listContainer) this.listContainer.removeAll(true);
+
+      console.log("[LB] authenticated ?", isAuthenticated());
+      if (!isAuthenticated()) {
+        safeSetText(this.statusText, "CONNEXION REQUISE");
+        console.log("[LB] stop: not authenticated");
+        return;
+      }
+
+      safeSetText(this.statusText, "SYNCHRONISATION...");
+      console.log("[LB] fetching data...");
 
       let entries = [];
 
       if (this.currentMode === "hero") {
+        console.log("[LB] fetchHeroLeaderboard");
         entries = await fetchHeroLeaderboard();
       } else if (this.currentMode === "level") {
         await this.ensureLevelMetadata();
         if (!stillAlive()) return;
 
-        if (this.levelMetas.length === 0) {
-          safeSetText(this.statusText, "AUCUN NIVEAU DISPONIBLE");
+        await this.ensureLevelMetadata();
+        if (!stillAlive() || token !== this._loadToken) {
+          console.log("[LB] stop after metadata");
           return;
         }
 
@@ -383,19 +385,18 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         const levelId = this.levelMetas[this.currentLevelIndex]?.id;
         entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
       } else {
+        console.log("[LB] fetchGlobalLeaderboard");
         entries = await fetchGlobalLeaderboard();
       }
 
       if (!stillAlive()) return;
 
-      safeSetText(
-        this.statusText,
-        entries.length === 0 ? "AUCUNE DONNÉE TROUVÉE" : ""
-      );
+      console.log("[LB] fetch OK, entries:", entries.length);
+
+      safeSetText(this.statusText, entries.length === 0 ? "AUCUNE DONNÉE" : "");
       this.renderEntries(entries);
     } catch (err) {
-      console.error(err);
-      // si entre temps c'est détruit, on ne touche plus rien
+      console.error("[LB] fetch error", err);
       if (!stillAlive() || token !== this._loadToken) return;
       if (this.statusText) this.statusText.setText("ERREUR DE CONNEXION");
     }
