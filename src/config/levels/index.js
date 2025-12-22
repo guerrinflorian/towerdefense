@@ -1,6 +1,5 @@
 // src/levels/index.js
 
-
 import { LEVEL_1 } from "./level1.js";
 import { LEVEL_2 } from "./level2.js";
 import { LEVEL_3 } from "./level3.js";
@@ -14,3 +13,8 @@ export const LEVELS_CONFIG = [
   { id: 4, name: "Cimetière de Morvath", data: LEVEL_4 },
   { id: 5, name: "Lavaland Omega-Titan", data: LEVEL_5 },
 ];
+
+export function getLevelConfigById(levelId) {
+  const level = LEVELS_CONFIG.find((lvl) => lvl.id === Number(levelId));
+  return level?.data || null;
+}

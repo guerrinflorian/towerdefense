@@ -1,10 +1,10 @@
-import { LEVELS_CONFIG } from "../../config/levels/index.js";
 import {
   fetchGlobalLeaderboard,
   fetchHeroLeaderboard,
   fetchLevelLeaderboards,
 } from "../../services/leaderboardService.js";
 import { isAuthenticated } from "../../services/authManager.js";
+import { buildChapterViewModels, fetchChaptersWithLevels } from "../../services/chapterService.js";
 
 /**
  * UI du Classement - Style Cyberpunk / Sci-Fi
@@ -35,6 +35,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this.currentLevelIndex = 0;
     this.levelLeaderboards = [];
     this.levelLeaderboardMap = new Map();
+    this.levelMetas = [];
 
     this.setupLayout();
     this.updateModeUI();
@@ -132,13 +133,14 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this.loadData();
   }
 
-  changeLevel(delta) {
-    const totalLevels = LEVELS_CONFIG.length;
+  async changeLevel(delta) {
+    await this.ensureLevelMetadata();
+    const totalLevels = this.levelMetas.length;
     if (totalLevels === 0) return;
     this.currentLevelIndex = (this.currentLevelIndex + delta + totalLevels) % totalLevels;
     this.updateModeUI();
-          this.loadData();
-        }
+    this.loadData();
+  }
 
   updateModeUI() {
     this.title.setText(this.getTitleText());
@@ -152,7 +154,10 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this.listContainer.setY(isLevelMode ? 155 : 105);
 
     if (isLevelMode) {
-      const lvl = LEVELS_CONFIG[this.currentLevelIndex];
+      if (this.levelMetas.length === 0) {
+        this.ensureLevelMetadata().then(() => this.updateModeUI());
+      }
+      const lvl = this.levelMetas[this.currentLevelIndex];
       this.levelNavLabel.setText(lvl ? `${lvl.id} • ${lvl.name.toUpperCase()}` : "NIVEAU INCONNU");
     }
     
@@ -207,11 +212,31 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this.activeColumns.forEach((col) => {
       const txt = this.scene.add.text(col.x, 0, col.label, hStyle);
       if (col.align === "right") txt.setOrigin(1, 0);
-      this.headerContainer.add(txt);
+    this.headerContainer.add(txt);
     });
   }
 
   // --- CHARGEMENT DES DONNÉES ---
+
+  async ensureLevelMetadata() {
+    if (this.levelMetas.length > 0) return;
+    try {
+      const chapters = await fetchChaptersWithLevels();
+      const chapterVMs = buildChapterViewModels(chapters, new Map());
+      const levels = chapterVMs.flatMap((chapter) =>
+        (chapter.levels || []).map((lvl) => ({
+          ...lvl,
+          chapterId: chapter.id,
+          chapterName: chapter.name,
+        }))
+      );
+      levels.sort((a, b) => (a.orderIndex - b.orderIndex) || (a.id - b.id));
+      this.levelMetas = levels;
+    } catch (error) {
+      console.warn("Impossible de charger la liste des niveaux", error);
+      this.levelMetas = [];
+    }
+  }
 
   async loadData() {
     try {
@@ -234,12 +259,17 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
       if (this.currentMode === "hero") {
         entries = await fetchHeroLeaderboard();
       } else if (this.currentMode === "level") {
+        await this.ensureLevelMetadata();
+        if (this.levelMetas.length === 0) {
+          if (this.statusText) this.statusText.setText("AUCUN NIVEAU DISPONIBLE");
+          return;
+        }
         if (this.levelLeaderboards.length === 0) {
           const levels = await fetchLevelLeaderboards();
           this.levelLeaderboards = levels;
           this.levelLeaderboardMap = new Map(levels.map(l => [l.levelId, l.entries || []]));
         }
-        const levelId = LEVELS_CONFIG[this.currentLevelIndex]?.id;
+        const levelId = this.levelMetas[this.currentLevelIndex]?.id;
         entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
       } else {
         entries = await fetchGlobalLeaderboard();
@@ -308,6 +338,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   handleRefresh() {
     this.levelLeaderboards = [];
     this.levelLeaderboardMap.clear();
+    this.levelMetas = [];
     this.scene.tweens.add({
       targets: this.refreshBtn,
       angle: 360,
