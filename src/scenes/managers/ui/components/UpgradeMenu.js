@@ -150,6 +150,12 @@ export class UpgradeMenu {
       const refund = Math.floor(totalCost / 2);
       const soldKey = this.scene.selectedTurret?.config?.key || null;
 
+      // Restaurer la valeur originale de la case
+      const turret = this.scene.selectedTurret;
+      if (turret.tileX !== undefined && turret.tileY !== undefined && turret.originalTileType !== undefined) {
+        this.scene.levelConfig.map[turret.tileY][turret.tileX] = turret.originalTileType;
+      }
+
       if (this.scene.selectedTurret instanceof Barracks) {
         const barracks = this.scene.selectedTurret;
         const activeSoldierCount = barracks.soldiers?.length || 0;

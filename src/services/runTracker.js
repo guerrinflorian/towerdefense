@@ -1,10 +1,3 @@
-const getClientVersion = () => {
-  if (typeof process !== "undefined") {
-    return process.env.npm_package_version || process.env.APP_VERSION || null;
-  }
-  return null;
-};
-
 const generateRunId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -39,7 +32,6 @@ export class RunTracker {
 
     this.report = {
       runId: generateRunId(),
-      clientVersion: getClientVersion(),
       startedAt: null,
       endedAt: null,
       durationMs: 0,
@@ -47,8 +39,6 @@ export class RunTracker {
         id: null,
         name: null,
         biome: null,
-        difficulty: null,
-        seed: null,
         totalWaves: 0,
       },
       result: null,
@@ -83,7 +73,7 @@ export class RunTracker {
           sold: 0,
           upgrades: 0,
           maxed: 0,
-          byType: {},
+          byType: {}, // Format: { [turretKey]: { built: number, kills: number } }
         },
         soldiers: {
           spawned: 0,
@@ -113,8 +103,6 @@ export class RunTracker {
     levelId,
     levelName,
     biome,
-    difficulty,
-    seed,
     startingMoney = 0,
     startingLives = 0,
     totalWaves = 0,
@@ -126,8 +114,6 @@ export class RunTracker {
       id: levelId ?? null,
       name: levelName ?? null,
       biome: biome ?? null,
-      difficulty: difficulty ?? null,
-      seed: seed ?? null,
       totalWaves: totalWaves ?? 0,
     };
     this.report.stats.base.livesStart = startingLives || 0;
@@ -146,7 +132,7 @@ export class RunTracker {
         startedAt: null,
         endedAt: null,
         durationMs: 0,
-        earlyLaunch: false,
+        earlyLaunch: index === 0 ? null : false,
         enemies: {
           expected: 0,
           spawned: 0,
@@ -179,7 +165,12 @@ export class RunTracker {
     if (!wave) return;
     this.activeWaveIndex = index;
     if (!wave.startedAt) wave.startedAt = Date.now();
-    wave.earlyLaunch = wave.earlyLaunch || earlyLaunch;
+    // La première vague (index 0) a toujours earlyLaunch à null
+    if (index === 0) {
+      wave.earlyLaunch = null;
+    } else {
+      wave.earlyLaunch = wave.earlyLaunch || earlyLaunch;
+    }
     wave.enemies.expected = Math.max(wave.enemies.expected || 0, expectedEnemies || 0);
   }
 
@@ -247,7 +238,7 @@ export class RunTracker {
     }
   }
 
-  onEnemyKill({ source = "other", waveIndex = null } = {}) {
+  onEnemyKill({ source = "other", turretType = null, waveIndex = null } = {}) {
     const normalizedSource = this.normalizeKillSource(
       source,
       this.report.stats.enemies.killedBySource
@@ -278,6 +269,14 @@ export class RunTracker {
       if (wave) {
         wave.soldiers.kills += 1;
       }
+    }
+    
+    // Si c'est une tourelle qui a tué, compter le kill pour ce type de tourelle
+    if (normalizedSource === "turret" && turretType) {
+      if (!this.report.stats.towers.byType[turretType]) {
+        this.report.stats.towers.byType[turretType] = { built: 0, kills: 0 };
+      }
+      this.report.stats.towers.byType[turretType].kills += 1;
     }
   }
 
@@ -314,8 +313,11 @@ export class RunTracker {
       this.state.activeTowers
     );
     if (key) {
-      this.report.stats.towers.byType[key] =
-        (this.report.stats.towers.byType[key] || 0) + 1;
+      // Initialiser la structure si elle n'existe pas
+      if (!this.report.stats.towers.byType[key]) {
+        this.report.stats.towers.byType[key] = { built: 0, kills: 0 };
+      }
+      this.report.stats.towers.byType[key].built += 1;
     }
 
     const wave = this.ensureWave(this.activeWaveIndex);
@@ -344,10 +346,19 @@ export class RunTracker {
       wave.builds.sold += 1;
     }
     if (key && this.report.stats.towers.byType[key]) {
-      this.report.stats.towers.byType[key] = Math.max(
-        0,
-        this.report.stats.towers.byType[key] - 1
-      );
+      // Décrémenter seulement le compteur de built, pas les kills
+      if (typeof this.report.stats.towers.byType[key] === 'object') {
+        this.report.stats.towers.byType[key].built = Math.max(
+          0,
+          this.report.stats.towers.byType[key].built - 1
+        );
+      } else {
+        // Compatibilité avec l'ancien format (nombre simple)
+        this.report.stats.towers.byType[key] = Math.max(
+          0,
+          this.report.stats.towers.byType[key] - 1
+        );
+      }
     }
   }
 

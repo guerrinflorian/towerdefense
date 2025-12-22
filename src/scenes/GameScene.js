@@ -139,8 +139,6 @@ export class GameScene extends Phaser.Scene {
         this.levelConfig?.name ||
         `Niveau ${this.levelID}`,
       biome: this.levelConfig?.biome || null,
-      difficulty: this.levelConfig?.difficulty || null,
-      seed: this.levelConfig?.seed || null,
       startingMoney: this.money,
       startingLives: this.lives,
       totalWaves: this.levelConfig?.waves?.length || 0,
@@ -499,6 +497,7 @@ export class GameScene extends Phaser.Scene {
 
     this.runTracker.onEnemyKill({
       source: payload?.source || "other",
+      turretType: payload?.turretType || null,
       waveIndex: payload?.waveIndex ?? this.activeWaveIndex,
     });
 
@@ -717,8 +716,14 @@ export class GameScene extends Phaser.Scene {
       const px = this.mapStartX + tileX * T + T / 2;
       const py = this.mapStartY + tileY * T + T / 2;
 
+      // Sauvegarder la valeur originale de la case avant de la modifier
+      const originalTileType = this.levelConfig.map[tileY][tileX];
+      
       if (isBarracks) {
         const b = new Barracks(this, px, py, turretConfig);
+        b.tileX = tileX;
+        b.tileY = tileY;
+        b.originalTileType = originalTileType;
         b.setDepth(20);
         b.setScale(this.scaleFactor);
         this.barracks.push(b);
@@ -726,6 +731,9 @@ export class GameScene extends Phaser.Scene {
         this.runTracker.onTowerBuild({ key: turretConfig.key, level: 1 });
       } else {
         const t = new Turret(this, px, py, turretConfig);
+        t.tileX = tileX;
+        t.tileY = tileY;
+        t.originalTileType = originalTileType;
         t.setDepth(20);
         t.setScale(this.scaleFactor);
         this.turrets.push(t);

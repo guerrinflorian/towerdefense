@@ -185,7 +185,7 @@ export const sniper = {
 
     // --- DÉGÂTS ET IMPACT ---
     if (target.active) {
-      target.damage(turret.config.damage, { source: "turret" });
+      target.damage(turret.config.damage, { source: "turret", turretType: turret.config.key });
 
       // Impact sur la cible
       const impactColor = level === 3 ? 0x00ffff : 0xffffff;
