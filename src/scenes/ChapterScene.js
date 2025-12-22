@@ -144,15 +144,13 @@ export class ChapterScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
 
-    // --- LOGIQUE DE GRILLE RESPONSIVE ---
     const isMobile = width < 800;
     const cols = width < 650 ? 1 : width < 1200 ? 2 : 3;
     const padding = 25;
 
-    // Largeur dynamique : on prend la largeur max utile (1200px) divisée par les colonnes
     const gridWidth = Math.min(width * 0.95, 1300);
     const cardWidth = (gridWidth - padding * (cols - 1)) / cols;
-    const cardHeight = 180; // Hauteur fixe pour garder un alignement propre
+    const cardHeight = 200; // Légèrement augmenté pour laisser de la place au texte de condition
 
     const headerBottom = this.title
       ? this.title.y + this.title.height * (1 - this.title.originY)
@@ -186,30 +184,28 @@ export class ChapterScene extends Phaser.Scene {
     bg.lineStyle(2, accentColor, 0.6);
     bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
 
-    // 2. Image du chapitre (Vérification textures pour éviter crash setTint)
+    // 2. Image du chapitre
     const imgKey = `chapter-img-${chapter.id}`;
-    const artSize = h - 40;
+    const artSize = h - 60;
     let art;
 
     if (this.textures.exists(imgKey)) {
       art = this.add.image(-w / 2 + 20, 0, imgKey).setOrigin(0, 0.5);
       art.setDisplaySize(artSize * 1.3, artSize);
-      // Correction du bug : setTint n'existe que sur les Objets Image/Sprite
       if (isLocked) art.setTint(0x222222);
     } else {
-      // Fallback si l'image n'est pas chargée
       art = this.add
         .rectangle(-w / 2 + 20, 0, 80, artSize, 0x1a2530)
         .setOrigin(0, 0.5);
     }
 
-    // 3. Textes (Positions relatives à l'image)
+    // 3. Textes
     const textX = art.x + (art.displayWidth || 80) + 20;
     const availableWidth = w - (textX + w / 2) - 20;
 
     const title = this.add.text(
       textX,
-      -h / 2 + 30,
+      -h / 2 + 25,
       chapter.name.toUpperCase(),
       {
         fontFamily: "Orbitron",
@@ -222,25 +218,53 @@ export class ChapterScene extends Phaser.Scene {
 
     const stats = this.add.text(
       textX,
-      title.y + title.height + 10,
+      title.y + title.height + 8,
       `Progression: ${chapter.stats.clearedLevels}/${chapter.stats.totalLevels}`,
       {
         fontFamily: "Orbitron",
-        fontSize: "13px",
+        fontSize: "12px",
         color: "#9ae8ff",
       }
     );
 
-    const statusText = isLocked ? "BLOQUÉ" : "DISPONIBLE";
-    const status = this.add.text(textX, stats.y + 25, statusText, {
+    // --- CONDITION DE DÉBLOCAGE ---
+    let conditionText = "";
+    let conditionColor = "#44ffaa"; // Vert (débloqué)
+
+    if (isLocked) {
+      conditionColor = "#ff9900"; // Orange (bloqué)
+      if (chapter.unlockPrevChapterHeartsMax != null) {
+        conditionText = `REQUIS: Perdre < ${chapter.unlockPrevChapterHeartsMax} cœurs au chapitre précédent`;
+      } else {
+        conditionText = "REQUIS: Terminer le chapitre précédent";
+      }
+    } else {
+      conditionText = "✓ SECTEUR ACCESSIBLE";
+    }
+
+    const unlockInfo = this.add.text(textX, stats.y + 22, conditionText, {
       fontFamily: "Orbitron",
       fontSize: "11px",
-      color: isLocked ? "#ff4444" : "#44ffaa",
-      backgroundColor: "#00000055",
-      padding: { x: 5, y: 2 },
+      color: conditionColor,
+      fontWeight: "bold",
+      wordWrap: { width: availableWidth },
     });
 
-    container.add([bg, art, title, stats, status]);
+    const statusText = isLocked ? "VERROUILLÉ" : "DISPONIBLE";
+    const status = this.add.text(
+      textX,
+      unlockInfo.y + unlockInfo.height + 12,
+      statusText,
+      {
+        fontFamily: "Orbitron",
+        fontSize: "10px",
+        color: isLocked ? "#ff4444" : "#44ffaa",
+        backgroundColor: "#00000055",
+        padding: { x: 5, y: 2 },
+      }
+    );
+
+    container.add([bg, art, title, stats, unlockInfo, status]);
 
     // 4. Interactions
     if (!isLocked) {
@@ -261,11 +285,10 @@ export class ChapterScene extends Phaser.Scene {
         container.setScale(1);
       });
 
-      // Dans createChapterCard
       container.on("pointerdown", () => {
         this.scene.start("MapScene", {
-          chapter: chapter, // On envoie les données du chapitre
-          fromMainMenu: true, // LE LAISSEZ-PASSER EST ICI !
+          chapter: chapter,
+          fromMainMenu: true,
         });
       });
     }
@@ -275,14 +298,11 @@ export class ChapterScene extends Phaser.Scene {
 
   handleResize() {
     const { width, height } = this.scale;
-
     this.addBackground();
     this.setupHeader();
-
     if (this.backButton) {
       this.backButton.setPosition(40, height - 40);
     }
-
     this.renderCards();
   }
 
