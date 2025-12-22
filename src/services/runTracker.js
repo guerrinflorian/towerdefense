@@ -248,27 +248,32 @@ export class RunTracker {
   }
 
   onEnemyKill({ source = "other", waveIndex = null } = {}) {
+    const normalizedSource = this.normalizeKillSource(
+      source,
+      this.report.stats.enemies.killedBySource
+    );
     this.report.stats.enemies.killed += 1;
     this.state.activeEnemies = Math.max(0, this.state.activeEnemies - 1);
-    if (!this.report.stats.enemies.killedBySource[source]) {
-      source = "other";
-    }
-    this.report.stats.enemies.killedBySource[source] += 1;
+    this.report.stats.enemies.killedBySource[normalizedSource] += 1;
 
     const wave = this.ensureWave(waveIndex ?? this.activeWaveIndex);
     if (wave) {
       wave.enemies.killed += 1;
-      wave.enemies.killedBySource[source] += 1;
+      const waveSource = this.normalizeKillSource(
+        normalizedSource,
+        wave.enemies.killedBySource
+      );
+      wave.enemies.killedBySource[waveSource] += 1;
     }
 
-    if (source === "hero") {
+    if (normalizedSource === "hero") {
       this.state.heroKillStreak += 1;
       this.report.stats.hero.bestKillStreak = Math.max(
         this.report.stats.hero.bestKillStreak,
         this.state.heroKillStreak
       );
     }
-    if (source === "soldier") {
+    if (normalizedSource === "soldier") {
       this.report.stats.soldiers.kills += 1;
       if (wave) {
         wave.soldiers.kills += 1;
@@ -414,5 +419,16 @@ export class RunTracker {
 
   hasEnded() {
     return this.state.ended;
+  }
+
+  normalizeKillSource(source, collection) {
+    const target = collection || this.report.stats.enemies.killedBySource;
+    if (
+      target &&
+      Object.prototype.hasOwnProperty.call(target, source)
+    ) {
+      return source;
+    }
+    return "other";
   }
 }
