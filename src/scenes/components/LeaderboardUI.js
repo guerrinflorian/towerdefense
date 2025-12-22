@@ -45,7 +45,9 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
     this.setupLayout();
     this.updateModeUI();
-    this.loadData();
+    this.scene.events.once(Phaser.Scenes.Events.UPDATE, () => {
+      if (!this._destroyed) this.loadData();
+    });
 
     this.scene.add.existing(this);
     this.setDepth(200);
@@ -302,6 +304,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     try {
       const chapters = await fetchChaptersWithLevels();
       const chapterVMs = buildChapterViewModels(chapters, new Map());
+
       const levels = chapterVMs.flatMap((chapter) =>
         (chapter.levels || []).map((lvl) => ({
           ...lvl,
@@ -309,7 +312,10 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
           chapterName: chapter.name,
         }))
       );
-      levels.sort((a, b) => a.orderIndex - b.orderIndex || a.id - b.id);
+
+      // TRI CORRIGÉ : On se base uniquement sur l'ID numérique
+      levels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+
       this.levelMetas = levels;
     } catch (error) {
       console.warn("Impossible de charger la liste des niveaux", error);
@@ -318,64 +324,45 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   }
 
   async loadData() {
-    this._loadToken++;
+    // 1. Définition du token local pour ignorer les requêtes périmées
+    const token = ++this._loadToken;
 
+    // 2. Fonction de vérification de survie simplifiée et plus robuste
     const stillAlive = () => {
-      const alive =
+      return (
         !this._destroyed &&
-        this.active &&
         this.scene &&
         this.scene.sys &&
-        !(
-          typeof this.scene.sys.settings?.status === "number" &&
-          this.scene.sys.settings.status >= 5
-        );
-
-      return alive;
+        this.scene.sys.settings.status < Phaser.Scenes.SHUTDOWN // La scène n'est pas en train de s'arrêter
+      );
     };
 
     const safeSetText = (txtObj, value) => {
-      if (!stillAlive() || !txtObj || !txtObj.active) return;
-      txtObj.setText(String(value ?? ""));
+      if (stillAlive() && txtObj && txtObj.active) {
+        txtObj.setText(String(value ?? ""));
+      }
     };
 
     try {
-      if (!stillAlive()) {
-        console.log("[LB] stop: not alive");
-        return;
-      }
+      if (!stillAlive()) return;
 
+      // Nettoyage de la liste avant chargement
       if (this.listContainer) this.listContainer.removeAll(true);
-
-      console.log("[LB] authenticated ?", isAuthenticated());
-      if (!isAuthenticated()) {
-        safeSetText(this.statusText, "CONNEXION REQUISE");
-        console.log("[LB] stop: not authenticated");
-        return;
-      }
-
       safeSetText(this.statusText, "SYNCHRONISATION...");
-      console.log("[LB] fetching data...");
 
       let entries = [];
 
+      // 3. Récupération des données selon le mode
       if (this.currentMode === "hero") {
-        console.log("[LB] fetchHeroLeaderboard");
         entries = await fetchHeroLeaderboard();
       } else if (this.currentMode === "level") {
         await this.ensureLevelMetadata();
-        if (!stillAlive()) return;
+        if (!stillAlive() || token !== this._loadToken) return;
 
-        await this.ensureLevelMetadata();
-        if (!stillAlive() || token !== this._loadToken) {
-          console.log("[LB] stop after metadata");
-          return;
-        }
-
+        // On ne recharge les leaderboards de niveaux que s'ils sont vides
         if (this.levelLeaderboards.length === 0) {
           const levels = await fetchLevelLeaderboards();
           if (!stillAlive()) return;
-
           this.levelLeaderboards = levels;
           this.levelLeaderboardMap = new Map(
             levels.map((l) => [l.levelId, l.entries || []])
@@ -385,20 +372,27 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         const levelId = this.levelMetas[this.currentLevelIndex]?.id;
         entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
       } else {
-        console.log("[LB] fetchGlobalLeaderboard");
+        // Mode Global
         entries = await fetchGlobalLeaderboard();
       }
 
-      if (!stillAlive()) return;
+      // 4. Vérification finale avant rendu (très important pour l'asynchrone)
+      if (!stillAlive() || token !== this._loadToken) {
+        console.log("[LB] Request outdated or component dead, ignoring render");
+        return;
+      }
 
-      console.log("[LB] fetch OK, entries:", entries.length);
-
-      safeSetText(this.statusText, entries.length === 0 ? "AUCUNE DONNÉE" : "");
-      this.renderEntries(entries);
+      if (!entries || entries.length === 0) {
+        safeSetText(this.statusText, "AUCUNE DONNÉE TROUVÉE");
+      } else {
+        safeSetText(this.statusText, "");
+        this.renderEntries(entries);
+      }
     } catch (err) {
-      console.error("[LB] fetch error", err);
-      if (!stillAlive() || token !== this._loadToken) return;
-      if (this.statusText) this.statusText.setText("ERREUR DE CONNEXION");
+      console.error("[LB] Fetch error:", err);
+      if (stillAlive() && token === this._loadToken) {
+        safeSetText(this.statusText, "ERREUR DE RÉSEAU");
+      }
     }
   }
 
