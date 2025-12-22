@@ -728,6 +728,9 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.stopCombat();
     this.stopRegeneration();
     this.releaseEnemy();
+    if (this.scene?.runTracker) {
+      this.scene.runTracker.onSoldierDeath();
+    }
     
     // Animation de mort
     if (this.scene && this.scene.tweens) {

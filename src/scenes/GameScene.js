@@ -12,6 +12,8 @@ import { InputManager } from "./managers/InputManager.js";
 import { SpellManager } from "./managers/SpellManager.js";
 import { TextureFactory } from "./managers/TextureFactory.js";
 import { recordHeroKill } from "../services/authManager.js";
+import { RunTracker } from "../services/runTracker.js";
+import { sendRunReport } from "../services/runReportService.js";
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -81,7 +83,10 @@ export class GameScene extends Phaser.Scene {
     this.isTimerRunning = false;
     this.heroKillCount = 0;
     this.heroKillReportPromise = null;
+    this.runReportPromise = null;
     this.isPortrait = false;
+    this.activeWaveIndex = null;
+    this.runTracker = new RunTracker();
   }
 
   preload() {
@@ -124,6 +129,18 @@ export class GameScene extends Phaser.Scene {
     this.inputManager = new InputManager(this, this.spellManager, null);
     this.uiManager = new UIManager(this, this.spellManager, this.inputManager);
     this.inputManager.setUIManager(this.uiManager);
+
+    this.runReportPromise = null;
+    this.runTracker.startRun({
+      levelId: this.levelID,
+      levelName: this.levelConfig?.name || null,
+      biome: this.levelConfig?.biome || null,
+      difficulty: this.levelConfig?.difficulty || null,
+      seed: this.levelConfig?.seed || null,
+      startingMoney: this.money,
+      startingLives: this.lives,
+      totalWaves: this.levelConfig?.waves?.length || 0,
+    });
 
     this.mapManager.createMap();
     this.waveManager.initSpawnControls();
@@ -467,6 +484,7 @@ export class GameScene extends Phaser.Scene {
 
   async levelComplete() {
     this.reportHeroKillsOnce();
+    await this.finalizeRunReport("WIN", "level_complete");
     await this.waveManager.levelComplete();
   }
 
@@ -474,6 +492,11 @@ export class GameScene extends Phaser.Scene {
     if (payload?.source === "hero") {
       this.heroKillCount += 1;
     }
+
+    this.runTracker.onEnemyKill({
+      source: payload?.source || "other",
+      waveIndex: payload?.waveIndex ?? this.activeWaveIndex,
+    });
 
     if (payload && Math.random() < 0.25) {
       this.spawnCoinDrop(payload.x, payload.y);
@@ -499,6 +522,29 @@ export class GameScene extends Phaser.Scene {
       return null;
     });
     return this.heroKillReportPromise;
+  }
+
+  async finalizeRunReport(result = null, reasonEnd = null) {
+    if (!this.runTracker) return null;
+    if (this.runTracker.hasEnded && this.runTracker.hasEnded() && this.runReportPromise) {
+      return this.runReportPromise;
+    }
+
+    const report = this.runTracker.endRun({
+      result,
+      reasonEnd,
+      finalGold: this.money,
+      livesRemaining: this.lives,
+      elapsedMs: Math.round(this.elapsedTimeMs || 0),
+    });
+    if (!report) return null;
+
+    console.log("[RunReport]", report);
+    this.runReportPromise = sendRunReport(report).catch((err) => {
+      console.warn("RunReport send failed", err);
+      return null;
+    });
+    return this.runReportPromise;
   }
 
   // =========================================================
@@ -560,8 +606,14 @@ export class GameScene extends Phaser.Scene {
 
     if (this.money >= cost) {
       this.money -= cost;
+      this.runTracker.onGoldSpent(cost);
       this.updateUI();
 
+      this.runTracker.onTowerUpgrade({
+        key: this.selectedTurret?.config?.key,
+        level: this.selectedTurret?.level + 1,
+        maxLevel: this.selectedTurret?.config?.maxLevel,
+      });
       this.selectedTurret.upgrade();
 
       this.upgradeMenu.setVisible(false);
@@ -655,6 +707,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.money >= turretConfig.cost) {
       this.money -= turretConfig.cost;
+      this.runTracker.onGoldSpent(turretConfig.cost);
       this.updateUI();
       const T = CONFIG.TILE_SIZE * this.scaleFactor;
       const px = this.mapStartX + tileX * T + T / 2;
@@ -666,11 +719,13 @@ export class GameScene extends Phaser.Scene {
         b.setScale(this.scaleFactor);
         this.barracks.push(b);
         b.deploySoldiers();
+        this.runTracker.onTowerBuild({ key: turretConfig.key, level: 1 });
       } else {
         const t = new Turret(this, px, py, turretConfig);
         t.setDepth(20);
         t.setScale(this.scaleFactor);
         this.turrets.push(t);
+        this.runTracker.onTowerBuild({ key: turretConfig.key, level: 1 });
       }
 
       this.levelConfig.map[tileY][tileX] = 9;
@@ -684,7 +739,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   takeDamage(amount = 1) {
+    const previousLives = this.lives;
     this.lives = Math.max(0, this.lives - amount);
+    const lost = Math.max(0, previousLives - this.lives);
+    this.runTracker.onBaseDamage({
+      amount,
+      livesRemaining: this.lives,
+      livesLost: lost,
+    });
     this.updateUI();
     this.cameras.main.shake(150, 0.01);
     if (this.lives <= 0) {
@@ -706,6 +768,7 @@ export class GameScene extends Phaser.Scene {
         // Erreur silencieuse
       }
     }
+    await this.finalizeRunReport("LOSE", "base_destroyed");
 
     // Désactiver les boutons pause et quitter
     if (this.pauseBtn) {
@@ -782,8 +845,9 @@ export class GameScene extends Phaser.Scene {
     this.gameOverBlocker = blocker;
   }
 
-  earnMoney(amount) {
+  earnMoney(amount, meta = {}) {
     this.money += amount;
+    this.runTracker.onGoldEarned(amount, meta);
     this.updateUI();
   }
 
@@ -1035,6 +1099,8 @@ export class GameScene extends Phaser.Scene {
     // Nettoyer les ressources
     this.closeQuitConfirmation();
     
+    this.finalizeRunReport("ABORT", "quit_to_menu");
+
     // Retourner au menu principal
     this.scene.start("MainMenuScene");
   }
@@ -1081,6 +1147,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    if (this.runTracker && this.runTracker.hasEnded && !this.runTracker.hasEnded()) {
+      this.finalizeRunReport("ABORT", "scene_shutdown");
+    }
     // Rendre shutdown() idempotent : safe si appelé plusieurs fois
     try {
       this.events?.off("enemy-killed", this.handleEnemyKilled, this);
