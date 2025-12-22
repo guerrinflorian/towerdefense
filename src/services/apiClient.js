@@ -25,7 +25,10 @@ const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl().replace(/\/$/, "");
 const DEFAULT_TIMEOUT = 10000;
 
-async function httpRequest(path, { method = "GET", data, headers = {} } = {}) {
+async function httpRequest(
+  path,
+  { method = "GET", data, headers = {}, credentials } = {}
+) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
@@ -46,12 +49,21 @@ async function httpRequest(path, { method = "GET", data, headers = {} } = {}) {
       : `${API_BASE_URL}${path}`;
 
   try {
+    const urlObj = new URL(
+      path.startsWith("http") ? path : `${API_BASE_URL}${path}`
+    );
+    const isSameOrigin =
+      typeof window !== "undefined" &&
+      window.location.origin === urlObj.origin;
+
     const response = await fetch(url, {
       method,
       headers: finalHeaders,
       body: data ? JSON.stringify(data) : undefined,
       signal: controller.signal,
-      credentials: "include",
+      credentials:
+        credentials ??
+        (isSameOrigin ? "include" : "omit"), // align with axios default (omit for cross-origin)
     });
 
     const contentType = response.headers.get("content-type") || "";
