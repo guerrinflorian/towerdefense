@@ -372,6 +372,9 @@ export class Barracks extends Phaser.GameObjects.Container {
 
       this.soldiers.push(soldier);
       this.scene.soldiers.add(soldier);
+      if (this.scene.runTracker) {
+        this.scene.runTracker.onSoldierSpawn();
+      }
     }
   }
 
@@ -432,6 +435,10 @@ export class Barracks extends Phaser.GameObjects.Container {
         this.soldiers.push(dead.soldier);
 
         this.deadSoldiers.splice(i, 1);
+
+        if (this.scene.runTracker) {
+          this.scene.runTracker.onSoldierSpawn();
+        }
       }
     }
   }
