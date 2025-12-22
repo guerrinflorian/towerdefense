@@ -1,5 +1,5 @@
 import { CONFIG } from "../config/settings.js";
-import { LEVELS_CONFIG } from "../config/levels/index.js";
+import { getLevelConfigById, LEVELS_CONFIG } from "../config/levels/index.js";
 import { Enemy } from "../objects/Enemy.js";
 import { Turret } from "../objects/Turret.js";
 import { Barracks } from "../objects/Barracks.js";
@@ -20,8 +20,7 @@ export class GameScene extends Phaser.Scene {
 
   init(data) {
     this.levelID = data.level || 1;
-    const levelData = LEVELS_CONFIG.find((l) => l.id === this.levelID);
-    const src = levelData ? levelData.data : LEVELS_CONFIG[0].data;
+    const src = getLevelConfigById(this.levelID) || LEVELS_CONFIG[0].data;
 
     // CLONE PROFOND pour ne jamais muter LEVELS_CONFIG
     if (typeof structuredClone !== "undefined") {

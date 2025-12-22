@@ -1,4 +1,5 @@
 import { MainMenuScene } from "./scenes/MainMenuScene.js";
+import { ChapterScene } from "./scenes/ChapterScene.js";
 import { MapScene } from "./scenes/MapScene.js";
 import { GameScene } from "./scenes/GameScene.js";
 import { CONFIG } from "./config/settings.js";
@@ -56,7 +57,7 @@ const config = {
     smoothFactor: 0,
   },
 
-  scene: [MainMenuScene, MapScene, GameScene],
+  scene: [MainMenuScene, ChapterScene, MapScene, GameScene],
   
   physics: {
     default: "arcade",

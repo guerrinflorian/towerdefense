@@ -1,10 +1,13 @@
-import { LEVELS_CONFIG } from "../../config/levels/index.js";
 import {
   fetchGlobalLeaderboard,
   fetchHeroLeaderboard,
   fetchLevelLeaderboards,
 } from "../../services/leaderboardService.js";
 import { isAuthenticated } from "../../services/authManager.js";
+import {
+  buildChapterViewModels,
+  fetchChaptersWithLevels,
+} from "../../services/chapterService.js";
 
 /**
  * UI du Classement - Style Cyberpunk / Sci-Fi
@@ -13,7 +16,10 @@ import { isAuthenticated } from "../../services/authManager.js";
 export class LeaderboardUI extends Phaser.GameObjects.Container {
   constructor(scene, x, y) {
     super(scene, x, y);
-    
+
+    this._loadToken = 0;
+    this._destroyed = false;
+
     // --- CONFIGURATION STYLE ---
     this.uiConfig = {
       width: 560,
@@ -31,17 +37,26 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
     // --- ÉTAT ---
     this.viewModes = ["hero", "global", "level"];
-    this.currentModeIndex = 1; 
+    this.currentModeIndex = 1;
     this.currentLevelIndex = 0;
     this.levelLeaderboards = [];
     this.levelLeaderboardMap = new Map();
+    this.levelMetas = [];
 
     this.setupLayout();
     this.updateModeUI();
-    this.loadData();
+    this.scene.events.once(Phaser.Scenes.Events.UPDATE, () => {
+      if (!this._destroyed) this.loadData();
+    });
 
     this.scene.add.existing(this);
     this.setDepth(200);
+  }
+
+  destroy(fromScene) {
+    this._destroyed = true;
+    this._loadToken++; // invalide toute requête en cours
+    super.destroy(fromScene);
   }
 
   get currentMode() {
@@ -57,60 +72,115 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     bg.fillStyle(0x000000, 0.4).fillRoundedRect(10, 10, width, height, 15);
     // Fond
     bg.fillStyle(colors.bg, 0.95).lineStyle(2, colors.accent, 1);
-    bg.fillRoundedRect(0, 0, width, height, 15).strokeRoundedRect(0, 0, width, height, 15);
+    bg.fillRoundedRect(0, 0, width, height, 15).strokeRoundedRect(
+      0,
+      0,
+      width,
+      height,
+      15
+    );
     // Ligne de séparation titre
     bg.lineStyle(1, colors.accent, 0.4).lineBetween(15, 55, width - 15, 55);
     this.add(bg);
 
     // 2. NAVIGATION DES MODES (Haut)
     const resolution = window.devicePixelRatio || 1;
-    const navStyle = { fontSize: "22px", fontFamily: "Impact, sans-serif", color: "#7dd0ff", resolution };
-    
-    this.btnPrevMode = this.scene.add.text(20, 28, "◀", navStyle).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
-    this.btnNextMode = this.scene.add.text(width - 70, 28, "▶", navStyle).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
-    
-    this.title = this.scene.add.text(width / 2, 28, "", {
+    const navStyle = {
       fontSize: "22px",
       fontFamily: "Impact, sans-serif",
-      color: "#ffffff",
-      letterSpacing: 1,
-      resolution
-    }).setOrigin(0.5).setShadow(0, 0, "#00eaff", 10);
+      color: "#7dd0ff",
+      resolution,
+    };
 
-    this.refreshBtn = this.scene.add.text(width - 30, 28, "↻", {
-      fontSize: "26px", color: "#00eaff", fontStyle: "bold", resolution
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this.btnPrevMode = this.scene.add
+      .text(20, 28, "◀", navStyle)
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+    this.btnNextMode = this.scene.add
+      .text(width - 70, 28, "▶", navStyle)
+      .setOrigin(1, 0.5)
+      .setInteractive({ useHandCursor: true });
+
+    this.title = this.scene.add
+      .text(width / 2, 28, "", {
+        fontSize: "22px",
+        fontFamily: "Impact, sans-serif",
+        color: "#ffffff",
+        letterSpacing: 1,
+        resolution,
+      })
+      .setOrigin(0.5)
+      .setShadow(0, 0, "#00eaff", 10);
+
+    this.refreshBtn = this.scene.add
+      .text(width - 30, 28, "↻", {
+        fontSize: "26px",
+        color: "#00eaff",
+        fontStyle: "bold",
+        resolution,
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
     this.add([this.btnPrevMode, this.btnNextMode, this.title, this.refreshBtn]);
 
     // 3. BARRE DE SELECTION DES NIVEAUX (Plus espacée et structurée)
     // On crée un conteneur dédié pour la navigation de niveau
     this.levelNavContainer = this.scene.add.container(0, 75);
-    
+
     const levelBg = this.scene.add.graphics();
-    levelBg.fillStyle(0xffffff, 0.05).fillRoundedRect(20, 0, width - 40, 40, 10);
+    levelBg
+      .fillStyle(0xffffff, 0.05)
+      .fillRoundedRect(20, 0, width - 40, 40, 10);
     this.levelNavContainer.add(levelBg);
 
-    const levelNavStyle = { fontSize: "14px", color: "#9ae8ff", fontFamily: "Orbitron", fontWeight: "bold", resolution };
-    
-    this.btnPrevLvl = this.scene.add.text(45, 20, "⟸ NIVEAU PRÉCÉDENT", { ...levelNavStyle, fontSize: "11px" })
-      .setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
-    
-    this.levelNavLabel = this.scene.add.text(width / 2, 20, "", levelNavStyle)
-      .setOrigin(0.5).setShadow(0,0, "#00eaff", 5);
-    
-    this.btnNextLvl = this.scene.add.text(width - 45, 20, "NIVEAU SUIVANT ⟹", { ...levelNavStyle, fontSize: "11px" })
-      .setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+    const levelNavStyle = {
+      fontSize: "14px",
+      color: "#9ae8ff",
+      fontFamily: "Orbitron",
+      fontWeight: "bold",
+      resolution,
+    };
 
-    this.levelNavContainer.add([this.btnPrevLvl, this.levelNavLabel, this.btnNextLvl]);
+    this.btnPrevLvl = this.scene.add
+      .text(45, 20, "⟸ NIVEAU PRÉCÉDENT", {
+        ...levelNavStyle,
+        fontSize: "11px",
+      })
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+
+    this.levelNavLabel = this.scene.add
+      .text(width / 2, 20, "", levelNavStyle)
+      .setOrigin(0.5)
+      .setShadow(0, 0, "#00eaff", 5);
+
+    this.btnNextLvl = this.scene.add
+      .text(width - 45, 20, "NIVEAU SUIVANT ⟹", {
+        ...levelNavStyle,
+        fontSize: "11px",
+      })
+      .setOrigin(1, 0.5)
+      .setInteractive({ useHandCursor: true });
+
+    this.levelNavContainer.add([
+      this.btnPrevLvl,
+      this.levelNavLabel,
+      this.btnNextLvl,
+    ]);
     this.add(this.levelNavContainer);
 
     // 4. ZONE DE DONNÉES
     this.headerContainer = this.scene.add.container(0, 130);
     this.listContainer = this.scene.add.container(0, 155);
-    this.statusText = this.scene.add.text(width / 2, height / 2 + 50, "", {
-      fontSize: "14px", color: "#ffffff", fontFamily: "Courier New", resolution
-    }).setOrigin(0.5);
+    this.statusText = this.scene.add
+      .text(width / 2, height / 2 + 50, "", {
+        fontSize: "14px",
+        color: "#ffffff",
+        fontFamily: "Courier New",
+        resolution,
+      })
+      .setOrigin(0.5);
 
     this.add([this.headerContainer, this.listContainer, this.statusText]);
 
@@ -132,13 +202,15 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this.loadData();
   }
 
-  changeLevel(delta) {
-    const totalLevels = LEVELS_CONFIG.length;
+  async changeLevel(delta) {
+    await this.ensureLevelMetadata();
+    const totalLevels = this.levelMetas.length;
     if (totalLevels === 0) return;
-    this.currentLevelIndex = (this.currentLevelIndex + delta + totalLevels) % totalLevels;
+    this.currentLevelIndex =
+      (this.currentLevelIndex + delta + totalLevels) % totalLevels;
     this.updateModeUI();
-          this.loadData();
-        }
+    this.loadData();
+  }
 
   updateModeUI() {
     this.title.setText(this.getTitleText());
@@ -146,24 +218,32 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     // Afficher/Cacher la barre de sélection de niveau
     const isLevelMode = this.currentMode === "level";
     this.levelNavContainer.setVisible(isLevelMode);
-    
+
     // Ajuster la position du tableau si on est en mode niveau ou non
     this.headerContainer.setY(isLevelMode ? 130 : 80);
     this.listContainer.setY(isLevelMode ? 155 : 105);
 
     if (isLevelMode) {
-      const lvl = LEVELS_CONFIG[this.currentLevelIndex];
-      this.levelNavLabel.setText(lvl ? `${lvl.id} • ${lvl.name.toUpperCase()}` : "NIVEAU INCONNU");
+      if (this.levelMetas.length === 0) {
+        this.ensureLevelMetadata().then(() => this.updateModeUI());
+      }
+      const lvl = this.levelMetas[this.currentLevelIndex];
+      this.levelNavLabel.setText(
+        lvl ? `${lvl.id} • ${lvl.name.toUpperCase()}` : "NIVEAU INCONNU"
+      );
     }
-    
+
     this.drawHeaders();
   }
 
   getTitleText() {
     switch (this.currentMode) {
-      case "hero": return "🦸 CLASSEMENT DES HÉROS";
-      case "level": return "🗺️ RECORDS PAR MISSION";
-      default: return "📊 CLASSEMENT GÉNÉRAL";
+      case "hero":
+        return "🦸 CLASSEMENT DES HÉROS";
+      case "level":
+        return "🗺️ RECORDS PAR MISSION";
+      default:
+        return "📊 CLASSEMENT GÉNÉRAL";
     }
   }
 
@@ -201,7 +281,13 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
   drawHeaders() {
     const resolution = window.devicePixelRatio || 1;
-    const hStyle = { fontSize: "11px", color: "#7dd0ff", fontWeight: "bold", fontFamily: "Orbitron", resolution };
+    const hStyle = {
+      fontSize: "11px",
+      color: "#7dd0ff",
+      fontWeight: "bold",
+      fontFamily: "Orbitron",
+      resolution,
+    };
     this.headerContainer.removeAll(true);
     this.activeColumns = this.getColumns();
     this.activeColumns.forEach((col) => {
@@ -213,46 +299,99 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
   // --- CHARGEMENT DES DONNÉES ---
 
-  async loadData() {
+  async ensureLevelMetadata() {
+    if (this.levelMetas.length > 0) return;
     try {
-      this.listContainer.removeAll(true);
-      
-      // Vérifier si l'utilisateur est authentifié avant de charger les données
-      if (!isAuthenticated()) {
-        if (this.statusText) {
-          this.statusText.setText("CONNEXION REQUISE");
-        }
-        return;
+      const chapters = await fetchChaptersWithLevels();
+      const chapterVMs = buildChapterViewModels(chapters, new Map());
+
+      const levels = chapterVMs.flatMap((chapter) =>
+        (chapter.levels || []).map((lvl) => ({
+          ...lvl,
+          chapterId: chapter.id,
+          chapterName: chapter.name,
+        }))
+      );
+
+      // TRI CORRIGÉ : On se base uniquement sur l'ID numérique
+      levels.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+
+      this.levelMetas = levels;
+    } catch (error) {
+      console.warn("Impossible de charger la liste des niveaux", error);
+      this.levelMetas = [];
+    }
+  }
+
+  async loadData() {
+    // 1. Définition du token local pour ignorer les requêtes périmées
+    const token = ++this._loadToken;
+
+    // 2. Fonction de vérification de survie simplifiée et plus robuste
+    const stillAlive = () => {
+      return (
+        !this._destroyed &&
+        this.scene &&
+        this.scene.sys &&
+        this.scene.sys.settings.status < Phaser.Scenes.SHUTDOWN // La scène n'est pas en train de s'arrêter
+      );
+    };
+
+    const safeSetText = (txtObj, value) => {
+      if (stillAlive() && txtObj && txtObj.active) {
+        txtObj.setText(String(value ?? ""));
       }
-      
-      if (this.statusText) {
-        this.statusText.setText("SYNCHRONISATION AVEC LE SERVEUR...");
-      }
+    };
+
+    try {
+      if (!stillAlive()) return;
+
+      // Nettoyage de la liste avant chargement
+      if (this.listContainer) this.listContainer.removeAll(true);
+      safeSetText(this.statusText, "SYNCHRONISATION...");
 
       let entries = [];
 
+      // 3. Récupération des données selon le mode
       if (this.currentMode === "hero") {
         entries = await fetchHeroLeaderboard();
       } else if (this.currentMode === "level") {
+        await this.ensureLevelMetadata();
+        if (!stillAlive() || token !== this._loadToken) return;
+
+        // On ne recharge les leaderboards de niveaux que s'ils sont vides
         if (this.levelLeaderboards.length === 0) {
           const levels = await fetchLevelLeaderboards();
+          if (!stillAlive()) return;
           this.levelLeaderboards = levels;
-          this.levelLeaderboardMap = new Map(levels.map(l => [l.levelId, l.entries || []]));
+          this.levelLeaderboardMap = new Map(
+            levels.map((l) => [l.levelId, l.entries || []])
+          );
         }
-        const levelId = LEVELS_CONFIG[this.currentLevelIndex]?.id;
+
+        const levelId = this.levelMetas[this.currentLevelIndex]?.id;
         entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
       } else {
+        // Mode Global
         entries = await fetchGlobalLeaderboard();
       }
 
-      if (this.statusText) {
-        this.statusText.setText(entries.length === 0 ? "AUCUNE DONNÉE TROUVÉE" : "");
+      // 4. Vérification finale avant rendu (très important pour l'asynchrone)
+      if (!stillAlive() || token !== this._loadToken) {
+        console.log("[LB] Request outdated or component dead, ignoring render");
+        return;
       }
-      this.renderEntries(entries);
+
+      if (!entries || entries.length === 0) {
+        safeSetText(this.statusText, "AUCUNE DONNÉE TROUVÉE");
+      } else {
+        safeSetText(this.statusText, "");
+        this.renderEntries(entries);
+      }
     } catch (err) {
-      console.error(err);
-      if (this.statusText) {
-        this.statusText.setText("ERREUR DE CONNEXION");
+      console.error("[LB] Fetch error:", err);
+      if (stillAlive() && token === this._loadToken) {
+        safeSetText(this.statusText, "ERREUR DE RÉSEAU");
       }
     }
   }
@@ -271,27 +410,49 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
       row.add(rowBg);
 
       // Création des cellules dynamiques
-      this.activeColumns.forEach(col => {
+      this.activeColumns.forEach((col) => {
         let value = "";
-        switch(col.key) {
-          case "rank": value = (idx + 1).toString().padStart(2, "0"); break;
-          case "player": value = (entry.username || "Anonyme").substring(0, 14); break;
-          case "time": value = this.formatTime(entry.completion_time_ms || entry.total_time_ms); break;
-          case "date": value = this.formatDate(entry.created_at); break;
-          case "score": value = Math.round(entry.hero_score || 0).toLocaleString(); break;
-          case "hearts": value = entry.lives_lost ?? entry.total_lives_lost ?? 0; break;
-          case "hp": value = entry.max_hp || 0; break;
-          case "dmg": value = parseFloat(entry.base_damage || 0).toFixed(2); break;
-          case "speed": value = parseFloat(entry.move_speed || 0).toFixed(2); break;
-          case "lvl": value = entry.max_level || 0; break;
+        switch (col.key) {
+          case "rank":
+            value = (idx + 1).toString().padStart(2, "0");
+            break;
+          case "player":
+            value = (entry.username || "Anonyme").substring(0, 14);
+            break;
+          case "time":
+            value = this.formatTime(
+              entry.completion_time_ms || entry.total_time_ms
+            );
+            break;
+          case "date":
+            value = this.formatDate(entry.created_at);
+            break;
+          case "score":
+            value = Math.round(entry.hero_score || 0).toLocaleString();
+            break;
+          case "hearts":
+            value = entry.lives_lost ?? entry.total_lives_lost ?? 0;
+            break;
+          case "hp":
+            value = entry.max_hp || 0;
+            break;
+          case "dmg":
+            value = parseFloat(entry.base_damage || 0).toFixed(2);
+            break;
+          case "speed":
+            value = parseFloat(entry.move_speed || 0).toFixed(2);
+            break;
+          case "lvl":
+            value = entry.max_level || 0;
+            break;
         }
 
         const cell = this.scene.add.text(col.x, 0, value, {
-        fontSize: "13px",
+          fontSize: "13px",
           fontFamily: "Arial",
-          color: (col.key === "time" || col.key === "score") ? "#00eaff" : color,
+          color: col.key === "time" || col.key === "score" ? "#00eaff" : color,
           fontWeight: isTop1 || col.key === "rank" ? "bold" : "normal",
-          resolution: window.devicePixelRatio || 1
+          resolution: window.devicePixelRatio || 1,
         });
 
         if (col.align === "right") cell.setOrigin(1, 0);
@@ -308,6 +469,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   handleRefresh() {
     this.levelLeaderboards = [];
     this.levelLeaderboardMap.clear();
+    this.levelMetas = [];
     this.scene.tweens.add({
       targets: this.refreshBtn,
       angle: 360,
@@ -320,15 +482,15 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   }
 
   animateRow(row, idx) {
-      row.alpha = 0;
-      row.x = -10;
-      this.scene.tweens.add({
-        targets: row,
-        alpha: 1,
-        x: 0,
-        duration: 300,
+    row.alpha = 0;
+    row.x = -10;
+    this.scene.tweens.add({
+      targets: row,
+      alpha: 1,
+      x: 0,
+      duration: 300,
       delay: idx * 40,
-      });
+    });
   }
 
   formatTime(ms) {
@@ -340,6 +502,8 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   formatDate(date) {
     if (!date) return "--/--";
     const d = new Date(date);
-    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+    return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}`;
   }
 }

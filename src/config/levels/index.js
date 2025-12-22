@@ -7,9 +7,14 @@ import { LEVEL_4 } from "./level4.js";
 import { LEVEL_5 } from "./level5.js";
 
 export const LEVELS_CONFIG = [
-  { id: 1, name: "Forêt de Sylvarok", data: LEVEL_1 },
-  { id: 2, name: "Désert d'Azal'kor", data: LEVEL_2 },
-  { id: 3, name: "Glacier de Krovar", data: LEVEL_3 },
-  { id: 4, name: "Cimetière Maudit", data: LEVEL_4 },
-  { id: 5, name: "Lavaland Infernal", data: LEVEL_5 },
+  { id: 1, data: LEVEL_1 },
+  { id: 2, data: LEVEL_2 },
+  { id: 3, data: LEVEL_3 },
+  { id: 4, data: LEVEL_4 },
+  { id: 5, data: LEVEL_5 },
 ];
+
+export function getLevelConfigById(levelId) {
+  const level = LEVELS_CONFIG.find((lvl) => lvl.id === Number(levelId));
+  return level?.data || null;
+}
