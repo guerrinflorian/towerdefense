@@ -30,12 +30,16 @@ export class ChapterScene extends Phaser.Scene {
     ).href;
     this.load.image("chapters-bg", backgroundUrl);
 
-    // 2. Chargement des images de chapitres (1 à 5)
-    for (let i = 1; i <= 5; i++) {
-      const imgUrl = new URL(`../images/chapitre${i}.png`, import.meta.url)
-        .href;
-      this.load.image(`chapter-img-${i}`, imgUrl);
-    }
+    // 2. Chargement des images de chapitres (actuellement 2 visuels disponibles)
+    const chapterArts = [
+      { key: "chapter-img-1", file: "chapitre1.png" },
+      { key: "chapter-img-2", file: "chapitre2.png" },
+    ];
+
+    chapterArts.forEach(({ key, file }) => {
+      const imgUrl = new URL(`../images/${file}`, import.meta.url).href;
+      this.load.image(key, imgUrl);
+    });
 
     // Gestion des erreurs de chargement pour débugger
     this.load.on("loaderror", (file) => {
@@ -168,12 +172,19 @@ export class ChapterScene extends Phaser.Scene {
       const x = startX + col * (cardWidth + padding);
       const y = startY + row * (cardHeight + padding);
 
-      const card = this.createChapterCard(x, y, cardWidth, cardHeight, chapter);
+      const card = this.createChapterCard(
+        x,
+        y,
+        cardWidth,
+        cardHeight,
+        chapter,
+        i
+      );
       this.cardGroup.add(card);
     });
   }
 
-  createChapterCard(x, y, w, h, chapter) {
+  createChapterCard(x, y, w, h, chapter, index) {
     const container = this.add.container(x, y);
     const isLocked = chapter.isLocked;
     const accentColor = isLocked ? 0x445566 : 0x00f2ff;
@@ -186,7 +197,8 @@ export class ChapterScene extends Phaser.Scene {
     bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
 
     // 2. Image du chapitre (Vérification textures pour éviter crash setTint)
-    const imgKey = `chapter-img-${chapter.id}`;
+    const imgKey =
+      this.getChapterImageKey(chapter, index) || `chapter-img-${chapter.id}`;
     const artSize = h - 40;
     let art;
 
@@ -239,7 +251,20 @@ export class ChapterScene extends Phaser.Scene {
       padding: { x: 5, y: 2 },
     });
 
-    container.add([bg, art, title, stats, status]);
+    const conditions = this.buildAccessConditions(chapter);
+    const conditionText = this.add.text(
+      textX,
+      status.y + status.height + 8,
+      conditions.join("\n"),
+      {
+        fontFamily: "Orbitron",
+        fontSize: "11px",
+        color: "#9ae8ff",
+        wordWrap: { width: availableWidth },
+      }
+    );
+
+    container.add([bg, art, title, stats, status, conditionText]);
 
     // 4. Interactions
     if (!isLocked) {
@@ -261,11 +286,41 @@ export class ChapterScene extends Phaser.Scene {
       });
 
       container.on("pointerdown", () => {
-        this.scene.start("MapScene", { chapter });
+        this.scene.start("MapScene", { fromMainMenu: true, chapter });
       });
     }
 
     return container;
+  }
+
+  getChapterImageKey(chapter, index) {
+    const preferredIndex =
+      chapter.orderIndex ?? chapter.order_index ?? chapter.id ?? index + 1;
+    const candidateKey = `chapter-img-${preferredIndex}`;
+    if (this.textures.exists(candidateKey)) return candidateKey;
+
+    const fallbackIndex = index + 1;
+    const fallbackKey = `chapter-img-${fallbackIndex}`;
+    return this.textures.exists(fallbackKey) ? fallbackKey : null;
+  }
+
+  buildAccessConditions(chapter) {
+    const conditions = [];
+
+    if (chapter.lockReason) {
+      conditions.push(`• ${chapter.lockReason}`);
+    }
+
+    const maxHearts = chapter.unlockPrevChapterHeartsMax;
+    if (maxHearts != null) {
+      conditions.push(`• Perds au maximum ${maxHearts} cœurs dans le chapitre précédent.`);
+    }
+
+    if (!conditions.length) {
+      conditions.push("• Disponible sans condition");
+    }
+
+    return conditions;
   }
 
   handleResize() {
