@@ -152,7 +152,7 @@ export class SpellManager {
         if (enemy && enemy.active) {
           const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
           if (dist <= effectRadius) {
-            enemy.damage(LIGHTNING_SPELL.damage);
+            enemy.damage(LIGHTNING_SPELL.damage, { source: "spell" });
 
             if (enemy.hp > 0 && enemy.paralyze) {
               enemy.paralyze(LIGHTNING_SPELL.paralysisDuration);
