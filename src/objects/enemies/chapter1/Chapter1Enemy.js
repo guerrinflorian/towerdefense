@@ -319,13 +319,11 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
   damage(amount, metadata = {}) {
     if (this.isInvulnerable || !this.active) return;
 
-    if (metadata?.source) {
-      this.lastDamageSource = metadata.source;
-    }
+    const damageSource = metadata?.source || this.lastDamageSource || "turret"; // Par défaut, tourelle si rien n'est précisé
+    this.lastDamageSource = damageSource;
 
     const potentialHp = this.hp - amount;
     // L'aura ne protège que contre les dégâts des tourelles, pas des soldats/héros
-    const damageSource = metadata?.source || "turret"; // Par défaut, on considère que c'est une tourelle si non spécifié
     if (potentialHp <= 0 && this.isDeathPreventedByAura(damageSource)) {
       this.hp = Math.max(1, this.hp - Math.max(0, amount));
       this.updateHealthBar();
@@ -667,8 +665,9 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
     if (this.scene.earnMoney) this.scene.earnMoney(this.stats.reward || 10);
 
     if (this.scene?.events) {
+      const src = this.lastDamageSource || "other";
       this.scene.events.emit("enemy-killed", {
-        source: this.lastDamageSource || null,
+        source: src,
         x: this.x,
         y: this.y,
         waveIndex: this.waveIndex ?? this.scene?.activeWaveIndex ?? null,
