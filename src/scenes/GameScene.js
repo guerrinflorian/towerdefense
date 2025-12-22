@@ -133,10 +133,7 @@ export class GameScene extends Phaser.Scene {
     this.runReportPromise = null;
     this.runTracker.startRun({
       levelId: this.levelID,
-      levelName:
-        this.levelConfig?.name ||
-        this.levelConfig?.title ||
-        `Level ${this.levelID}`,
+      levelName: this.levelConfig?.name || null,
       biome: this.levelConfig?.biome || null,
       difficulty: this.levelConfig?.difficulty || null,
       seed: this.levelConfig?.seed || null,
