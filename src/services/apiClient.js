@@ -1,5 +1,3 @@
-import axios from "axios";
-
 // Détection automatique de l'URL de l'API
 // En production (Vercel), utilise l'origine actuelle (même domaine)
 // En développement, utilise localhost:3000
@@ -8,7 +6,7 @@ const getApiBaseUrl = () => {
   if (process.env.API_BASE_URL || process.env.API_URL) {
     return process.env.API_BASE_URL || process.env.API_URL;
   }
-  
+
   // En production (sur Vercel ou autre domaine), utilise l'origine actuelle
   if (typeof window !== "undefined") {
     const origin = window.location.origin;
@@ -19,32 +17,73 @@ const getApiBaseUrl = () => {
     // Sinon, utilise l'origine actuelle (même domaine = même URL Vercel)
     return origin;
   }
-  
+
   // Fallback pour SSR ou autres cas
   return "http://localhost:3000";
 };
 
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = getApiBaseUrl().replace(/\/$/, "");
+const DEFAULT_TIMEOUT = 10000;
 
-export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-});
+async function httpRequest(path, { method = "GET", data, headers = {} } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
 
-apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("authToken");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+  const finalHeaders = {
+    Accept: "application/json",
+    ...(data ? { "Content-Type": "application/json" } : {}),
+    ...headers,
+  };
 
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  if (token) {
+    finalHeaders.Authorization = `Bearer ${token}`;
+  }
+
+  const url =
+    path.startsWith("http://") || path.startsWith("https://")
+      ? path
+      : `${API_BASE_URL}${path}`;
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: finalHeaders,
+      body: data ? JSON.stringify(data) : undefined,
+      signal: controller.signal,
+      credentials: "include",
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    const payload = contentType.includes("application/json")
+      ? await response.json()
+      : await response.text();
+
+    if (response.status === 401) {
       localStorage.removeItem("authToken");
     }
-    return Promise.reject(error);
+
+    if (!response.ok) {
+      const error = new Error("API request failed");
+      error.response = { status: response.status, data: payload };
+      throw error;
+    }
+
+    return { data: payload, status: response.status };
+  } catch (error) {
+    if (error.name === "AbortError") {
+      const timeoutError = new Error("API request timed out");
+      timeoutError.code = "TIMEOUT";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
-);
+}
+
+export const apiClient = {
+  get: (path, config = {}) => httpRequest(path, { ...config, method: "GET" }),
+  post: (path, data, config = {}) =>
+    httpRequest(path, { ...config, method: "POST", data }),
+};

@@ -154,9 +154,13 @@ export class ChapterScene extends Phaser.Scene {
     const cardWidth = (gridWidth - padding * (cols - 1)) / cols;
     const cardHeight = 180; // Hauteur fixe pour garder un alignement propre
 
+    const headerBottom = this.title
+      ? this.title.y + this.title.height * (1 - this.title.originY)
+      : 100;
+
     const startX =
       (width - (cols * cardWidth + (cols - 1) * padding)) / 2 + cardWidth / 2;
-    const startY = 180;
+    const startY = Math.max(headerBottom + 80, 220);
 
     this.chapters.forEach((chapter, i) => {
       const col = i % cols;
