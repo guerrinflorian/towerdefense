@@ -319,13 +319,12 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
   damage(amount, metadata = {}) {
     if (this.isInvulnerable || !this.active) return;
 
-    // Normaliser la source et la conserver jusqu'à la mort
-    const normalizedSource = metadata?.source || this.lastDamageSource || "other";
-    this.lastDamageSource = normalizedSource;
+    const damageSource = metadata?.source || this.lastDamageSource || "turret"; // Par défaut, tourelle si rien n'est précisé
+    this.lastDamageSource = damageSource;
 
     const potentialHp = this.hp - amount;
     // L'aura ne protège que contre les dégâts des tourelles, pas des soldats/héros
-    if (potentialHp <= 0 && this.isDeathPreventedByAura(normalizedSource)) {
+    if (potentialHp <= 0 && this.isDeathPreventedByAura(damageSource)) {
       this.hp = Math.max(1, this.hp - Math.max(0, amount));
       this.updateHealthBar();
 
