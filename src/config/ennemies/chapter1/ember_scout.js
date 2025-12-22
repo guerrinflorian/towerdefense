@@ -1,12 +1,12 @@
 export const ember_scout = {
   name: "Éclaireur de Braises",
-  speed: 240,
-  hp: 140,
+  speed: 210,
+  hp: 120,
   reward: 30,
   playerDamage: 2,
   color: 0xff6a1f,
-  damage: 10,
-  attackSpeed: 600,
+  damage: 7,
+  attackSpeed: 900,
   scale: 0.95,
 
   onDraw: (scene, container, color, enemyInstance) => {
