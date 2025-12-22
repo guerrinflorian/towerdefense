@@ -1,18 +1,22 @@
 // src/levels/index.js
 
-import { LEVEL_1 } from "./level1.js";
-import { LEVEL_2 } from "./level2.js";
-import { LEVEL_3 } from "./level3.js";
-import { LEVEL_4 } from "./level4.js";
-import { LEVEL_5 } from "./level5.js";
+import { CHAPTER1_LEVELS } from "./chapter1/index.js";
 
-export const LEVELS_CONFIG = [
-  { id: 1, data: LEVEL_1 },
-  { id: 2, data: LEVEL_2 },
-  { id: 3, data: LEVEL_3 },
-  { id: 4, data: LEVEL_4 },
-  { id: 5, data: LEVEL_5 },
-];
+export const CHAPTER_LEVELS = {
+  1: CHAPTER1_LEVELS,
+};
+
+export const LEVELS_CONFIG = Object.entries(CHAPTER_LEVELS).flatMap(
+  ([chapterId, levels]) =>
+    levels.map((level) => ({
+      ...level,
+      chapterId: Number(chapterId),
+    }))
+);
+
+export function getLevelsByChapter(chapterId) {
+  return CHAPTER_LEVELS[chapterId] || [];
+}
 
 export function getLevelConfigById(levelId) {
   const level = LEVELS_CONFIG.find((lvl) => lvl.id === Number(levelId));
