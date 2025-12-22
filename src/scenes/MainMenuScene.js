@@ -118,7 +118,7 @@ export class MainMenuScene extends Phaser.Scene {
     
     playBtn.on("pointerover", () => { drawBtn(true); playBtn.setScale(playBtn.baseScale * 1.05); });
     playBtn.on("pointerout", () => { drawBtn(false); playBtn.setScale(playBtn.baseScale); });
-    playBtn.on("pointerdown", () => this.scene.start("MapScene", { fromMainMenu: true }));
+    playBtn.on("pointerdown", () => this.scene.start("ChapterScene", { fromMainMenu: true }));
 
     this.playButton = playBtn;
   }
