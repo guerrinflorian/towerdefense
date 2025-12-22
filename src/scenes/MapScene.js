@@ -168,13 +168,13 @@ export class MapScene extends Phaser.Scene {
           .image(cx, height / 2, "background_map")
           .setDepth(-1)
           .setScrollFactor(0)
-          .setTint(0x444444);
+          .setAlpha(0.3);
       }
       const scale = Math.max(
         this.scale.width / this.bgImage.width,
         this.scale.height / this.bgImage.height
       );
-      this.bgImage.setPosition(cx, height / 2).setScale(scale);
+      this.bgImage.setPosition(cx, height / 2).setScale(scale).clearTint();
     }
 
     if (!this.bgOverlay || !this.bgOverlay.scene) {
@@ -184,7 +184,7 @@ export class MapScene extends Phaser.Scene {
         this.scale.width,
         height,
         0x000000,
-        0.35
+        0.1
       );
       this.bgOverlay.setDepth(-0.5);
     } else {
@@ -323,7 +323,7 @@ export class MapScene extends Phaser.Scene {
 
   create3DIsland(x, y, level, biomeType, isLocked) {
     const container = this.add.container(x, y);
-    const biome = this.biomes[biomeType] || this.biomes.grass;
+    const biome = this.getIslandTheme(level, biomeType);
     const s = 0.95;
 
     const shadow = this.add.graphics();
@@ -363,7 +363,8 @@ export class MapScene extends Phaser.Scene {
     container.add([shadow, cliff, surface]);
 
     if (!isLocked) {
-      this.addEnvironmentEffects(container, biomeType, s);
+      this.addEnvironmentEffects(container, biome.environment ?? biomeType, s, biome);
+      this.addLevelSignature(container, level, biome, s);
     }
 
     if (biomeType === "cimetiere" && !isLocked) {
@@ -472,10 +473,80 @@ export class MapScene extends Phaser.Scene {
     return container;
   }
 
-  addEnvironmentEffects(container, biomeType, s) {
-    const propColor = this.biomes[biomeType]?.prop ?? this.biomes.grass.prop;
+  getIslandTheme(level, biomeType) {
+    const base = {
+      ...(this.biomes[biomeType] || this.biomes.grass),
+      environment: biomeType,
+      special: null,
+    };
+    const chapterId = level.chapterId || this.currentChapter?.id;
+    const isChapter2 = chapterId === 2 || (level.id >= 6 && level.id <= 8);
+
+    if (!isChapter2) return base;
+
+    switch (level.id) {
+      case 6:
+        return {
+          ...base,
+          top: 0xffc4ec,
+          side: 0xe08ac6,
+          light: 0xffdaf3,
+          prop: 0xfff2fb,
+          glow: 0xff8bdc,
+          environment: "candy",
+          special: "cottonCandy",
+        };
+      case 7:
+        return {
+          ...this.biomes.ice,
+          environment: "ice",
+          special: "whiteFlag",
+        };
+      case 8:
+        return {
+          top: 0xb7c2cc,
+          side: 0x6b737b,
+          light: 0xd9e2ea,
+          prop: 0x9fb5c3,
+          glow: 0x7ad7ff,
+          environment: "metal",
+          special: "chemicalVial",
+        };
+      default:
+        return base;
+    }
+  }
+
+  addEnvironmentEffects(container, biomeType, s, theme = null) {
+    const propColor =
+      theme?.prop ?? this.biomes[biomeType]?.prop ?? this.biomes.grass.prop;
 
     switch (biomeType) {
+      case "candy": {
+        for (let i = 0; i < 18; i++) {
+          const sprinkle = this.add.rectangle(
+            Phaser.Math.Between(-55, 55) * s,
+            Phaser.Math.Between(-25, 10) * s,
+            4 * s,
+            1.5 * s,
+            theme?.glow ?? 0xff8bdc,
+            0.8
+          );
+          sprinkle.angle = Phaser.Math.Between(-25, 25);
+          container.add(sprinkle);
+          this.tweens.add({
+            targets: sprinkle,
+            alpha: { from: 0.3, to: 0.9 },
+            y: sprinkle.y + Phaser.Math.Between(-5, 5),
+            duration: 1200 + Math.random() * 800,
+            repeat: -1,
+            yoyo: true,
+            delay: Math.random() * 800,
+          });
+        }
+        break;
+      }
+
       case "ice":
         for (let i = 0; i < 15; i++) {
           const flake = this.add.circle(
@@ -494,6 +565,30 @@ export class MapScene extends Phaser.Scene {
             duration: 2000 + Math.random() * 2000,
             repeat: -1,
             delay: Math.random() * 2000,
+          });
+        }
+        break;
+
+      case "metal":
+        for (let i = 0; i < 8; i++) {
+          const glint = this.add.rectangle(
+            Phaser.Math.Between(-50, 50) * s,
+            Phaser.Math.Between(-20, 20) * s,
+            12 * s,
+            2 * s,
+            0xffffff,
+            0.6
+          );
+          glint.angle = Phaser.Math.Between(-40, 40);
+          container.add(glint);
+          this.tweens.add({
+            targets: glint,
+            alpha: 0,
+            scaleX: 2,
+            duration: 900 + Math.random() * 400,
+            repeat: -1,
+            yoyo: true,
+            delay: Math.random() * 1200,
           });
         }
         break;
@@ -599,6 +694,120 @@ export class MapScene extends Phaser.Scene {
           });
         }
         break;
+    }
+  }
+
+  addLevelSignature(container, level, biome, s) {
+    switch (biome.special) {
+      case "cottonCandy": {
+        const stick = this.add.graphics();
+        stick.fillStyle(0xc9a67a, 1);
+        stick.fillRoundedRect(-6 * s, -8 * s, 12 * s, 40 * s, 4 * s);
+        stick.setAngle(-12);
+
+        const puff = this.add.graphics();
+        puff.fillStyle(0xffc4ec, 1);
+        puff.fillCircle(0, -40 * s, 20 * s);
+        puff.fillCircle(-12 * s, -32 * s, 18 * s);
+        puff.fillCircle(12 * s, -30 * s, 16 * s);
+        puff.fillStyle(0xffffff, 0.7);
+        puff.fillCircle(-8 * s, -42 * s, 6 * s);
+        puff.fillCircle(10 * s, -34 * s, 4 * s);
+
+        container.add([stick, puff]);
+
+        for (let i = 0; i < 8; i++) {
+          const heart = this.add.circle(
+            Phaser.Math.Between(-30, 30) * s,
+            Phaser.Math.Between(-55, -25) * s,
+            2.5 * s,
+            biome.glow,
+            0.9
+          );
+          container.add(heart);
+          this.tweens.add({
+            targets: heart,
+            y: heart.y - 10,
+            alpha: 0,
+            duration: 1600 + Math.random() * 700,
+            repeat: -1,
+            delay: Math.random() * 600,
+          });
+        }
+        break;
+      }
+
+      case "whiteFlag": {
+        const pole = this.add.rectangle(-18 * s, -10 * s, 3 * s, 70 * s, 0xd3dde8);
+        pole.setOrigin(0.5, 1);
+
+        const flag = this.add.graphics();
+        flag.fillStyle(0xffffff, 0.95);
+        flag.beginPath();
+        flag.moveTo(-18 * s, -60 * s);
+        flag.lineTo(12 * s, -50 * s);
+        flag.lineTo(-18 * s, -40 * s);
+        flag.closePath();
+        flag.fillPath();
+        flag.lineStyle(1.5 * s, 0xd3dde8, 1);
+        flag.strokePath();
+
+        container.add([pole, flag]);
+
+        this.tweens.add({
+          targets: flag,
+          scaleX: 1.06,
+          duration: 900,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+        break;
+      }
+
+      case "chemicalVial": {
+        const vial = this.add.graphics();
+        vial.fillStyle(0x9fb5c3, 0.9);
+        vial.beginPath();
+        vial.moveTo(-10 * s, -44 * s);
+        vial.lineTo(-6 * s, -20 * s);
+        vial.lineTo(-18 * s, 10 * s);
+        vial.lineTo(18 * s, 10 * s);
+        vial.lineTo(6 * s, -20 * s);
+        vial.lineTo(10 * s, -44 * s);
+        vial.closePath();
+        vial.fillPath();
+        vial.lineStyle(2 * s, biome.side ?? 0x6b737b, 1);
+        vial.strokePath();
+
+        vial.fillStyle(0x7ad7ff, 0.8);
+        vial.fillRoundedRect(-11 * s, -10 * s, 22 * s, 16 * s, 6 * s);
+        vial.fillStyle(0xffffff, 0.7);
+        vial.fillCircle(-4 * s, -6 * s, 4 * s);
+        vial.fillCircle(6 * s, -1 * s, 3 * s);
+
+        container.add(vial);
+
+        for (let i = 0; i < 6; i++) {
+          const bubble = this.add.circle(
+            Phaser.Math.Between(-6, 6) * s,
+            Phaser.Math.Between(-2, 8) * s,
+            Phaser.Math.Between(1.5, 3) * s,
+            0xffffff,
+            0.8
+          );
+          container.add(bubble);
+          this.tweens.add({
+            targets: bubble,
+            y: bubble.y - 12,
+            alpha: 0,
+            duration: 1400 + Math.random() * 500,
+            repeat: -1,
+            delay: Math.random() * 800,
+          });
+        }
+        break;
+      }
     }
   }
 

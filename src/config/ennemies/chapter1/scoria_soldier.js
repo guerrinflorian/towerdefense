@@ -1,8 +1,8 @@
 export const scoria_soldier = {
   name: "Soldat de Scories",
-  speed: 78,
-  hp: 230,
-  reward: 22,
+  speed: 65,
+  hp: 220,
+  reward: 20,
   playerDamage: 1,
   color: 0xaa4422,
   damage: 12,
