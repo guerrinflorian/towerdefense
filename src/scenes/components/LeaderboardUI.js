@@ -318,11 +318,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   }
 
   async loadData() {
-    const token = ++this._loadToken;
-    console.log("[LB] loadData start", {
-      token,
-      mode: this.currentMode,
-    });
+    this._loadToken++;
 
     const stillAlive = () => {
       const alive =
@@ -367,7 +363,8 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         console.log("[LB] fetchHeroLeaderboard");
         entries = await fetchHeroLeaderboard();
       } else if (this.currentMode === "level") {
-        console.log("[LB] fetch level leaderboard");
+        await this.ensureLevelMetadata();
+        if (!stillAlive()) return;
 
         await this.ensureLevelMetadata();
         if (!stillAlive() || token !== this._loadToken) {
@@ -377,10 +374,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
         if (this.levelLeaderboards.length === 0) {
           const levels = await fetchLevelLeaderboards();
-          if (!stillAlive() || token !== this._loadToken) {
-            console.log("[LB] stop after fetchLevelLeaderboards");
-            return;
-          }
+          if (!stillAlive()) return;
 
           this.levelLeaderboards = levels;
           this.levelLeaderboardMap = new Map(
@@ -395,10 +389,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         entries = await fetchGlobalLeaderboard();
       }
 
-      if (!stillAlive() || token !== this._loadToken) {
-        console.log("[LB] stop: token changed or destroyed");
-        return;
-      }
+      if (!stillAlive()) return;
 
       console.log("[LB] fetch OK, entries:", entries.length);
 
