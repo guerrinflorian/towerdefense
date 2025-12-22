@@ -115,8 +115,8 @@ export const LEVEL_5 = {
 
   waves: [
     [
-      { count: 1, type: "ash_queen", interval: 850, startDelay: 0 },
-      { count: 10, type: "ember_scout", interval: 420, startDelay: 4000 },
+      { count: 22, type: "scoria_soldier", interval: 850, startDelay: 0 },
+      { count: 8, type: "ember_scout", interval: 920, startDelay: 10000 },
     ],
     [
       { count: 40, type: "ember_scout", interval: 330, startDelay: 0 },
