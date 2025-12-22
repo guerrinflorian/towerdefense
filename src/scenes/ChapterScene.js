@@ -1,4 +1,4 @@
-import { fetchChaptersWithLevels, fetchBestRunsMap, buildChapterViewModels } from "../services/chapterService.js";
+import { fetchChaptersWithLevels, fetchBestRunsMap, buildChapterViewModels, fetchChapterProgress } from "../services/chapterService.js";
 import { showAuth } from "../services/authOverlay.js";
 import { isAuthenticated } from "../services/authManager.js";
 
@@ -47,10 +47,28 @@ export class ChapterScene extends Phaser.Scene {
 
   async loadData() {
     try {
-      const [chapters, bestRunsMap] = await Promise.all([
-        fetchChaptersWithLevels(),
-        fetchBestRunsMap(),
-      ]);
+      let chapters = [];
+      let bestRunsMap = new Map();
+
+      if (isAuthenticated()) {
+        try {
+          const progress = await fetchChapterProgress();
+          chapters = progress.chapters || [];
+          bestRunsMap = progress.bestRunsMap || new Map();
+        } catch (err) {
+          // fallback sur les endpoints publics
+        }
+      }
+
+      if (chapters.length === 0) {
+        const [chs, runsMap] = await Promise.all([
+          fetchChaptersWithLevels(),
+          fetchBestRunsMap(),
+        ]);
+        chapters = chs;
+        bestRunsMap = runsMap;
+      }
+
       this.bestRunsMap = bestRunsMap;
       this.chapters = buildChapterViewModels(chapters, bestRunsMap);
       this.renderCards();

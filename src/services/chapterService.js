@@ -4,6 +4,7 @@ import { fetchPlayerBestRuns } from "./leaderboardService.js";
 let cachedChapters = null;
 let chaptersPromise = null;
 let cachedBestRuns = null;
+let cachedProgress = null;
 
 function normalizeChapter(chapter) {
   if (!chapter) return null;
@@ -20,6 +21,9 @@ function normalizeChapter(chapter) {
     orderIndex: Number(chapter.order_index ?? chapter.orderIndex ?? chapter.id ?? 0),
     unlockPrevChapterHeartsMax: chapter.unlock_prev_chapter_hearts_max ?? chapter.unlockPrevChapterHeartsMax ?? null,
     levels,
+    isLocked: chapter.is_locked ?? chapter.isLocked ?? null,
+    lockReason: chapter.lock_reason ?? chapter.lockReason ?? "",
+    stats: chapter.stats || null,
   };
 }
 
@@ -53,6 +57,24 @@ export async function fetchBestRunsMap() {
   const runs = await fetchPlayerBestRuns().catch(() => []);
   cachedBestRuns = toBestRunMap(runs);
   return cachedBestRuns;
+}
+
+export async function fetchChapterProgress(forceReload = false) {
+  if (cachedProgress && !forceReload) return cachedProgress;
+  try {
+    const response = await apiClient.get("/api/chapters/progress");
+    const rawChapters = response.data?.chapters || response.data?.chapters || [];
+    const rawBestRuns = response.data?.bestRuns || response.data?.best_runs || [];
+    const normalizedChapters = rawChapters.map(normalizeChapter).filter(Boolean);
+    const bestRunsMap = toBestRunMap(rawBestRuns);
+    cachedProgress = { chapters: normalizedChapters, bestRunsMap };
+    cachedBestRuns = bestRunsMap;
+    cachedChapters = normalizedChapters;
+    return cachedProgress;
+  } catch (error) {
+    cachedProgress = null;
+    throw error;
+  }
 }
 
 export function toBestRunMap(entries = []) {
@@ -90,10 +112,10 @@ export function buildChapterViewModels(chapters = [], bestRunsMap = new Map()) {
 
   sorted.forEach((chapter, idx) => {
     const prevChapter = idx > 0 ? sorted[idx - 1] : null;
-    let isLocked = false;
-    let lockReason = "";
+    let isLocked = chapter.isLocked ?? chapter.is_locked ?? null;
+    let lockReason = chapter.lockReason || chapter.lock_reason || "";
 
-    if (prevChapter) {
+    if (prevChapter && (isLocked === null || typeof isLocked === "undefined")) {
       const prevCleared = isChapterCleared(prevChapter, bestRunsMap);
       const hearts = sumHeartsForChapter(prevChapter, bestRunsMap);
       const maxHearts = chapter.unlockPrevChapterHeartsMax;
@@ -105,7 +127,11 @@ export function buildChapterViewModels(chapters = [], bestRunsMap = new Map()) {
       } else if (!heartsOk) {
         isLocked = true;
         lockReason = `Perds au maximum ${maxHearts} cœurs sur le chapitre précédent.`;
+      } else {
+        isLocked = false;
       }
+    } else if (isLocked === null) {
+      isLocked = false;
     }
 
     const levels = [...(chapter.levels || [])].sort((a, b) => (a.orderIndex - b.orderIndex) || (a.id - b.id));
@@ -119,6 +145,7 @@ export function buildChapterViewModels(chapters = [], bestRunsMap = new Map()) {
         totalLevels: levels.length,
         clearedLevels: levels.filter((lvl) => bestRunsMap.has(lvl.id)).length,
         totalHeartsUsed: sumHeartsForChapter(chapter, bestRunsMap),
+        ...(chapter.stats || {}),
       },
     });
   });
@@ -145,4 +172,5 @@ export function buildLevelLocks(levels = [], chapterLocked = false, bestRunsMap 
 export function resetCachedChapters() {
   cachedChapters = null;
   cachedBestRuns = null;
+  cachedProgress = null;
 }

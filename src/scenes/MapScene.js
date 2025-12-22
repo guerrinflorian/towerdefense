@@ -7,6 +7,7 @@ import {
   buildLevelLocks,
   fetchBestRunsMap,
   toBestRunMap,
+  fetchChapterProgress,
 } from "../services/chapterService.js";
 import { fetchPlayerBestRuns } from "../services/leaderboardService.js";
 
@@ -70,12 +71,27 @@ export class MapScene extends Phaser.Scene {
 
   async hydrateData() {
     try {
-      if (this.bestRunsByLevel.size === 0) {
-        const runs = await fetchBestRunsMap();
-        this.bestRunsByLevel = runs;
+      let chapters = [];
+      if (isAuthenticated()) {
+        try {
+          const progress = await fetchChapterProgress();
+          chapters = progress.chapters || [];
+          if (!this.bestRunsByLevel.size && progress.bestRunsMap) {
+            this.bestRunsByLevel = progress.bestRunsMap;
+          }
+        } catch (_err) {
+          // fallback public
+        }
       }
 
-      const chapters = await fetchChaptersWithLevels();
+      if (!chapters.length) {
+        if (this.bestRunsByLevel.size === 0) {
+          const runs = await fetchBestRunsMap();
+          this.bestRunsByLevel = runs;
+        }
+        chapters = await fetchChaptersWithLevels();
+      }
+
       const chapterVMs = buildChapterViewModels(chapters, this.bestRunsByLevel);
 
       if (!this.currentChapter && chapterVMs.length > 0) {
