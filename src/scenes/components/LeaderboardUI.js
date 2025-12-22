@@ -318,7 +318,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
   }
 
   async loadData() {
-    const token = ++this._loadToken;
+    this._loadToken++;
 
     const stillAlive = () => {
       if (this._destroyed) return false;
@@ -363,7 +363,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         entries = await fetchHeroLeaderboard();
       } else if (this.currentMode === "level") {
         await this.ensureLevelMetadata();
-        if (!stillAlive() || token !== this._loadToken) return;
+        if (!stillAlive()) return;
 
         if (this.levelMetas.length === 0) {
           safeSetText(this.statusText, "AUCUN NIVEAU DISPONIBLE");
@@ -372,7 +372,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
         if (this.levelLeaderboards.length === 0) {
           const levels = await fetchLevelLeaderboards();
-          if (!stillAlive() || token !== this._loadToken) return;
+          if (!stillAlive()) return;
 
           this.levelLeaderboards = levels;
           this.levelLeaderboardMap = new Map(
@@ -386,7 +386,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         entries = await fetchGlobalLeaderboard();
       }
 
-      if (!stillAlive() || token !== this._loadToken) return;
+      if (!stillAlive()) return;
 
       safeSetText(
         this.statusText,
