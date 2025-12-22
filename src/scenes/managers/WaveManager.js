@@ -71,6 +71,7 @@ export class WaveManager {
     this.scene.isWaveRunning = true;
     this.scene.hasWaveFinishedSpawning = false;
     this.scene.canCallNextWave = false;
+    this.scene.activeWaveIndex = this.scene.currentWaveIndex;
     
     // Démarrer le chronomètre si ce n'est pas déjà fait
     if (!this.scene.isTimerRunning) {
@@ -93,6 +94,11 @@ export class WaveManager {
     let totalEnemiesInWave = 0;
     let spawnedTotal = 0;
     waveGroups.forEach((g) => (totalEnemiesInWave += g.count));
+
+    this.scene.runTracker.startWave(waveIndex, {
+      earlyLaunch: isAnticipating,
+      expectedEnemies: totalEnemiesInWave,
+    });
 
     // Compteur pour équilibrer la répartition entre les chemins
     const pathCounts = new Array(this.scene.paths.length).fill(0);
@@ -143,8 +149,10 @@ export class WaveManager {
                         pathCounts[selectedPathIndex]++;
                         
                         const enemy = new Enemy(this.scene, selectedPath, group.type);
+                        enemy.waveIndex = waveIndex;
                         enemy.spawn();
                         this.scene.enemies.add(enemy);
+                        this.scene.runTracker.onEnemySpawn(waveIndex, group.type);
                         spawnedTotal++;
 
                         // Quand CETTE vague précise a fini de spawner
@@ -204,6 +212,10 @@ export class WaveManager {
       this.scene.wavesCompleted,
       this.scene.currentWaveIndex
     );
+    const finishedWaveIndex =
+      this.scene.activeWaveIndex ?? Math.max(0, this.scene.currentWaveIndex - 1);
+    this.scene.runTracker.endWave(finishedWaveIndex);
+    this.scene.activeWaveIndex = null;
     const completedWaveNumber = this.scene.wavesCompleted;
     this.scene.earnMoney(50 + completedWaveNumber * 20);
 
