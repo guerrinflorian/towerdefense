@@ -6,7 +6,7 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.level = barracks ? barracks.level : 1;
     
     // Stats
-    this.maxHp = 110;
+    this.maxHp = 115;
     this.hp = this.maxHp;
     this.blockingEnemy = null; // L'ennemi actuellement bloqué
     this.isAlive = true;

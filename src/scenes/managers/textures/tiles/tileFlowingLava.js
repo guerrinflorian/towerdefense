@@ -1,32 +1,60 @@
 export const tileFlowingLava = {
   key: "tile_flowing_lava",
   draw(g, T) {
-    g.fillStyle(0xff4400, 1);
+
+    // --- BASE MAGMA FLUIDE ---
+    g.fillStyle(0xff3b00, 1);
     g.fillRect(0, 0, T, T);
-    g.fillStyle(0xff6600, 0.7);
-    for (let i = 0; i < 30; i++) {
-      const size = Math.random() * 4 + 2;
-      g.fillCircle(Math.random() * T, Math.random() * T, size);
-    }
-    g.fillStyle(0xcc2200, 0.6);
-    for (let i = 0; i < 15; i++) {
-      g.fillCircle(Math.random() * T, Math.random() * T, Math.random() * 3 + 1);
-    }
-    g.fillStyle(0xffaa00, 0.5);
-    for (let i = 0; i < 10; i++) {
-      g.fillCircle(Math.random() * T, Math.random() * T, 2);
-    }
-    g.lineStyle(1, 0xff8800, 0.4);
-    for (let i = 0; i < 5; i++) {
-      const sx = Math.random() * T;
-      const sy = Math.random() * T;
-      g.beginPath();
-      g.moveTo(sx, sy);
-      g.lineTo(
-        sx + (Math.random() - 0.5) * 25,
-        sy + (Math.random() - 0.5) * 25
+
+    // --- GRANDES POCHES DE LAVE (mouvement lent) ---
+    g.fillStyle(0xff6a00, 0.55);
+    for (let i = 0; i < 22; i++) {
+      g.fillCircle(
+        Math.random() * T,
+        Math.random() * T,
+        Math.random() * 5 + 3
       );
-      g.strokePath();
     }
-  },
+
+    // --- ZONES ULTRA CHAUDES (coeur blanc/jaune) ---
+    g.fillStyle(0xffd200, 0.35);
+    for (let i = 0; i < 10; i++) {
+      g.fillCircle(
+        Math.random() * T,
+        Math.random() * T,
+        Math.random() * 3 + 2
+      );
+    }
+
+    // --- BULLES DE LAVE (petites et nombreuses) ---
+    g.fillStyle(0xff8800, 0.45);
+    for (let i = 0; i < 45; i++) {
+      g.fillCircle(
+        Math.random() * T,
+        Math.random() * T,
+        Math.random() * 2.2 + 0.8
+      );
+    }
+
+    // --- MICRO BULLES BRÛLANTES ---
+    g.fillStyle(0xfff1b0, 0.22);
+    for (let i = 0; i < 30; i++) {
+      g.fillCircle(
+        Math.random() * T,
+        Math.random() * T,
+        Math.random() * 1.2 + 0.4
+      );
+    }
+
+    // --- BRUIT THERMIQUE FIN (scintillement) ---
+    g.fillStyle(0x000000, 0.08);
+    for (let i = 0; i < 140; i++) {
+      g.fillRect(
+        Math.random() * T,
+        Math.random() * T,
+        1,
+        1
+      );
+    }
+  }
 };
