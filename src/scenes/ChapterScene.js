@@ -6,6 +6,8 @@ import {
 } from "../services/chapterService.js";
 import { showAuth } from "../services/authOverlay.js";
 import { isAuthenticated } from "../services/authManager.js";
+import chapitre1Img from "../images/chapitre1.png";
+import chapitre2Img from "../images/chapitre2.png";
 
 export class ChapterScene extends Phaser.Scene {
   constructor() {
@@ -32,13 +34,12 @@ export class ChapterScene extends Phaser.Scene {
 
     // 2. Chargement des images de chapitres (actuellement 2 visuels disponibles)
     const chapterArts = [
-      { key: "chapter-img-1", file: "chapitre1.png" },
-      { key: "chapter-img-2", file: "chapitre2.png" },
+      { key: "chapter-img-1", url: chapitre1Img },
+      { key: "chapter-img-2", url: chapitre2Img },
     ];
 
-    chapterArts.forEach(({ key, file }) => {
-      const imgUrl = new URL(`../images/${file}`, import.meta.url).href;
-      this.load.image(key, imgUrl);
+    chapterArts.forEach(({ key, url }) => {
+      this.load.image(key, url);
     });
 
     // Gestion des erreurs de chargement pour débugger
