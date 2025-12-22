@@ -425,6 +425,12 @@ export class RunTracker {
       }
     });
 
+    // Nettoyer les propriétés obsolètes du level
+    if (this.report.level) {
+      delete this.report.level.difficulty;
+      delete this.report.level.seed;
+    }
+
     return this.report;
   }
 
