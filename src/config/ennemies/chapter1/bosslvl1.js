@@ -2,7 +2,7 @@ export const bosslvl1 = {
   name: "SYLVAROK",
   speed: 11,
   hp: 44000,
-  reward: 1000,
+  reward: 0,
   playerDamage: 20,
   color: 0x4b3621, // Brun écorce sombre
   damage: 70, 

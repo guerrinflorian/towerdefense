@@ -729,6 +729,10 @@ export class Hero extends Phaser.GameObjects.Container {
     this.isAlive = false;
     this.hp = 0;
 
+    if (this.scene?.runTracker) {
+      this.scene.runTracker.onHeroDeath();
+    }
+
     this.hideHpTooltip();
     this.stopRegeneration();
     this.releaseEnemy();

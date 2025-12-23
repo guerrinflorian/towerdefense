@@ -53,6 +53,7 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
     this.healInterval = this.stats.healInterval || null;
     this.lastSpawnTime = 0;
     this.lastDamageSource = null;
+    this.lastTurretType = null; // Type de tourelle qui a infligé les derniers dégâts
 
     this.initVisuals();
 
@@ -306,6 +307,11 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
 
   reachEnd() {
     if (this.active && this.scene) {
+      if (this.scene.runTracker) {
+        this.scene.runTracker.onEnemyLeak({
+          waveIndex: this.waveIndex ?? this.scene.activeWaveIndex,
+        });
+      }
       if (this.scene.takeDamage) this.scene.takeDamage(this.playerDamage);
       this.destroy();
     }
@@ -314,13 +320,19 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
   damage(amount, metadata = {}) {
     if (this.isInvulnerable || !this.active) return;
 
-    if (metadata?.source) {
-      this.lastDamageSource = metadata.source;
+    const damageSource = metadata?.source || this.lastDamageSource || "turret"; // Par défaut, tourelle si rien n'est précisé
+    this.lastDamageSource = damageSource;
+    
+    // Si c'est une tourelle, stocker son type
+    if (damageSource === "turret" && metadata?.turretType) {
+      this.lastTurretType = metadata.turretType;
+    } else if (damageSource !== "turret") {
+      // Si ce n'est pas une tourelle, réinitialiser le type
+      this.lastTurretType = null;
     }
 
     const potentialHp = this.hp - amount;
     // L'aura ne protège que contre les dégâts des tourelles, pas des soldats/héros
-    const damageSource = metadata?.source || "turret"; // Par défaut, on considère que c'est une tourelle si non spécifié
     if (potentialHp <= 0 && this.isDeathPreventedByAura(damageSource)) {
       this.hp = Math.max(1, this.hp - Math.max(0, amount));
       this.updateHealthBar();
@@ -501,10 +513,13 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
 
   spawnMinions() {
     if (!this.stats.spawnType || !this.scene?.enemies) return;
+    const waveIndex = this.waveIndex ?? this.scene?.activeWaveIndex ?? null;
     for (let i = 0; i < (this.stats.spawnCount || 2); i++) {
       const m = new Chapter1Enemy(this.scene, this.path, this.stats.spawnType);
       m.progress = Math.max(0, this.progress - 0.05);
+      m.waveIndex = waveIndex;
       this.scene.enemies.add(m);
+      this.scene.runTracker?.onEnemySpawn(waveIndex, this.stats.spawnType);
       m.spawn();
     }
   }
@@ -539,8 +554,9 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
 
   spawnEgg() {
     if (!this.stats.eggSpawnType || !this.scene?.enemies || !this.path) return;
-
+    const waveIndex = this.waveIndex ?? this.scene?.activeWaveIndex ?? null;
     const egg = new Chapter1Enemy(this.scene, this.path, this.stats.eggSpawnType);
+    egg.waveIndex = waveIndex;
     egg.spawn();
     egg.progress = Math.max(0, this.progress - 0.02);
     const point = this.path.getPoint(egg.progress);
@@ -553,6 +569,7 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
     egg.isMoving = false;
 
     this.scene.enemies.add(egg);
+    this.scene.runTracker?.onEnemySpawn(waveIndex, this.stats.eggSpawnType);
   }
 
   hatchEgg() {
@@ -562,16 +579,19 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
 
     const hatchCount = this.hatchSpawnCount || this.stats.hatchCount || 2;
     const spawnType = this.hatchSpawnType || this.stats.hatchSpawnType;
+    const waveIndex = this.waveIndex ?? this.scene?.activeWaveIndex ?? null;
 
     for (let i = 0; i < hatchCount; i++) {
       if (!spawnType) continue;
       const child = new Chapter1Enemy(this.scene, this.path, spawnType);
       child.spawn();
+      child.waveIndex = waveIndex;
       child.progress = this.progress;
       const point = this.path.getPoint(child.progress);
       child.setPosition(point.x, point.y);
       child.previousTangent = child.calculateTangent(child.progress);
       this.scene.enemies.add(child);
+      this.scene.runTracker?.onEnemySpawn(waveIndex, spawnType);
     }
 
     // Effet visuel d'éclosion
@@ -654,10 +674,13 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
     if (this.scene.earnMoney) this.scene.earnMoney(this.stats.reward || 10);
 
     if (this.scene?.events) {
+      const src = this.lastDamageSource || "other";
       this.scene.events.emit("enemy-killed", {
-        source: this.lastDamageSource || null,
+        source: src,
+        turretType: this.lastTurretType || null, // Type de tourelle qui a tué l'ennemi
         x: this.x,
         y: this.y,
+        waveIndex: this.waveIndex ?? this.scene?.activeWaveIndex ?? null,
       });
     }
 

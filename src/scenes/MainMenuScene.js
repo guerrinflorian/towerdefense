@@ -2,6 +2,7 @@ import { ensureProfileLoaded, logout, getProfile } from "../services/authManager
 import { showAuth } from "../services/authOverlay.js";
 import { LeaderboardUI } from "./components/LeaderboardUI.js";
 import { HeroUpgradeUI } from "./components/HeroUpgradeUI.js";
+import { fetchAchievements } from "../services/achievementsService.js";
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -39,6 +40,7 @@ export class MainMenuScene extends Phaser.Scene {
     
     // À GAUCHE : Amélioration du Héros
     this.heroPanel = new HeroUpgradeUI(this, padding, height * 0.25);
+    this.createAchievementsButton();
 
     // À DROITE : Leaderboard
     // Largeur du leaderboard = 540 (selon sa config)
@@ -67,6 +69,7 @@ export class MainMenuScene extends Phaser.Scene {
     // Initialisation
     ensureProfileLoaded().then(() => {
       if (this.heroPanel) this.heroPanel.refresh();
+      this.refreshAchievementsSummary();
       // Mettre à jour le nom d'utilisateur après chargement du profil
       if (this.userDisplayText) {
         const profile = getProfile();
@@ -123,6 +126,98 @@ export class MainMenuScene extends Phaser.Scene {
     this.playButton = playBtn;
   }
 
+  createAchievementsButton() {
+    // On récupère la largeur du panel hero ou 380 par défaut
+    const width = this.heroPanel?.config?.width || 380;
+    const btnHeight = 60; // Plus haut pour être plus visible et cliquable
+    
+    const container = this.add.container(0, 0);
+    const bg = this.add.graphics();
+  
+    // Fonction de dessin avec un style plus prononcé
+    const draw = (hover) => {
+      bg.clear();
+      // Ombre/Lueur externe si hover
+      if (hover) {
+        bg.lineStyle(4, 0x00f2ff, 1);
+        bg.fillStyle(0x1a2639, 1);
+      } else {
+        bg.lineStyle(2, 0x334155, 0.8);
+        bg.fillStyle(0x0e1624, 0.9);
+      }
+      
+      bg.fillRoundedRect(0, 0, width, btnHeight, 12);
+      bg.strokeRoundedRect(0, 0, width, btnHeight, 12);
+    };
+    
+    draw(false);
+  
+    // Étoile plus grosse
+    const star = this.add.text(25, btnHeight / 2, "★", {
+      fontSize: "28px",
+      color: "#ffc857",
+    }).setOrigin(0.5);
+  
+    // Texte "Succès" plus gros (20px au lieu de 16px)
+    this.achievementLabel = this.add.text(55, btnHeight / 2, "Succès 0/0", {
+      fontSize: "20px",
+      fontFamily: "Orbitron, sans-serif",
+      color: "#ffffff",
+      fontWeight: "bold"
+    }).setOrigin(0, 0.5);
+  
+    // Sous-titre plus visible
+    const subtitle = this.add.text(width - 20, btnHeight / 2, "VOIR LA LISTE", {
+      fontSize: "14px",
+      fontFamily: "Orbitron, sans-serif",
+      color: "#7dd0ff",
+    }).setOrigin(1, 0.5);
+  
+    container.add([bg, star, this.achievementLabel, subtitle]);
+  
+    // --- CORRECTION CRITIQUE DE LA HITBOX ---
+    // On définit la taille du container
+    container.setSize(width, btnHeight);
+    
+    // On force la zone interactive à ignorer les décalages d'origine 
+    // et on l'aligne pile sur le dessin (0,0,width,height)
+    container.setInteractive(
+      new Phaser.Geom.Rectangle(width / 2, btnHeight / 2, width, btnHeight),
+      Phaser.Geom.Rectangle.Contains
+    );
+  
+    container.on("pointerover", () => {
+      draw(true);
+      container.setScale(container.scaleX * 1.02); // Petit effet de zoom
+    });
+    
+    container.on("pointerout", () => {
+      draw(false);
+      container.setScale(container.scaleX / 1.02);
+    });
+    
+    container.on("pointerdown", () => {
+      this.scene.start("AchievementsScene");
+    });
+  
+    this.add.existing(container);
+    this.achievementsButton = container;
+  }
+
+  async refreshAchievementsSummary() {
+    try {
+      const { summary } = await fetchAchievements();
+      if (this.achievementLabel) {
+        this.achievementLabel.setText(`Succès ${summary.unlocked}/${summary.total}`);
+      }
+    } catch (err) {
+      console.error("Erreur récupération des succès", err);
+      if (this.achievementLabel) {
+        this.achievementLabel.setText("Succès (erreur)");
+      }
+    }
+  }
+
   addBackground(cx, height) {
     this.cameras.main.setBackgroundColor("#020508");
     if (this.textures.exists("background")) {
@@ -164,9 +259,19 @@ export class MainMenuScene extends Phaser.Scene {
         this.userDisplayText.setText(`CONNECTÉ EN TANT QUE : ${username.toUpperCase()}`);
       }
     };
+    this.achievementUpdatedHandler = (event) => {
+      const summary = event?.detail?.summary;
+      if (summary && this.achievementLabel) {
+        this.achievementLabel.setText(`Succès ${summary.unlocked}/${summary.total}`);
+      } else {
+        this.refreshAchievementsSummary();
+      }
+    };
     window.addEventListener("auth:profile-updated", this.profileUpdatedHandler);
+    window.addEventListener("achievements:updated", this.achievementUpdatedHandler);
     this.events.once("shutdown", () => {
       window.removeEventListener("auth:profile-updated", this.profileUpdatedHandler);
+      window.removeEventListener("achievements:updated", this.achievementUpdatedHandler);
     });
   }
 
@@ -185,6 +290,12 @@ export class MainMenuScene extends Phaser.Scene {
         : Math.max(padding, height * 0.16 - heroHeight * 0.15);
       const targetX = isMobile ? width / 2 - (this.heroPanel.config?.width || 380) * this.heroPanel.scaleX / 2 : padding;
       this.heroPanel.setPosition(targetX, targetY);
+      if (this.achievementsButton) {
+        this.achievementsButton.setScale(heroScale);
+        // Augmenter l'espacement à 15 ou 20 si nécessaire
+  const buttonY = targetY + heroHeight + 15; 
+  this.achievementsButton.setPosition(targetX, buttonY);
+      }
     }
 
     if (this.leaderboard) {

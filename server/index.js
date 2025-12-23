@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import playerRoutes from "./routes/player.js";
 import chapterRoutes from "./routes/chapters.js";
+import runReportRoutes from "./routes/runReport.js";
+import achievementRoutes from "./routes/achievements.js";
 
 dotenv.config();
 
@@ -23,6 +25,8 @@ app.get("/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/player", playerRoutes);
 app.use("/api/chapters", chapterRoutes);
+app.use("/api/run-report", runReportRoutes);
+app.use("/api/achievements", achievementRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
