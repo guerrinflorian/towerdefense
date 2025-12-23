@@ -65,6 +65,28 @@ async function getGlobalLeaderboard() {
   return result.rows;
 }
 
+async function getAchievementsLeaderboard() {
+  const result = await query(
+    `SELECT 
+        p.username,
+        COUNT(*) FILTER (WHERE pap.is_unlocked) AS unlocked_count,
+        MAX(pap.unlocked_at) FILTER (WHERE pap.is_unlocked) AS last_unlocked_at
+     FROM players p
+     LEFT JOIN player_achievement_progress pap
+       ON pap.player_id = p.id AND pap.is_unlocked = TRUE
+     GROUP BY p.id, p.username
+     HAVING COUNT(*) FILTER (WHERE pap.is_unlocked) > 0
+     ORDER BY unlocked_count DESC, last_unlocked_at ASC NULLS LAST, p.username ASC
+     LIMIT 10`
+  );
+
+  return result.rows.map((row) => ({
+    username: row.username,
+    unlocked_count: Number(row.unlocked_count || 0),
+    last_unlocked_at: row.last_unlocked_at,
+  }));
+}
+
 router.get("/leaderboard", async (_req, res) => {
   try {
     const entries = await getGlobalLeaderboard();
@@ -104,6 +126,16 @@ router.get("/leaderboard/heroes", async (_req, res) => {
     return res.json({ entries: result.rows });
   } catch (err) {
     console.error("Erreur leaderboard héros:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.get("/leaderboard/achievements", async (_req, res) => {
+  try {
+    const entries = await getAchievementsLeaderboard();
+    return res.json({ entries });
+  } catch (err) {
+    console.error("Erreur leaderboard succès:", err);
     return res.status(500).json({ error: "Erreur serveur" });
   }
 });
