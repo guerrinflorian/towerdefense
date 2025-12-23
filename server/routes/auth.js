@@ -185,7 +185,7 @@ router.post("/forgot-password", async (req, res) => {
       [resetTokenHash, resetExpiresAt, user.id]
     );
 
-    if (!process.env.BREVO_USER || !process.env.BREVO_PASS) {
+    if (!process.env.BREVO_SMTP_USER || !process.env.BREVO_SMTP_KEY) {
       return res
         .status(500)
         .json({ error: "Configuration email manquante côté serveur" });
@@ -201,7 +201,8 @@ router.post("/forgot-password", async (req, res) => {
     return res.json({ message: "Email envoyé" });
   } catch (err) {
     console.error("Erreur forgot-password:", err);
-    return res.status(500).json({ error: "Erreur lors de l'envoi de l'email" });
+    const errorMessage = err.message || "Erreur lors de l'envoi de l'email";
+    return res.status(500).json({ error: errorMessage });
   }
 });
 

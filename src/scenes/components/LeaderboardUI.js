@@ -357,6 +357,13 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     try {
       if (!stillAlive()) return;
 
+      // Vérifier si l'utilisateur est connecté avant de faire des appels API
+      if (!isAuthenticated()) {
+        safeSetText(this.statusText, "CONNEXION REQUISE");
+        if (this.listContainer) this.listContainer.removeAll(true);
+        return;
+      }
+
       // Nettoyage de la liste avant chargement
       if (this.listContainer) this.listContainer.removeAll(true);
       safeSetText(this.statusText, "SYNCHRONISATION...");

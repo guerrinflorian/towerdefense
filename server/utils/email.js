@@ -1,4 +1,5 @@
-const DEFAULT_FROM = '"Last Outpost" <no-reply@last-outpost.fr>';
+const DEFAULT_FROM_EMAIL = process.env.MAIL_FROM;
+const DEFAULT_FROM_NAME = "Last Outpost";
 
 let transporterPromise = null;
 
@@ -6,12 +7,12 @@ async function getTransporter() {
   if (!transporterPromise) {
     transporterPromise = import("nodemailer").then((module) =>
       module.default.createTransport({
-        host: process.env.BREVO_HOST || "smtp-relay.brevo.com",
-        port: Number(process.env.BREVO_PORT || 587),
+        host: process.env.BREVO_SMTP_HOST || "smtp-relay.brevo.com",
+        port: Number(process.env.BREVO_SMTP_PORT || 587),
         secure: false,
         auth: {
-          user: process.env.BREVO_USER,
-          pass: process.env.BREVO_PASS,
+          user: process.env.BREVO_SMTP_USER,
+          pass: process.env.BREVO_SMTP_KEY,
         },
       })
     );
@@ -19,8 +20,28 @@ async function getTransporter() {
   return transporterPromise;
 }
 
+function getFromEmail() {
+  const mailFrom = process.env.MAIL_FROM;
+  if (mailFrom) {
+    // Support format: "Name" <email@domain.com> ou email@domain.com
+    const match = mailFrom.match(/^"?([^"<]+)"?\s*<(.+)>$/);
+    if (match) {
+      return { email: match[2].trim(), name: match[1].trim() };
+    }
+    return { email: mailFrom.trim(), name: DEFAULT_FROM_NAME };
+  }
+  return { email: DEFAULT_FROM_EMAIL, name: DEFAULT_FROM_NAME };
+}
+
 export async function sendResetPasswordEmail({ to, resetLink, username }) {
-  const from = process.env.MAIL_FROM || DEFAULT_FROM;
+  const smtpUser = process.env.BREVO_SMTP_USER;
+  const smtpKey = process.env.BREVO_SMTP_KEY;
+
+  if (!smtpUser || !smtpKey) {
+    throw new Error("Configuration Brevo SMTP manquante (BREVO_SMTP_USER ou BREVO_SMTP_KEY)");
+  }
+
+  const from = getFromEmail();
   const transporter = await getTransporter();
 
   const html = `
@@ -48,9 +69,10 @@ export async function sendResetPasswordEmail({ to, resetLink, username }) {
   `;
 
   return transporter.sendMail({
-    from,
+    from: `"${from.name}" <${from.email}>`,
     to,
     subject: "Réinitialisation du mot de passe - Last Outpost",
     html,
+    text: `Bonjour ${username || "survivant"},\n\nUne demande de réinitialisation de mot de passe a été effectuée pour votre compte Last Outpost.\n\nCliquez sur ce lien pour réinitialiser votre mot de passe : ${resetLink}\n\nCe lien est valable pendant 1 heure.\n\nSi vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.`,
   });
 }
