@@ -1,7 +1,7 @@
 export const ash_queen = {
   name: "Reine des Cendres",
-  speed: 32,
-  hp: 32000,
+  speed: 24,
+  hp: 30000,
   reward: 1400,
   playerDamage: 8,
   color: 0x6a4b3a,
