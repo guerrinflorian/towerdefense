@@ -778,7 +778,9 @@ export class GameScene extends Phaser.Scene {
 
   takeDamage(amount = 1) {
     // Si le jeu est déjà terminé, ne plus accepter de dégâts
-    if (this._gameOverShown || this.gameOverTriggered) {
+    // On vérifie seulement gameOverTriggered et isPaused, pas _gameOverShown
+    // car _gameOverShown est un flag UI, pas un flag de game state
+    if (this.gameOverTriggered || this.isPaused) {
       return;
     }
 
