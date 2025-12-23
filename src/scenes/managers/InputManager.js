@@ -125,12 +125,11 @@ export class InputManager {
         return; // Laisser le bouton gérer son propre événement
       }
 
-      const isOnBuildMenu = this.uiManager.isPointerOnBuildMenu(pointer);
-      if (isOnBuildMenu) {
+      if (this.uiManager.isPointerOnBuildMenu(pointer)) {
         this.pointerDownOnBuildMenu = true;
         return;
       }
-      this.pointerDownOnBuildMenu = this.scene.buildMenu?.visible || false;
+      this.pointerDownOnBuildMenu = false;
 
       this.uiManager.hideMenus();
       this.scene.selectedTurret = null;
