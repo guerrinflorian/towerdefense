@@ -16,10 +16,32 @@ export class DragHandler {
       return;
 
     this.draggingTurret = turretConfig;
-    this.staticPreviewActive = false;
+
+    if (this.placementPreview && this.placementPreview.active !== false) {
+      try {
+        this.placementPreview.destroy();
+      } catch (e) {}
+    }
+    if (this.rangePreview && this.rangePreview.active !== false) {
+      try {
+        this.rangePreview.destroy();
+      } catch (e) {}
+    }
 
     try {
-      this.ensurePreviewGraphics(turretConfig);
+      const preview = this.scene.add.graphics();
+      preview.fillStyle(turretConfig.color || 0x888888, 0.6);
+      preview.fillCircle(0, 0, 20 * this.scene.scaleFactor);
+      preview.lineStyle(2, turretConfig.color || 0x888888);
+      preview.strokeCircle(0, 0, 20 * this.scene.scaleFactor);
+      preview.setDepth(200);
+      this.placementPreview = preview;
+
+      const rangePreview = this.scene.add.graphics();
+      rangePreview.setDepth(180);
+      rangePreview.setVisible(false);
+      this.rangePreview = rangePreview;
+
       this.showValidPlacementCells();
     } catch (e) {
       console.warn("Erreur lors du démarrage du drag:", e);
@@ -56,24 +78,63 @@ export class DragHandler {
       const tx = Math.floor((pointer.worldX - this.scene.mapStartX) / T);
       const ty = Math.floor((pointer.worldY - this.scene.mapStartY) / T);
 
-      const placementData = this.getPlacementData(
-        tx,
-        ty,
-        this.draggingTurret,
-        { respectMoney: true, fallbackX: pointer.worldX, fallbackY: pointer.worldY }
-      );
+      let targetX = pointer.worldX;
+      let targetY = pointer.worldY;
+      let canPlace = false;
+      const isInsideMap =
+        tx >= 0 &&
+        tx < 15 &&
+        ty >= 0 &&
+        ty < 15 &&
+        this.scene.levelConfig &&
+        this.scene.levelConfig.map;
 
-      this.renderPreviews(
-        placementData.centerX,
-        placementData.centerY,
-        this.draggingTurret,
-        placementData.canPlace && placementData.isInsideMap,
-        placementData.isInsideMap
-      );
+      if (isInsideMap) {
+        targetX = this.scene.mapStartX + tx * T + T / 2;
+        targetY = this.scene.mapStartY + ty * T + T / 2;
+        const tileType = this.scene.levelConfig.map[ty][tx];
+        if (tileType === 0 || tileType === 6 || tileType === 10 || tileType === 12 || tileType === 16) {
+          const hasTree =
+            this.scene.mapManager && this.scene.mapManager.hasTree
+              ? this.scene.mapManager.hasTree(tx, ty)
+              : false;
+          if (!hasTree) {
+            if (this.draggingTurret.key === "barracks") {
+              canPlace =
+                this.scene.mapManager && this.scene.mapManager.isAdjacentToPath
+                  ? this.scene.mapManager.isAdjacentToPath(tx, ty) &&
+                    this.scene.money >= this.draggingTurret.cost
+                  : false;
+            } else {
+              canPlace = this.scene.money >= this.draggingTurret.cost;
+            }
+          }
+        }
+      }
+
+      this.placementPreview.setPosition(targetX, targetY);
+      this.placementPreview.clear();
+      const color = canPlace ? 0x00ff00 : 0xff0000;
+      this.placementPreview.fillStyle(color, 0.4);
+      this.placementPreview.fillCircle(0, 0, 20 * this.scene.scaleFactor);
+      this.placementPreview.lineStyle(2, color);
+      this.placementPreview.strokeCircle(0, 0, 20 * this.scene.scaleFactor);
+      this.updateRangePreview(targetX, targetY, canPlace && isInsideMap, isInsideMap);
     } catch (e) {
       console.warn("Erreur lors de la mise à jour du preview:", e);
       this.draggingTurret = null;
-      this.destroyPreviews();
+      if (this.placementPreview && this.placementPreview.active !== false) {
+        try {
+          this.placementPreview.destroy();
+        } catch (e2) {}
+      }
+      this.placementPreview = null;
+      if (this.rangePreview && this.rangePreview.active !== false) {
+        try {
+          this.rangePreview.destroy();
+        } catch (e3) {}
+      }
+      this.rangePreview = null;
     }
   }
 
@@ -260,76 +321,39 @@ export class DragHandler {
     this.clearValidCells();
   }
 
-  clearValidCells() {
+    if (this.rangePreview) {
+      this.rangePreview.destroy();
+      this.rangePreview = null;
+    }
+
     if (this.validCellsPreview) {
       this.validCellsPreview.forEach((cell) => cell.destroy());
       this.validCellsPreview = [];
     }
   }
 
-  getPlacementData(tx, ty, turretConfig, options = {}) {
-    const { respectMoney = true, fallbackX = 0, fallbackY = 0 } = options;
-    const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
-    const hasMap =
-      this.scene.levelConfig &&
-      this.scene.levelConfig.map &&
-      Array.isArray(this.scene.levelConfig.map);
-
-    const isInsideMap =
-      hasMap && tx >= 0 && tx < 15 && ty >= 0 && ty < 15;
-
-    const centerX = isInsideMap
-      ? this.scene.mapStartX + tx * T + T / 2
-      : fallbackX;
-    const centerY = isInsideMap
-      ? this.scene.mapStartY + ty * T + T / 2
-      : fallbackY;
-
-    if (!isInsideMap || !turretConfig) {
-      return { centerX, centerY, canPlace: false, isInsideMap: false };
+  updateRangePreview(x, y, canPlace, isInsideMap) {
+    if (!this.rangePreview || this.rangePreview.active === false) {
+      if (this.rangePreview && this.rangePreview.active === false) {
+        this.rangePreview.destroy();
+      }
+      this.rangePreview = this.scene.add.graphics();
+      this.rangePreview.setDepth(180);
     }
 
-    const tileType = this.scene.levelConfig.map[ty][tx];
-    const isBuildableTile =
-      tileType === 0 ||
-      tileType === 6 ||
-      tileType === 10 ||
-      tileType === 12 ||
-      tileType === 16;
-
-    if (!isBuildableTile) {
-      return { centerX, centerY, canPlace: false, isInsideMap: true };
+    if (!isInsideMap || !this.draggingTurret?.range) {
+      this.rangePreview.setVisible(false);
+      this.rangePreview.clear();
+      return;
     }
 
-    const hasTree =
-      this.scene.mapManager && this.scene.mapManager.hasTree
-        ? this.scene.mapManager.hasTree(tx, ty)
-        : false;
-    if (hasTree) {
-      return { centerX, centerY, canPlace: false, isInsideMap: true };
-    }
-
-    let canPlace = true;
-    if (turretConfig.key === "barracks") {
-      canPlace =
-        this.scene.mapManager &&
-        this.scene.mapManager.isAdjacentToPath(tx, ty) &&
-        (!respectMoney || this.scene.money >= turretConfig.cost);
-    } else if (respectMoney) {
-      canPlace = this.scene.money >= turretConfig.cost;
-    }
-
-    return {
-      centerX,
-      centerY,
-      canPlace,
-      isInsideMap: true,
-    };
-  }
-
-  getRangePixels(turretConfig) {
-    const rawRange = Number(turretConfig?.range || 0);
-    if (!Number.isFinite(rawRange) || rawRange <= 0) return 0;
-    return rawRange * (this.scene?.scaleFactor || 1);
+    const color = canPlace ? 0x00ff00 : 0xff0000;
+    this.rangePreview.clear();
+    this.rangePreview.setPosition(x, y);
+    this.rangePreview.lineStyle(2, color, 0.35);
+    this.rangePreview.fillStyle(color, 0.08);
+    this.rangePreview.strokeCircle(0, 0, this.draggingTurret.range);
+    this.rangePreview.fillCircle(0, 0, this.draggingTurret.range);
+    this.rangePreview.setVisible(true);
   }
 }
