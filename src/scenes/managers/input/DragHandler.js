@@ -6,6 +6,7 @@ export class DragHandler {
     this.uiManager = uiManager;
     this.draggingTurret = null;
     this.placementPreview = null;
+    this.rangePreview = null;
     this.validCellsPreview = [];
   }
 
@@ -20,6 +21,11 @@ export class DragHandler {
         this.placementPreview.destroy();
       } catch (e) {}
     }
+    if (this.rangePreview && this.rangePreview.active !== false) {
+      try {
+        this.rangePreview.destroy();
+      } catch (e) {}
+    }
 
     try {
       const preview = this.scene.add.graphics();
@@ -29,6 +35,11 @@ export class DragHandler {
       preview.strokeCircle(0, 0, 20 * this.scene.scaleFactor);
       preview.setDepth(200);
       this.placementPreview = preview;
+
+      const rangePreview = this.scene.add.graphics();
+      rangePreview.setDepth(180);
+      rangePreview.setVisible(false);
+      this.rangePreview = rangePreview;
 
       this.showValidPlacementCells();
     } catch (e) {
@@ -63,20 +74,23 @@ export class DragHandler {
 
       const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
 
-      this.placementPreview.setPosition(pointer.worldX, pointer.worldY);
-
       const tx = Math.floor((pointer.worldX - this.scene.mapStartX) / T);
       const ty = Math.floor((pointer.worldY - this.scene.mapStartY) / T);
 
+      let targetX = pointer.worldX;
+      let targetY = pointer.worldY;
       let canPlace = false;
-      if (
+      const isInsideMap =
         tx >= 0 &&
         tx < 15 &&
         ty >= 0 &&
         ty < 15 &&
         this.scene.levelConfig &&
-        this.scene.levelConfig.map
-      ) {
+        this.scene.levelConfig.map;
+
+      if (isInsideMap) {
+        targetX = this.scene.mapStartX + tx * T + T / 2;
+        targetY = this.scene.mapStartY + ty * T + T / 2;
         const tileType = this.scene.levelConfig.map[ty][tx];
         if (tileType === 0 || tileType === 6 || tileType === 10 || tileType === 12 || tileType === 16) {
           const hasTree =
@@ -97,12 +111,14 @@ export class DragHandler {
         }
       }
 
+      this.placementPreview.setPosition(targetX, targetY);
       this.placementPreview.clear();
       const color = canPlace ? 0x00ff00 : 0xff0000;
       this.placementPreview.fillStyle(color, 0.4);
       this.placementPreview.fillCircle(0, 0, 20 * this.scene.scaleFactor);
       this.placementPreview.lineStyle(2, color);
       this.placementPreview.strokeCircle(0, 0, 20 * this.scene.scaleFactor);
+      this.updateRangePreview(targetX, targetY, canPlace && isInsideMap, isInsideMap);
     } catch (e) {
       console.warn("Erreur lors de la mise à jour du preview:", e);
       this.draggingTurret = null;
@@ -112,6 +128,12 @@ export class DragHandler {
         } catch (e2) {}
       }
       this.placementPreview = null;
+      if (this.rangePreview && this.rangePreview.active !== false) {
+        try {
+          this.rangePreview.destroy();
+        } catch (e3) {}
+      }
+      this.rangePreview = null;
     }
   }
 
@@ -197,9 +219,39 @@ export class DragHandler {
       this.placementPreview = null;
     }
 
+    if (this.rangePreview) {
+      this.rangePreview.destroy();
+      this.rangePreview = null;
+    }
+
     if (this.validCellsPreview) {
       this.validCellsPreview.forEach((cell) => cell.destroy());
       this.validCellsPreview = [];
     }
+  }
+
+  updateRangePreview(x, y, canPlace, isInsideMap) {
+    if (!this.rangePreview || this.rangePreview.active === false) {
+      if (this.rangePreview && this.rangePreview.active === false) {
+        this.rangePreview.destroy();
+      }
+      this.rangePreview = this.scene.add.graphics();
+      this.rangePreview.setDepth(180);
+    }
+
+    if (!isInsideMap || !this.draggingTurret?.range) {
+      this.rangePreview.setVisible(false);
+      this.rangePreview.clear();
+      return;
+    }
+
+    const color = canPlace ? 0x00ff00 : 0xff0000;
+    this.rangePreview.clear();
+    this.rangePreview.setPosition(x, y);
+    this.rangePreview.lineStyle(2, color, 0.35);
+    this.rangePreview.fillStyle(color, 0.08);
+    this.rangePreview.strokeCircle(0, 0, this.draggingTurret.range);
+    this.rangePreview.fillCircle(0, 0, this.draggingTurret.range);
+    this.rangePreview.setVisible(true);
   }
 }
