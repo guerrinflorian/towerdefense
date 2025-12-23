@@ -20,6 +20,7 @@ export class Turret extends Phaser.GameObjects.Container {
     // Valeur par défaut si maxLevel n'est pas défini dans la config
     // (Pour le cannon, c'est défini à 3 dans le fichier cannon.js)
     this.config.maxLevel = this.config.maxLevel || 3;
+    this.rangePixels = this.getRangePixels(this.config.range);
 
     this.level = 1;
     this.lastFired = 0;
@@ -36,9 +37,10 @@ export class Turret extends Phaser.GameObjects.Container {
     this.drawBarrel();
 
     // Portée
-    this.rangeCircle = scene.add.circle(0, 0, this.config.range);
+    this.rangeCircle = scene.add.circle(0, 0, this.rangePixels);
     this.rangeCircle.setStrokeStyle(2, 0xffffff, 0.3);
     this.rangeCircle.setVisible(false);
+    this.rangeCircle.setScale(1 / (scene.scaleFactor || 1));
     this.sendToBack(this.rangeCircle);
     this.add(this.rangeCircle);
 
@@ -164,15 +166,10 @@ export class Turret extends Phaser.GameObjects.Container {
     this.config.damage = nextStats.damage;
     this.config.rate = nextStats.rate;
     this.config.range = nextStats.range;
+    this.rangePixels = this.getRangePixels(this.config.range);
     if (nextStats.aoe) this.config.aoe = nextStats.aoe;
 
-    // Mise à jour visuelle du rayon
-    this.rangeCircle.setRadius(this.config.range);
-
-    // On force la mise à jour de l'échelle du cercle après l'upgrade
-    if (this.scaleX !== 0) {
-      this.rangeCircle.setScale(1 / this.scaleX);
-    }
+    this.updateRangeVisual();
 
     // Redessiner le socle (ajoute le point de couleur) et le canon (change le skin)
     this.drawBase();
@@ -419,13 +416,13 @@ export class Turret extends Phaser.GameObjects.Container {
 
   findTarget(enemies) {
     let nearest = null;
-    let minDist = this.config.range;
+    let minDist = this.rangePixels;
 
     // Note: Distance.Between est en pixels Monde, indépendant du scale du container
     enemies.children.each((e) => {
       if (e.active) {
         const d = Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y);
-        if (d <= this.config.range && d < minDist) {
+        if (d <= this.rangePixels && d < minDist) {
           minDist = d;
           nearest = e;
         }
@@ -449,5 +446,18 @@ export class Turret extends Phaser.GameObjects.Container {
     if (this.config.onFire) {
       this.config.onFire(this.scene, this, target);
     }
+  }
+
+  getRangePixels(rangeValue) {
+    const numeric = Number(rangeValue);
+    if (!Number.isFinite(numeric)) return 0;
+    const scale = this.scene?.scaleFactor || 1;
+    return numeric * scale;
+  }
+
+  updateRangeVisual() {
+    this.rangeCircle.setRadius(this.rangePixels);
+    const scaleFix = 1 / (this.scene?.scaleFactor || 1);
+    this.rangeCircle.setScale(scaleFix);
   }
 }
