@@ -124,6 +124,10 @@ export class InputManager {
         return; // Laisser le bouton gérer son propre événement
       }
 
+      if (this.uiManager.isPointerOnBuildMenu(pointer)) {
+        return;
+      }
+
       this.uiManager.hideMenus();
       this.scene.selectedTurret = null;
 
@@ -156,6 +160,15 @@ export class InputManager {
       // Ignorer le premier pointerup si le pointer était déjà enfoncé au démarrage
       if (this.ignoreFirstPointerUp) {
         this.ignoreFirstPointerUp = false;
+        if (this.longPressTimer) {
+          this.longPressTimer.remove();
+          this.longPressTimer = null;
+        }
+        this.longPressTriggered = false;
+        return;
+      }
+
+      if (this.uiManager.isPointerOnBuildMenu(pointer)) {
         if (this.longPressTimer) {
           this.longPressTimer.remove();
           this.longPressTimer = null;
