@@ -64,7 +64,7 @@ export class AchievementsScene extends Phaser.Scene {
 
     // Loading
     this.loadingText = this.add
-      .text(width / 2, height / 2, "ACCÈS AUX ARCHIVES...", {
+      .text(width / 2, height / 2, "Chargement des succès...", {
         fontFamily: "Orbitron",
         fontSize: "18px",
         color: "#00eaff",

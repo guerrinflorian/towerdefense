@@ -206,6 +206,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   async refreshAchievementsSummary() {
     try {
+      
       const { summary } = await fetchAchievements();
       if (this.achievementLabel) {
         this.achievementLabel.setText(`Succès ${summary.unlocked}/${summary.total}`);
