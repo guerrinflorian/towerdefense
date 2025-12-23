@@ -269,7 +269,13 @@ export function createBuildBtnOctagon(buildMenu, x, y, size, turretConfig) {
       scene.selectedTile.y
     );
 
-    if (success) scene.buildMenu.setVisible(false);
+    if (success) {
+      scene.buildMenu.setVisible(false);
+      // Activer le flag pour ignorer le prochain clic (qui serait le pointerup du clic sur le bouton)
+      if (scene.inputManager) {
+        scene.inputManager.justBuiltFromMenu = true;
+      }
+    }
     scene.inputManager?.dragHandler?.hideTileRangePreview();
     buildMenu.updateBuildMenuButtons();
   });

@@ -17,7 +17,7 @@ export class Hero extends Phaser.GameObjects.Container {
     this.maxHp = stats.max_hp ?? 230;
     this.hp = this.maxHp;
     this.damage = stats.base_damage ?? 25;
-    this.attackInterval = stats.attack_interval_ms ?? 1200;
+    this.attackInterval = stats.attack_interval_ms ?? 1500;
     this.moveSpeed = (stats.move_speed ?? 100) * s;
     this.heroColor = stats.color || "#2b2b2b"; // Couleur par défaut (noir)
 

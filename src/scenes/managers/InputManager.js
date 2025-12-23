@@ -17,6 +17,7 @@ export class InputManager {
     this.ignoreInputUntil = 0;
     this.ignoreFirstPointerUp = false;
     this.pointerDownOnBuildMenu = false;
+    this.justBuiltFromMenu = false; // Flag pour ignorer le clic après construction depuis le menu
   }
 
   setUIManager(uiManager) {
@@ -125,7 +126,9 @@ export class InputManager {
         return; // Laisser le bouton gérer son propre événement
       }
 
-      if (this.uiManager.isPointerOnBuildMenu(pointer)) {
+      const isOnBuildMenu = this.uiManager.isPointerOnBuildMenu(pointer);
+
+      if (isOnBuildMenu) {
         this.pointerDownOnBuildMenu = true;
         return;
       }
@@ -332,6 +335,13 @@ export class InputManager {
   }
 
   handleNormalClick(pointer) {
+    // Ignorer le clic si on vient juste de construire depuis le menu
+    // (le menu se ferme et le pointerup suivant déclencherait un déplacement)
+    if (this.justBuiltFromMenu) {
+      this.justBuiltFromMenu = false; // Réinitialiser le flag
+      return;
+    }
+
     // Ignorer les clics qui arrivent juste après le démarrage de la scène
     // pour éviter que le clic sur l'île dans MapScene déclenche un déplacement du héros
     if (this.scene.time.now < this.ignoreInputUntil) {
@@ -340,6 +350,11 @@ export class InputManager {
 
     // Ne pas déplacer le héros si on est en train de placer un sort
     if (this.spellManager && this.spellManager.isPlacingSpell()) {
+      return;
+    }
+
+    // Ne pas déplacer le héros si on clique sur le menu de construction
+    if (this.uiManager && this.uiManager.isPointerOnBuildMenu(pointer)) {
       return;
     }
 

@@ -486,6 +486,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   async levelComplete() {
+    // Vérifier si le joueur a encore des vies avant d'enregistrer une victoire
+    if (this.lives <= 0) {
+      // Le joueur a perdu toutes ses vies, c'est une défaite
+      await this.showGameOverNotification();
+      return;
+    }
+    
     this.showTransmissionOverlay("VICTOIRE");
     this.reportHeroKillsOnce();
     await this.finalizeRunReport("WIN", "level_complete");

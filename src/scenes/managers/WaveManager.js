@@ -278,6 +278,11 @@ export class WaveManager {
     this.scene.spawnControls = null;
     this.spawnControls = null;
 
+    // Ne pas enregistrer de completion si le joueur a perdu toutes ses vies
+    if (this.scene.lives <= 0) {
+      return;
+    }
+
     // Préparer les requêtes
     const heroKillReport = this.scene?.reportHeroKillsOnce
       ? this.scene.reportHeroKillsOnce()
