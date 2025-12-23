@@ -529,9 +529,12 @@ export class GameScene extends Phaser.Scene {
 
   async finalizeRunReport(result = null, reasonEnd = null) {
     if (!this.runTracker) return null;
-    if (this.runTracker.hasEnded && this.runTracker.hasEnded() && this.runReportPromise) {
-      return this.runReportPromise;
+    const hasEnded = this.runTracker.hasEnded && this.runTracker.hasEnded();
+    if (hasEnded) {
+      return this.runReportPromise || null;
     }
+
+    const isNaturalEnd = result === "WIN" || result === "LOSE";
 
     const report = this.runTracker.endRun({
       result,
@@ -541,6 +544,10 @@ export class GameScene extends Phaser.Scene {
       elapsedMs: Math.round(this.elapsedTimeMs || 0),
     });
     if (!report) return null;
+
+    if (!isNaturalEnd) {
+      return null;
+    }
 
     console.log("[RunReport]", report);
     this.runReportPromise = sendRunReport(report).catch((err) => {
