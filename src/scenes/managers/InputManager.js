@@ -238,7 +238,19 @@ export class InputManager {
       }
 
       if (!this.longPressTriggered && !isOnToolbar) {
-        if (this.scene.buildMenu?.visible || startedOnBuildMenu) {
+        // Si le menu est ouvert mais qu'on clique sur la map (pas sur le menu), on appelle handleNormalClick
+        // pour permettre la détection du clic sur la map avec le menu ouvert
+        if (this.scene.buildMenu?.visible) {
+          const isOnMenu = this.uiManager.isPointerOnBuildMenu(pointer);
+          if (!isOnMenu) {
+            this.handleNormalClick(pointer);
+            return;
+          } else {
+            return;
+          }
+        }
+        // Si le clic a commencé sur le menu, on ignore
+        if (startedOnBuildMenu) {
           return;
         }
         this.handleNormalClick(pointer);
