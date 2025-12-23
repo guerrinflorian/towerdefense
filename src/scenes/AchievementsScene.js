@@ -210,6 +210,9 @@ export class AchievementsScene extends Phaser.Scene {
   createAchievementCard(ach, width) {
     const container = this.add.container(0, 0);
     const unlocked = !!ach.is_unlocked;
+    const goalValue = Number(ach.goal_value || 0);
+    const currentValue = Number(ach.current_value || 0);
+    const isCumulative = ach.accumulate === true;
 
     const title = this.add.text(12, 12, String(ach.title || "").toUpperCase(), {
       fontFamily: "Orbitron",
@@ -226,7 +229,22 @@ export class AchievementsScene extends Phaser.Scene {
       wordWrap: { width: width - 24 },
     });
 
-    const cardHeight = desc.y + desc.displayHeight + 44;
+    let cardHeight = desc.y + desc.displayHeight + 44;
+    let progressText = null;
+
+    if (isCumulative && goalValue > 0) {
+      progressText = this.add.text(
+        12,
+        desc.y + desc.displayHeight + 8,
+        `Progression : ${currentValue}/${goalValue}`,
+        {
+          fontFamily: "Orbitron",
+          fontSize: "12px",
+          color: unlocked ? "#00ff88" : "#7dd0ff",
+        }
+      );
+      cardHeight = progressText.y + progressText.displayHeight + 32;
+    }
     container.cardHeight = cardHeight;
 
     const bg = this.add.graphics();
@@ -254,7 +272,11 @@ export class AchievementsScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    container.add([bg, title, desc, icon]);
+    const elements = [bg, title, desc, icon];
+    if (progressText) {
+      elements.push(progressText);
+    }
+    container.add(elements);
     container.sendToBack(bg);
 
     return container;
