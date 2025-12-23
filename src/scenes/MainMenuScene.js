@@ -2,6 +2,7 @@ import { ensureProfileLoaded, logout, getProfile } from "../services/authManager
 import { showAuth } from "../services/authOverlay.js";
 import { LeaderboardUI } from "./components/LeaderboardUI.js";
 import { HeroUpgradeUI } from "./components/HeroUpgradeUI.js";
+import { fetchAchievements } from "../services/achievementsService.js";
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -39,6 +40,7 @@ export class MainMenuScene extends Phaser.Scene {
     
     // À GAUCHE : Amélioration du Héros
     this.heroPanel = new HeroUpgradeUI(this, padding, height * 0.25);
+    this.createAchievementsButton();
 
     // À DROITE : Leaderboard
     // Largeur du leaderboard = 540 (selon sa config)
@@ -67,6 +69,7 @@ export class MainMenuScene extends Phaser.Scene {
     // Initialisation
     ensureProfileLoaded().then(() => {
       if (this.heroPanel) this.heroPanel.refresh();
+      this.refreshAchievementsSummary();
       // Mettre à jour le nom d'utilisateur après chargement du profil
       if (this.userDisplayText) {
         const profile = getProfile();
@@ -123,6 +126,66 @@ export class MainMenuScene extends Phaser.Scene {
     this.playButton = playBtn;
   }
 
+  createAchievementsButton() {
+    const width = this.heroPanel?.config?.width || 360;
+    const btnHeight = 46;
+    const container = this.add.container(0, 0);
+    const bg = this.add.graphics();
+    const draw = (hover) => {
+      bg.clear();
+      bg.fillStyle(0x0e1624, hover ? 0.9 : 0.8);
+      bg.lineStyle(2, hover ? 0x00eaff : 0x1f2a3c, 1);
+      bg.fillRoundedRect(0, 0, width, btnHeight, 10);
+      bg.strokeRoundedRect(0, 0, width, btnHeight, 10);
+    };
+    draw(false);
+
+    const star = this.add.text(18, btnHeight / 2, "★", {
+      fontSize: "22px",
+      fontFamily: "Impact, sans-serif",
+      color: "#ffc857",
+    }).setOrigin(0.5);
+
+    this.achievementLabel = this.add.text(42, btnHeight / 2, "Succès 0/0", {
+      fontSize: "16px",
+      fontFamily: "Orbitron, sans-serif",
+      color: "#ffffff",
+      resolution: window.devicePixelRatio || 1,
+    }).setOrigin(0, 0.5);
+
+    const subtitle = this.add.text(width - 14, btnHeight / 2, "Voir la liste", {
+      fontSize: "12px",
+      fontFamily: "Arial",
+      color: "#7dd0ff",
+    }).setOrigin(1, 0.5);
+
+    container.add([bg, star, this.achievementLabel, subtitle]);
+    container.setSize(width, btnHeight);
+    container.setInteractive({ useHandCursor: true, pixelPerfect: false });
+    container.on("pointerover", () => draw(true));
+    container.on("pointerout", () => draw(false));
+    container.on("pointerdown", () => {
+      this.scene.start("AchievementsScene");
+    });
+
+    this.add.existing(container);
+    this.achievementsButton = container;
+  }
+
+  async refreshAchievementsSummary() {
+    try {
+      const { summary } = await fetchAchievements();
+      if (this.achievementLabel) {
+        this.achievementLabel.setText(`Succès ${summary.unlocked}/${summary.total}`);
+      }
+    } catch (err) {
+      console.error("Erreur récupération des succès", err);
+      if (this.achievementLabel) {
+        this.achievementLabel.setText("Succès (erreur)");
+      }
+    }
+  }
+
   addBackground(cx, height) {
     this.cameras.main.setBackgroundColor("#020508");
     if (this.textures.exists("background")) {
@@ -164,9 +227,19 @@ export class MainMenuScene extends Phaser.Scene {
         this.userDisplayText.setText(`CONNECTÉ EN TANT QUE : ${username.toUpperCase()}`);
       }
     };
+    this.achievementUpdatedHandler = (event) => {
+      const summary = event?.detail?.summary;
+      if (summary && this.achievementLabel) {
+        this.achievementLabel.setText(`Succès ${summary.unlocked}/${summary.total}`);
+      } else {
+        this.refreshAchievementsSummary();
+      }
+    };
     window.addEventListener("auth:profile-updated", this.profileUpdatedHandler);
+    window.addEventListener("achievements:updated", this.achievementUpdatedHandler);
     this.events.once("shutdown", () => {
       window.removeEventListener("auth:profile-updated", this.profileUpdatedHandler);
+      window.removeEventListener("achievements:updated", this.achievementUpdatedHandler);
     });
   }
 
@@ -185,6 +258,11 @@ export class MainMenuScene extends Phaser.Scene {
         : Math.max(padding, height * 0.16 - heroHeight * 0.15);
       const targetX = isMobile ? width / 2 - (this.heroPanel.config?.width || 380) * this.heroPanel.scaleX / 2 : padding;
       this.heroPanel.setPosition(targetX, targetY);
+      if (this.achievementsButton) {
+        this.achievementsButton.setScale(heroScale);
+        const buttonY = targetY + heroHeight + 12;
+        this.achievementsButton.setPosition(targetX, buttonY);
+      }
     }
 
     if (this.leaderboard) {
