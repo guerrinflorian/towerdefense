@@ -99,21 +99,23 @@ if (isMobileBlocked) {
       game.baseHeight = CONFIG.GAME_HEIGHT;
 
       // Gérer le redimensionnement
-      function handleResize() {
-        // Mettre à jour la résolution du jeu lors du redimensionnement
-        const newResolution = window.devicePixelRatio || 1;
-        if (game.scale && game.scale.resolution !== newResolution) {
-          game.scale.setResolution(newResolution);
-        }
-        
-        // Notifier la scène active sans jamais la redémarrer
-        if (game.scene.isActive("GameScene")) {
-          const scene = game.scene.getScene("GameScene");
-          if (scene && scene.handleResize) {
-            scene.handleResize();
-          }
-        }
-      }
+     // Replace the problematic block in handleResize() with this:
+function handleResize() {
+  // Get current window dimensions
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  // Manually tell Phaser to resize the canvas
+  game.scale.resize(width, height);
+  
+  // Notify the active GameScene
+  if (game.scene.isActive("GameScene")) {
+    const scene = game.scene.getScene("GameScene");
+    if (scene && typeof scene.handleResize === 'function') {
+      scene.handleResize();
+    }
+  }
+}
 
       window.addEventListener("resize", handleResize);
       window.addEventListener("orientationchange", () => {

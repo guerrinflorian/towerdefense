@@ -4,466 +4,438 @@ export class AchievementsScene extends Phaser.Scene {
   constructor() {
     super("AchievementsScene");
 
-    // Scroll state
-    this.view = null;
-    this.scrollContainer = null;
-    this.scrollAmount = 0;
-    this.maxScroll = 0;
+    this.allAchievements = [];
+    this.columns = [];
+    this.searchQuery = "";
 
-    // UI refs
-    this.loadingText = null;
-    this.maskGfx = null;
-    this.backBtn = null;
-    this._bgCache = new Map();
+    this.scrollX = 0;
+    this.maxScrollX = 0;
 
-    // Drag state
-    this._drag = { active: false, startY: 0, lastY: 0 };
+    this.columnArea = null;
+    this.mainColumnsContainer = null;
+    this.progressionContainer = null;
 
-    // Card layout
-    this.cardHeight = 118;
+    // drag state
+    this._drag = {
+      active: false,
+      startX: 0,
+      startY: 0,
+      lastX: 0,
+      lastY: 0,
+      mode: null, // "x" | "y"
+      col: null,
+    };
   }
 
   create() {
     const { width, height } = this.scale;
 
-    // --- 1) BACKGROUND ---
     this.drawBackground(width, height);
 
-    // --- 2) STATIC UI ---
-    this.createHeader(width);
-    this.createBackButton(width);
-
-    // --- 3) SCROLL VIEW ---
-    this.view = {
-      x: 40,
-      y: 130,
-      width: width - 80,
-      height: height - 160,
-      radius: 14,
-    };
-
-    this.scrollContainer = this.add.container(this.view.x, this.view.y);
-
-    this.maskGfx = this.make.graphics();
-    this.maskGfx.fillStyle(0xffffff, 1);
-    this.maskGfx.fillRoundedRect(
-      this.view.x,
-      this.view.y,
-      this.view.width,
-      this.view.height,
-      this.view.radius
-    );
-    this.scrollContainer.setMask(this.maskGfx.createGeometryMask());
-
-    // --- 4) LOADING ---
-    this.loadingText = this.add
-      .text(width / 2, height / 2, "SYNCHRONISATION DES ARCHIVES...", {
-        fontFamily: "Orbitron, sans-serif",
-        fontSize: "18px",
-        color: "#00eaff",
-      })
-      .setOrigin(0.5)
-      .setAlpha(0.95);
-
-    // --- 5) DATA + INPUT ---
-    this.loadData();
-    this.setupInteractions();
-  }
-
-  shutdown() {
-    // idempotent cleanup
-    try {
-      this._bgCache?.forEach((g) => g?.destroy?.());
-      this._bgCache?.clear?.();
-    } catch (e) {}
-
-    try {
-      this.input?.removeAllListeners?.();
-    } catch (e) {}
-
-    try {
-      this.maskGfx?.destroy?.();
-    } catch (e) {}
-
-    try {
-      this.scrollContainer?.destroy?.(true);
-    } catch (e) {}
-
-    try {
-      this.loadingText?.destroy?.();
-    } catch (e) {}
-  }
-
-  // ---------------------------------------------------------------------------
-  // UI
-  // ---------------------------------------------------------------------------
-
-  drawBackground(width, height) {
-    const g = this.add.graphics();
-    g.fillGradientStyle(0x05080f, 0x05080f, 0x0a1425, 0x0a1425, 1);
-    g.fillRect(0, 0, width, height);
-
-    // petite texture "stars" légère
-    const dots = this.add.graphics();
-    dots.fillStyle(0x00eaff, 0.06);
-    for (let i = 0; i < 120; i++) {
-      const x = Math.random() * width;
-      const y = Math.random() * height;
-      const r = Math.random() < 0.85 ? 1 : 1.6;
-      dots.fillCircle(x, y, r);
-    }
-  }
-
-  createHeader(width) {
-    const title = this.add.text(40, 48, "SYSTÈME DE SUCCÈS", {
-      fontFamily: "Orbitron, sans-serif",
-      fontSize: "28px",
-      fontStyle: "normal",
-      fontWeight: "700",
+    // Header
+    this.add.text(40, 45, "SUCCÈS", {
+      fontFamily: "Orbitron",
+      fontSize: "24px",
+      fontStyle: "bold",
       color: "#ffffff",
-      letterSpacing: 4,
     });
 
-    // glow discret
-    title.setShadow(0, 0, "#00eaff", 8);
+    // Bouton fermer à la place de la recherche (en haut à droite)
+    this.createCloseButton(width);
 
-    const line = this.add.graphics();
-    line.lineStyle(2, 0x00eaff, 0.28);
-    line.lineBetween(40, 95, width - 40, 95);
-  }
+    // Progression globale (fixe)
+    this.progressionContainer = this.add.container(40, 110);
 
-  createBackButton(width) {
-    const x = width - 170;
-    const y = 42;
-    const w = 130;
-    const h = 42;
-    const r = 10;
-
-    const btn = this.add.container(x, y).setDepth(10);
-
-    const bg = this.add.graphics();
-    const drawIdle = () => {
-      bg.clear();
-      bg.lineStyle(2, 0x00eaff, 1);
-      bg.strokeRoundedRect(0, 0, w, h, r);
-      bg.fillStyle(0x00eaff, 0.06);
-      bg.fillRoundedRect(0, 0, w, h, r);
-    };
-    const drawHover = () => {
-      bg.clear();
-      bg.lineStyle(2, 0x00eaff, 1);
-      bg.strokeRoundedRect(0, 0, w, h, r);
-      bg.fillStyle(0x00eaff, 0.14);
-      bg.fillRoundedRect(0, 0, w, h, r);
+    // Zone dashboard (colonnes)
+    this.columnArea = {
+      x: 40,
+      y: 180, // remonte un peu vu qu'il n'y a plus de search bar
+      width: width - 80,
+      height: height - 220,
     };
 
-    drawIdle();
+    this.mainColumnsContainer = this.add.container(this.columnArea.x, this.columnArea.y);
 
-    const txt = this.add
-      .text(w / 2, h / 2, "RETOUR", {
-        fontFamily: "Orbitron, sans-serif",
-        fontSize: "13px",
+    // Masque global de la zone colonnes
+    const maskGfx = this.make.graphics();
+    maskGfx.fillStyle(0xffffff, 1);
+    maskGfx.fillRect(this.columnArea.x, this.columnArea.y, this.columnArea.width, this.columnArea.height);
+    this.mainColumnsContainer.setMask(maskGfx.createGeometryMask());
+
+    // Loading
+    this.loadingText = this.add
+      .text(width / 2, height / 2, "ACCÈS AUX ARCHIVES...", {
+        fontFamily: "Orbitron",
+        fontSize: "18px",
         color: "#00eaff",
       })
       .setOrigin(0.5);
 
-    btn.add([bg, txt]);
-    btn.setSize(w, h);
-    // Remplace la ligne btn.setInteractive(...) par :
-btn.setInteractive(
-  new Phaser.Geom.Rectangle(w / 2, h / 2, w, h), 
-  Phaser.Geom.Rectangle.Contains
-);
+    this.setupInteractions();
+    this.loadData();
 
-    btn.on("pointerover", () => drawHover());
-    btn.on("pointerout", () => drawIdle());
-    btn.on("pointerdown", () => this.scene.start("MainMenuScene"));
-
-    this.backBtn = btn;
+    // Resize: recalcul flex colonnes
+    this.scale.on("resize", (gameSize) => this.onResize(gameSize));
   }
 
-  // ---------------------------------------------------------------------------
-  // Data / Render
-  // ---------------------------------------------------------------------------
-
+  // ----------------------------
+  // DATA
+  // ----------------------------
   async loadData() {
     try {
       const { achievements, summary } = await fetchAchievements();
-      if (this.loadingText) this.loadingText.destroy();
+      this.allAchievements = achievements || [];
 
-      this.renderContent(achievements || [], summary || { unlocked: 0, total: 0 });
+      this.updateGlobalProgression(summary || { unlocked: 0, total: 0 });
+
+      if (this.loadingText) this.loadingText.destroy();
+      this.refreshDisplay();
     } catch (err) {
-      console.error(err);
-      if (!this.loadingText) return;
-      this.loadingText.setText("ERREUR DE CONNEXION").setColor("#ff0055");
+      if (this.loadingText) this.loadingText.setText("ERREUR DE LIAISON").setColor("#ff0055");
     }
   }
 
-  renderContent(achievements, summary) {
-    const contentWidth = this.view.width;
-    const cardHeight = this.cardHeight || 102;
-    const cardSpacing = 10;
+  updateGlobalProgression(summary) {
+    this.progressionContainer.removeAll(true);
 
-    let currentY = 0;
-
-    // Summary box
-    const summaryBox = this.createSummaryBox(summary, contentWidth);
-    this.scrollContainer.add(summaryBox);
-    currentY += 120;
-
-    // Group & sort
-    const grouped = this.groupByCategory(achievements);
-
-    grouped.forEach((group) => {
-      const catTitle = this.add.text(0, currentY, `// SECTION : ${String(group.category || "AUTRE").toUpperCase()}`, {
-        fontFamily: "Orbitron, sans-serif",
-        fontSize: "16px",
-        color: "#7dd0ff",
-      });
-      catTitle.setAlpha(0.95);
-
-      this.scrollContainer.add(catTitle);
-      currentY += 38;
-
-      group.items.forEach((ach) => {
-        const card = this.createAchievementCard(ach, contentWidth, currentY);
-        this.scrollContainer.add(card);
-        currentY += cardHeight + cardSpacing;
-      });
-
-      currentY += 18;
-    });
-
-    // max scroll
-    this.maxScroll = Math.max(0, currentY - this.view.height);
-    this.scrollAmount = 0;
-    this.applyScroll();
-  }
-
-  createSummaryBox(summary, width) {
-    const container = this.add.container(0, 0);
-
+    const w = this.scale.width - 80;
     const total = Math.max(0, Number(summary.total || 0));
     const unlocked = Math.max(0, Number(summary.unlocked || 0));
     const percent = total > 0 ? Math.floor((unlocked / total) * 100) : 0;
 
     const bg = this.add.graphics();
-    bg.fillStyle(0x0d121d, 0.82);
-    bg.fillRoundedRect(0, 0, width, 92, 14);
-    bg.lineStyle(2, 0x00eaff, 0.2);
-    bg.strokeRoundedRect(0, 0, width, 92, 14);
+    bg.fillStyle(0x0d121d, 0.86);
+    bg.fillRoundedRect(0, 0, w, 50, 10);
 
-    const label = this.add.text(18, 18, `SYNCHRONISATION : ${percent}% (${unlocked}/${total})`, {
-      fontFamily: "Orbitron, sans-serif",
-      fontSize: "15px",
-      color: "#00eaff",
-    });
-
-    const barW = width - 36;
-    const barX = 18;
-    const barY = 54;
+    const barX = 280;
+    const barW = Math.max(10, w - 300);
 
     const barBg = this.add.graphics();
     barBg.fillStyle(0x1a202c, 1);
-    barBg.fillRoundedRect(barX, barY, barW, 12, 6);
+    barBg.fillRoundedRect(barX, 20, barW, 10, 5);
 
     const barFill = this.add.graphics();
     barFill.fillStyle(0x00eaff, 1);
-    barFill.fillRoundedRect(barX, barY, Math.max(0, barW * (percent / 100)), 12, 6);
+    barFill.fillRoundedRect(barX, 20, barW * (percent / 100), 10, 5);
 
-    const hint = this.add.text(18, 72, "Débloque des succès en jouant pour compléter ta collection.", {
-      fontFamily: "Arial",
-      fontSize: "12px",
-      color: "#94a3b8",
+    const label = this.add.text(15, 15, `TOTAL: ${unlocked}/${total} (${percent}%)`, {
+      fontFamily: "Orbitron",
+      fontSize: "14px",
+      color: "#ffffff",
     });
 
-    container.add([bg, label, barBg, barFill, hint]);
-    return container;
+    this.progressionContainer.add([bg, barBg, barFill, label]);
   }
 
-  createAchievementCard(ach, width, y) {
-    const container = this.add.container(0, y);
+  // ----------------------------
+  // DISPLAY (colonnes flex)
+  // ----------------------------
+  refreshDisplay() {
+    if (!this.mainColumnsContainer || !this.columnArea) return;
 
+    this.mainColumnsContainer.removeAll(true);
+    this.columns = [];
+
+    this.scrollX = 0;
+    this.mainColumnsContainer.x = this.columnArea.x;
+
+    // plus de recherche => tout afficher
+    const grouped = this.groupByCategory(this.allAchievements);
+
+    const areaW = this.columnArea.width;
+    const areaH = this.columnArea.height;
+
+    const gap = 14;
+    const minColW = 240;
+    const maxColW = 360;
+
+    // combien de colonnes visibles selon la largeur
+    const colsVisible = Math.max(1, Math.floor((areaW + gap) / (minColW + gap)));
+
+    // largeur "flex": remplit l'espace
+    let colW = Math.floor((areaW - gap * (colsVisible - 1)) / colsVisible);
+    colW = Phaser.Math.Clamp(colW, minColW, maxColW);
+
+    grouped.forEach((group, index) => {
+      const x = index * (colW + gap);
+      this.createCategoryColumn(group, x, colW, areaH);
+    });
+
+    const totalW = grouped.length * (colW + gap) - gap;
+    this.maxScrollX = Math.max(0, totalW - areaW);
+  }
+
+  createCategoryColumn(group, x, colW, colH) {
+    const colContainer = this.add.container(x, 0);
+
+    const title = this.add.text(0, -34, `// ${String(group.category || "DIVERS").toUpperCase()}`, {
+      fontFamily: "Orbitron",
+      fontSize: "13px",
+      color: "#7dd0ff",
+      fontStyle: "bold",
+    });
+
+    const frame = this.add.graphics();
+    frame.fillStyle(0x060b12, 0.35);
+    frame.lineStyle(1, 0x0b1d2b, 1);
+    frame.fillRoundedRect(0, 0, colW, colH, 14);
+    frame.strokeRoundedRect(0, 0, colW, colH, 14);
+
+    const listContainer = this.add.container(0, 0);
+
+    let currentY = 14;
+    (group.items || []).forEach((ach) => {
+      const card = this.createAchievementCard(ach, colW - 20);
+      card.x = 10;
+      card.y = currentY;
+      listContainer.add(card);
+      currentY += card.cardHeight + 10;
+    });
+
+    colContainer.add([title, frame, listContainer]);
+    this.mainColumnsContainer.add(colContainer);
+
+    const maxScrollY = Math.max(0, currentY - colH + 10);
+
+    this.columns.push({
+      listContainer,
+      maxScrollY,
+      currentScrollY: 0,
+      x0: x,
+      x1: x + colW,
+      width: colW,
+    });
+  }
+
+  createAchievementCard(ach, width) {
+    const container = this.add.container(0, 0);
     const unlocked = !!ach.is_unlocked;
+
+    const title = this.add.text(12, 12, String(ach.title || "").toUpperCase(), {
+      fontFamily: "Orbitron",
+      fontSize: "13px",
+      color: unlocked ? "#00ff88" : "#ffffff",
+      fontStyle: "bold",
+      wordWrap: { width: width - 50 },
+    });
+
+    const desc = this.add.text(12, title.y + title.displayHeight + 8, String(ach.description || ""), {
+      fontFamily: "Arial",
+      fontSize: "11px",
+      color: "#94a3b8",
+      wordWrap: { width: width - 24 },
+    });
+
+    const cardHeight = desc.y + desc.displayHeight + 44;
+    container.cardHeight = cardHeight;
+
+    const bg = this.add.graphics();
+    bg.fillStyle(unlocked ? 0x0d1f18 : 0x0a0f18, 0.95);
+    bg.lineStyle(1, unlocked ? 0x00ff88 : 0x1f2937, 1);
+    bg.fillRoundedRect(0, 0, width, cardHeight, 12);
+    bg.strokeRoundedRect(0, 0, width, cardHeight, 12);
+
+    // étoiles: 3 toujours noires, dorées selon difficulté de gauche à droite
     const difficulty = Phaser.Math.Clamp(Number(ach.difficulty || 1), 1, 3);
-    const cardHeight = this.cardHeight || 102;
-
-    const goalValue = Number(ach.goal_value);
-    const hasGoalValue = Number.isFinite(goalValue);
-    const currentValueRaw = Number(ach.current_value);
-    const currentValue = Number.isFinite(currentValueRaw)
-      ? Math.max(0, currentValueRaw)
-      : 0;
-    const scope = String(ach.scope || "").toUpperCase();
-    const isGlobalScope =
-      scope === "LIFETIME" || scope === "GLOBAL" || ach.accumulate === true;
-
-    // 1. On prépare le fond (Graphics)
-    const cardGfx = this.add.graphics();
-    const fillColor = unlocked ? 0x0d1f18 : 0x0a0f18;
-    const strokeColor = unlocked ? 0x00ff88 : 0x1f2937;
-
-    cardGfx.fillStyle(fillColor, 0.92);
-    cardGfx.lineStyle(2, strokeColor, 1);
-    cardGfx.fillRoundedRect(0, 0, width, cardHeight, 14);
-    cardGfx.strokeRoundedRect(0, 0, width, cardHeight, 14);
-    
-    // Barre d'accentuation à gauche
-    cardGfx.fillStyle(unlocked ? 0x00ff88 : 0x334155, 0.18);
-    cardGfx.fillRoundedRect(0, 0, 10, cardHeight, 14);
-
-    // 2. AJOUTER LE FOND EN PREMIER (Z-index le plus bas)
-    container.add(cardGfx);
-
-    // 3. On prépare les textes
-    const title = this.add.text(22, 14, String(ach.title || "Succès"), {
-      fontFamily: "Orbitron, sans-serif", fontSize: "17px",
-      color: unlocked ? "#00ff88" : "#ffffff", fontWeight: "700",
-    });
-
-    const desc = this.add.text(22, 42, String(ach.description || ""), {
-      fontFamily: "Arial", fontSize: "13px", color: "#94a3b8",
-      wordWrap: { width: width - 210 },
-    });
-
-    // 4. ON AJOUTE LES ÉTOILES (Elles seront au-dessus du fond)
-    const starBaseX = 22;
-    const starY = 70;
-    const gap = 26;
-
     for (let i = 0; i < 3; i++) {
-        const isGold = i < difficulty;
-        const star = this.add.text(starBaseX + i * gap, starY, "★", {
-            fontFamily: "Arial",
-            fontSize: "22px",
-            // Si pas gold, on met un gris visible (#444444) car #1a1a1a est trop proche du noir du fond
-            color: isGold ? "#ffc857" : "#444444",
-        });
-
-        if (isGold) {
-            star.setShadow(0, 0, "#ffc857", 6);
-        } else {
-            star.setAlpha(0.5);
-        }
-        container.add(star);
+      const star = this.add.text(12 + i * 20, cardHeight - 26, "★", {
+        fontFamily: "Arial",
+        fontSize: "18px",
+        color: i < difficulty ? "#ffc857" : "#1a1a1a",
+      });
+      container.add(star);
     }
 
-    // 5. On ajoute le reste des éléments (Pill, Status, Icon)
-
-    // status pill
-    const pill = this.add.graphics();
-    const pillText = unlocked ? "DÉBLOQUÉ" : "VERROUILLÉ";
-    const pillColor = unlocked ? 0x00ff88 : 0x334155;
-
-    const pillW = 110;
-    const pillH = 24;
-    const pillX = width - pillW - 16;
-    const pillY = 66;
-
-    pill.fillStyle(pillColor, unlocked ? 0.14 : 0.12);
-    pill.lineStyle(1, pillColor, unlocked ? 0.7 : 0.35);
-    pill.fillRoundedRect(pillX, pillY, pillW, pillH, 12);
-    pill.strokeRoundedRect(pillX, pillY, pillW, pillH, 12);
-
-    const status = this.add
-      .text(pillX + pillW / 2, pillY + pillH / 2, pillText, {
-        fontFamily: "Orbitron, sans-serif",
-        fontSize: "10px",
-        color: unlocked ? "#00ff88" : "#94a3b8",
-      })
-      .setOrigin(0.5);
-
-    // icon
     const icon = this.add
-      .text(width - 32, 22, unlocked ? "✔" : "🔒", {
-        fontSize: "20px",
+      .text(width - 18, 20, unlocked ? "✔" : "🔒", {
+        fontFamily: "Arial",
+        fontSize: "18px",
         color: unlocked ? "#00ff88" : "#1f2937",
       })
       .setOrigin(0.5);
 
-    const progressY = cardHeight - 26;
-    const progressElements = [];
-    if (isGlobalScope && hasGoalValue) {
-      const progressText = this.add.text(
-        22,
-        progressY,
-        `Progression : ${currentValue}/${goalValue}`,
-        {
-          fontFamily: "Arial",
-          fontSize: "12px",
-          color: unlocked ? "#9ef0c0" : "#cbd5e1",
-        }
-      );
-      progressElements.push(progressText);
-    }
+    container.add([bg, title, desc, icon]);
+    container.sendToBack(bg);
 
-    container.add([title, desc, pill, status, icon, ...progressElements]);
-    
-      return container;
+    return container;
   }
 
-  // ---------------------------------------------------------------------------
-  // Input / Scroll
-  // ---------------------------------------------------------------------------
-
-  setupInteractions() {
-    // wheel
-    this.input.on("wheel", (pointer, gameObjects, dx, dy) => {
-      // dy > 0 = scroll down
-      this.scrollAmount -= dy * 0.65;
-      this.applyScroll();
+  groupByCategory(achievements) {
+    const map = new Map();
+    (achievements || []).forEach((ach) => {
+      const cat = ach.category || "DIVERS";
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat).push(ach);
     });
 
-    // drag (mobile + desktop)
-    // Modifie le pointerdown dans setupInteractions :
-this.input.on("pointerdown", (p) => {
-  // SI on clique sur un objet (le bouton retour par exemple), on n'active pas le drag
-  const hitObjects = this.input.hitTestPointer(p);
-  if (hitObjects.length > 0) return; 
+    return Array.from(map.entries())
+      .map(([category, items]) => ({
+        category,
+        items: (items || [])
+          .slice()
+          .sort((a, b) => (Number(a.difficulty || 1) || 1) - (Number(b.difficulty || 1) || 1)),
+      }))
+      .sort((a, b) => (a.category === "GLOBAL" ? -1 : a.category.localeCompare(b.category)));
+  }
 
-  this._drag.active = true;
-  this._drag.startY = p.y;
-  this._drag.lastY = p.y;
-});
+  // ----------------------------
+  // INTERACTIONS
+  // ----------------------------
+  setupInteractions() {
+    // Wheel: vertical => colonne sous la souris, SHIFT (ou vide) => scroll X
+    this.input.on("wheel", (pointer, _gameObjects, _dx, dy) => {
+      const col = this.getColumnAtPointer(pointer.x, pointer.y);
+      const shift = !!pointer.event?.shiftKey;
+
+      if (col && !shift) {
+        col.currentScrollY = Phaser.Math.Clamp(col.currentScrollY - dy, -col.maxScrollY, 0);
+        col.listContainer.y = col.currentScrollY;
+      } else {
+        this.scrollX = Phaser.Math.Clamp(this.scrollX - dy, -this.maxScrollX, 0);
+        this.mainColumnsContainer.x = this.columnArea.x + this.scrollX;
+      }
+    });
+
+    this.input.on("pointerdown", (p) => {
+      this._drag.active = true;
+      this._drag.startX = p.x;
+      this._drag.startY = p.y;
+      this._drag.lastX = p.x;
+      this._drag.lastY = p.y;
+      this._drag.mode = null;
+      this._drag.col = this.getColumnAtPointer(p.x, p.y);
+    });
 
     this.input.on("pointerup", () => {
       this._drag.active = false;
+      this._drag.mode = null;
+      this._drag.col = null;
     });
 
     this.input.on("pointermove", (p) => {
       if (!this._drag.active) return;
 
-      const delta = p.y - this._drag.lastY;
+      const dx = p.x - this._drag.lastX;
+      const dy = p.y - this._drag.lastY;
+
+      // lock direction pour éviter diagonales chelou
+      if (!this._drag.mode) {
+        const totalDx = p.x - this._drag.startX;
+        const totalDy = p.y - this._drag.startY;
+        if (Math.abs(totalDx) < 4 && Math.abs(totalDy) < 4) return;
+        this._drag.mode = Math.abs(totalDx) > Math.abs(totalDy) ? "x" : "y";
+      }
+
+      if (this._drag.mode === "y" && this._drag.col) {
+        const col = this._drag.col;
+        col.currentScrollY = Phaser.Math.Clamp(col.currentScrollY + dy, -col.maxScrollY, 0);
+        col.listContainer.y = col.currentScrollY;
+      } else {
+        this.scrollX = Phaser.Math.Clamp(this.scrollX + dx, -this.maxScrollX, 0);
+        this.mainColumnsContainer.x = this.columnArea.x + this.scrollX;
+      }
+
+      this._drag.lastX = p.x;
       this._drag.lastY = p.y;
-
-      this.scrollAmount += delta;
-      this.applyScroll();
     });
   }
 
-  applyScroll() {
-    if (!this.scrollContainer || !this.view) return;
+  getColumnAtPointer(px, py) {
+    if (!this.columnArea) return null;
 
-    this.scrollAmount = Phaser.Math.Clamp(this.scrollAmount, -this.maxScroll, 0);
-    this.scrollContainer.y = this.view.y + this.scrollAmount;
+    const inArea =
+      px >= this.columnArea.x &&
+      px <= this.columnArea.x + this.columnArea.width &&
+      py >= this.columnArea.y &&
+      py <= this.columnArea.y + this.columnArea.height;
+
+    if (!inArea) return null;
+
+    const localX = px - (this.mainColumnsContainer.x || 0);
+    const localY = py - (this.mainColumnsContainer.y || 0);
+    if (localY < 0) return null;
+
+    return this.columns.find((c) => localX >= c.x0 && localX <= c.x1) || null;
   }
 
-  // ---------------------------------------------------------------------------
-  // Utils
-  // ---------------------------------------------------------------------------
+  // ----------------------------
+  // RESIZE
+  // ----------------------------
+  onResize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
 
-  groupByCategory(achievements) {
-    const map = new Map();
+    // maj zone
+    this.columnArea = {
+      x: 40,
+      y: 180,
+      width: width - 80,
+      height: height - 220,
+    };
 
-    achievements.forEach((ach) => {
-      const cat = ach.category || "AUTRE";
-      if (!map.has(cat)) map.set(cat, []);
-      map.get(cat).push(ach);
-    });
+    if (this.mainColumnsContainer) {
+      this.mainColumnsContainer.x = this.columnArea.x + this.scrollX;
+      this.mainColumnsContainer.y = this.columnArea.y;
+    }
 
-    return Array.from(map.entries()).map(([category, items]) => ({
-      category,
-      items: items.sort((a, b) => (Number(a.difficulty || 1) - Number(b.difficulty || 1))),
-    }));
+    // maj bouton fermer (si tu veux le retrouver facilement, tu peux stocker la ref)
+    // ici on fait simple: on refresh tout
+    this.refreshDisplay();
+  }
+
+  // ----------------------------
+  // UI
+  // ----------------------------
+  createCloseButton(width) {
+    const x = width - 40;
+    const y = 62;
+    
+    // 1. Créer un container pour grouper le fond et le texte
+    const btn = this.add.container(x, y).setDepth(1000);
+
+    // 2. Calculer les dimensions (Capsule)
+    const labelText = "× FERMER";
+    const style = { fontFamily: "Orbitron", fontSize: "14px", color: "#ff0055" };
+    const tempText = this.make.text({ text: labelText, style: style });
+    const bw = tempText.width + 30; // Largeur avec padding
+    const bh = 36;                  // Hauteur fixe
+    tempText.destroy();
+
+    const bg = this.add.graphics();
+    const label = this.add.text(-15, 0, labelText, style).setOrigin(1, 0.5);
+
+    // 3. Fonctions de dessin
+    const drawBtn = (isHover) => {
+        bg.clear();
+        bg.fillStyle(isHover ? 0x1a0716 : 0x120711, isHover ? 0.7 : 0.55);
+        bg.lineStyle(1, 0xff0055, isHover ? 0.9 : 0.55);
+        // On dessine le rectangle par rapport au point d'ancrage du container
+        bg.fillRoundedRect(-bw, -bh / 2, bw, bh, 10);
+        bg.strokeRoundedRect(-bw, -bh / 2, bw, bh, 10);
+    };
+
+    drawBtn(false);
+    btn.add([bg, label]);
+
+    // 4. HITBOX : On définit un rectangle qui couvre tout le bouton
+    // x: -bw, y: -bh/2 (le coin haut-gauche du dessin)
+    btn.setInteractive(
+        new Phaser.Geom.Rectangle(-bw, -bh / 2, bw, bh),
+        Phaser.Geom.Rectangle.Contains
+    );
+
+    // 5. Événements sur le bouton entier
+    btn.on("pointerover", () => drawBtn(true));
+    btn.on("pointerout", () => drawBtn(false));
+    btn.on("pointerdown", () => this.scene.start("MainMenuScene"));
+
+    this._closeBtn = btn;
+}
+
+  drawBackground(width, height) {
+    this.add
+      .graphics()
+      .fillGradientStyle(0x05080f, 0x05080f, 0x0a1425, 0x0a1425, 1)
+      .fillRect(0, 0, width, height);
   }
 }
