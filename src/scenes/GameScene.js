@@ -85,6 +85,7 @@ export class GameScene extends Phaser.Scene {
     this.heroKillCount = 0;
     this.heroKillReportPromise = null;
     this.runReportPromise = null;
+    this.transmissionOverlay = null;
     this.isPortrait = false;
     this.activeWaveIndex = null;
     this.runTracker = new RunTracker();
@@ -485,9 +486,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   async levelComplete() {
+    this.showTransmissionOverlay("VICTOIRE");
     this.reportHeroKillsOnce();
     await this.finalizeRunReport("WIN", "level_complete");
     await this.waveManager.levelComplete();
+    this.hideTransmissionOverlay();
   }
 
   handleEnemyKilled(payload) {
@@ -555,6 +558,92 @@ export class GameScene extends Phaser.Scene {
       return null;
     });
     return this.runReportPromise;
+  }
+
+  showTransmissionOverlay(result = "VICTOIRE") {
+    if (this.transmissionOverlay) return;
+
+    const s = this.scaleFactor || 1;
+    const width = this.gameWidth || this.cameras.main.width;
+    const height = this.gameHeight || this.cameras.main.height;
+
+    const container = this.add.container(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY
+    );
+    container.setDepth(5000);
+
+    const blocker = this.add
+      .rectangle(0, 0, width, height, 0x000000, 0.6)
+      .setOrigin(0.5)
+      .setInteractive()
+      .on("pointerdown", (pointer) => {
+        pointer.event.stopPropagation();
+      });
+
+    const panelWidth = 520 * s;
+    const panelHeight = 220 * s;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0f0f1a, 0.95);
+    bg.fillRoundedRect(
+      -panelWidth / 2,
+      -panelHeight / 2,
+      panelWidth,
+      panelHeight,
+      16
+    );
+    bg.lineStyle(3, result === "VICTOIRE" ? 0x00ff88 : 0xff6666, 1);
+    bg.strokeRoundedRect(
+      -panelWidth / 2,
+      -panelHeight / 2,
+      panelWidth,
+      panelHeight,
+      16
+    );
+
+    const title = this.add
+      .text(0, -50 * s, result, {
+        fontSize: `${Math.max(26, 36 * s)}px`,
+        fontStyle: "bold",
+        color: result === "VICTOIRE" ? "#00ff88" : "#ff6666",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5);
+
+    const message = this.add
+      .text(0, 10 * s, "Envoi des données du niveau en cours\nVeuillez patienter...", {
+        fontSize: `${Math.max(16, 20 * s)}px`,
+        color: "#ffffff",
+        fontFamily: "Arial",
+        align: "center",
+      })
+      .setOrigin(0.5);
+
+    const loaderSize = 28 * s;
+    const loader = this.add.graphics();
+    loader.lineStyle(4 * s, 0xffffff, 1);
+    loader.beginPath();
+    loader.arc(0, 60 * s, loaderSize, Phaser.Math.DegToRad(0), Phaser.Math.DegToRad(270));
+    loader.strokePath();
+    loader.setLineWidth(4 * s);
+
+    this.tweens.add({
+      targets: loader,
+      angle: 360,
+      duration: 900,
+      repeat: -1,
+      ease: "Linear",
+    });
+
+    container.add([blocker, bg, title, message, loader]);
+    this.transmissionOverlay = container;
+  }
+
+  hideTransmissionOverlay() {
+    if (this.transmissionOverlay) {
+      this.transmissionOverlay.destroy(true);
+      this.transmissionOverlay = null;
+    }
   }
 
   // =========================================================
@@ -777,6 +866,7 @@ export class GameScene extends Phaser.Scene {
   async showGameOverNotification() {
     // Mettre le jeu en pause
     this.isPaused = true;
+    this.showTransmissionOverlay("DÉFAITE");
     
     // Exécuter immédiatement la requête de kills et attendre (forcer l'envoi même si 0 kills)
     const heroKillReport = this.reportHeroKillsOnce(true);
@@ -857,6 +947,7 @@ export class GameScene extends Phaser.Scene {
       .setDepth(201);
 
     bg.setInteractive({ useHandCursor: true }).on("pointerdown", () => {
+      this.hideTransmissionOverlay();
       this.scene.start("MainMenuScene");
     });
 
@@ -1166,6 +1257,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    this.hideTransmissionOverlay();
     if (this.runTracker && this.runTracker.hasEnded && !this.runTracker.hasEnded()) {
       this.finalizeRunReport("ABORT", "scene_shutdown");
     }

@@ -11,14 +11,48 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigin = process.env.CLIENT_ORIGIN;
+const envOrigins = (process.env.CLIENT_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-app.use(
-  cors({
-    origin: allowedOrigin,
-    credentials: false,
-  })
-);
+const defaultAllowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://last-outpost.vercel.app",
+  "https://www.last-outpost.vercel.app",
+  "https://last-outpost.fr",
+  "https://www.last-outpost.fr",
+];
+
+const allowedOrigins = Array.from(
+  new Set([...envOrigins, ...defaultAllowedOrigins])
+).map((origin) => origin.replace(/\/$/, ""));
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+
+    const normalizedOrigin = origin.replace(/\/$/, "");
+    const isWhitelisted =
+      allowedOrigins.includes(normalizedOrigin) ||
+      /^https?:\/\/([a-z0-9-]+\.)?last-outpost\.vercel\.app$/i.test(
+        normalizedOrigin
+      ) ||
+      /^https?:\/\/([a-z0-9-]+\.)?last-outpost\.fr$/i.test(
+        normalizedOrigin
+      );
+
+    if (isWhitelisted) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: false,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
