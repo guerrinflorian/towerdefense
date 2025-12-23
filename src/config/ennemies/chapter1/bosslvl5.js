@@ -2,7 +2,7 @@ export const bosslvl5 = {
   name: "OMEGA-TITAN",
   speed: 8, 
   hp: 180000, 
-  reward: 5000,
+  reward: 0,
   playerDamage: 20,
   color: 0xff4400, 
   damage: 500, 
