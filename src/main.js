@@ -2,6 +2,7 @@ import { MainMenuScene } from "./scenes/MainMenuScene.js";
 import { ChapterScene } from "./scenes/ChapterScene.js";
 import { MapScene } from "./scenes/MapScene.js";
 import { GameScene } from "./scenes/GameScene.js";
+import { AchievementsScene } from "./scenes/AchievementsScene.js";
 import { CONFIG } from "./config/settings.js";
 import { setupAuthOverlay } from "./services/authOverlay.js";
 import { ensureProfileLoaded } from "./services/authManager.js";
@@ -57,7 +58,7 @@ const config = {
     smoothFactor: 0,
   },
 
-  scene: [MainMenuScene, ChapterScene, MapScene, GameScene],
+  scene: [MainMenuScene, AchievementsScene, ChapterScene, MapScene, GameScene],
   
   physics: {
     default: "arcade",
