@@ -287,3 +287,27 @@ export function handleAuthError(error) {
     "Une erreur est survenue";
   return message;
 }
+
+export async function requestPasswordReset(email) {
+  const response = await apiClient.post("/api/auth/forgot-password", { email });
+  return response.data;
+}
+
+export async function validateResetToken({ email, token }) {
+  const response = await apiClient.get(
+    `/api/auth/reset-password/validate?email=${encodeURIComponent(
+      email
+    )}&token=${encodeURIComponent(token)}`
+  );
+  return response.data;
+}
+
+export async function resetPassword({ email, token, password, confirmPassword }) {
+  const response = await apiClient.post("/api/auth/reset-password", {
+    email,
+    token,
+    password,
+    confirmPassword,
+  });
+  return response.data;
+}

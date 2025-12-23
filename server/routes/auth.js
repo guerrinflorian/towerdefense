@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { query } from "../db.js";
 import { HERO_BASE_STATS, TOKEN_EXPIRATION } from "../constants.js";
+import crypto from "crypto";
+import { sendResetPasswordEmail } from "../utils/email.js";
 import {
   sanitizeIdentifier,
   validateEmail,
@@ -13,6 +15,34 @@ import { buildPlayerProfile } from "../utils/profile.js";
 import { ensurePlayerAchievementRows } from "../achievements/index.js";
 
 const router = express.Router();
+const RESET_TOKEN_EXPIRATION_MS = 60 * 60 * 1000; // 1 heure
+
+function buildResetLink(email, token) {
+  const baseFromEnv =
+    (process.env.PASSWORD_RESET_URL_BASE ||
+      (process.env.CLIENT_ORIGIN || "").split(",")[0]) ??
+    "";
+  const base =
+    (typeof baseFromEnv === "string" && baseFromEnv.trim()) ||
+    "http://localhost:1234";
+
+  return `${base.replace(/\/$/, "")}/reset-password?token=${token}&email=${encodeURIComponent(
+    email
+  )}`;
+}
+
+async function findUserByEmail(email) {
+  const result = await query(
+    `SELECT id, username, email, password_hash, reset_token_hash, reset_expires_at
+     FROM players WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+    [email]
+  );
+  return result.rows[0] || null;
+}
+
+function hashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
 
 router.post("/register", async (req, res) => {
   const { username, email, password } = req.body || {};
@@ -130,6 +160,115 @@ router.post("/login", async (req, res) => {
     return res.json({ token, profile });
   } catch (err) {
     console.error("Erreur login:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body || {};
+  if (!validateEmail(email)) {
+    return res.status(400).json({ error: "Email invalide" });
+  }
+
+  try {
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ error: "Email introuvable" });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenHash = hashToken(resetToken);
+    const resetExpiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRATION_MS);
+
+    await query(
+      "UPDATE players SET reset_token_hash = $1, reset_expires_at = $2 WHERE id = $3",
+      [resetTokenHash, resetExpiresAt, user.id]
+    );
+
+    if (!process.env.BREVO_USER || !process.env.BREVO_PASS) {
+      return res
+        .status(500)
+        .json({ error: "Configuration email manquante côté serveur" });
+    }
+
+    const resetLink = buildResetLink(user.email, resetToken);
+    await sendResetPasswordEmail({
+      to: user.email,
+      resetLink,
+      username: user.username,
+    });
+
+    return res.json({ message: "Email envoyé" });
+  } catch (err) {
+    console.error("Erreur forgot-password:", err);
+    return res.status(500).json({ error: "Erreur lors de l'envoi de l'email" });
+  }
+});
+
+router.get("/reset-password/validate", async (req, res) => {
+  const { email, token } = req.query || {};
+  if (!validateEmail(email) || !token) {
+    return res.status(400).json({ error: "Requête invalide" });
+  }
+
+  try {
+    const user = await findUserByEmail(email);
+    if (!user || !user.reset_token_hash || !user.reset_expires_at) {
+      return res.status(400).json({ error: "Lien invalide ou expiré" });
+    }
+
+    const hashed = hashToken(token);
+    const isExpired = new Date(user.reset_expires_at).getTime() < Date.now();
+
+    if (user.reset_token_hash !== hashed || isExpired) {
+      return res.status(400).json({ error: "Lien invalide ou expiré" });
+    }
+
+    return res.json({ email: user.email, username: user.username });
+  } catch (err) {
+    console.error("Erreur validate reset:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  const { email, token, password, confirmPassword } = req.body || {};
+  if (!validateEmail(email) || !token) {
+    return res.status(400).json({ error: "Requête invalide" });
+  }
+  if (password !== confirmPassword) {
+    return res.status(400).json({ error: "Les mots de passe ne correspondent pas" });
+  }
+  if (!validatePassword(password)) {
+    return res
+      .status(400)
+      .json({ error: "Mot de passe invalide (8 caractères minimum)" });
+  }
+
+  try {
+    const user = await findUserByEmail(email);
+    if (!user || !user.reset_token_hash || !user.reset_expires_at) {
+      return res.status(400).json({ error: "Lien invalide ou expiré" });
+    }
+
+    const hashed = hashToken(token);
+    const isExpired = new Date(user.reset_expires_at).getTime() < Date.now();
+
+    if (user.reset_token_hash !== hashed || isExpired) {
+      return res.status(400).json({ error: "Lien invalide ou expiré" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    await query(
+      `UPDATE players 
+       SET password_hash = $1, reset_token_hash = NULL, reset_expires_at = NULL 
+       WHERE id = $2`,
+      [passwordHash, user.id]
+    );
+
+    return res.json({ message: "Mot de passe mis à jour" });
+  } catch (err) {
+    console.error("Erreur reset-password:", err);
     return res.status(500).json({ error: "Erreur serveur" });
   }
 });
