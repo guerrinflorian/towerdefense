@@ -249,6 +249,10 @@
   text-align: center;
 }
 
+.auth-card .hint.small {
+  font-size: 12px;
+}
+
 /* Messages d'erreur */
 .auth-card .error {
   background: linear-gradient(135deg, rgba(255, 77, 77, 0.2), rgba(255, 50, 50, 0.15));
@@ -277,6 +281,27 @@
 
 .auth-card .error.hidden {
   display: none;
+}
+
+.auth-card .success {
+  background: linear-gradient(135deg, rgba(0, 198, 255, 0.15), rgba(0, 123, 255, 0.12));
+  border: 2px solid rgba(0, 198, 255, 0.45);
+  color: #b7e7ff;
+  padding: 14px 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0, 198, 255, 0.2);
+}
+
+.auth-card .success.hidden {
+  display: none;
+}
+
+input:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
 }
 
 /* Message de bienvenue */

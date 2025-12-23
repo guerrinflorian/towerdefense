@@ -147,6 +147,9 @@
           Pas encore de compte ?
           <a href="#" id="show-register" class="link">Créer un compte</a>
         </p>
+        <p class="hint small">
+          <a href="#" id="forgot-password-link" class="link">Mot de passe oublié ?</a>
+        </p>
       </div>
 
       <div class="auth-card hidden" id="register-card">
@@ -175,6 +178,54 @@
         <p class="hint">
           Déjà inscrit ?
           <a href="#" id="show-login" class="link">Se connecter</a>
+        </p>
+        <p class="hint small">
+          <a href="#" id="forgot-password-link-register" class="link">Mot de passe oublié ?</a>
+        </p>
+      </div>
+
+      <div class="auth-card hidden" id="forgot-card">
+        <h2>Mot de passe oublié</h2>
+        <div id="auth-error-forgot" class="error hidden"></div>
+        <div id="auth-success-forgot" class="success hidden"></div>
+        <form id="forgot-form">
+          <div>
+            <label for="forgot-email">Adresse email du compte</label>
+            <input id="forgot-email" name="email" type="email" required />
+          </div>
+          <button id="forgot-submit" type="submit">Envoyer le lien</button>
+          <div id="forgot-countdown" class="hint small hidden"></div>
+        </form>
+        <p class="hint">
+          <a href="#" id="back-to-login" class="link">Retour à la connexion</a>
+        </p>
+      </div>
+
+      <div class="auth-card hidden" id="reset-card">
+        <h2>Réinitialiser le mot de passe</h2>
+        <div id="auth-error-reset" class="error hidden"></div>
+        <div id="auth-success-reset" class="success hidden"></div>
+        <form id="reset-form">
+          <div>
+            <label for="reset-email">Adresse email</label>
+            <input id="reset-email" type="email" disabled />
+          </div>
+          <div>
+            <label for="reset-username">Pseudo</label>
+            <input id="reset-username" type="text" disabled />
+          </div>
+          <div>
+            <label for="reset-password">Nouveau mot de passe</label>
+            <input id="reset-password" type="password" minlength="8" required />
+          </div>
+          <div>
+            <label for="reset-password-confirm">Confirmer le mot de passe</label>
+            <input id="reset-password-confirm" type="password" minlength="8" required />
+          </div>
+          <button id="reset-submit" type="submit">Mettre à jour</button>
+        </form>
+        <p class="hint">
+          <a href="#" id="reset-back-login" class="link">Retour à la connexion</a>
         </p>
       </div>
     </div>
