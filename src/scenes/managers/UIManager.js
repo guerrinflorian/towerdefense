@@ -131,6 +131,29 @@ export class UIManager {
   }
 
   isPointerOnToolbar(pointer) {
+    if (this.isPointerOnBuildMenu(pointer)) {
+      return true;
+    }
     return this.buildToolbar?.isPointerOnToolbar(pointer) || false;
+  }
+
+  isPointerOnBuildMenu(pointer) {
+    if (!this.scene.buildMenu || !this.scene.buildMenu.visible) {
+      return false;
+    }
+    const size = this.scene._buildMenuSize;
+    if (!size) {
+      return false;
+    }
+
+    const px = pointer.worldX ?? pointer.x;
+    const py = pointer.worldY ?? pointer.y;
+
+    return (
+      px >= this.scene.buildMenu.x &&
+      px <= this.scene.buildMenu.x + size.w &&
+      py >= this.scene.buildMenu.y &&
+      py <= this.scene.buildMenu.y + size.h
+    );
   }
 }
