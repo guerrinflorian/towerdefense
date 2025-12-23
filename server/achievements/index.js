@@ -1,5 +1,6 @@
 import { query } from "../db.js";
 import { evaluateHeroAchievements } from "./heroAchievements.js";
+import { evaluateEconomyAchievements } from "./economyAchievements.js";
 
 function getDbExecutor(client) {
   if (client && typeof client.query === "function") {
@@ -22,9 +23,10 @@ export async function ensurePlayerAchievementRows(playerId, client = null) {
 export async function evaluateAchievementsFromRun(playerId, runReport, client = null) {
   const db = getDbExecutor(client);
   const heroResults = await evaluateHeroAchievements(playerId, runReport, db);
+  const economyResults = await evaluateEconomyAchievements(playerId, runReport, db);
 
   return {
-    unlocked: heroResults.unlocked,
-    progress: heroResults.progress,
+    unlocked: [...(heroResults.unlocked || []), ...(economyResults.unlocked || [])],
+    progress: [...(heroResults.progress || []), ...(economyResults.progress || [])],
   };
 }
