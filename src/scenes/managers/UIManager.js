@@ -106,6 +106,7 @@ export class UIManager {
   }
 
   hideMenus() {
+    this.scene.inputManager?.dragHandler?.hideTileRangePreview();
     if (this.scene.buildMenu) {
       this.scene.buildMenu.setVisible(false);
     }

@@ -39,7 +39,7 @@ const HERO_RULES = {
   HERO_IMMORTAL: {
     type: "run",
     value: (metrics) => metrics.heroDeaths,
-    shouldUnlock: (metrics) => metrics.heroDeaths === 0,
+    shouldUnlock: (metrics) => metrics.isWin && metrics.heroDeaths === 0,
   },
   HERO_DEATHS_10_PLUS: {
     type: "run",
@@ -84,6 +84,10 @@ function extractHeroMetrics(runReport = {}) {
   );
   const heroDeaths = Number(runReport?.stats?.hero?.deaths ?? 0);
   const bestKillStreak = Number(runReport?.stats?.hero?.bestKillStreak ?? 0);
+  const runResult =
+    typeof runReport?.result === "string"
+      ? runReport.result.toUpperCase()
+      : "";
   const rawRunId = runReport?.runId ?? runReport?.id ?? null;
   const normalizedRunId =
     rawRunId === null || rawRunId === undefined
@@ -97,6 +101,7 @@ function extractHeroMetrics(runReport = {}) {
       Number.isFinite(bestKillStreak) && bestKillStreak > 0
         ? bestKillStreak
         : 0,
+    isWin: runResult === "WIN",
     runId: normalizedRunId,
   };
 }
