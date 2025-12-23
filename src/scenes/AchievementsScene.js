@@ -18,6 +18,9 @@ export class AchievementsScene extends Phaser.Scene {
 
     // Drag state
     this._drag = { active: false, startY: 0, lastY: 0 };
+
+    // Card layout
+    this.cardHeight = 118;
   }
 
   create() {
@@ -198,6 +201,8 @@ btn.setInteractive(
 
   renderContent(achievements, summary) {
     const contentWidth = this.view.width;
+    const cardHeight = this.cardHeight || 102;
+    const cardSpacing = 10;
 
     let currentY = 0;
 
@@ -223,7 +228,7 @@ btn.setInteractive(
       group.items.forEach((ach) => {
         const card = this.createAchievementCard(ach, contentWidth, currentY);
         this.scrollContainer.add(card);
-        currentY += 112;
+        currentY += cardHeight + cardSpacing;
       });
 
       currentY += 18;
@@ -281,6 +286,17 @@ btn.setInteractive(
 
     const unlocked = !!ach.is_unlocked;
     const difficulty = Phaser.Math.Clamp(Number(ach.difficulty || 1), 1, 3);
+    const cardHeight = this.cardHeight || 102;
+
+    const goalValue = Number(ach.goal_value);
+    const hasGoalValue = Number.isFinite(goalValue);
+    const currentValueRaw = Number(ach.current_value);
+    const currentValue = Number.isFinite(currentValueRaw)
+      ? Math.max(0, currentValueRaw)
+      : 0;
+    const scope = String(ach.scope || "").toUpperCase();
+    const isGlobalScope =
+      scope === "LIFETIME" || scope === "GLOBAL" || ach.accumulate === true;
 
     // 1. On prépare le fond (Graphics)
     const cardGfx = this.add.graphics();
@@ -289,12 +305,12 @@ btn.setInteractive(
 
     cardGfx.fillStyle(fillColor, 0.92);
     cardGfx.lineStyle(2, strokeColor, 1);
-    cardGfx.fillRoundedRect(0, 0, width, 102, 14);
-    cardGfx.strokeRoundedRect(0, 0, width, 102, 14);
+    cardGfx.fillRoundedRect(0, 0, width, cardHeight, 14);
+    cardGfx.strokeRoundedRect(0, 0, width, cardHeight, 14);
     
     // Barre d'accentuation à gauche
     cardGfx.fillStyle(unlocked ? 0x00ff88 : 0x334155, 0.18);
-    cardGfx.fillRoundedRect(0, 0, 10, 102, 14);
+    cardGfx.fillRoundedRect(0, 0, 10, cardHeight, 14);
 
     // 2. AJOUTER LE FOND EN PREMIER (Z-index le plus bas)
     container.add(cardGfx);
@@ -312,7 +328,7 @@ btn.setInteractive(
 
     // 4. ON AJOUTE LES ÉTOILES (Elles seront au-dessus du fond)
     const starBaseX = 22;
-    const starY = 74;
+    const starY = 70;
     const gap = 26;
 
     for (let i = 0; i < 3; i++) {
@@ -365,7 +381,23 @@ btn.setInteractive(
       })
       .setOrigin(0.5);
 
-      container.add([title, desc, pill, status, icon]);
+    const progressY = cardHeight - 26;
+    const progressElements = [];
+    if (isGlobalScope && hasGoalValue) {
+      const progressText = this.add.text(
+        22,
+        progressY,
+        `Progression : ${currentValue}/${goalValue}`,
+        {
+          fontFamily: "Arial",
+          fontSize: "12px",
+          color: unlocked ? "#9ef0c0" : "#cbd5e1",
+        }
+      );
+      progressElements.push(progressText);
+    }
+
+    container.add([title, desc, pill, status, icon, ...progressElements]);
     
       return container;
   }
