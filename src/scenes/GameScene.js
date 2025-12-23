@@ -771,6 +771,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   takeDamage(amount = 1) {
+    // Si le jeu est déjà terminé, ne plus accepter de dégâts
+    if (this._gameOverShown || this.isPaused) {
+      return;
+    }
+
     const previousLives = this.lives;
     this.lives = Math.max(0, this.lives - amount);
     const lost = Math.max(0, previousLives - this.lives);
@@ -782,6 +787,8 @@ export class GameScene extends Phaser.Scene {
     this.updateUI();
     this.cameras.main.shake(150, 0.01);
     if (this.lives <= 0) {
+      // Mettre le jeu en pause immédiatement pour empêcher d'autres dégâts
+      this.isPaused = true;
       // Appeler de manière asynchrone sans bloquer
       this.showGameOverNotification().catch(() => {});
     }
