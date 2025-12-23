@@ -1,6 +1,7 @@
 import {
   fetchGlobalLeaderboard,
   fetchHeroLeaderboard,
+  fetchAchievementsLeaderboard,
   fetchLevelLeaderboards,
 } from "../../services/leaderboardService.js";
 import { isAuthenticated } from "../../services/authManager.js";
@@ -36,7 +37,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     };
 
     // --- ÉTAT ---
-    this.viewModes = ["hero", "global", "level"];
+    this.viewModes = ["hero", "global", "achievements", "level"];
     this.currentModeIndex = 1;
     this.currentLevelIndex = 0;
     this.levelLeaderboards = [];
@@ -240,6 +241,8 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     switch (this.currentMode) {
       case "hero":
         return "🦸 CLASSEMENT DES HÉROS";
+      case "achievements":
+        return "🏆 CLASSEMENT DES SUCCÈS";
       case "level":
         return "🗺️ RECORDS PAR MISSION";
       default:
@@ -259,6 +262,14 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         { key: "dmg", label: "DÉGÂTS", x: 290 },
         { key: "speed", label: "VIT.", x: 380 },
         { key: "score", label: "TOTAL", x: width - 20, align: "right" },
+      ];
+    }
+    if (this.currentMode === "achievements") {
+      return [
+        { key: "rank", label: "RG", x: 20 },
+        { key: "player", label: "AGENT", x: 90 },
+        { key: "successes", label: "SUCCÈS RÉUSSIS", x: width - 140, align: "right" },
+        { key: "date", label: "DERN. SUCCÈS", x: width - 20, align: "right" },
       ];
     }
     if (this.currentMode === "level") {
@@ -371,6 +382,8 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
         const levelId = this.levelMetas[this.currentLevelIndex]?.id;
         entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
+      } else if (this.currentMode === "achievements") {
+        entries = await fetchAchievementsLeaderboard();
       } else {
         // Mode Global
         entries = await fetchGlobalLeaderboard();
@@ -425,10 +438,13 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
             );
             break;
           case "date":
-            value = this.formatDate(entry.created_at);
+            value = this.formatDate(entry.created_at || entry.last_unlocked_at);
             break;
           case "score":
             value = Math.round(entry.hero_score || 0).toLocaleString();
+            break;
+          case "successes":
+            value = entry.unlocked_count ?? 0;
             break;
           case "hearts":
             value = entry.lives_lost ?? entry.total_lives_lost ?? 0;

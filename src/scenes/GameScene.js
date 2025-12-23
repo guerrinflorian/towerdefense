@@ -85,6 +85,7 @@ export class GameScene extends Phaser.Scene {
     this.heroKillCount = 0;
     this.heroKillReportPromise = null;
     this.runReportPromise = null;
+    this.transmissionOverlay = null;
     this.isPortrait = false;
     this.activeWaveIndex = null;
     this.runTracker = new RunTracker();
@@ -485,9 +486,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   async levelComplete() {
+    this.showTransmissionOverlay("VICTOIRE");
     this.reportHeroKillsOnce();
     await this.finalizeRunReport("WIN", "level_complete");
     await this.waveManager.levelComplete();
+    this.hideTransmissionOverlay();
   }
 
   handleEnemyKilled(payload) {
@@ -556,6 +559,9 @@ export class GameScene extends Phaser.Scene {
     });
     return this.runReportPromise;
   }
+
+ 
+
 
   // =========================================================
   // GESTION CLICS & MENUS
@@ -774,96 +780,219 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  async showGameOverNotification() {
-    // Mettre le jeu en pause
-    this.isPaused = true;
-    
-    // Exécuter immédiatement la requête de kills et attendre (forcer l'envoi même si 0 kills)
-    const heroKillReport = this.reportHeroKillsOnce(true);
-    if (heroKillReport) {
+  showTransmissionOverlay(result = "VICTOIRE") {
+    if (this.transmissionOverlay) return;
+  
+    const s = this.scaleFactor || 1;
+    const cam = this.cameras.main;
+  
+    // IMPORTANT: tout en coordonnées écran (UI), pas monde
+    const width = cam.width;
+    const height = cam.height;
+  
+    const container = this.add.container(cam.midPoint.x, cam.midPoint.y);
+    container.setDepth(999999);
+    container.setScrollFactor(0);
+  
+    const blocker = this.add
+      .rectangle(0, 0, width, height, 0x000000, 0.6)
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setInteractive();
+  
+    const panelWidth = Math.min(width * 0.9, 520 * s);
+    const panelHeight = Math.min(height * 0.6, 220 * s);
+  
+    const bg = this.add.graphics();
+    bg.setScrollFactor(0);
+    bg.fillStyle(0x0f0f1a, 0.95);
+    bg.fillRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
+    bg.lineStyle(3, result === "VICTOIRE" ? 0x00ff88 : 0xff6666, 1);
+    bg.strokeRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
+  
+    const title = this.add
+      .text(0, -50 * s, result, {
+        fontSize: `${Math.max(26, 36 * s)}px`,
+        fontStyle: "bold",
+        color: result === "VICTOIRE" ? "#00ff88" : "#ff6666",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0);
+  
+    const message = this.add
+      .text(0, 10 * s, "Envoi des données du niveau en cours\nVeuillez patienter...", {
+        fontSize: `${Math.max(16, 20 * s)}px`,
+        color: "#ffffff",
+        fontFamily: "Arial",
+        align: "center",
+        wordWrap: { width: panelWidth - 40 },
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0);
+  
+    const loaderSize = 28 * s;
+    const loader = this.add.graphics();
+    loader.setScrollFactor(0);
+    loader.lineStyle(4 * s, 0xffffff, 1);
+    loader.beginPath();
+    loader.arc(0, 60 * s, loaderSize, Phaser.Math.DegToRad(0), Phaser.Math.DegToRad(270));
+    loader.strokePath();
+  
+    this.tweens.add({
+      targets: loader,
+      angle: 360,
+      duration: 900,
+      repeat: -1,
+      ease: "Linear",
+    });
+  
+    // bloquer la propagation
+    blocker.on("pointerdown", (pointer) => pointer?.event?.stopPropagation?.());
+  
+    container.add([blocker, bg, title, message, loader]);
+    this.transmissionOverlay = container;
+  }
+  
+  hideTransmissionOverlay() {
+    if (!this.transmissionOverlay) return;
+  
+    // tuer tous les tweens des enfants (loader tourne en boucle)
+    this.transmissionOverlay.list.forEach((obj) => {
       try {
-        await heroKillReport;
-      } catch (err) {
-        // Erreur silencieuse
-      }
-    }
-    await this.finalizeRunReport("LOSE", "base_destroyed");
-
-    // Désactiver les boutons pause et quitter
+        this.tweens.killTweensOf(obj);
+      } catch (_) {}
+    });
+  
+    try {
+      this.transmissionOverlay.destroy(true);
+    } catch (_) {}
+  
+    this.transmissionOverlay = null;
+  }
+  
+  async showGameOverNotification() {
+    if (this._gameOverShown) return;
+    this._gameOverShown = true;
+  
+    this.isPaused = true;
+  
+    // écran "envoi" pendant les requêtes
+    this.hideTransmissionOverlay();
+    this.showTransmissionOverlay("DÉFAITE");
+  
+    try {
+      const heroKillReport = this.reportHeroKillsOnce(true);
+      if (heroKillReport) await heroKillReport;
+    } catch (_) {}
+  
+    try {
+      await this.finalizeRunReport("LOSE", "base_destroyed");
+    } catch (_) {}
+  
+    // stop l'écran "envoi" avant d'afficher la vraie popup
+    this.hideTransmissionOverlay();
+  
     if (this.pauseBtn) {
-      this.pauseBtn.disableInteractive();
-      this.pauseBtn.setAlpha(0.5);
+      try {
+        this.pauseBtn.disableInteractive();
+        this.pauseBtn.setAlpha(0.5);
+      } catch (_) {}
     }
     if (this.quitBtn) {
-      this.quitBtn.disableInteractive();
-      this.quitBtn.setAlpha(0.5);
+      try {
+        this.quitBtn.disableInteractive();
+        this.quitBtn.setAlpha(0.5);
+      } catch (_) {}
     }
-
-    // Couche de blocage pour empêcher les clics ailleurs
+  
+    const cam = this.cameras.main;
+    const s = this.scaleFactor || 1;
+  
+    // UI overlay fixé à l'écran
+    const overlay = this.add.container(cam.midPoint.x, cam.midPoint.y);
+    overlay.setDepth(999999);
+    overlay.setScrollFactor(0);
+  
     const blocker = this.add
-      .rectangle(
-        this.cameras.main.centerX,
-        this.cameras.main.centerY,
-        this.gameWidth,
-        this.gameHeight,
-        0x000000,
-        0.3
-      )
-      .setDepth(199)
-      .setInteractive()
-      .on("pointerdown", (pointer) => {
-        // Empêcher la propagation du clic
-        pointer.event.stopPropagation();
-      });
-
-    const bg = this.add
-      .rectangle(
-        this.cameras.main.centerX,
-        this.cameras.main.centerY,
-        500 * this.scaleFactor,
-        300 * this.scaleFactor,
-        0x000000,
-        0.9
-      )
-      .setDepth(200);
-
-    const txt = this.add
-      .text(
-        this.cameras.main.centerX,
-        this.cameras.main.centerY - 30 * this.scaleFactor,
-        "PERDU !",
-        {
-          fontSize: `${Math.max(30, 50 * this.scaleFactor)}px`,
-          color: "#ff0000",
-          fontStyle: "bold",
-          fontFamily: "Arial",
-        }
-      )
+      .rectangle(0, 0, cam.width, cam.height, 0x000000, 0.35)
       .setOrigin(0.5)
-      .setDepth(201);
-
+      .setScrollFactor(0)
+      .setInteractive();
+  
+    const panelW = Math.min(cam.width * 0.86, 520 * s);
+    const panelH = Math.min(cam.height * 0.56, 300 * s);
+  
+    const panelBg = this.add.graphics();
+    panelBg.setScrollFactor(0);
+    panelBg.fillStyle(0x000000, 0.92);
+    panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 18);
+    panelBg.lineStyle(3, 0xff0000, 0.9);
+    panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 18);
+  
+    const title = this.add
+      .text(0, -panelH * 0.18, "PERDU !", {
+        fontSize: `${Math.max(28, 52 * s)}px`,
+        color: "#ff0000",
+        fontStyle: "bold",
+        fontFamily: "Arial",
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0);
+  
     const sub = this.add
-      .text(
-        this.cameras.main.centerX,
-        this.cameras.main.centerY + 50 * this.scaleFactor,
-        "Cliquez pour retourner au menu",
-        {
-          fontSize: `${Math.max(16, 24 * this.scaleFactor)}px`,
-          color: "#ffffff",
-          fontFamily: "Arial",
-        }
-      )
+      .text(0, panelH * 0.10, "Cliquez pour retourner au menu", {
+        fontSize: `${Math.max(16, 24 * s)}px`,
+        color: "#ffffff",
+        fontFamily: "Arial",
+        align: "center",
+        wordWrap: { width: panelW - 40 },
+      })
       .setOrigin(0.5)
-      .setDepth(201);
-
-    bg.setInteractive({ useHandCursor: true }).on("pointerdown", () => {
+      .setScrollFactor(0);
+  
+    overlay.add([blocker, panelBg, title, sub]);
+  
+    const goMenu = () => {
+      try {
+        blocker.disableInteractive();
+      } catch (_) {}
+  
+      try {
+        overlay.destroy(true);
+      } catch (_) {}
+  
+      this.gameOverBlocker = null;
       this.scene.start("MainMenuScene");
+    };
+  
+    blocker.on("pointerdown", (pointer) => {
+      pointer?.event?.stopPropagation?.();
+      goMenu();
     });
-
-    // Stocker la référence pour pouvoir la détruire si nécessaire
-    this.gameOverBlocker = blocker;
-  }
-
+  
+    this.gameOverBlocker = overlay;
+  
+    // resize: garder au centre et blocker à la bonne taille
+    const onResize = () => {
+      if (!overlay?.active) return;
+      overlay.setPosition(this.cameras.main.midPoint.x, this.cameras.main.midPoint.y);
+      blocker.setSize(this.cameras.main.width, this.cameras.main.height);
+    };
+  
+    try {
+      this.scale.off("resize", this._onGameOverResize);
+    } catch (_) {}
+    this._onGameOverResize = onResize;
+    this.scale.on("resize", this._onGameOverResize);
+  
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      try {
+        this.scale.off("resize", this._onGameOverResize);
+      } catch (_) {}
+    });
+  }  
+  
   earnMoney(amount, meta = {}) {
     this.money += amount;
     this.runTracker.onGoldEarned(amount, meta);
@@ -1166,6 +1295,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    this.hideTransmissionOverlay();
     if (this.runTracker && this.runTracker.hasEnded && !this.runTracker.hasEnded()) {
       this.finalizeRunReport("ABORT", "scene_shutdown");
     }
