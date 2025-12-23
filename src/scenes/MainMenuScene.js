@@ -127,47 +127,79 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   createAchievementsButton() {
-    const width = this.heroPanel?.config?.width || 360;
-    const btnHeight = 46;
+    // On récupère la largeur du panel hero ou 380 par défaut
+    const width = this.heroPanel?.config?.width || 380;
+    const btnHeight = 60; // Plus haut pour être plus visible et cliquable
+    
     const container = this.add.container(0, 0);
     const bg = this.add.graphics();
+  
+    // Fonction de dessin avec un style plus prononcé
     const draw = (hover) => {
       bg.clear();
-      bg.fillStyle(0x0e1624, hover ? 0.9 : 0.8);
-      bg.lineStyle(2, hover ? 0x00eaff : 0x1f2a3c, 1);
-      bg.fillRoundedRect(0, 0, width, btnHeight, 10);
-      bg.strokeRoundedRect(0, 0, width, btnHeight, 10);
+      // Ombre/Lueur externe si hover
+      if (hover) {
+        bg.lineStyle(4, 0x00f2ff, 1);
+        bg.fillStyle(0x1a2639, 1);
+      } else {
+        bg.lineStyle(2, 0x334155, 0.8);
+        bg.fillStyle(0x0e1624, 0.9);
+      }
+      
+      bg.fillRoundedRect(0, 0, width, btnHeight, 12);
+      bg.strokeRoundedRect(0, 0, width, btnHeight, 12);
     };
+    
     draw(false);
-
-    const star = this.add.text(18, btnHeight / 2, "★", {
-      fontSize: "22px",
-      fontFamily: "Impact, sans-serif",
+  
+    // Étoile plus grosse
+    const star = this.add.text(25, btnHeight / 2, "★", {
+      fontSize: "28px",
       color: "#ffc857",
     }).setOrigin(0.5);
-
-    this.achievementLabel = this.add.text(42, btnHeight / 2, "Succès 0/0", {
-      fontSize: "16px",
+  
+    // Texte "Succès" plus gros (20px au lieu de 16px)
+    this.achievementLabel = this.add.text(55, btnHeight / 2, "Succès 0/0", {
+      fontSize: "20px",
       fontFamily: "Orbitron, sans-serif",
       color: "#ffffff",
-      resolution: window.devicePixelRatio || 1,
+      fontWeight: "bold"
     }).setOrigin(0, 0.5);
-
-    const subtitle = this.add.text(width - 14, btnHeight / 2, "Voir la liste", {
-      fontSize: "12px",
-      fontFamily: "Arial",
+  
+    // Sous-titre plus visible
+    const subtitle = this.add.text(width - 20, btnHeight / 2, "VOIR LA LISTE", {
+      fontSize: "14px",
+      fontFamily: "Orbitron, sans-serif",
       color: "#7dd0ff",
     }).setOrigin(1, 0.5);
-
+  
     container.add([bg, star, this.achievementLabel, subtitle]);
+  
+    // --- CORRECTION CRITIQUE DE LA HITBOX ---
+    // On définit la taille du container
     container.setSize(width, btnHeight);
-    container.setInteractive({ useHandCursor: true, pixelPerfect: false });
-    container.on("pointerover", () => draw(true));
-    container.on("pointerout", () => draw(false));
+    
+    // On force la zone interactive à ignorer les décalages d'origine 
+    // et on l'aligne pile sur le dessin (0,0,width,height)
+    container.setInteractive(
+      new Phaser.Geom.Rectangle(width / 2, btnHeight / 2, width, btnHeight),
+      Phaser.Geom.Rectangle.Contains
+    );
+  
+    container.on("pointerover", () => {
+      draw(true);
+      container.setScale(container.scaleX * 1.02); // Petit effet de zoom
+    });
+    
+    container.on("pointerout", () => {
+      draw(false);
+      container.setScale(container.scaleX / 1.02);
+    });
+    
     container.on("pointerdown", () => {
       this.scene.start("AchievementsScene");
     });
-
+  
     this.add.existing(container);
     this.achievementsButton = container;
   }
@@ -260,8 +292,9 @@ export class MainMenuScene extends Phaser.Scene {
       this.heroPanel.setPosition(targetX, targetY);
       if (this.achievementsButton) {
         this.achievementsButton.setScale(heroScale);
-        const buttonY = targetY + heroHeight + 12;
-        this.achievementsButton.setPosition(targetX, buttonY);
+        // Augmenter l'espacement à 15 ou 20 si nécessaire
+  const buttonY = targetY + heroHeight + 15; 
+  this.achievementsButton.setPosition(targetX, buttonY);
       }
     }
 

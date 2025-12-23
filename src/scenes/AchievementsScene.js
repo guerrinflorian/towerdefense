@@ -3,260 +3,457 @@ import { fetchAchievements } from "../services/achievementsService.js";
 export class AchievementsScene extends Phaser.Scene {
   constructor() {
     super("AchievementsScene");
-    this.scrollSpeed = 0.6;
+
+    // Scroll state
+    this.view = null;
+    this.scrollContainer = null;
+    this.scrollAmount = 0;
+    this.maxScroll = 0;
+
+    // UI refs
+    this.loadingText = null;
+    this.maskGfx = null;
+    this.backBtn = null;
+    this._bgCache = new Map();
+
+    // Drag state
+    this._drag = { active: false, startY: 0, lastY: 0 };
   }
 
   create() {
     const { width, height } = this.scale;
-    this.cameras.main.setBackgroundColor("#05080f");
-    this.scrollBounds = { min: 0, max: 0 };
 
-    this.addOverlay(width, height);
+    // --- 1) BACKGROUND ---
+    this.drawBackground(width, height);
+
+    // --- 2) STATIC UI ---
     this.createHeader(width);
-    this.createBackButton(width, height);
+    this.createBackButton(width);
 
+    // --- 3) SCROLL VIEW ---
+    this.view = {
+      x: 40,
+      y: 130,
+      width: width - 80,
+      height: height - 160,
+      radius: 14,
+    };
+
+    this.scrollContainer = this.add.container(this.view.x, this.view.y);
+
+    this.maskGfx = this.make.graphics();
+    this.maskGfx.fillStyle(0xffffff, 1);
+    this.maskGfx.fillRoundedRect(
+      this.view.x,
+      this.view.y,
+      this.view.width,
+      this.view.height,
+      this.view.radius
+    );
+    this.scrollContainer.setMask(this.maskGfx.createGeometryMask());
+
+    // --- 4) LOADING ---
     this.loadingText = this.add
-      .text(width / 2, height / 2, "Chargement des succès...", {
-        fontSize: "20px",
+      .text(width / 2, height / 2, "SYNCHRONISATION DES ARCHIVES...", {
         fontFamily: "Orbitron, sans-serif",
+        fontSize: "18px",
+        color: "#00eaff",
+      })
+      .setOrigin(0.5)
+      .setAlpha(0.95);
+
+    // --- 5) DATA + INPUT ---
+    this.loadData();
+    this.setupInteractions();
+  }
+
+  shutdown() {
+    // idempotent cleanup
+    try {
+      this._bgCache?.forEach((g) => g?.destroy?.());
+      this._bgCache?.clear?.();
+    } catch (e) {}
+
+    try {
+      this.input?.removeAllListeners?.();
+    } catch (e) {}
+
+    try {
+      this.maskGfx?.destroy?.();
+    } catch (e) {}
+
+    try {
+      this.scrollContainer?.destroy?.(true);
+    } catch (e) {}
+
+    try {
+      this.loadingText?.destroy?.();
+    } catch (e) {}
+  }
+
+  // ---------------------------------------------------------------------------
+  // UI
+  // ---------------------------------------------------------------------------
+
+  drawBackground(width, height) {
+    const g = this.add.graphics();
+    g.fillGradientStyle(0x05080f, 0x05080f, 0x0a1425, 0x0a1425, 1);
+    g.fillRect(0, 0, width, height);
+
+    // petite texture "stars" légère
+    const dots = this.add.graphics();
+    dots.fillStyle(0x00eaff, 0.06);
+    for (let i = 0; i < 120; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const r = Math.random() < 0.85 ? 1 : 1.6;
+      dots.fillCircle(x, y, r);
+    }
+  }
+
+  createHeader(width) {
+    const title = this.add.text(40, 48, "SYSTÈME DE SUCCÈS", {
+      fontFamily: "Orbitron, sans-serif",
+      fontSize: "28px",
+      fontStyle: "normal",
+      fontWeight: "700",
+      color: "#ffffff",
+      letterSpacing: 4,
+    });
+
+    // glow discret
+    title.setShadow(0, 0, "#00eaff", 8);
+
+    const line = this.add.graphics();
+    line.lineStyle(2, 0x00eaff, 0.28);
+    line.lineBetween(40, 95, width - 40, 95);
+  }
+
+  createBackButton(width) {
+    const x = width - 170;
+    const y = 42;
+    const w = 130;
+    const h = 42;
+    const r = 10;
+
+    const btn = this.add.container(x, y).setDepth(10);
+
+    const bg = this.add.graphics();
+    const drawIdle = () => {
+      bg.clear();
+      bg.lineStyle(2, 0x00eaff, 1);
+      bg.strokeRoundedRect(0, 0, w, h, r);
+      bg.fillStyle(0x00eaff, 0.06);
+      bg.fillRoundedRect(0, 0, w, h, r);
+    };
+    const drawHover = () => {
+      bg.clear();
+      bg.lineStyle(2, 0x00eaff, 1);
+      bg.strokeRoundedRect(0, 0, w, h, r);
+      bg.fillStyle(0x00eaff, 0.14);
+      bg.fillRoundedRect(0, 0, w, h, r);
+    };
+
+    drawIdle();
+
+    const txt = this.add
+      .text(w / 2, h / 2, "RETOUR", {
+        fontFamily: "Orbitron, sans-serif",
+        fontSize: "13px",
         color: "#00eaff",
       })
       .setOrigin(0.5);
 
-    this.loadData();
-    this.enableScroll();
+    btn.add([bg, txt]);
+    btn.setSize(w, h);
+    // Remplace la ligne btn.setInteractive(...) par :
+btn.setInteractive(
+  new Phaser.Geom.Rectangle(w / 2, h / 2, w, h), 
+  Phaser.Geom.Rectangle.Contains
+);
+
+    btn.on("pointerover", () => drawHover());
+    btn.on("pointerout", () => drawIdle());
+    btn.on("pointerdown", () => this.scene.start("MainMenuScene"));
+
+    this.backBtn = btn;
   }
 
-  addOverlay(width, height) {
-    const bg = this.add.graphics();
-    bg.fillStyle(0x0a0f1a, 0.85);
-    bg.fillRect(0, 0, width, height);
-  }
-
-  createHeader(width) {
-    this.titleText = this.add
-      .text(width / 2, 40, "SYSTÈME DE SUCCÈS", {
-        fontFamily: "Impact, sans-serif",
-        fontSize: "36px",
-        color: "#ffffff",
-        stroke: "#00eaff",
-        strokeThickness: 3,
-      })
-      .setOrigin(0.5);
-  }
-
-  createBackButton(width, height) {
-    const container = this.add.container(30, 30);
-    const bg = this.add.graphics();
-    const size = 44;
-    bg.fillStyle(0x0d1626, 0.9);
-    bg.lineStyle(2, 0x00eaff, 0.8);
-    bg.fillRoundedRect(0, 0, size, size, 10);
-    bg.strokeRoundedRect(0, 0, size, size, 10);
-    container.add(bg);
-
-    const arrow = this.add.text(size / 2, size / 2, "←", {
-      fontFamily: "Arial",
-      fontSize: "24px",
-      color: "#00eaff",
-    });
-    arrow.setOrigin(0.5);
-    container.add(arrow);
-
-    container.setSize(size, size);
-    container.setInteractive({ useHandCursor: true });
-    container.on("pointerover", () => bg.setAlpha(1));
-    container.on("pointerout", () => bg.setAlpha(0.9));
-    container.on("pointerdown", () => {
-      this.scene.start("MainMenuScene");
-    });
-
-    container.setPosition(width - size - 20, 20);
-    this.backButton = container;
-  }
-
-  enableScroll() {
-    this.input.on("wheel", (_p, _g, _dx, dy) => {
-      const cam = this.cameras.main;
-      cam.scrollY = Phaser.Math.Clamp(
-        cam.scrollY + dy * this.scrollSpeed,
-        this.scrollBounds.min,
-        this.scrollBounds.max
-      );
-    });
-  }
+  // ---------------------------------------------------------------------------
+  // Data / Render
+  // ---------------------------------------------------------------------------
 
   async loadData() {
     try {
       const { achievements, summary } = await fetchAchievements();
-      if (this.loadingText) {
-        this.loadingText.destroy();
-        this.loadingText = null;
-      }
-      this.renderAchievements(achievements, summary);
-      window.dispatchEvent(
-        new CustomEvent("achievements:updated", { detail: { summary } })
-      );
+      if (this.loadingText) this.loadingText.destroy();
+
+      this.renderContent(achievements || [], summary || { unlocked: 0, total: 0 });
     } catch (err) {
-      console.error("Erreur chargement achievements", err);
-      if (this.loadingText) {
-        this.loadingText.setText("Impossible de charger les succès.");
-        this.loadingText.setColor("#ff6666");
-      }
+      console.error(err);
+      if (!this.loadingText) return;
+      this.loadingText.setText("ERREUR DE CONNEXION").setColor("#ff0055");
     }
   }
 
-  renderAchievements(achievements, summary) {
-    const { width } = this.scale;
-    const padding = 40;
-    const topOffset = 90;
-    let currentY = topOffset;
+  renderContent(achievements, summary) {
+    const contentWidth = this.view.width;
 
-    this.createSummaryCard(summary, padding, currentY, width - padding * 2);
-    currentY += 90;
+    let currentY = 0;
 
+    // Summary box
+    const summaryBox = this.createSummaryBox(summary, contentWidth);
+    this.scrollContainer.add(summaryBox);
+    currentY += 120;
+
+    // Group & sort
     const grouped = this.groupByCategory(achievements);
-    grouped.forEach(({ category, items }) => {
-      const title = this.add.text(padding, currentY, `CATÉGORIE : ${category}`, {
+
+    grouped.forEach((group) => {
+      const catTitle = this.add.text(0, currentY, `// SECTION : ${String(group.category || "AUTRE").toUpperCase()}`, {
         fontFamily: "Orbitron, sans-serif",
-        fontSize: "20px",
+        fontSize: "16px",
         color: "#7dd0ff",
       });
-      currentY += 40;
-      items.forEach((achievement) => {
-        const cardHeight = this.createAchievementCard(
-          achievement,
-          padding,
-          currentY,
-          width - padding * 2
-        );
-        currentY += cardHeight + 12;
+      catTitle.setAlpha(0.95);
+
+      this.scrollContainer.add(catTitle);
+      currentY += 38;
+
+      group.items.forEach((ach) => {
+        const card = this.createAchievementCard(ach, contentWidth, currentY);
+        this.scrollContainer.add(card);
+        currentY += 112;
       });
-      currentY += 10;
+
+      currentY += 18;
     });
 
-    this.scrollBounds.max = Math.max(0, currentY - this.scale.height + 40);
-    this.cameras.main.setBounds(
-      0,
-      0,
-      this.scale.width,
-      currentY + 60
-    );
+    // max scroll
+    this.maxScroll = Math.max(0, currentY - this.view.height);
+    this.scrollAmount = 0;
+    this.applyScroll();
   }
 
-  createSummaryCard(summary, x, y, width) {
-    const containerHeight = 70;
+  createSummaryBox(summary, width) {
+    const container = this.add.container(0, 0);
+
+    const total = Math.max(0, Number(summary.total || 0));
+    const unlocked = Math.max(0, Number(summary.unlocked || 0));
+    const percent = total > 0 ? Math.floor((unlocked / total) * 100) : 0;
+
     const bg = this.add.graphics();
-    bg.fillStyle(0x0d1626, 0.9);
-    bg.lineStyle(2, 0x00eaff, 0.5);
-    bg.fillRoundedRect(x, y, width, containerHeight, 12);
-    bg.strokeRoundedRect(x, y, width, containerHeight, 12);
+    bg.fillStyle(0x0d121d, 0.82);
+    bg.fillRoundedRect(0, 0, width, 92, 14);
+    bg.lineStyle(2, 0x00eaff, 0.2);
+    bg.strokeRoundedRect(0, 0, width, 92, 14);
 
-    const ratioText = this.add.text(
-      x + 15,
-      y + containerHeight / 2,
-      `Succès : ${summary.unlocked}/${summary.total}`,
-      {
-        fontFamily: "Orbitron, sans-serif",
-        fontSize: "18px",
-        color: "#ffffff",
-      }
-    ).setOrigin(0, 0.5);
+    const label = this.add.text(18, 18, `SYNCHRONISATION : ${percent}% (${unlocked}/${total})`, {
+      fontFamily: "Orbitron, sans-serif",
+      fontSize: "15px",
+      color: "#00eaff",
+    });
 
-    const subText = this.add.text(
-      x + width - 10,
-      y + containerHeight / 2,
-      "Débloquez des récompenses !",
-      {
-        fontFamily: "Arial",
-        fontSize: "14px",
-        color: "#7dd0ff",
-      }
-    ).setOrigin(1, 0.5);
+    const barW = width - 36;
+    const barX = 18;
+    const barY = 54;
 
-    return { bg, ratioText, subText };
+    const barBg = this.add.graphics();
+    barBg.fillStyle(0x1a202c, 1);
+    barBg.fillRoundedRect(barX, barY, barW, 12, 6);
+
+    const barFill = this.add.graphics();
+    barFill.fillStyle(0x00eaff, 1);
+    barFill.fillRoundedRect(barX, barY, Math.max(0, barW * (percent / 100)), 12, 6);
+
+    const hint = this.add.text(18, 72, "Débloque des succès en jouant pour compléter ta collection.", {
+      fontFamily: "Arial",
+      fontSize: "12px",
+      color: "#94a3b8",
+    });
+
+    container.add([bg, label, barBg, barFill, hint]);
+    return container;
   }
+
+  createAchievementCard(ach, width, y) {
+    const container = this.add.container(0, y);
+
+    const unlocked = !!ach.is_unlocked;
+    const difficulty = Phaser.Math.Clamp(Number(ach.difficulty || 1), 1, 3);
+
+    // Background (cache: unlocked/locked)
+    const key = unlocked ? "unlocked" : "locked";
+    let bg = this._bgCache.get(key);
+    if (!bg || bg._destroyed) {
+      bg = this.add.graphics();
+      bg._destroyed = false;
+      this._bgCache.set(key, bg);
+    }
+
+    // IMPORTANT: on ne peut pas réutiliser le même Graphics dans plusieurs containers,
+    // donc on clone via un nouveau Graphics dessiné à l’identique.
+    const cardGfx = this.add.graphics();
+
+    // colors
+    const fillColor = unlocked ? 0x0d1f18 : 0x0a0f18;
+    const strokeColor = unlocked ? 0x00ff88 : 0x1f2937;
+    const strokeAlpha = unlocked ? 0.95 : 1;
+
+    cardGfx.fillStyle(fillColor, 0.92);
+    cardGfx.lineStyle(2, strokeColor, strokeAlpha);
+    cardGfx.fillRoundedRect(0, 0, width, 102, 14);
+    cardGfx.strokeRoundedRect(0, 0, width, 102, 14);
+
+    // left accent bar
+    cardGfx.fillStyle(unlocked ? 0x00ff88 : 0x334155, unlocked ? 0.18 : 0.18);
+    cardGfx.fillRoundedRect(0, 0, 10, 102, 14);
+
+    const title = this.add.text(22, 14, String(ach.title || "Succès"), {
+      fontFamily: "Orbitron, sans-serif",
+      fontSize: "17px",
+      color: unlocked ? "#00ff88" : "#ffffff",
+      fontStyle: "normal",
+      fontWeight: "700",
+    });
+
+    const desc = this.add.text(22, 42, String(ach.description || ""), {
+      fontFamily: "Arial",
+      fontSize: "13px",
+      color: "#94a3b8",
+      wordWrap: { width: width - 210 },
+      lineSpacing: 2,
+    });
+
+    // --- Stars: ALWAYS 3 visible in black, gold from left to right based on difficulty ---
+    // Base stars (black)
+    const starBaseX = 22;
+    const starY = 74;
+    const gap = 26;
+
+    for (let i = 0; i < 3; i++) {
+      const star = this.add
+        .text(starBaseX + i * gap, starY, "★", {
+          fontFamily: "Arial",
+          fontSize: "22px",
+          color: "#0b0b0b", // noir
+        })
+        .setAlpha(0.95);
+
+      container.add(star);
+    }
+
+    // Gold overlay stars (left -> right)
+    for (let i = 0; i < difficulty; i++) {
+      const gold = this.add
+        .text(starBaseX + i * gap, starY, "★", {
+          fontFamily: "Arial",
+          fontSize: "22px",
+          color: "#ffc857",
+        })
+        .setAlpha(1);
+
+      gold.setShadow(0, 0, "#ffc857", 6);
+      container.add(gold);
+    }
+
+    // status pill
+    const pill = this.add.graphics();
+    const pillText = unlocked ? "DÉBLOQUÉ" : "VERROUILLÉ";
+    const pillColor = unlocked ? 0x00ff88 : 0x334155;
+
+    const pillW = 110;
+    const pillH = 24;
+    const pillX = width - pillW - 16;
+    const pillY = 66;
+
+    pill.fillStyle(pillColor, unlocked ? 0.14 : 0.12);
+    pill.lineStyle(1, pillColor, unlocked ? 0.7 : 0.35);
+    pill.fillRoundedRect(pillX, pillY, pillW, pillH, 12);
+    pill.strokeRoundedRect(pillX, pillY, pillW, pillH, 12);
+
+    const status = this.add
+      .text(pillX + pillW / 2, pillY + pillH / 2, pillText, {
+        fontFamily: "Orbitron, sans-serif",
+        fontSize: "10px",
+        color: unlocked ? "#00ff88" : "#94a3b8",
+      })
+      .setOrigin(0.5);
+
+    // icon
+    const icon = this.add
+      .text(width - 32, 22, unlocked ? "✔" : "🔒", {
+        fontSize: "20px",
+        color: unlocked ? "#00ff88" : "#1f2937",
+      })
+      .setOrigin(0.5);
+
+    container.add([cardGfx, title, desc, pill, status, icon]);
+    return container;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Input / Scroll
+  // ---------------------------------------------------------------------------
+
+  setupInteractions() {
+    // wheel
+    this.input.on("wheel", (pointer, gameObjects, dx, dy) => {
+      // dy > 0 = scroll down
+      this.scrollAmount -= dy * 0.65;
+      this.applyScroll();
+    });
+
+    // drag (mobile + desktop)
+    // Modifie le pointerdown dans setupInteractions :
+this.input.on("pointerdown", (p) => {
+  // SI on clique sur un objet (le bouton retour par exemple), on n'active pas le drag
+  const hitObjects = this.input.hitTestPointer(p);
+  if (hitObjects.length > 0) return; 
+
+  this._drag.active = true;
+  this._drag.startY = p.y;
+  this._drag.lastY = p.y;
+});
+
+    this.input.on("pointerup", () => {
+      this._drag.active = false;
+    });
+
+    this.input.on("pointermove", (p) => {
+      if (!this._drag.active) return;
+
+      const delta = p.y - this._drag.lastY;
+      this._drag.lastY = p.y;
+
+      this.scrollAmount += delta;
+      this.applyScroll();
+    });
+  }
+
+  applyScroll() {
+    if (!this.scrollContainer || !this.view) return;
+
+    this.scrollAmount = Phaser.Math.Clamp(this.scrollAmount, -this.maxScroll, 0);
+    this.scrollContainer.y = this.view.y + this.scrollAmount;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Utils
+  // ---------------------------------------------------------------------------
 
   groupByCategory(achievements) {
     const map = new Map();
+
     achievements.forEach((ach) => {
-      if (!map.has(ach.category)) {
-        map.set(ach.category, []);
-      }
-      map.get(ach.category).push(ach);
+      const cat = ach.category || "AUTRE";
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat).push(ach);
     });
 
-    return Array.from(map.entries())
-      .map(([category, items]) => ({
-        category,
-        items: items.sort((a, b) => {
-          const diff = (b.difficulty || 0) - (a.difficulty || 0);
-          if (diff !== 0) return diff;
-          return a.goal_value - b.goal_value;
-        }),
-      }))
-      .sort((a, b) => a.category.localeCompare(b.category));
-  }
-
-  createAchievementCard(achievement, x, y, width) {
-    const height = 100;
-    const unlocked = achievement.is_unlocked;
-
-    const bg = this.add.graphics();
-    bg.fillStyle(unlocked ? 0x0f1f14 : 0x0d0f17, 0.92);
-    bg.lineStyle(2, unlocked ? 0x4caf50 : 0x1b2030, 1);
-    bg.fillRoundedRect(x, y, width, height, 12);
-    bg.strokeRoundedRect(x, y, width, height, 12);
-
-    const title = this.add.text(x + 16, y + 16, achievement.title, {
-      fontFamily: "Orbitron, sans-serif",
-      fontSize: "18px",
-      color: unlocked ? "#c8ffd0" : "#ffffff",
-    });
-
-    const description = this.add.text(
-      x + 16,
-      y + 46,
-      achievement.description || "",
-      {
-        fontFamily: "Arial",
-        fontSize: "14px",
-        color: "#d0d8e0",
-        wordWrap: { width: width - 220 },
-      }
-    );
-
-    const stars = this.createStars(
-      achievement.difficulty || 0,
-      x + width - 150,
-      y + 32
-    );
-
-    const statusText = this.add.text(
-      x + width - 150,
-      y + 65,
-      unlocked ? "Déverrouillé" : "En cours",
-      {
-        fontFamily: "Arial",
-        fontSize: "14px",
-        color: unlocked ? "#4caf50" : "#7dd0ff",
-      }
-    );
-
-    return height;
-  }
-
-  createStars(count, x, y) {
-    const maxStars = 3;
-    const gap = 26;
-    for (let i = 0; i < maxStars; i++) {
-      const filled = i < count;
-      const star = this.add.text(x + i * gap, y, "★", {
-        fontFamily: "Arial",
-        fontSize: "22px",
-        color: filled ? "#ffc857" : "#2d3445",
-      });
-      star.setOrigin(0.5);
-    }
+    return Array.from(map.entries()).map(([category, items]) => ({
+      category,
+      items: items.sort((a, b) => (Number(a.difficulty || 1) - Number(b.difficulty || 1))),
+    }));
   }
 }
