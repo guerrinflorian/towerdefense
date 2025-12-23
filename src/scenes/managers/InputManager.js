@@ -16,6 +16,7 @@ export class InputManager {
     // pour éviter que le clic sur l'île dans MapScene déclenche un déplacement du héros
     this.ignoreInputUntil = 0;
     this.ignoreFirstPointerUp = false;
+    this.pointerDownOnBuildMenu = false;
   }
 
   setUIManager(uiManager) {
@@ -124,9 +125,12 @@ export class InputManager {
         return; // Laisser le bouton gérer son propre événement
       }
 
-      if (this.uiManager.isPointerOnBuildMenu(pointer)) {
+      const isOnBuildMenu = this.uiManager.isPointerOnBuildMenu(pointer);
+      if (isOnBuildMenu) {
+        this.pointerDownOnBuildMenu = true;
         return;
       }
+      this.pointerDownOnBuildMenu = this.scene.buildMenu?.visible || false;
 
       this.uiManager.hideMenus();
       this.scene.selectedTurret = null;
@@ -160,6 +164,18 @@ export class InputManager {
       // Ignorer le premier pointerup si le pointer était déjà enfoncé au démarrage
       if (this.ignoreFirstPointerUp) {
         this.ignoreFirstPointerUp = false;
+        if (this.longPressTimer) {
+          this.longPressTimer.remove();
+          this.longPressTimer = null;
+        }
+        this.longPressTriggered = false;
+        return;
+      }
+
+      const startedOnBuildMenu = this.pointerDownOnBuildMenu;
+      this.pointerDownOnBuildMenu = false;
+
+      if (startedOnBuildMenu) {
         if (this.longPressTimer) {
           this.longPressTimer.remove();
           this.longPressTimer = null;
@@ -220,6 +236,9 @@ export class InputManager {
       }
 
       if (!this.longPressTriggered && !isOnToolbar) {
+        if (this.scene.buildMenu?.visible || startedOnBuildMenu) {
+          return;
+        }
         this.handleNormalClick(pointer);
       }
 
