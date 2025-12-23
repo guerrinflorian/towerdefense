@@ -8,6 +8,7 @@ export class DragHandler {
     this.placementPreview = null;
     this.rangePreview = null;
     this.validCellsPreview = [];
+    this.staticPreviewActive = false;
   }
 
   startDrag(turretConfig) {
@@ -213,11 +214,112 @@ export class DragHandler {
 
   cancelDrag() {
     this.draggingTurret = null;
+    this.staticPreviewActive = false;
 
+    this.destroyPreviews();
+    this.clearValidCells();
+  }
+
+  updateRangePreview(x, y, radius, color, isInsideMap) {
+    if (!this.rangePreview || this.rangePreview.active === false) {
+      if (this.rangePreview && this.rangePreview.active === false) {
+        this.rangePreview.destroy();
+      }
+      this.rangePreview = this.scene.add.graphics();
+      this.rangePreview.setDepth(180);
+    }
+
+    if (!isInsideMap || !radius) {
+      this.rangePreview.setVisible(false);
+      this.rangePreview.clear();
+      return;
+    }
+
+    this.rangePreview.clear();
+    this.rangePreview.setPosition(x, y);
+    this.rangePreview.lineStyle(2, color, 0.35);
+    this.rangePreview.fillStyle(color, 0.08);
+    this.rangePreview.strokeCircle(0, 0, radius);
+    this.rangePreview.fillCircle(0, 0, radius);
+    this.rangePreview.setVisible(true);
+  }
+
+  showTileRangePreview(turretConfig, tileX, tileY) {
+    const data = this.getPlacementData(tileX, tileY, turretConfig, {
+      respectMoney: true,
+    });
+    this.renderPreviews(
+      data.centerX,
+      data.centerY,
+      turretConfig,
+      data.canPlace && data.isInsideMap,
+      data.isInsideMap
+    );
+    this.staticPreviewActive = true;
+  }
+
+  hideTileRangePreview() {
+    if (this.placementPreview) {
+      this.placementPreview.setVisible(false);
+    }
+    if (this.rangePreview) {
+      this.rangePreview.setVisible(false);
+    }
+    this.staticPreviewActive = false;
+  }
+
+  renderPreviews(x, y, turretConfig, canPlace, isInsideMap) {
+    this.ensurePreviewGraphics(turretConfig);
+    const color = canPlace ? 0x00ff00 : 0xff0000;
+
+    this.placementPreview.setPosition(x, y);
+    this.placementPreview.clear();
+    this.placementPreview.fillStyle(color, 0.4);
+    this.placementPreview.fillCircle(0, 0, 20 * this.scene.scaleFactor);
+    this.placementPreview.lineStyle(2, color);
+    this.placementPreview.strokeCircle(0, 0, 20 * this.scene.scaleFactor);
+    this.placementPreview.setVisible(isInsideMap);
+
+    const rangeRadius = this.getRangePixels(turretConfig);
+    this.updateRangePreview(x, y, rangeRadius, color, isInsideMap);
+  }
+
+  ensurePreviewGraphics(turretConfig) {
+    if (!this.placementPreview || this.placementPreview.active === false) {
+      if (this.placementPreview && this.placementPreview.active === false) {
+        this.placementPreview.destroy();
+      }
+      const preview = this.scene.add.graphics();
+      preview.fillStyle(turretConfig?.color || 0x888888, 0.6);
+      preview.fillCircle(0, 0, 20 * this.scene.scaleFactor);
+      preview.lineStyle(2, turretConfig?.color || 0x888888);
+      preview.strokeCircle(0, 0, 20 * this.scene.scaleFactor);
+      preview.setDepth(200);
+      this.placementPreview = preview;
+    }
+
+    if (!this.rangePreview || this.rangePreview.active === false) {
+      if (this.rangePreview && this.rangePreview.active === false) {
+        this.rangePreview.destroy();
+      }
+      const rangePreview = this.scene.add.graphics();
+      rangePreview.setDepth(180);
+      rangePreview.setVisible(false);
+      this.rangePreview = rangePreview;
+    }
+  }
+
+  destroyPreviews() {
     if (this.placementPreview) {
       this.placementPreview.destroy();
       this.placementPreview = null;
     }
+    if (this.rangePreview) {
+      this.rangePreview.destroy();
+      this.rangePreview = null;
+    }
+    this.clearValidCells();
+  }
 
     if (this.rangePreview) {
       this.rangePreview.destroy();
