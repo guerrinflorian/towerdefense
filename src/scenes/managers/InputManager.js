@@ -235,6 +235,9 @@ export class InputManager {
       }
 
       if (!this.longPressTriggered && !isOnToolbar) {
+        if (this.scene.buildMenu?.visible || startedOnBuildMenu) {
+          return;
+        }
         this.handleNormalClick(pointer);
       }
 
