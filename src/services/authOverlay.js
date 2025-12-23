@@ -56,7 +56,7 @@ const disableElement = (el, disabled) => {
   if (!el) return;
   el.disabled = disabled;
 };
-const validateEmailFormat = (email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
+const validateEmailFormat = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const toggleGameBlock = (block) => {
   const gameContainer = document.getElementById("game-container");

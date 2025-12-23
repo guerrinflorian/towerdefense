@@ -1,4 +1,4 @@
-import { ensureProfileLoaded, logout, getProfile } from "../services/authManager.js";
+import { ensureProfileLoaded, logout, getProfile, isAuthenticated } from "../services/authManager.js";
 import { showAuth } from "../services/authOverlay.js";
 import { LeaderboardUI } from "./components/LeaderboardUI.js";
 import { HeroUpgradeUI } from "./components/HeroUpgradeUI.js";
@@ -205,8 +205,15 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   async refreshAchievementsSummary() {
+    // Ne pas faire d'appel API si l'utilisateur n'est pas connecté
+    if (!isAuthenticated()) {
+      if (this.achievementLabel) {
+        this.achievementLabel.setText("Succès -");
+      }
+      return;
+    }
+
     try {
-      
       const { summary } = await fetchAchievements();
       if (this.achievementLabel) {
         this.achievementLabel.setText(`Succès ${summary.unlocked}/${summary.total}`);
