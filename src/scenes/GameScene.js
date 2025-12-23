@@ -82,6 +82,7 @@ export class GameScene extends Phaser.Scene {
     this.pausedTweens = []; // Liste des tweens en pause
     this.elapsedTimeMs = 0; // Chronomètre de session
     this.isTimerRunning = false;
+    this.gameOverTriggered = false;
     this.heroKillCount = 0;
     this.heroKillReportPromise = null;
     this.runReportPromise = null;
@@ -333,6 +334,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time, delta) {
+    if (this.lives <= 0 && !this.gameOverTriggered) {
+      this.triggerGameOver();
+      return;
+    }
+
     // Si le jeu est en pause, ne rien mettre à jour
     if (this.isPaused) {
       return;
@@ -772,7 +778,7 @@ export class GameScene extends Phaser.Scene {
 
   takeDamage(amount = 1) {
     // Si le jeu est déjà terminé, ne plus accepter de dégâts
-    if (this._gameOverShown || this.isPaused) {
+    if (this._gameOverShown || this.gameOverTriggered) {
       return;
     }
 
@@ -787,11 +793,39 @@ export class GameScene extends Phaser.Scene {
     this.updateUI();
     this.cameras.main.shake(150, 0.01);
     if (this.lives <= 0) {
-      // Mettre le jeu en pause immédiatement pour empêcher d'autres dégâts
-      this.isPaused = true;
-      // Appeler de manière asynchrone sans bloquer
-      this.showGameOverNotification().catch(() => {});
+      this.triggerGameOver();
     }
+  }
+
+  triggerGameOver() {
+    if (this.gameOverTriggered) return;
+
+    this.gameOverTriggered = true;
+    this.isPaused = true;
+
+    // Nettoyer tous les timers liés aux vagues pour empêcher toute progression
+    if (this.waveSpawnTimers?.length) {
+      this.waveSpawnTimers.forEach((t) => t?.remove());
+    }
+    this.waveSpawnTimers = [];
+
+    if (this.endCheckTimer) {
+      this.endCheckTimer.remove();
+      this.endCheckTimer = null;
+    }
+
+    if (this.nextWaveAutoTimer) {
+      this.nextWaveAutoTimer.remove();
+      this.nextWaveAutoTimer = null;
+      this.nextWaveCountdown = 0;
+    }
+
+    this.isWaveRunning = false;
+    this.hasWaveFinishedSpawning = false;
+    this.canCallNextWave = false;
+
+    // Appeler de manière asynchrone sans bloquer
+    this.showGameOverNotification().catch(() => {});
   }
 
   showTransmissionOverlay(result = "VICTOIRE") {
