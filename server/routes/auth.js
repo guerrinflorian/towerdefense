@@ -10,6 +10,7 @@ import {
   validateUsername,
 } from "../utils/validators.js";
 import { buildPlayerProfile } from "../utils/profile.js";
+import { ensurePlayerAchievementRows } from "../achievements/index.js";
 
 const router = express.Router();
 
@@ -66,6 +67,8 @@ router.post("/register", async (req, res) => {
       ]
     );
 
+    await ensurePlayerAchievementRows(player.id);
+
     const token = jwt.sign(
       { id: player.id, username: player.username },
       process.env.JWT_SECRET,
@@ -113,6 +116,8 @@ router.post("/login", async (req, res) => {
     if (!isValid) {
       return res.status(401).json({ error: "Identifiants incorrects" });
     }
+
+    await ensurePlayerAchievementRows(user.id);
 
     const token = jwt.sign(
       { id: user.id, username: user.username },
