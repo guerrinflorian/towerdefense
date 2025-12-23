@@ -282,80 +282,57 @@ btn.setInteractive(
     const unlocked = !!ach.is_unlocked;
     const difficulty = Phaser.Math.Clamp(Number(ach.difficulty || 1), 1, 3);
 
-    // Background (cache: unlocked/locked)
-    const key = unlocked ? "unlocked" : "locked";
-    let bg = this._bgCache.get(key);
-    if (!bg || bg._destroyed) {
-      bg = this.add.graphics();
-      bg._destroyed = false;
-      this._bgCache.set(key, bg);
-    }
-
-    // IMPORTANT: on ne peut pas réutiliser le même Graphics dans plusieurs containers,
-    // donc on clone via un nouveau Graphics dessiné à l’identique.
+    // 1. On prépare le fond (Graphics)
     const cardGfx = this.add.graphics();
-
-    // colors
     const fillColor = unlocked ? 0x0d1f18 : 0x0a0f18;
     const strokeColor = unlocked ? 0x00ff88 : 0x1f2937;
-    const strokeAlpha = unlocked ? 0.95 : 1;
 
     cardGfx.fillStyle(fillColor, 0.92);
-    cardGfx.lineStyle(2, strokeColor, strokeAlpha);
+    cardGfx.lineStyle(2, strokeColor, 1);
     cardGfx.fillRoundedRect(0, 0, width, 102, 14);
     cardGfx.strokeRoundedRect(0, 0, width, 102, 14);
-
-    // left accent bar
-    cardGfx.fillStyle(unlocked ? 0x00ff88 : 0x334155, unlocked ? 0.18 : 0.18);
+    
+    // Barre d'accentuation à gauche
+    cardGfx.fillStyle(unlocked ? 0x00ff88 : 0x334155, 0.18);
     cardGfx.fillRoundedRect(0, 0, 10, 102, 14);
 
+    // 2. AJOUTER LE FOND EN PREMIER (Z-index le plus bas)
+    container.add(cardGfx);
+
+    // 3. On prépare les textes
     const title = this.add.text(22, 14, String(ach.title || "Succès"), {
-      fontFamily: "Orbitron, sans-serif",
-      fontSize: "17px",
-      color: unlocked ? "#00ff88" : "#ffffff",
-      fontStyle: "normal",
-      fontWeight: "700",
+      fontFamily: "Orbitron, sans-serif", fontSize: "17px",
+      color: unlocked ? "#00ff88" : "#ffffff", fontWeight: "700",
     });
 
     const desc = this.add.text(22, 42, String(ach.description || ""), {
-      fontFamily: "Arial",
-      fontSize: "13px",
-      color: "#94a3b8",
+      fontFamily: "Arial", fontSize: "13px", color: "#94a3b8",
       wordWrap: { width: width - 210 },
-      lineSpacing: 2,
     });
 
-    // --- Stars: ALWAYS 3 visible in black, gold from left to right based on difficulty ---
-    // Base stars (black)
+    // 4. ON AJOUTE LES ÉTOILES (Elles seront au-dessus du fond)
     const starBaseX = 22;
     const starY = 74;
     const gap = 26;
 
     for (let i = 0; i < 3; i++) {
-      const star = this.add
-        .text(starBaseX + i * gap, starY, "★", {
-          fontFamily: "Arial",
-          fontSize: "22px",
-          color: "#0b0b0b", // noir
-        })
-        .setAlpha(0.95);
+        const isGold = i < difficulty;
+        const star = this.add.text(starBaseX + i * gap, starY, "★", {
+            fontFamily: "Arial",
+            fontSize: "22px",
+            // Si pas gold, on met un gris visible (#444444) car #1a1a1a est trop proche du noir du fond
+            color: isGold ? "#ffc857" : "#444444",
+        });
 
-      container.add(star);
+        if (isGold) {
+            star.setShadow(0, 0, "#ffc857", 6);
+        } else {
+            star.setAlpha(0.5);
+        }
+        container.add(star);
     }
 
-    // Gold overlay stars (left -> right)
-    for (let i = 0; i < difficulty; i++) {
-      const gold = this.add
-        .text(starBaseX + i * gap, starY, "★", {
-          fontFamily: "Arial",
-          fontSize: "22px",
-          color: "#ffc857",
-        })
-        .setAlpha(1);
-
-      gold.setShadow(0, 0, "#ffc857", 6);
-      container.add(gold);
-    }
+    // 5. On ajoute le reste des éléments (Pill, Status, Icon)
 
     // status pill
     const pill = this.add.graphics();
@@ -388,8 +365,9 @@ btn.setInteractive(
       })
       .setOrigin(0.5);
 
-    container.add([cardGfx, title, desc, pill, status, icon]);
-    return container;
+      container.add([title, desc, pill, status, icon]);
+    
+      return container;
   }
 
   // ---------------------------------------------------------------------------
