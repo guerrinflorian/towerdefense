@@ -149,11 +149,22 @@ export class UIManager {
     const px = pointer.worldX ?? pointer.x;
     const py = pointer.worldY ?? pointer.y;
 
+    // Obtenir les coordonnées mondiales du menu
+    let menuWorldX, menuWorldY;
+    if (this.scene.buildMenu.getWorldTransformMatrix) {
+      const matrix = this.scene.buildMenu.getWorldTransformMatrix();
+      menuWorldX = matrix.tx;
+      menuWorldY = matrix.ty;
+    } else {
+      menuWorldX = this.scene.buildMenu.x;
+      menuWorldY = this.scene.buildMenu.y;
+    }
+
     return (
-      px >= this.scene.buildMenu.x &&
-      px <= this.scene.buildMenu.x + size.w &&
-      py >= this.scene.buildMenu.y &&
-      py <= this.scene.buildMenu.y + size.h
+      px >= menuWorldX &&
+      px <= menuWorldX + size.w &&
+      py >= menuWorldY &&
+      py <= menuWorldY + size.h
     );
   }
 }
