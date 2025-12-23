@@ -219,6 +219,14 @@ export function createBuildBtnOctagon(buildMenu, x, y, size, turretConfig) {
     if (turretConfig.description) {
       buildMenu.showTurretTooltip(btn, turretConfig.description, hitArea);
     }
+
+    if (scene.selectedTile) {
+      scene.inputManager?.dragHandler?.showTileRangePreview(
+        turretConfig,
+        scene.selectedTile.x,
+        scene.selectedTile.y
+      );
+    }
   });
 
   hitArea.on("pointerout", () => {
@@ -230,6 +238,8 @@ export function createBuildBtnOctagon(buildMenu, x, y, size, turretConfig) {
       buildMenu.currentTooltip.destroy();
       buildMenu.currentTooltip = null;
     }
+
+    scene.inputManager?.dragHandler?.hideTileRangePreview();
   });
 
   hitArea.on("pointerdown", () => {
@@ -260,6 +270,7 @@ export function createBuildBtnOctagon(buildMenu, x, y, size, turretConfig) {
     );
 
     if (success) scene.buildMenu.setVisible(false);
+    scene.inputManager?.dragHandler?.hideTileRangePreview();
     buildMenu.updateBuildMenuButtons();
   });
 
