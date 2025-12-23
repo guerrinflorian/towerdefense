@@ -190,6 +190,18 @@ export async function evaluateGlobalAchievements(
       continue;
     }
 
+    if (
+      achievement.code_name.startsWith("GLOBAL_SPEEDRUN") &&
+      metrics.isWin &&
+      metrics.durationMs >= 6 * 60 * 1000 &&
+      metrics.durationMs <= 8 * 60 * 1000
+    ) {
+      const goalValueMs = Number(achievement.goal_value || 0);
+      console.debug(
+        `[achievements] Speedrun check ${achievement.code_name}: duration=${metrics.durationMs}ms (goal=${goalValueMs}ms)`
+      );
+    }
+
     const rawCurrentValue = rule.value(metrics, existing);
 
     const safeCurrentValue = Number.isFinite(rawCurrentValue)
