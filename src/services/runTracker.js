@@ -399,9 +399,13 @@ export class RunTracker {
     this.report.result = result || this.report.result;
     this.report.reasonEnd = reasonEnd || this.report.reasonEnd;
     this.report.endedAt = Date.now();
-    this.report.durationMs = this.report.startedAt
-      ? this.report.endedAt - this.report.startedAt
-      : elapsedMs || 0;
+    const hasElapsed = Number.isFinite(elapsedMs);
+    const elapsedDuration = hasElapsed ? Math.max(0, elapsedMs) : null;
+    const computedDuration = this.report.startedAt
+      ? Math.max(0, this.report.endedAt - this.report.startedAt)
+      : 0;
+    this.report.durationMs =
+      elapsedDuration !== null ? elapsedDuration : computedDuration;
 
     if (Number.isFinite(finalGold)) {
       this.report.stats.economy.gold.final = finalGold;
