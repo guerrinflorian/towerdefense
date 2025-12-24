@@ -307,11 +307,11 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
 
   reachEnd() {
     if (this.active && this.scene) {
-      // Ne pas infliger de dégâts si le jeu est en pause ou si les vies sont déjà à 0
+      // Ne pas infliger de dégâts si le jeu est en pause, terminé, ou si les vies sont déjà à 0
+      // On vérifie gameOverTriggered et isPaused, mais PAS _gameOverShown car il est mis trop tôt
       if (
         this.scene.isPaused ||
         this.scene.lives <= 0 ||
-        this.scene._gameOverShown ||
         this.scene.gameOverTriggered
       ) {
         this.destroy();

@@ -86,6 +86,10 @@ export class GameScene extends Phaser.Scene {
     this.heroKillCount = 0;
     this.heroKillReportPromise = null;
     this.runReportPromise = null;
+    this.isRunReportSending = false;
+    this.pendingNaturalRunResult = null;
+    this.pendingNaturalReason = null;
+    this.sendRunReportFn = sendRunReport;
     this.transmissionOverlay = null;
     this.isPortrait = false;
     this.activeWaveIndex = null;
@@ -500,6 +504,8 @@ export class GameScene extends Phaser.Scene {
     }
     
     this.showTransmissionOverlay("VICTOIRE");
+    this.pendingNaturalRunResult = "WIN";
+    this.pendingNaturalReason = "level_complete";
     this.reportHeroKillsOnce();
     await this.finalizeRunReport("WIN", "level_complete");
     await this.waveManager.levelComplete();
@@ -545,16 +551,31 @@ export class GameScene extends Phaser.Scene {
 
   async finalizeRunReport(result = null, reasonEnd = null) {
     if (!this.runTracker) return null;
+    const isNaturalEnd = result === "WIN" || result === "LOSE";
+
+    if (isNaturalEnd) {
+      this.pendingNaturalRunResult = result;
+      this.pendingNaturalReason = reasonEnd || this.pendingNaturalReason;
+    }
+
+    const naturalSendExpected =
+      !isNaturalEnd && Boolean(this.pendingNaturalRunResult);
+    const naturalSendInFlight = this.isRunReportSending || !!this.runReportPromise;
+
+    if (naturalSendExpected || naturalSendInFlight) {
+      return this.runReportPromise || null;
+    }
+
     const hasEnded = this.runTracker.hasEnded && this.runTracker.hasEnded();
     if (hasEnded) {
       return this.runReportPromise || null;
     }
 
-    const isNaturalEnd = result === "WIN" || result === "LOSE";
+    const finalReason = reasonEnd || this.pendingNaturalReason || null;
 
     const report = this.runTracker.endRun({
       result,
-      reasonEnd,
+      reasonEnd: finalReason,
       finalGold: this.money,
       livesRemaining: this.lives,
       elapsedMs: Math.round(this.elapsedTimeMs || 0),
@@ -565,11 +586,20 @@ export class GameScene extends Phaser.Scene {
       return null;
     }
 
-    console.log("[RunReport]", report);
-    this.runReportPromise = sendRunReport(report).catch((err) => {
-      console.warn("RunReport send failed", err);
-      return null;
+    console.log("[RunReport] Sending natural end", {
+      result: report.result,
+      reason: report.reasonEnd,
     });
+    const sender = this.sendRunReportFn || sendRunReport;
+    this.isRunReportSending = true;
+    this.runReportPromise = sender(report)
+      .catch((err) => {
+        console.warn("RunReport send failed", err);
+        return null;
+      })
+      .finally(() => {
+        this.isRunReportSending = false;
+      });
     return this.runReportPromise;
   }
 
@@ -778,7 +808,9 @@ export class GameScene extends Phaser.Scene {
 
   takeDamage(amount = 1) {
     // Si le jeu est déjà terminé, ne plus accepter de dégâts
-    if (this._gameOverShown || this.gameOverTriggered) {
+    // On vérifie seulement gameOverTriggered et isPaused, pas _gameOverShown
+    // car _gameOverShown est un flag UI, pas un flag de game state
+    if (this.gameOverTriggered || this.isPaused) {
       return;
     }
 
@@ -802,6 +834,8 @@ export class GameScene extends Phaser.Scene {
 
     this.gameOverTriggered = true;
     this.isPaused = true;
+    this.pendingNaturalRunResult = "LOSE";
+    this.pendingNaturalReason = "base_destroyed";
 
     // Nettoyer tous les timers liés aux vagues pour empêcher toute progression
     if (this.waveSpawnTimers?.length) {
