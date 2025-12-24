@@ -223,7 +223,11 @@ export class WaveManager {
     this.scene.updateUI();
 
     if (this.scene.wavesCompleted >= this.scene.levelConfig.waves.length) {
-      this.levelComplete();
+      if (this.scene?.levelComplete) {
+        this.scene.levelComplete();
+      } else {
+        this.levelComplete();
+      }
     } else {
       this.spawnControls?.setLockedState(false);
       this.spawnControls?.updateWaveRunningState();
