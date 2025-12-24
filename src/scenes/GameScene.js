@@ -14,6 +14,8 @@ import { TextureFactory } from "./managers/TextureFactory.js";
 import { recordHeroKill } from "../services/authManager.js";
 import { RunTracker } from "../services/runTracker.js";
 import { sendRunReport } from "../services/runReportService.js";
+import { fetchAchievements } from "../services/achievementsService.js";
+import { resetCachedChapters } from "../services/chapterService.js";
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -509,6 +511,8 @@ export class GameScene extends Phaser.Scene {
     this.reportHeroKillsOnce();
     await this.finalizeRunReport("WIN", "level_complete");
     await this.waveManager.levelComplete();
+    this.refreshProgressCaches();
+    this.notifyAchievementsUpdate();
     this.hideTransmissionOverlay();
   }
 
@@ -593,6 +597,10 @@ export class GameScene extends Phaser.Scene {
     const sender = this.sendRunReportFn || sendRunReport;
     this.isRunReportSending = true;
     this.runReportPromise = sender(report)
+      .then((response) => {
+        this.notifyAchievementsUpdate();
+        return response;
+      })
       .catch((err) => {
         console.warn("RunReport send failed", err);
         return null;
@@ -603,7 +611,26 @@ export class GameScene extends Phaser.Scene {
     return this.runReportPromise;
   }
 
- 
+  async notifyAchievementsUpdate() {
+    try {
+      const { summary } = await fetchAchievements();
+      if (summary) {
+        window.dispatchEvent(
+          new CustomEvent("achievements:updated", { detail: { summary } })
+        );
+      }
+    } catch (err) {
+      console.warn("Impossible de rafraîchir les succès après la partie", err);
+    }
+  }
+
+  refreshProgressCaches() {
+    try {
+      resetCachedChapters();
+    } catch (err) {
+      console.warn("Impossible de réinitialiser les chapitres mis en cache", err);
+    }
+  }
 
 
   // =========================================================
