@@ -1,4 +1,17 @@
 import { TURRETS } from "../config/turrets/index.js";
+import { LEVELS_CONFIG } from "../config/levels/index.js";
+
+// Fonction helper pour obtenir le chapitre depuis le levelID
+function getChapterIdFromScene(scene) {
+  if (scene?.levelID) {
+    const levelId = Number(scene.levelID);
+    const level = LEVELS_CONFIG.find((lvl) => lvl.id === levelId);
+    if (level) {
+      return level.chapterId || 1;
+    }
+  }
+  return 1; // Par défaut chapitre 1
+}
 
 export class Turret extends Phaser.GameObjects.Container {
   constructor(scene, x, y, config) {
@@ -6,20 +19,36 @@ export class Turret extends Phaser.GameObjects.Container {
     this.scene = scene;
 
     // Clone de la config pour que chaque tourelle soit indépendante
-    this.config = JSON.parse(
-      JSON.stringify(typeof config === "string" ? TURRETS[config] : config)
-    );
-
     const originalConfig =
       typeof config === "string" ? TURRETS[config] : config;
+    this.config = JSON.parse(
+      JSON.stringify(originalConfig)
+    );
 
     // On récupère les fonctions de dessin et de tir depuis la config originale
     this.config.onDrawBarrel = originalConfig.onDrawBarrel;
     this.config.onFire = originalConfig.onFire;
+    this.config.getStatsForChapter = originalConfig.getStatsForChapter;
 
-    // Valeur par défaut si maxLevel n'est pas défini dans la config
-    // (Pour le cannon, c'est défini à 3 dans le fichier cannon.js)
-    this.config.maxLevel = this.config.maxLevel || 3;
+    // Détecter le chapitre et appliquer les bonnes stats
+    this.chapterId = getChapterIdFromScene(scene);
+    if (this.config.getStatsForChapter) {
+      const chapterStats = this.config.getStatsForChapter(this.chapterId);
+      this.config.maxLevel = chapterStats.maxLevel;
+      // Appliquer les stats par niveau si disponibles
+      if (chapterStats.damage) {
+        this.config.damage = chapterStats.damage[0]; // Niveau 1 par défaut
+      }
+      if (chapterStats.rate) {
+        this.config.rate = chapterStats.rate[0]; // Niveau 1 par défaut
+      }
+      if (chapterStats.range) {
+        this.config.range = chapterStats.range[0]; // Niveau 1 par défaut
+      }
+    } else {
+      // Valeur par défaut si maxLevel n'est pas défini dans la config
+      this.config.maxLevel = this.config.maxLevel || 3;
+    }
     this.rangePixels = this.getRangePixels(this.config.range);
 
     this.level = 1;
@@ -80,6 +109,13 @@ export class Turret extends Phaser.GameObjects.Container {
       this.base.fillStyle(0x00ffff); // Cyan pour niv 3
       this.base.fillCircle(10, -18, 3);
     }
+    if (this.level >= 4) {
+      // Indicateur doré pour le niveau 4
+      this.base.fillStyle(0xffd700);
+      this.base.fillCircle(0, -20, 4);
+      this.base.lineStyle(1, 0xcc9900);
+      this.base.strokeCircle(0, -20, 4);
+    }
   }
 
   drawBarrel() {
@@ -101,11 +137,26 @@ export class Turret extends Phaser.GameObjects.Container {
     // Si on a atteint le niveau max, pas d'upgrade
     if (this.level >= this.config.maxLevel) return null;
 
-    // Utiliser les valeurs actuelles de la config
+    // Vérifier si on a des stats par niveau (chapitre 2)
     let nextDmg = this.config.damage || 0;
     let nextRate = this.config.rate || 0;
     let nextRange = this.config.range || 0;
     let nextAoE = this.config.aoe || 0;
+
+    // Si getStatsForChapter existe, utiliser les tableaux de stats
+    if (this.config.getStatsForChapter) {
+      const chapterStats = this.config.getStatsForChapter(this.chapterId);
+      const nextLevel = this.level + 1;
+      if (chapterStats.damage && chapterStats.damage[nextLevel - 1] !== undefined) {
+        nextDmg = chapterStats.damage[nextLevel - 1];
+      }
+      if (chapterStats.rate && chapterStats.rate[nextLevel - 1] !== undefined) {
+        nextRate = chapterStats.rate[nextLevel - 1];
+      }
+      if (chapterStats.range && chapterStats.range[nextLevel - 1] !== undefined) {
+        nextRange = chapterStats.range[nextLevel - 1];
+      }
+    }
 
     // Coût de base récupéré depuis la config globale
     const baseCost = TURRETS[this.config.key]?.cost || 100;
@@ -133,18 +184,33 @@ export class Turret extends Phaser.GameObjects.Container {
     // --- LOGIQUE GÉNÉRIQUE POUR LES AUTRES TOURELLES OU AUTRES NIVEAUX ---
     else if (this.level === 1) {
       // Niv 1 -> 2 (Standard)
-      nextDmg = Math.round(nextDmg * 1.5);
-      nextRate = Math.round(nextRate / 1.2); // Tir plus vite
-      nextRange = Math.round(nextRange * 1.2);
+      // Si pas de stats par niveau, utiliser le calcul standard
+      if (!this.config.getStatsForChapter || !this.config.getStatsForChapter(this.chapterId)?.damage) {
+        nextDmg = Math.round(nextDmg * 1.5);
+        nextRate = Math.round(nextRate / 1.2); // Tir plus vite
+        nextRange = Math.round(nextRange * 1.2);
+      }
       if (nextAoE > 0) nextAoE = Math.round(nextAoE * 1.1);
       cost = Math.floor(baseCost * 2.5);
     } else if (this.level === 2) {
       // Niv 2 -> 3 (Standard pour les tourelles classiques)
-      nextDmg = Math.round(nextDmg * 1.3);
-      nextRate = Math.round(nextRate / 1.5); // Tir beaucoup plus vite
-      nextRange = Math.round(nextRange * 1.1);
+      // Si pas de stats par niveau, utiliser le calcul standard
+      if (!this.config.getStatsForChapter || !this.config.getStatsForChapter(this.chapterId)?.damage) {
+        nextDmg = Math.round(nextDmg * 1.3);
+        nextRate = Math.round(nextRate / 1.5); // Tir beaucoup plus vite
+        nextRange = Math.round(nextRange * 1.1);
+      }
       if (nextAoE > 0) nextAoE = Math.round(nextAoE * 1.2);
       cost = Math.floor(baseCost * 2.5 * 2.2);
+    } else if (this.level === 3) {
+      // Niv 3 -> 4 (Chapitre 2 uniquement)
+      // Si pas de stats par niveau, pas de niveau 4
+      if (!this.config.getStatsForChapter || !this.config.getStatsForChapter(this.chapterId)?.damage) {
+        // Pas de niveau 4 pour les autres tourelles
+        return null;
+      }
+      // Coût légèrement augmenté (2.0x au lieu de 1.8x)
+      cost = Math.floor(baseCost * 2.5 * 2.2 * 2.0);
     }
 
     return {
