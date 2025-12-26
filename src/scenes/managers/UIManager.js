@@ -192,4 +192,83 @@ export class UIManager {
     // Si aucun bouton interactif n'a été touché, considérer que le clic n'est pas sur le menu
     return false;
   }
+
+  isPointerOnUpgradeMenu(pointer) {
+    if (!this.scene.upgradeMenu || !this.scene.upgradeMenu.visible) {
+      return false;
+    }
+    
+    // Vérifier si le clic est réellement sur un bouton interactif du menu
+    const px = pointer.worldX ?? pointer.x;
+    const py = pointer.worldY ?? pointer.y;
+    
+    // Parcourir tous les enfants du menu pour voir si le clic est sur un élément interactif
+    if (this.scene.upgradeMenu && this.scene.upgradeMenu.list) {
+      for (const child of this.scene.upgradeMenu.list) {
+        if (child && child.input && child.input.enabled) {
+          // Vérifier si le clic est sur cet élément interactif
+          if (child.input.hitArea) {
+            // Obtenir les coordonnées mondiales de l'enfant
+            let childWorldX, childWorldY;
+            if (child.getWorldTransformMatrix) {
+              const matrix = child.getWorldTransformMatrix();
+              childWorldX = matrix.tx;
+              childWorldY = matrix.ty;
+            } else {
+              // Calculer les coordonnées mondiales en ajoutant la position du parent
+              let menuWorldX, menuWorldY;
+              if (this.scene.upgradeMenu.getWorldTransformMatrix) {
+                const menuMatrix = this.scene.upgradeMenu.getWorldTransformMatrix();
+                menuWorldX = menuMatrix.tx;
+                menuWorldY = menuMatrix.ty;
+              } else {
+                menuWorldX = this.scene.upgradeMenu.x;
+                menuWorldY = this.scene.upgradeMenu.y;
+              }
+              childWorldX = menuWorldX + (child.x || 0);
+              childWorldY = menuWorldY + (child.y || 0);
+            }
+            
+            // Vérifier si le clic est dans la zone de hit de l'enfant
+            const hitRadius = 40 * (this.scene.scaleFactor || 1);
+            const dist = Math.sqrt(
+              Math.pow(px - childWorldX, 2) + Math.pow(py - childWorldY, 2)
+            );
+            
+            if (dist <= hitRadius) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    
+    // Vérifier aussi si le clic est dans la zone rectangulaire du menu (pour les boutons texte)
+    if (this.scene.upgradeMenu) {
+      let menuWorldX, menuWorldY;
+      if (this.scene.upgradeMenu.getWorldTransformMatrix) {
+        const menuMatrix = this.scene.upgradeMenu.getWorldTransformMatrix();
+        menuWorldX = menuMatrix.tx;
+        menuWorldY = menuMatrix.ty;
+      } else {
+        menuWorldX = this.scene.upgradeMenu.x;
+        menuWorldY = this.scene.upgradeMenu.y;
+      }
+      
+      // Vérifier si le clic est dans la zone du menu (approximation rectangulaire)
+      const menuWidth = 320 * (this.scene.scaleFactor || 1);
+      const menuHeight = 220 * (this.scene.scaleFactor || 1);
+      
+      if (
+        px >= menuWorldX &&
+        px <= menuWorldX + menuWidth &&
+        py >= menuWorldY &&
+        py <= menuWorldY + menuHeight
+      ) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
 }

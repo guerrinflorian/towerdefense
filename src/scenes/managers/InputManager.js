@@ -18,6 +18,7 @@ export class InputManager {
     this.ignoreFirstPointerUp = false;
     this.pointerDownOnBuildMenu = false;
     this.justBuiltFromMenu = false; // Flag pour ignorer le clic après construction depuis le menu
+    this.justUpgradedFromMenu = false; // Flag pour ignorer le clic après amélioration depuis le menu
   }
 
   setUIManager(uiManager) {
@@ -334,7 +335,7 @@ export class InputManager {
 
     const tileType = this.scene.levelConfig.map[ty][tx];
 
-    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12 && tileType !== 16) {
+    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12 && tileType !== 16 && tileType !== 18) {
       return;
     }
 
@@ -354,6 +355,13 @@ export class InputManager {
       return;
     }
 
+    // Ignorer le clic si on vient juste d'améliorer depuis le menu
+    // (le menu se ferme et le pointerup suivant déclencherait un déplacement)
+    if (this.justUpgradedFromMenu) {
+      this.justUpgradedFromMenu = false; // Réinitialiser le flag
+      return;
+    }
+
     // Ignorer les clics qui arrivent juste après le démarrage de la scène
     // pour éviter que le clic sur l'île dans MapScene déclenche un déplacement du héros
     if (this.scene.time.now < this.ignoreInputUntil) {
@@ -367,6 +375,11 @@ export class InputManager {
 
     // Ne pas déplacer le héros si on clique sur le menu de construction
     if (this.uiManager && this.uiManager.isPointerOnBuildMenu(pointer)) {
+      return;
+    }
+
+    // Ne pas déplacer le héros si on clique sur le menu d'amélioration
+    if (this.uiManager && this.uiManager.isPointerOnUpgradeMenu(pointer)) {
       return;
     }
 
@@ -385,6 +398,50 @@ export class InputManager {
     const ty = Math.floor((pointer.worldY - this.scene.mapStartY) / T);
 
     if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) return;
+
+    // Vérifier si on clique sur une tour maudite pour la réparer (clic gauche)
+    let clickedTurret = null;
+    for (const t of this.scene.turrets) {
+      const turretTx = Math.floor((t.x - this.scene.mapStartX) / T);
+      const turretTy = Math.floor((t.y - this.scene.mapStartY) / T);
+      if (turretTx === tx && turretTy === ty) {
+        clickedTurret = t;
+        break;
+      }
+    }
+    if (!clickedTurret) {
+      for (const b of this.scene.barracks) {
+        const barracksTx = Math.floor((b.x - this.scene.mapStartX) / T);
+        const barracksTy = Math.floor((b.y - this.scene.mapStartY) / T);
+        if (barracksTx === tx && barracksTy === ty) {
+          clickedTurret = b;
+          break;
+        }
+      }
+    }
+
+    if (clickedTurret && clickedTurret.isCursed) {
+      const removed = clickedTurret.removeCurse(true);
+      if (removed) {
+        const txt = this.scene.add
+          .text(clickedTurret.x, clickedTurret.y - 50, "Réparée !", {
+            fontSize: "16px",
+            color: "#ffddaa",
+            backgroundColor: "rgba(0,0,0,0.7)",
+            padding: { x: 6, y: 3 },
+          })
+          .setOrigin(0.5)
+          .setDepth(2400);
+        this.scene.tweens.add({
+          targets: txt,
+          y: txt.y - 25,
+          alpha: 0,
+          duration: 700,
+          onComplete: () => txt.destroy(),
+        });
+      }
+      return;
+    }
 
     const tileType = this.scene.levelConfig.map[ty][tx];
 
@@ -457,6 +514,6 @@ export class InputManager {
   }
 
   isPathTile(tileType) {
-    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14;
+    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14 || tileType === 19;
   }
 }

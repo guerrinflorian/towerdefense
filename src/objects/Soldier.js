@@ -326,10 +326,10 @@ export class Soldier extends Phaser.GameObjects.Container {
     // Vérifier les limites
     if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) return false;
     
-    // Vérifier le type de tile (1 = chemin, 4 = pont, 7 = neige, 13 = cimetière, 14 = lave)
+    // Vérifier le type de tile (1 = chemin, 4 = pont, 7 = neige, 13 = cimetière, 14 = lave, 19 = chemin rose)
     const map = this.scene.levelConfig.map;
     const tileType = map[ty][tx];
-    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14;
+    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14 || tileType === 19;
   }
   
   // Trouver la position sur le chemin le plus proche
@@ -415,6 +415,7 @@ export class Soldier extends Phaser.GameObjects.Container {
   blockEnemy(enemy) {
     if (!this.isAlive || this.blockingEnemy !== null) return false;
     if (enemy.isBlocked) return false; // L'ennemi est déjà bloqué par un autre soldat
+    if (enemy.isInvulnerable) return false; // Ne pas bloquer les ennemis invulnérables
     
     this.blockingEnemy = enemy;
     enemy.isBlocked = true;
@@ -792,8 +793,8 @@ export class Soldier extends Phaser.GameObjects.Container {
     if (!this.blockingEnemy) {
       const enemies = this.scene.enemies.getChildren();
       for (const enemy of enemies) {
-        // Ne pas bloquer les ennemis à distance (throwers)
-        if (enemy.active && !enemy.isBlocked && !enemy.isRanged) {
+        // Ne pas bloquer les ennemis à distance (throwers) ou invulnérables
+        if (enemy.active && !enemy.isBlocked && !enemy.isRanged && !enemy.isInvulnerable) {
           const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
           if (dist < 30) { // Range de blocage
             this.blockEnemy(enemy);
@@ -801,6 +802,11 @@ export class Soldier extends Phaser.GameObjects.Container {
           }
         }
       }
+    }
+    
+    // Si l'ennemi bloqué devient invulnérable, le libérer
+    if (this.blockingEnemy && this.blockingEnemy.isInvulnerable) {
+      this.releaseEnemy();
     }
     
     // Gérer la régénération de PV

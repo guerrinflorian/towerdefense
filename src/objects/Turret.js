@@ -420,7 +420,7 @@ export class Turret extends Phaser.GameObjects.Container {
 
     // Note: Distance.Between est en pixels Monde, indépendant du scale du container
     enemies.children.each((e) => {
-      if (e.active) {
+      if (e.active && !e.isInvulnerable) { // Ignorer les ennemis invulnérables
         const d = Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y);
         if (d <= this.rangePixels && d < minDist) {
           minDist = d;

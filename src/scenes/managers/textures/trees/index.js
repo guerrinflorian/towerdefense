@@ -2,6 +2,7 @@ import { drawCimetiereTree } from "./biomes/cimetiere.js";
 import { drawGrassTree } from "./biomes/grass.js";
 import { drawIceTree } from "./biomes/ice.js";
 import { drawLavaTree } from "./biomes/lava.js";
+import { drawRoseTree } from "./biomes/rose.js";
 import { drawSandTree } from "./biomes/sand.js";
 
 export const TREE_DRAWERS = {
@@ -11,6 +12,7 @@ export const TREE_DRAWERS = {
   cimetiere: drawCimetiereTree,
   lava: drawLavaTree,
   lavaland: drawLavaTree,
+  rose: drawRoseTree,
 };
 
 export function createTreeGraphics(scene, biome, scale) {

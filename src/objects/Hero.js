@@ -1,6 +1,6 @@
 import { CONFIG } from "../config/settings.js";
 
-const PATH_TYPES = [1, 4, 7, 13, 14];
+const PATH_TYPES = [1, 4, 7, 13, 14, 19];
 
 export class Hero extends Phaser.GameObjects.Container {
   constructor(scene, tileX, tileY, stats = {}) {
@@ -382,7 +382,8 @@ export class Hero extends Phaser.GameObjects.Container {
 
     // Gérer le combat si on a un ennemi bloqué
     if (this.blockingEnemy) {
-      if (!this.blockingEnemy.active || this.blockingEnemy.hp <= 0) {
+      if (!this.blockingEnemy.active || this.blockingEnemy.hp <= 0 || this.blockingEnemy.isInvulnerable) {
+        // Libérer si l'ennemi est mort, inactif ou invulnérable
         this.releaseEnemy();
       } else {
         // Vérifier la distance avec l'ennemi - si on s'est trop éloigné, le libérer
@@ -517,7 +518,7 @@ export class Hero extends Phaser.GameObjects.Container {
     let minDist = 32;
 
     for (const enemy of enemies) {
-      if (!enemy.active || enemy.isBlocked || enemy.isRanged) continue;
+      if (!enemy.active || enemy.isBlocked || enemy.isRanged || enemy.isInvulnerable) continue;
       const d = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
       if (d < minDist) {
         minDist = d;
@@ -529,6 +530,8 @@ export class Hero extends Phaser.GameObjects.Container {
   }
 
   blockEnemy(enemy) {
+    if (enemy.isInvulnerable) return; // Ne pas bloquer les ennemis invulnérables
+    
     this.blockingEnemy = enemy;
     enemy.isBlocked = true;
     enemy.blockedBy = this;
