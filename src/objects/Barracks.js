@@ -1,5 +1,18 @@
 import { TURRETS } from "../config/turrets/index.js";
 import { Soldier } from "./Soldier.js";
+import { LEVELS_CONFIG } from "../config/levels/index.js";
+
+// Fonction helper pour obtenir le chapitre depuis le levelID
+function getChapterIdFromScene(scene) {
+  if (scene?.levelID) {
+    const levelId = Number(scene.levelID);
+    const level = LEVELS_CONFIG.find((lvl) => lvl.id === levelId);
+    if (level) {
+      return level.chapterId || 1;
+    }
+  }
+  return 1; // Par défaut chapitre 1
+}
 
 export class Barracks extends Phaser.GameObjects.Container {
   constructor(scene, x, y, config) {
@@ -7,12 +20,24 @@ export class Barracks extends Phaser.GameObjects.Container {
     this.scene = scene;
 
     // Clone de la config
-    this.config = JSON.parse(
-      JSON.stringify(typeof config === "string" ? TURRETS[config] : config)
-    );
     const originalConfig =
       typeof config === "string" ? TURRETS[config] : config;
+    this.config = JSON.parse(
+      JSON.stringify(originalConfig)
+    );
+    // Restaurer les fonctions qui ne sont pas copiées par JSON
     this.config.onDrawBarrel = originalConfig.onDrawBarrel;
+    this.config.getStatsForChapter = originalConfig.getStatsForChapter;
+
+    // Détecter le chapitre et appliquer les bonnes stats
+    this.chapterId = getChapterIdFromScene(scene);
+    if (this.config.getStatsForChapter) {
+      const chapterStats = this.config.getStatsForChapter(this.chapterId);
+      this.config.maxLevel = chapterStats.maxLevel;
+      this.config.soldiersCount = chapterStats.soldiersCount;
+      this.config.respawnTime = chapterStats.respawnTime;
+      this.config.soldierHp = chapterStats.soldierHp;
+    }
 
     this.level = 1;
     this.soldiers = [];
@@ -72,6 +97,13 @@ export class Barracks extends Phaser.GameObjects.Container {
     if (this.level >= 3) {
       this.base.fillCircle(10, -18, 3);
     }
+    if (this.level >= 4) {
+      // Indicateur doré pour le niveau 4
+      this.base.fillStyle(0xffd700);
+      this.base.fillCircle(0, -20, 4);
+      this.base.lineStyle(1, 0xcc9900);
+      this.base.strokeCircle(0, -20, 4);
+    }
   }
 
   drawBarrel() {
@@ -96,6 +128,9 @@ export class Barracks extends Phaser.GameObjects.Container {
       cost = Math.floor(baseCost * 2.5);
     } else if (this.level === 2) {
       cost = Math.floor(baseCost * 2.5 * 2.2);
+    } else if (this.level === 3) {
+      // Coût niveau 4 réduit (au lieu de 2.5, on utilise 1.8)
+      cost = Math.floor(baseCost * 2.5 * 2.2 * 1.8);
     }
 
     return {
@@ -114,6 +149,9 @@ export class Barracks extends Phaser.GameObjects.Container {
     }
     if (this.level >= 3) {
       totalCost += Math.floor(baseCost * 2.5 * 2.2);
+    }
+    if (this.level >= 4) {
+      totalCost += Math.floor(baseCost * 2.5 * 2.2 * 1.8);
     }
 
     return totalCost;

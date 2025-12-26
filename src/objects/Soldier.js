@@ -213,7 +213,7 @@ export class Soldier extends Phaser.GameObjects.Container {
       g.strokeRect(-10, -9, 6, 11);
       g.strokeRect(4, -9, 6, 11);
       
-    } else {
+    } else if (level === 3) {
       // === NIVEAU 3 : Vétéran (Armure lourde) ===
       // Corps avec armure lourde
       g.fillStyle(0x2a2a2a); // Armure sombre
@@ -259,6 +259,98 @@ export class Soldier extends Phaser.GameObjects.Container {
       g.fillStyle(0x3a3a3a);
       g.fillCircle(-8, -10, 4);
       g.fillCircle(8, -10, 4);
+    } else {
+      // === NIVEAU 4 : Élite (Chapitre 2 uniquement) - Armure dorée et violette ===
+      const eliteGold = 0xffd700;
+      const elitePurple = 0x8b00ff;
+      const eliteSilver = 0xc0c0c0;
+      const darkElite = 0x1a1a2a;
+      
+      // Corps avec armure élite (dorée et violette)
+      g.fillStyle(darkElite);
+      g.fillRect(-10, -13, 20, 26);
+      g.lineStyle(3, eliteGold);
+      g.strokeRect(-10, -13, 20, 26);
+      
+      // Plaques d'armure dorées
+      g.fillStyle(eliteGold);
+      g.fillRect(-8, -11, 16, 5); // Plaque pectorale dorée
+      g.fillRect(-8, 9, 16, 5); // Plaque ventrale dorée
+      g.lineStyle(2, 0xcc9900);
+      g.strokeRect(-8, -11, 16, 5);
+      g.strokeRect(-8, 9, 16, 5);
+      
+      // Motifs violets sur l'armure
+      g.fillStyle(elitePurple, 0.5);
+      g.fillRect(-6, -9, 12, 3);
+      g.fillRect(-6, 11, 12, 3);
+      
+      // Tête
+      g.fillStyle(0xffdbac);
+      g.fillCircle(0, -19, 7);
+      
+      // Casque élite doré avec crête
+      g.fillStyle(darkElite);
+      g.fillRect(-11, -21, 22, 9);
+      g.lineStyle(3, eliteGold);
+      g.strokeRect(-11, -21, 22, 9);
+      
+      // Crête dorée sur le casque
+      g.fillStyle(eliteGold);
+      g.fillRect(-3, -23, 6, 4);
+      g.lineStyle(2, 0xcc9900);
+      g.strokeRect(-3, -23, 6, 4);
+      
+      // Visière avec effet magique
+      g.fillStyle(elitePurple, 0.7);
+      g.fillRect(-9, -19, 18, 3);
+      g.lineStyle(1, eliteGold);
+      g.strokeRect(-9, -19, 18, 3);
+      
+      // Arme élite (épée dorée avec effet magique)
+      g.fillStyle(eliteGold);
+      g.fillRect(10, -9, 5, 18);
+      g.lineStyle(2, 0xcc9900);
+      g.strokeRect(10, -9, 5, 18);
+      
+      // Lame brillante
+      g.fillStyle(0xffffff);
+      g.fillRect(10, -9, 5, 9);
+      
+      // Garde élite en croix
+      g.fillStyle(elitePurple);
+      g.fillRect(8, -7, 9, 3);
+      g.fillStyle(eliteGold);
+      g.fillRect(10, -9, 5, 7);
+      g.lineStyle(2, 0xcc9900);
+      g.strokeRect(8, -7, 9, 3);
+      
+      // Pommeau doré
+      g.fillStyle(eliteGold);
+      g.fillCircle(12.5, 10, 3);
+      g.lineStyle(2, 0xcc9900);
+      g.strokeCircle(12.5, 10, 3);
+      
+      // Bras avec armure élite complète
+      g.fillStyle(darkElite);
+      g.fillRect(-12, -11, 8, 13);
+      g.fillRect(4, -11, 8, 13);
+      g.lineStyle(3, eliteGold);
+      g.strokeRect(-12, -11, 8, 13);
+      g.strokeRect(4, -11, 8, 13);
+      
+      // Épaulières élites dorées avec ornements
+      g.fillStyle(eliteGold);
+      g.fillCircle(-9, -11, 5);
+      g.fillCircle(9, -11, 5);
+      g.lineStyle(2, 0xcc9900);
+      g.strokeCircle(-9, -11, 5);
+      g.strokeCircle(9, -11, 5);
+      
+      // Ornements violets sur les épaulières
+      g.fillStyle(elitePurple, 0.6);
+      g.fillCircle(-9, -11, 3);
+      g.fillCircle(9, -11, 3);
     }
     
     this.bodyGroup.add(g);
