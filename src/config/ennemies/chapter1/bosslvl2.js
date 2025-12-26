@@ -3,7 +3,7 @@ export const bosslvl2 = {
     speed: 9,
     hp: 83000,
     reward: 0,
-    playerDamage: 30,
+    playerDamage: 20,
     color: 0xead2a8, // Couleur sable clair de base
     damage: 250,
     attackSpeed: 1500,

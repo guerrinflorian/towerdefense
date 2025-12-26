@@ -639,7 +639,7 @@ export class GameScene extends Phaser.Scene {
 
   findHeroSpawnTile() {
     const map = this.levelConfig.map || [];
-    const pathTypes = [1, 4, 7, 13];
+    const pathTypes = [1, 4, 7, 13, 19];
     let baseTile = null;
     for (let y = 0; y < map.length; y++) {
       for (let x = 0; x < map[y].length; x++) {
@@ -703,6 +703,10 @@ export class GameScene extends Phaser.Scene {
       this.selectedTurret.upgrade();
 
       this.upgradeMenu.setVisible(false);
+      // Activer le flag pour ignorer le prochain clic (qui serait le pointerup du clic sur le bouton)
+      if (this.inputManager) {
+        this.inputManager.justUpgradedFromMenu = true;
+      }
       this.selectedTurret = null;
     } else {
       this.cameras.main.shake(50, 0.005);
@@ -711,10 +715,10 @@ export class GameScene extends Phaser.Scene {
 
   buildTurret(turretConfig, tileX, tileY) {
     // --- CORRECTION ICI ---
-    // Vérification stricte du terrain : Types autorisés : herbe (0), neige (6), sable (10), cimetière (12), roche volcanique (16)
+    // Vérification stricte du terrain : Types autorisés : herbe (0), neige (6), sable (10), cimetière (12), roche volcanique (16), sol rose (18)
     // Note: type 11 (rochers sable) et type 5 (rochers) ne sont pas constructibles car ce sont des décors
     const tileType = this.levelConfig.map[tileY][tileX];
-    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12 && tileType !== 16) {
+    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12 && tileType !== 16 && tileType !== 18) {
       this.cameras.main.shake(50, 0.005);
       return false;
     }

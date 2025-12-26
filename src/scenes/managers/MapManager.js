@@ -56,6 +56,10 @@ export class MapManager {
         if (type === 16) key = "tile_volcanic_ground"; // Sol Roche Cramée (constructible)
         if (type === 17) key = "tile_flowing_lava"; // Lave qui Coule
 
+        // --- BIOME ROSE (18-19) ---
+        if (type === 18) key = "tile_rose_ground"; // Sol Rose (constructible)
+        if (type === 19) key = "tile_rose_path"; // Chemin Rose Quartz Royale
+
         const tile = this.scene.add
           .image(px, py, key)
           .setOrigin(0, 0)
@@ -70,7 +74,8 @@ export class MapManager {
           (biome === "sand" && (type === 0 || type === 10)) || // Herbe ou sable pour biome sand
           (biome === "ice" && type === 6) || // Neige pour biome ice
           (biome === "cimetiere" && type === 12) || // Sol cimetière pour biome cimetiere
-          (biome === "lava" && type === 16); // Sol roche cramée pour biome lava
+          (biome === "lava" && type === 16) || // Sol roche cramée pour biome lava
+          (biome === "rose" && type === 18); // Sol rose pour biome rose
 
         if (shouldPlaceTree) {
           const canPlaceBarracks = this.isAdjacentToPath(x, y);
@@ -309,8 +314,8 @@ export class MapManager {
 
   isAdjacentToPath(tx, ty) {
     const map = this.scene.levelConfig.map;
-    // On considère 1 et 4 (Volcan), 7 (Neige), 13 (Cimetière), et 14 (Lave) comme des chemins
-    const pathTypes = [1, 4, 7, 13, 14];
+    // On considère 1 et 4 (Volcan), 7 (Neige), 13 (Cimetière), 14 (Lave), et 19 (Rose) comme des chemins
+    const pathTypes = [1, 4, 7, 13, 14, 19];
     const directions = [
       { x: 0, y: -1 },
       { x: 0, y: 1 },

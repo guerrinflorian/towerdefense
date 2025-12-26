@@ -3,7 +3,7 @@ export const bosslvl4 = {
   speed: 11,
   hp: 142000,
   reward: 0,
-  playerDamage: 30,
+  playerDamage: 20,
   color: 0xb7c0c6, // os/acier froid
   damage: 650,
   attackSpeed: 1700,

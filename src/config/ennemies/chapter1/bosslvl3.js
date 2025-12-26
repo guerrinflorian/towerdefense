@@ -3,7 +3,7 @@ export const bosslvl3 = {
   speed: 10,
   hp: 108000,
   reward: 0,
-  playerDamage: 25,
+  playerDamage: 20,
   color: 0xffffff,
   damage: 307,
   attackSpeed: 1800,
