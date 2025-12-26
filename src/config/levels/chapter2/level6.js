@@ -1,7 +1,7 @@
 export const LEVEL_6 = {
   name: "Roselume de valeria",
   biome: "rose",
-  startingMoney: 1100,
+  startingMoney: 1250,
   // TYPES DE TEXTURES (0-18) :
   // 0 = Herbe (sol constructible)
   // 1 = Chemin (passage des ennemis)
@@ -160,7 +160,7 @@ export const LEVEL_6 = {
       { count: 35, type: "pink_marshmallow_runner", interval: 250, startDelay: 6000 },
       { count: 6, type: "pink_healer", interval: 2400, startDelay: 10000 },
       { count: 10, type: "pink_bear_tank", interval: 2200, startDelay: 15000 },
-      { count: 1, type: "bosslvl6", interval: 10000, startDelay: 25000 },
+      { count: 1, type: "bosslvl6", interval: 10000, startDelay: 27000 },
     ],
   ],
 };
