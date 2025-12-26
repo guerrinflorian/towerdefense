@@ -9,6 +9,8 @@ import { tileIceWater } from "./tileIceWater.js";
 import { tileLavaPath } from "./tileLavaPath.js";
 import { tileMountain } from "./tileMountain.js";
 import { tilePath } from "./tilePath.js";
+import { tileRoseGround } from "./tileRoseGround.js";
+import { tileRosePath } from "./tileRosePath.js";
 import { tileSand } from "./tileSand.js";
 import { tileSandRock } from "./tileSandRock.js";
 import { tileSnow1 } from "./tileSnow1.js";
@@ -36,4 +38,6 @@ export const TILE_TEXTURES = [
   tileVolcanicCrevasse,
   tileVolcanicGround,
   tileFlowingLava,
+  tileRoseGround,
+  tileRosePath,
 ];
