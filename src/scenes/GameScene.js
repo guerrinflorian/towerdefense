@@ -546,10 +546,13 @@ export class GameScene extends Phaser.Scene {
     const killsToReport = this.heroKillCount || 0;
     this.heroKillCount = 0;
 
+    const heroId = this.heroStats?.heroId || this.heroStats?.hero_id || null;
     // Toujours créer une nouvelle promesse pour forcer l'envoi
-    this.heroKillReportPromise = recordHeroKill(killsToReport).catch((err) => {
-      return null;
-    });
+    this.heroKillReportPromise = recordHeroKill(killsToReport, heroId).catch(
+      (err) => {
+        return null;
+      }
+    );
     return this.heroKillReportPromise;
   }
 

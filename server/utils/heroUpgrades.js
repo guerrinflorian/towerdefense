@@ -1,16 +1,15 @@
 import { pool, query } from "../db.js";
+import {
+  computeFinalHeroStats,
+  fetchHeroById,
+  fetchPlayerHero,
+  createPlayerHero,
+} from "./heroes.js";
 
 const DEFAULT_CONVERSION = {
   hp_per_point: 1,
   damage_per_point: 0.2,
   move_speed_per_point: 0.75,
-};
-
-// Limites maximales des stats
-const MAX_STATS = {
-  max_hp: 2500,
-  base_damage: 450,
-  move_speed: 200,
 };
 
 export async function getHeroPointConversion(client = null) {
@@ -22,189 +21,128 @@ export async function getHeroPointConversion(client = null) {
   return conversionRes.rows[0] || { ...DEFAULT_CONVERSION };
 }
 
-export async function upgradeHeroStats(playerId, { stat, points }) {
-  const cleanPoints = Number(points || 0);
-  if (!Number.isInteger(cleanPoints) || cleanPoints <= 0) {
-    const error = new Error("INVALID_POINTS");
-    error.code = "INVALID_POINTS";
-    throw error;
-  }
+const ALLOWED_STATS = ["hp", "damage", "move_speed"];
+const STAT_TO_COLUMN = {
+  hp: "bonus_hp",
+  damage: "bonus_damage",
+  move_speed: "bonus_move_speed",
+};
+const STAT_TO_CAP = {
+  hp: "max_hp",
+  damage: "max_damage",
+  move_speed: "max_move_speed",
+};
+const STAT_PER_POINT = {
+  hp: "hp_per_point",
+  damage: "damage_per_point",
+  move_speed: "move_speed_per_point",
+};
 
-  const statKey = String(stat || "").toLowerCase();
-  const allowedStats = ["hp", "damage", "move_speed"];
-  if (!allowedStats.includes(statKey)) {
-    const error = new Error("INVALID_STAT");
-    error.code = "INVALID_STAT";
-    throw error;
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-
-    const conversion = await getHeroPointConversion(client);
-
-    const playerRes = await client.query(
-      "SELECT hero_points_available FROM players WHERE id = $1 FOR UPDATE",
-      [playerId]
-    );
-
-    if (playerRes.rows.length === 0) {
-      const error = new Error("PLAYER_NOT_FOUND");
-      error.code = "PLAYER_NOT_FOUND";
-      throw error;
-    }
-
-    const available = Number(playerRes.rows[0].hero_points_available || 0);
-    if (available < cleanPoints) {
-      const error = new Error("NOT_ENOUGH_POINTS");
-      error.code = "NOT_ENOUGH_POINTS";
-      throw error;
-    }
-
-    // Récupérer les stats actuelles pour vérifier les limites
-    const currentStatsRes = await client.query(
-      "SELECT max_hp, base_damage, move_speed FROM hero_stats WHERE player_id = $1",
-      [playerId]
-    );
-    
-    if (currentStatsRes.rows.length === 0) {
-      const error = new Error("HERO_STATS_NOT_FOUND");
-      error.code = "HERO_STATS_NOT_FOUND";
-      throw error;
-    }
-
-    const currentStats = currentStatsRes.rows[0];
-    const currentHp = Number(currentStats.max_hp || 0);
-    const currentDamage = parseFloat(currentStats.base_damage || 0);
-    const currentSpeed = Number(currentStats.move_speed || 0);
-
-    // Convertir les valeurs de conversion en nombres (elles peuvent être des strings depuis la DB)
-    const hpPerPoint = parseFloat(conversion.hp_per_point) || 0;
-    const damagePerPoint = parseFloat(conversion.damage_per_point) || 0;
-    const speedPerPoint = parseFloat(conversion.move_speed_per_point) || 0;
-
-    // Calculer les deltas avec limitation aux maximums
-    let deltaHp = 0;
-    let deltaDamage = 0;
-    let deltaSpeed = 0;
-    
-    if (statKey === "hp") {
-      const potentialHp = currentHp + Math.round(hpPerPoint * cleanPoints);
-      const maxHp = MAX_STATS.max_hp;
-      deltaHp = Math.min(Math.round(hpPerPoint * cleanPoints), maxHp - currentHp);
-      if (deltaHp <= 0) {
-        const error = new Error("STAT_MAX_REACHED");
-        error.code = "STAT_MAX_REACHED";
-        error.message = `HP maximum atteint (${maxHp})`;
-        throw error;
-      }
-    } else if (statKey === "damage") {
-      const potentialDamage = currentDamage + parseFloat((damagePerPoint * cleanPoints).toFixed(2));
-      const maxDamage = MAX_STATS.base_damage;
-      deltaDamage = Math.min(parseFloat((damagePerPoint * cleanPoints).toFixed(2)), maxDamage - currentDamage);
-      if (deltaDamage <= 0) {
-        const error = new Error("STAT_MAX_REACHED");
-        error.code = "STAT_MAX_REACHED";
-        error.message = `Dégâts maximum atteint (${maxDamage})`;
-        throw error;
-      }
-    } else if (statKey === "move_speed") {
-      const potentialSpeed = currentSpeed + Math.round(speedPerPoint * cleanPoints);
-      const maxSpeed = MAX_STATS.move_speed;
-      deltaSpeed = Math.min(Math.round(speedPerPoint * cleanPoints), maxSpeed - currentSpeed);
-      if (deltaSpeed <= 0) {
-        const error = new Error("STAT_MAX_REACHED");
-        error.code = "STAT_MAX_REACHED";
-        error.message = `Agilité maximum atteinte (${maxSpeed})`;
-        throw error;
-      }
-    }
-
-    const heroRes = await client.query(
-      `UPDATE hero_stats
-       SET max_hp = max_hp + $1,
-           base_damage = (base_damage + $2)::NUMERIC(10,2),
-           move_speed = move_speed + $3,
-           upgrade_points_spent = upgrade_points_spent + $4
-       WHERE player_id = $5
-       RETURNING *`,
-      [deltaHp, deltaDamage, deltaSpeed, cleanPoints, playerId]
-    );
-
-    const pointsRes = await client.query(
-      `UPDATE players
-       SET hero_points_available = hero_points_available - $1
-       WHERE id = $2
-       RETURNING hero_points_available`,
-      [cleanPoints, playerId]
-    );
-
-    await client.query("COMMIT");
-
-    return {
-      heroStats: heroRes.rows[0],
-      heroPointsAvailable: pointsRes.rows[0].hero_points_available,
-      heroPointConversion: conversion,
-    };
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
-  }
+function normalizeNumber(value) {
+  return value === null || value === undefined ? 0 : Number(value);
 }
 
-// Fonction batch pour traiter plusieurs améliorations en une seule transaction
-export async function upgradeHeroStatsBatch(playerId, upgrades) {
-  // Valider le format des upgrades
+function validateUpgrades(upgrades) {
   if (!Array.isArray(upgrades) || upgrades.length === 0) {
     const error = new Error("INVALID_UPGRADES");
     error.code = "INVALID_UPGRADES";
     throw error;
   }
 
-  // Valider chaque upgrade
-  const allowedStats = ["hp", "damage", "move_speed"];
   for (const upgrade of upgrades) {
-    const { stat, points } = upgrade || {};
-    const cleanPoints = Number(points || 0);
-    const statKey = String(stat || "").toLowerCase();
-    
+    const cleanPoints = Number(upgrade?.points || 0);
+    const statKey = String(upgrade?.stat || "").toLowerCase();
+
     if (!Number.isInteger(cleanPoints) || cleanPoints <= 0) {
       const error = new Error("INVALID_POINTS");
       error.code = "INVALID_POINTS";
       throw error;
     }
-    
-    if (!allowedStats.includes(statKey)) {
+
+    if (!ALLOWED_STATS.includes(statKey)) {
       const error = new Error("INVALID_STAT");
       error.code = "INVALID_STAT";
       throw error;
     }
   }
+}
 
-  // Accumuler les points par stat
+function buildUpgradePlan(hero, playerHero, conversion, upgrades) {
   const statsMap = new Map();
-  let totalPoints = 0;
-  
   for (const upgrade of upgrades) {
-    const { stat, points } = upgrade;
-    const statKey = String(stat).toLowerCase();
-    const cleanPoints = Number(points);
-    
-    const current = statsMap.get(statKey) || 0;
-    statsMap.set(statKey, current + cleanPoints);
-    totalPoints += cleanPoints;
+    const key = String(upgrade.stat).toLowerCase();
+    const current = statsMap.get(key) || 0;
+    statsMap.set(key, current + Number(upgrade.points));
   }
+
+  const deltas = {
+    bonus_hp: 0,
+    bonus_damage: 0,
+    bonus_move_speed: 0,
+  };
+
+  let pointsToSpend = 0;
+
+  for (const [statKey, requestedPoints] of statsMap.entries()) {
+    const perPoint = parseFloat(conversion[STAT_PER_POINT[statKey]] || 0);
+    if (perPoint <= 0) continue;
+
+    const column = STAT_TO_COLUMN[statKey];
+    const capKey = STAT_TO_CAP[statKey];
+
+    const baseValue =
+      statKey === "hp"
+        ? normalizeNumber(hero.base_hp)
+        : statKey === "damage"
+        ? normalizeNumber(hero.base_damage)
+        : normalizeNumber(hero.base_move_speed);
+
+    const currentBonus = normalizeNumber(playerHero[column]);
+    const capValue =
+      hero[capKey] === null || hero[capKey] === undefined
+        ? null
+        : Number(hero[capKey]);
+
+    const currentTotal = baseValue + currentBonus;
+    const desiredDelta = perPoint * requestedPoints;
+    const allowedDelta =
+      capValue === null ? desiredDelta : Math.min(desiredDelta, capValue - currentTotal);
+
+    if (allowedDelta <= 0) continue;
+
+    deltas[column] +=
+      statKey === "damage" ? parseFloat(allowedDelta.toFixed(2)) : Math.round(allowedDelta);
+
+    const appliedPoints = Math.min(
+      requestedPoints,
+      Math.ceil(allowedDelta / perPoint)
+    );
+    pointsToSpend += appliedPoints;
+  }
+
+  return { deltas, pointsToSpend };
+}
+
+export async function upgradeHeroStats(playerId, heroId, { stat, points }) {
+  const cleanStat = String(stat || "").toLowerCase();
+  return upgradeHeroStatsBatch(playerId, heroId, [{ stat: cleanStat, points }]);
+}
+
+export async function upgradeHeroStatsBatch(playerId, heroId, upgrades) {
+  validateUpgrades(upgrades);
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    const conversion = await getHeroPointConversion(client);
+    const hero = await fetchHeroById(client, heroId, { forUpdate: true });
+    if (!hero) {
+      const error = new Error("HERO_NOT_FOUND");
+      error.code = "HERO_NOT_FOUND";
+      throw error;
+    }
 
-    // Vérifier les points disponibles
+    const conversion = await getHeroPointConversion(client);
     const playerRes = await client.query(
       "SELECT hero_points_available FROM players WHERE id = $1 FOR UPDATE",
       [playerId]
@@ -217,82 +155,74 @@ export async function upgradeHeroStatsBatch(playerId, upgrades) {
     }
 
     const available = Number(playerRes.rows[0].hero_points_available || 0);
-    if (available < totalPoints) {
+    let playerHero = await fetchPlayerHero(client, playerId, heroId, {
+      forUpdate: true,
+    });
+    if (!playerHero) {
+      const cost = Number(hero.hero_points_to_unlock || 0);
+      if (cost > 0) {
+        const error = new Error("HERO_LOCKED");
+        error.code = "HERO_LOCKED";
+        throw error;
+      }
+      playerHero = await createPlayerHero(client, playerId, heroId);
+    }
+
+    const { deltas, pointsToSpend } = buildUpgradePlan(
+      hero,
+      playerHero,
+      conversion,
+      upgrades
+    );
+
+    if (pointsToSpend <= 0) {
+      const error = new Error("STAT_MAX_REACHED");
+      error.code = "STAT_MAX_REACHED";
+      error.message = "Aucune amélioration supplémentaire possible pour ce héros";
+      throw error;
+    }
+
+    if (available < pointsToSpend) {
       const error = new Error("NOT_ENOUGH_POINTS");
       error.code = "NOT_ENOUGH_POINTS";
       throw error;
     }
 
-    // Récupérer les stats actuelles pour vérifier les limites
-    const currentStatsRes = await client.query(
-      "SELECT max_hp, base_damage, move_speed FROM hero_stats WHERE player_id = $1",
-      [playerId]
-    );
-    
-    if (currentStatsRes.rows.length === 0) {
-      const error = new Error("HERO_STATS_NOT_FOUND");
-      error.code = "HERO_STATS_NOT_FOUND";
-      throw error;
-    }
-
-    const currentStats = currentStatsRes.rows[0];
-    const currentHp = Number(currentStats.max_hp || 0);
-    const currentDamage = parseFloat(currentStats.base_damage || 0);
-    const currentSpeed = Number(currentStats.move_speed || 0);
-
-    // Convertir les valeurs de conversion en nombres
-    const hpPerPoint = parseFloat(conversion.hp_per_point) || 0;
-    const damagePerPoint = parseFloat(conversion.damage_per_point) || 0;
-    const speedPerPoint = parseFloat(conversion.move_speed_per_point) || 0;
-
-    // Calculer les deltas totaux avec limitation aux maximums
-    const totalHpPoints = statsMap.get("hp") || 0;
-    const totalDamagePoints = statsMap.get("damage") || 0;
-    const totalSpeedPoints = statsMap.get("move_speed") || 0;
-
-    const potentialHp = currentHp + Math.round(hpPerPoint * totalHpPoints);
-    const potentialDamage = currentDamage + parseFloat((damagePerPoint * totalDamagePoints).toFixed(2));
-    const potentialSpeed = currentSpeed + Math.round(speedPerPoint * totalSpeedPoints);
-
-    const deltaHp = Math.min(Math.round(hpPerPoint * totalHpPoints), MAX_STATS.max_hp - currentHp);
-    const deltaDamage = Math.min(parseFloat((damagePerPoint * totalDamagePoints).toFixed(2)), MAX_STATS.base_damage - currentDamage);
-    const deltaSpeed = Math.min(Math.round(speedPerPoint * totalSpeedPoints), MAX_STATS.move_speed - currentSpeed);
-
-    // Vérifier qu'au moins une amélioration peut être appliquée
-    if (deltaHp <= 0 && deltaDamage <= 0 && deltaSpeed <= 0) {
-      const error = new Error("STAT_MAX_REACHED");
-      error.code = "STAT_MAX_REACHED";
-      error.message = "Toutes les stats ont atteint leur maximum";
-      throw error;
-    }
-
-    // Appliquer toutes les améliorations en une seule requête
-    const heroRes = await client.query(
-      `UPDATE hero_stats
-       SET max_hp = max_hp + $1,
-           base_damage = (base_damage + $2)::NUMERIC(10,2),
-           move_speed = move_speed + $3,
+    const updatedHero = await client.query(
+      `UPDATE player_heroes
+       SET bonus_hp = bonus_hp + $1,
+           bonus_damage = bonus_damage + $2,
+           bonus_move_speed = bonus_move_speed + $3,
            upgrade_points_spent = upgrade_points_spent + $4
-       WHERE player_id = $5
-       RETURNING *`,
-      [deltaHp, deltaDamage, deltaSpeed, totalPoints, playerId]
+       WHERE player_id = $5 AND hero_id = $6
+       RETURNING player_id, hero_id, bonus_hp, bonus_damage, bonus_attack_interval_ms, bonus_move_speed, kills, upgrade_points_spent`,
+      [
+        deltas.bonus_hp,
+        deltas.bonus_damage,
+        deltas.bonus_move_speed,
+        pointsToSpend,
+        playerId,
+        heroId,
+      ]
     );
 
-    // Décrémenter les points disponibles
     const pointsRes = await client.query(
       `UPDATE players
        SET hero_points_available = hero_points_available - $1
        WHERE id = $2
        RETURNING hero_points_available`,
-      [totalPoints, playerId]
+      [pointsToSpend, playerId]
     );
 
     await client.query("COMMIT");
 
+    const finalStats = computeFinalHeroStats(hero, updatedHero.rows[0]);
+
     return {
-      heroStats: heroRes.rows[0],
+      playerHero: updatedHero.rows[0],
       heroPointsAvailable: pointsRes.rows[0].hero_points_available,
       heroPointConversion: conversion,
+      finalStats,
     };
   } catch (error) {
     await client.query("ROLLBACK");
