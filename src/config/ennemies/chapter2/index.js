@@ -6,6 +6,16 @@ import { pink_phase_ghost } from "./pink_phase_ghost.js";
 import { pink_slime } from "./pink_slime.js";
 import { pink_slime_small } from "./pink_slime_small.js";
 import { bosslvl6 } from "./bosslvl6.js";
+import { bosslvl7 } from "./bosslvl7.js";
+import { bosslvl8 } from "./bosslvl8.js";
+import { bosslvl8_1 } from "./bosslvl8_1.js";
+import { bosslvl8_2 } from "./bosslvl8_2.js";
+import { bosslvl8_3 } from "./bosslvl8_3.js";
+import { berserker } from "./berserker.js";
+import { vampire } from "./vampire.js";
+import { criard } from "./criard.js";
+import { stratege } from "./stratege.js";
+import { brouilleur } from "./brouilleur.js";
 
 export const CHAPTER2_ENEMIES = {
   pink_marshmallow_runner,
@@ -16,5 +26,15 @@ export const CHAPTER2_ENEMIES = {
   pink_slime,
   pink_slime_small,
   bosslvl6,
+  bosslvl7,
+  bosslvl8,
+  bosslvl8_1,
+  bosslvl8_2,
+  bosslvl8_3,
+  berserker,
+  vampire,
+  criard,
+  stratege,
+  brouilleur,
 };
 

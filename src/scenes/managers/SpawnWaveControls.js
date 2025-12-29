@@ -306,8 +306,19 @@ export class SpawnWaveControls {
 
     const s = this.scene.scaleFactor || 1;
     const rowHeight = 55 * s;
+    const bossMarginTop = 25 * s; // Marge supplémentaire pour les boss
     const width = 180 * s;
-    const height = summary.length * rowHeight + 15 * s;
+    
+    // Calculer la hauteur totale en tenant compte des marges des boss
+    let totalHeight = 15 * s; // Padding de base
+    summary.forEach((item) => {
+      const isBoss = item.type && item.type.toLowerCase().startsWith('boss');
+      totalHeight += rowHeight;
+      if (isBoss) {
+        totalHeight += bossMarginTop; // Ajouter la marge pour les boss
+      }
+    });
+    const height = totalHeight;
 
     let iconWorldX, iconWorldY;
     if (anchor.getWorldTransformMatrix) {
@@ -344,8 +355,17 @@ export class SpawnWaveControls {
     bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 10);
     this.tooltip.add(bg);
 
+    // Positionner les éléments avec des marges pour les boss
+    let currentY = -height / 2 + 15 * s / 2; // Commencer avec le padding de base
     summary.forEach((item, idx) => {
-      const y = -height / 2 + idx * rowHeight + rowHeight / 2;
+      const isBoss = item.type && item.type.toLowerCase().startsWith('boss');
+      
+      // Ajouter la marge supplémentaire pour les boss
+      if (isBoss) {
+        currentY += bossMarginTop;
+      }
+      
+      const y = currentY + rowHeight / 2;
 
       const preview = this.createEnemyPreview(item.type);
       preview.setPosition(-width / 2 + 35 * s, y);
@@ -359,6 +379,9 @@ export class SpawnWaveControls {
         .setOrigin(0, 0.5);
 
       this.tooltip.add([preview, txt]);
+      
+      // Avancer pour le prochain élément
+      currentY += rowHeight;
     });
   }
 

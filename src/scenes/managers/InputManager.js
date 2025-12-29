@@ -335,7 +335,7 @@ export class InputManager {
 
     const tileType = this.scene.levelConfig.map[ty][tx];
 
-    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12 && tileType !== 16 && tileType !== 18) {
+    if (tileType !== 0 && tileType !== 6 && tileType !== 24 && tileType !== 10 && tileType !== 12 && tileType !== 16 && tileType !== 18 && tileType !== 22) {
       return;
     }
 
@@ -514,6 +514,6 @@ export class InputManager {
   }
 
   isPathTile(tileType) {
-    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14 || tileType === 19;
+    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14 || tileType === 19 || tileType === 23;
   }
 }
