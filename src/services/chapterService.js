@@ -154,15 +154,25 @@ export function buildChapterViewModels(chapters = [], bestRunsMap = new Map()) {
   return chapterVMs;
 }
 
-export function buildLevelLocks(levels = [], chapterLocked = false, bestRunsMap = new Map()) {
+export function buildLevelLocks(levels = [], chapterLocked = false, bestRunsMap = new Map(), unlockedLevel = null) {
   const locks = new Map();
   let previousCleared = !chapterLocked;
+
+  // Si unlockedLevel n'est pas fourni, utiliser 1 par défaut (seul le niveau 1 est débloqué)
+  const maxUnlockedLevel = unlockedLevel !== null ? unlockedLevel : 1;
 
   levels.forEach((lvl, idx) => {
     const hasPrevious = idx > 0;
     const previousLevel = hasPrevious ? levels[idx - 1] : null;
     const previousWin = previousLevel ? Boolean(bestRunsMap.get(previousLevel.id)?.isWin !== false) : true;
-    const isUnlocked = previousCleared && previousWin;
+    
+    // Vérifier si le niveau est débloqué selon unlockedLevel
+    // Un niveau est débloqué si son ID est <= unlockedLevel
+    const isUnlockedByProgress = lvl.id <= maxUnlockedLevel;
+    
+    // Un niveau est débloqué si : le chapitre n'est pas verrouillé, le niveau précédent est complété, ET le niveau est <= unlockedLevel
+    const isUnlocked = previousCleared && previousWin && isUnlockedByProgress;
+    
     locks.set(lvl.id, { isLocked: !isUnlocked, bestRun: bestRunsMap.get(lvl.id) || null });
     previousCleared = previousCleared && previousWin;
   });
