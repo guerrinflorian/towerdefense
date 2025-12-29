@@ -1,5 +1,5 @@
 import { getLevelConfigById } from "../config/levels/index.js";
-import { getHeroStats, isAuthenticated } from "../services/authManager.js";
+import { getHeroStats, isAuthenticated, getUnlockedLevel } from "../services/authManager.js";
 import { showAuth } from "../services/authOverlay.js";
 import {
   fetchChaptersWithLevels,
@@ -144,10 +144,12 @@ export class MapScene extends Phaser.Scene {
       }
 
       if (this.currentChapter) {
+        const unlockedLevel = isAuthenticated() ? getUnlockedLevel() : 1;
         this.levelLocks = buildLevelLocks(
           this.currentChapter.levels,
           this.currentChapter.isLocked,
-          this.bestRunsByLevel
+          this.bestRunsByLevel,
+          unlockedLevel
         );
       }
 
@@ -830,10 +832,12 @@ export class MapScene extends Phaser.Scene {
       const entries = await fetchPlayerBestRuns();
       this.bestRunsByLevel = toBestRunMap(entries);
       if (this.currentChapter) {
+        const unlockedLevel = isAuthenticated() ? getUnlockedLevel() : 1;
         this.levelLocks = buildLevelLocks(
           this.currentChapter.levels,
           this.currentChapter.isLocked,
-          this.bestRunsByLevel
+          this.bestRunsByLevel,
+          unlockedLevel
         );
       }
       this.updateAllIslandStats();

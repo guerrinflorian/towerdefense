@@ -1,6 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { query } from "../db.js";
+import { query, pool } from "../db.js";
 import { buildPlayerProfile, recordLevelCompletion, ensureHeroStats } from "../utils/profile.js";
 import { upgradeHeroStats, upgradeHeroStatsBatch } from "../utils/heroUpgrades.js";
 import { HERO_BASE_STATS } from "../constants.js";
@@ -11,6 +11,7 @@ router.use(authMiddleware);
 
 router.get("/me", async (req, res) => {
   try {
+    // Récupérer automatiquement le héros sélectionné (is_selected = true)
     const profile = await buildPlayerProfile(req.user.id);
     if (!profile) {
       return res.status(404).json({ error: "Profil introuvable" });
@@ -109,24 +110,39 @@ router.get("/leaderboard/global", async (_req, res) => {
 
 router.get("/leaderboard/heroes", async (_req, res) => {
   try {
+    // Utiliser la nouvelle structure heroes/player_heroes
     const result = await query(
       `SELECT 
           p.username,
-          COALESCE(hs.max_hp, $1::INT) AS max_hp,
-          COALESCE(hs.base_damage, $2::NUMERIC) AS base_damage,
-          COALESCE(hs.move_speed, $3::INT) AS move_speed,
-          (COALESCE(hs.max_hp, $1::INT) + COALESCE(hs.base_damage, $2::NUMERIC) + COALESCE(hs.move_speed, $3::INT)) AS hero_score
+          COALESCE(
+            LEAST(h.base_hp + COALESCE(ph.bonus_hp, 0), h.max_hp),
+            h.base_hp + COALESCE(ph.bonus_hp, 0)
+          ) AS max_hp,
+          COALESCE(
+            LEAST(h.base_damage + COALESCE(ph.bonus_damage, 0), h.max_damage),
+            h.base_damage + COALESCE(ph.bonus_damage, 0)
+          ) AS base_damage,
+          COALESCE(
+            LEAST(h.base_move_speed + COALESCE(ph.bonus_move_speed, 0), h.max_move_speed),
+            h.base_move_speed + COALESCE(ph.bonus_move_speed, 0)
+          ) AS move_speed,
+          (COALESCE(LEAST(h.base_hp + COALESCE(ph.bonus_hp, 0), h.max_hp), h.base_hp + COALESCE(ph.bonus_hp, 0)) +
+           COALESCE(LEAST(h.base_damage + COALESCE(ph.bonus_damage, 0), h.max_damage), h.base_damage + COALESCE(ph.bonus_damage, 0)) +
+           COALESCE(LEAST(h.base_move_speed + COALESCE(ph.bonus_move_speed, 0), h.max_move_speed), h.base_move_speed + COALESCE(ph.bonus_move_speed, 0))
+          ) AS hero_score
         FROM players p
-        LEFT JOIN hero_stats hs ON hs.player_id = p.id
+        LEFT JOIN player_heroes ph ON ph.player_id = p.id AND ph.hero_id = 1
+        LEFT JOIN heroes h ON h.id = COALESCE(ph.hero_id, 1)
+        WHERE h.id IS NOT NULL
         ORDER BY hero_score DESC, max_hp DESC, base_damage DESC, move_speed DESC
-        LIMIT 10`,
-      [HERO_BASE_STATS.max_hp, HERO_BASE_STATS.base_damage, HERO_BASE_STATS.move_speed]
+        LIMIT 10`
     );
 
     return res.json({ entries: result.rows });
   } catch (err) {
-    console.error("Erreur leaderboard héros:", err);
-    return res.status(500).json({ error: "Erreur serveur" });
+    // Si les tables n'existent pas encore, retourner un tableau vide
+    console.warn("Erreur leaderboard héros (tables peut-être non créées):", err.message);
+    return res.json({ entries: [] });
   }
 });
 
@@ -241,6 +257,7 @@ router.get("/levels/best", async (req, res) => {
 router.post("/hero/kill", async (req, res) => {
   try {
     const kills = Number.isInteger(req.body?.kills) && req.body.kills >= 0 ? req.body.kills : 0;
+    const heroId = Number(req.body?.heroId) || 1; // Par défaut héros 1
     
     // Mettre à jour les points disponibles
     const updated = await query(
@@ -248,23 +265,39 @@ router.post("/hero/kill", async (req, res) => {
       [kills, req.user.id]
     );
     
-    // Mettre à jour les kills dans hero_stats
-    await query(
-      `UPDATE hero_stats 
-       SET kills = COALESCE(kills, 0) + $1 
-       WHERE player_id = $2`,
-      [kills, req.user.id]
-    );
+    // Mettre à jour les kills dans player_heroes (nouvelle structure)
+    try {
+      // Essayer de mettre à jour si l'entrée existe
+      const updateResult = await query(
+        `UPDATE player_heroes 
+         SET kills = COALESCE(kills, 0) + $1 
+         WHERE player_id = $2 AND hero_id = $3
+         RETURNING *`,
+        [kills, req.user.id, heroId]
+      );
+      
+      // Si pas d'entrée, créer une nouvelle ligne
+      if (updateResult.rows.length === 0) {
+        await query(
+          `INSERT INTO player_heroes (player_id, hero_id, kills, bonus_hp, bonus_damage, bonus_attack_interval_ms, bonus_move_speed, upgrade_points_spent, is_selected)
+           VALUES ($1, $2, $3, 0, 0, 0, 0, 0, false)
+           ON CONFLICT (player_id, hero_id) DO UPDATE SET kills = player_heroes.kills + $3
+           RETURNING *`,
+          [req.user.id, heroId, kills]
+        );
+      }
+    } catch (err) {
+      // Si la table n'existe pas encore, ignorer silencieusement
+      console.warn("Table player_heroes non disponible:", err.message);
+    }
     
-    // Récupérer les stats mises à jour
-    const heroStatsResult = await query(
-      "SELECT * FROM hero_stats WHERE player_id = $1",
-      [req.user.id]
-    );
+    // Récupérer les stats mises à jour via la nouvelle fonction
+    const { getOrCreatePlayerHero } = await import("../utils/profile.js");
+    const heroStats = await getOrCreatePlayerHero(req.user.id, heroId);
     
     return res.json({ 
       heroPointsAvailable: updated.rows[0].hero_points_available,
-      heroStats: heroStatsResult.rows[0] || null
+      heroStats: heroStats
     });
   } catch (err) {
     console.error("Erreur incrément point héros:", err);
@@ -341,10 +374,21 @@ router.post("/hero/upgrade", async (req, res) => {
 });
 
 router.post("/hero/upgrade/batch", async (req, res) => {
-  const { upgrades } = req.body || {};
+  const { upgrades, heroId } = req.body || {};
+  const selectedHeroId = Number(heroId) || null; // null = utiliser le héros sélectionné
 
   try {
-    const result = await upgradeHeroStatsBatch(req.user.id, upgrades);
+    // Si heroId n'est pas fourni, récupérer le héros sélectionné
+    let finalHeroId = selectedHeroId;
+    if (!finalHeroId) {
+      const selectedHeroRes = await query(
+        `SELECT hero_id FROM player_heroes WHERE player_id = $1 AND is_selected = true LIMIT 1`,
+        [req.user.id]
+      );
+      finalHeroId = selectedHeroRes.rows.length > 0 ? Number(selectedHeroRes.rows[0].hero_id) : 1;
+    }
+    
+    const result = await upgradeHeroStatsBatch(req.user.id, upgrades, finalHeroId);
     const profile = await buildPlayerProfile(req.user.id);
 
     return res.json({
@@ -382,7 +426,16 @@ router.post("/hero/upgrade/batch", async (req, res) => {
 });
 
 router.post("/hero/color", async (req, res) => {
-  const { color } = req.body || {};
+  const { color, heroId } = req.body || {};
+  // Si heroId n'est pas fourni, récupérer le héros sélectionné
+  let selectedHeroId = Number(heroId);
+  if (!selectedHeroId) {
+    const selectedHeroRes = await query(
+      `SELECT hero_id FROM player_heroes WHERE player_id = $1 AND is_selected = true LIMIT 1`,
+      [req.user.id]
+    );
+    selectedHeroId = selectedHeroRes.rows.length > 0 ? Number(selectedHeroRes.rows[0].hero_id) : 1;
+  }
   
   // Valider le format hexadécimal (ex: #FF5733 ou FF5733)
   const hexColor = String(color || "").trim();
@@ -396,35 +449,289 @@ router.post("/hero/color", async (req, res) => {
   const normalizedColor = hexColor.startsWith("#") ? hexColor : `#${hexColor}`;
   
   try {
-    // S'assurer que hero_stats existe
-    await ensureHeroStats(req.user.id);
-    
-    // Mettre à jour la couleur dans hero_stats
-    const result = await query(
-      `UPDATE hero_stats 
-       SET color = $1 
-       WHERE player_id = $2 
-       RETURNING *`,
-      [normalizedColor, req.user.id]
+    // Vérifier que le héros existe et que le joueur l'a débloqué
+    const heroCheck = await query(
+      `SELECT ph.hero_id FROM player_heroes ph
+       WHERE ph.player_id = $1 AND ph.hero_id = $2`,
+      [req.user.id, selectedHeroId]
     );
     
-    if (result.rows.length === 0) {
-      // Si la mise à jour n'a rien retourné, réessayer après avoir créé les stats
-      await ensureHeroStats(req.user.id);
-      const retryResult = await query(
-        `UPDATE hero_stats 
-         SET color = $1 
-         WHERE player_id = $2 
-         RETURNING *`,
-        [normalizedColor, req.user.id]
-      );
-      return res.json({ heroStats: retryResult.rows[0] });
+    if (heroCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Héros introuvable ou non débloqué" });
     }
     
-    return res.json({ heroStats: result.rows[0] });
+    // Mettre à jour la couleur dans player_heroes (couleur personnalisée par joueur)
+    await query(
+      `UPDATE player_heroes 
+       SET color = $1 
+       WHERE player_id = $2 AND hero_id = $3`,
+      [normalizedColor, req.user.id, selectedHeroId]
+    );
+    
+    // Récupérer les stats finales avec la nouvelle couleur
+    const { getOrCreatePlayerHero } = await import("../utils/profile.js");
+    const heroStats = await getOrCreatePlayerHero(req.user.id, selectedHeroId);
+    
+    return res.json({ heroStats });
   } catch (err) {
     console.error("Erreur mise à jour couleur héros:", err);
     return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Route pour récupérer tous les héros avec leur statut de déblocage pour le joueur
+router.get("/heroes", async (req, res) => {
+  try {
+    // Récupérer tous les héros avec leurs stats de base et les stats actuelles du joueur
+    const heroesResult = await query(
+      `SELECT 
+        h.id, h.name, 
+        h.base_hp, h.base_damage, h.base_attack_interval_ms, h.base_move_speed,
+        h.max_hp, h.max_damage, h.min_attack_interval_ms, h.max_move_speed, 
+        COALESCE(ph.color, h.color) AS color, h.hero_points_to_unlock,
+        COALESCE(ph.bonus_hp, 0) AS bonus_hp,
+        COALESCE(ph.bonus_damage, 0) AS bonus_damage,
+        COALESCE(ph.bonus_attack_interval_ms, 0) AS bonus_attack_interval_ms,
+        COALESCE(ph.bonus_move_speed, 0) AS bonus_move_speed,
+        COALESCE(ph.is_selected, false) AS is_selected,
+        CASE WHEN ph.hero_id IS NOT NULL THEN true ELSE false END AS is_unlocked
+       FROM heroes h
+       LEFT JOIN player_heroes ph ON ph.player_id = $1 AND ph.hero_id = h.id
+       ORDER BY h.id`,
+      [req.user.id]
+    );
+    
+    // Récupérer les points disponibles du joueur
+    const playerResult = await query(
+      `SELECT hero_points_available FROM players WHERE id = $1`,
+      [req.user.id]
+    );
+    const heroPointsAvailable = playerResult.rows[0]?.hero_points_available || 0;
+    
+    // Construire la réponse avec les stats actuelles (base + bonus) si débloqué, sinon stats de base
+    const heroes = heroesResult.rows.map(hero => {
+      const isUnlocked = hero.is_unlocked;
+      
+      // Calculer les stats actuelles si débloqué, sinon utiliser les stats de base
+      let currentHp, currentDamage, currentAttackInterval, currentMoveSpeed;
+      
+      if (isUnlocked) {
+        // Stats actuelles = base + bonus (ou base - bonus pour attack_interval_ms)
+        const baseHp = Number(hero.base_hp) || 0;
+        const bonusHp = Number(hero.bonus_hp) || 0;
+        const maxHp = hero.max_hp != null ? Number(hero.max_hp) : null;
+        currentHp = maxHp != null ? Math.min(baseHp + bonusHp, maxHp) : baseHp + bonusHp;
+        
+        const baseDamage = parseFloat(hero.base_damage) || 0;
+        const bonusDamage = parseFloat(hero.bonus_damage) || 0;
+        const maxDamage = hero.max_damage != null ? parseFloat(hero.max_damage) : null;
+        currentDamage = maxDamage != null ? Math.min(baseDamage + bonusDamage, maxDamage) : baseDamage + bonusDamage;
+        
+        const baseAttackInterval = Number(hero.base_attack_interval_ms) || 1500;
+        const bonusAttackInterval = Number(hero.bonus_attack_interval_ms) || 0;
+        const minAttackInterval = hero.min_attack_interval_ms != null ? Number(hero.min_attack_interval_ms) : null;
+        currentAttackInterval = minAttackInterval != null 
+          ? Math.max(baseAttackInterval - bonusAttackInterval, minAttackInterval)
+          : baseAttackInterval - bonusAttackInterval;
+        
+        const baseMoveSpeed = Number(hero.base_move_speed) || 0;
+        const bonusMoveSpeed = Number(hero.bonus_move_speed) || 0;
+        const maxMoveSpeed = hero.max_move_speed != null ? Number(hero.max_move_speed) : null;
+        currentMoveSpeed = maxMoveSpeed != null 
+          ? Math.min(baseMoveSpeed + bonusMoveSpeed, maxMoveSpeed)
+          : baseMoveSpeed + bonusMoveSpeed;
+      } else {
+        // Stats de base si non débloqué
+        currentHp = Number(hero.base_hp) || 0;
+        currentDamage = parseFloat(hero.base_damage) || 0;
+        currentAttackInterval = Number(hero.base_attack_interval_ms) || 1500;
+        currentMoveSpeed = Number(hero.base_move_speed) || 0;
+      }
+      
+      return {
+        id: hero.id,
+        name: hero.name,
+        // Stats de base (pour référence)
+        base_hp: Number(hero.base_hp),
+        base_damage: parseFloat(hero.base_damage),
+        base_attack_interval_ms: Number(hero.base_attack_interval_ms),
+        base_move_speed: Number(hero.base_move_speed),
+        // Stats actuelles (base + bonus si débloqué, sinon base)
+        current_hp: currentHp,
+        current_damage: currentDamage,
+        current_attack_interval_ms: currentAttackInterval,
+        current_move_speed: currentMoveSpeed,
+        // Limites
+        max_hp: hero.max_hp != null ? Number(hero.max_hp) : null,
+        max_damage: hero.max_damage != null ? parseFloat(hero.max_damage) : null,
+        min_attack_interval_ms: hero.min_attack_interval_ms != null ? Number(hero.min_attack_interval_ms) : null,
+        max_move_speed: hero.max_move_speed != null ? Number(hero.max_move_speed) : null,
+        color: hero.color || "#2b2b2b",
+        hero_points_to_unlock: Number(hero.hero_points_to_unlock) || 0,
+        isUnlocked: isUnlocked,
+        isSelected: Boolean(hero.is_selected),
+        canUnlock: !isUnlocked && heroPointsAvailable >= (Number(hero.hero_points_to_unlock) || 0),
+      };
+    });
+    
+    return res.json({ heroes, heroPointsAvailable });
+  } catch (err) {
+    console.error("Erreur récupération héros:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Route pour débloquer un héros
+router.post("/heroes/:heroId/unlock", async (req, res) => {
+  const heroId = Number(req.params.heroId);
+  const client = await pool.connect();
+  
+  try {
+    await client.query("BEGIN");
+    
+    // Vérifier que le héros existe
+    const heroResult = await client.query(
+      `SELECT id, name, hero_points_to_unlock FROM heroes WHERE id = $1`,
+      [heroId]
+    );
+    
+    if (heroResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Héros introuvable" });
+    }
+    
+    const hero = heroResult.rows[0];
+    const unlockCost = Number(hero.hero_points_to_unlock) || 0;
+    
+    // Vérifier si le héros est déjà débloqué
+    const existingResult = await client.query(
+      `SELECT id FROM player_heroes WHERE player_id = $1 AND hero_id = $2`,
+      [req.user.id, heroId]
+    );
+    
+    if (existingResult.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Ce héros est déjà débloqué" });
+    }
+    
+    // Vérifier que le joueur a assez de points
+    const playerResult = await client.query(
+      `SELECT hero_points_available FROM players WHERE id = $1 FOR UPDATE`,
+      [req.user.id]
+    );
+    
+    if (playerResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Joueur introuvable" });
+    }
+    
+    const availablePoints = Number(playerResult.rows[0].hero_points_available || 0);
+    
+    if (availablePoints < unlockCost) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ 
+        error: `Points insuffisants. Nécessaire: ${unlockCost}, Disponible: ${availablePoints}` 
+      });
+    }
+    
+    // Décrémenter les points disponibles
+    await client.query(
+      `UPDATE players SET hero_points_available = hero_points_available - $1 WHERE id = $2`,
+      [unlockCost, req.user.id]
+    );
+    
+    // Vérifier si c'est le premier héros du joueur pour le sélectionner par défaut
+    const playerHeroesCount = await client.query(
+      `SELECT COUNT(*) as count FROM player_heroes WHERE player_id = $1`,
+      [req.user.id]
+    );
+    const isFirstHero = Number(playerHeroesCount.rows[0]?.count || 0) === 0;
+    
+    // Créer l'entrée player_heroes
+    await client.query(
+      `INSERT INTO player_heroes (player_id, hero_id, bonus_hp, bonus_damage, bonus_attack_interval_ms, bonus_move_speed, kills, upgrade_points_spent, is_selected)
+       VALUES ($1, $2, 0, 0, 0, 0, 0, 0, $3)`,
+      [req.user.id, heroId, isFirstHero]
+    );
+    
+    await client.query("COMMIT");
+    
+    // Récupérer les stats finales du héros débloqué
+    const { getOrCreatePlayerHero } = await import("../utils/profile.js");
+    const heroStats = await getOrCreatePlayerHero(req.user.id, heroId);
+    
+    // Récupérer les nouveaux points disponibles
+    const updatedPlayerResult = await client.query(
+      `SELECT hero_points_available FROM players WHERE id = $1`,
+      [req.user.id]
+    );
+    
+    return res.json({
+      success: true,
+      message: `${hero.name} débloqué !`,
+      heroStats,
+      heroPointsAvailable: updatedPlayerResult.rows[0].hero_points_available,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Erreur déblocage héros:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  } finally {
+    client.release();
+  }
+});
+
+// Route pour sélectionner un héros
+router.post("/heroes/:heroId/select", async (req, res) => {
+  const heroId = Number(req.params.heroId);
+  const client = await pool.connect();
+  
+  try {
+    await client.query("BEGIN");
+    
+    // Vérifier que le héros existe et est débloqué par le joueur
+    const heroCheck = await client.query(
+      `SELECT ph.hero_id, h.name 
+       FROM player_heroes ph 
+       JOIN heroes h ON h.id = ph.hero_id
+       WHERE ph.player_id = $1 AND ph.hero_id = $2`,
+      [req.user.id, heroId]
+    );
+    
+    if (heroCheck.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Héros introuvable ou non débloqué" });
+    }
+    
+    // Désélectionner tous les héros du joueur
+    await client.query(
+      `UPDATE player_heroes SET is_selected = false WHERE player_id = $1`,
+      [req.user.id]
+    );
+    
+    // Sélectionner le héros demandé
+    await client.query(
+      `UPDATE player_heroes SET is_selected = true WHERE player_id = $1 AND hero_id = $2`,
+      [req.user.id, heroId]
+    );
+    
+    await client.query("COMMIT");
+    
+    // Récupérer les stats du héros sélectionné
+    const { getOrCreatePlayerHero } = await import("../utils/profile.js");
+    const heroStats = await getOrCreatePlayerHero(req.user.id, heroId);
+    
+    return res.json({
+      success: true,
+      message: `${heroCheck.rows[0].name} sélectionné !`,
+      heroStats,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Erreur sélection héros:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  } finally {
+    client.release();
   }
 });
 

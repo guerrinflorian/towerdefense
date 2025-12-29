@@ -1,4 +1,6 @@
 import { CONFIG } from "../config/settings.js";
+import { drawHeroBody } from "./HeroDesigns.js";
+import { drawWeapon, playWeaponAttackAnimation } from "./HeroWeapons.js";
 
 const PATH_TYPES = [1, 4, 7, 13, 14, 19, 23];
 
@@ -20,6 +22,7 @@ export class Hero extends Phaser.GameObjects.Container {
     this.attackInterval = stats.attack_interval_ms ?? 1500;
     this.moveSpeed = (stats.move_speed ?? 100) * s;
     this.heroColor = stats.color || "#2b2b2b"; // Couleur par défaut (noir)
+    this.heroId = stats.hero_id ?? 1; // ID du héros pour déterminer le design
 
     // --- State ---
     this.isAlive = true;
@@ -46,9 +49,12 @@ export class Hero extends Phaser.GameObjects.Container {
     this.bodyGroup = scene.add.container(0, 0);
     this.add(this.bodyGroup);
 
-    // Épée séparée pour mieux animer
+    // Armes séparées pour mieux animer (épée ou dagues selon le héros)
     this.swordGroup = scene.add.container(0, 0);
     this.add(this.swordGroup);
+    
+    // Pour les héros avec deux armes (comme Pirlov)
+    this.secondWeaponGroup = null;
 
     // Effets
     this.hpBar = this.scene.add.graphics();
@@ -88,71 +94,15 @@ export class Hero extends Phaser.GameObjects.Container {
   // -----------------------------
   // Drawing
   // -----------------------------
-  hexToNumber(hex) {
-    // Convertir une couleur hexadécimale (#RRGGBB) en nombre pour Phaser
-    if (!hex) return 0x2b2b2b; // Couleur par défaut
-    const cleanHex = hex.replace("#", "");
-    return parseInt(cleanHex, 16);
-  }
-
   drawBody() {
     const s = this.scene.scaleFactor || 1;
-    const k = this.baseScale; // appliqué déjà par setScale, mais utile pour proportions internes
+    const k = this.baseScale;
     this.bodyGroup.removeAll(true);
 
     const g = this.scene.add.graphics();
 
-    // Ombre au sol (ça donne du volume)
-    g.fillStyle(0x000000, 0.18);
-    g.fillEllipse(0, 18 * s * k, 26 * s * k, 10 * s * k);
-
-    // Cape (plus stylée)
-    g.fillStyle(0x151526, 0.92);
-    g.fillEllipse(-2 * s * k, 8 * s * k, 22 * s * k, 30 * s * k);
-    g.fillStyle(0x0d0d18, 0.35);
-    g.fillEllipse(-6 * s * k, 10 * s * k, 14 * s * k, 24 * s * k);
-
-    // Armure (corps) - utiliser la couleur personnalisée pour le plastron
-    const chestplateColor = this.hexToNumber(this.heroColor);
-    g.fillStyle(chestplateColor, 1);
-    g.fillRoundedRect(-12 * s * k, -18 * s * k, 24 * s * k, 34 * s * k, 7 * s * k);
-    g.lineStyle(2 * s * k, 0x242424, 1);
-    g.strokeRoundedRect(-12 * s * k, -18 * s * k, 24 * s * k, 34 * s * k, 7 * s * k);
-
-    // Plastron (détail) - trait vertical au milieu
-    g.lineStyle(2 * s * k, 0x6a6a6a, 0.6);
-    g.beginPath();
-    g.moveTo(0, -16 * s * k);
-    g.lineTo(0, 10 * s * k);
-    g.strokePath();
-
-    // Épaulières
-    g.fillStyle(0x7a7a7a, 1);
-    g.fillCircle(-11 * s * k, -12 * s * k, 7 * s * k);
-    g.fillCircle(11 * s * k, -12 * s * k, 7 * s * k);
-    g.lineStyle(2 * s * k, 0x2a2a2a, 0.9);
-    g.strokeCircle(-11 * s * k, -12 * s * k, 7 * s * k);
-    g.strokeCircle(11 * s * k, -12 * s * k, 7 * s * k);
-
-    // Ceinture
-    g.fillStyle(0x8b5a2b, 1);
-    g.fillRoundedRect(-12 * s * k, 6 * s * k, 24 * s * k, 5 * s * k, 2 * s * k);
-    g.fillStyle(0xd2b48c, 0.9);
-    g.fillRect(-2 * s * k, 6 * s * k, 4 * s * k, 5 * s * k);
-
-    // Tête
-    g.fillStyle(0xffd4a3, 1);
-    g.fillCircle(0, -24 * s * k, 8 * s * k);
-
-    // Casque / cheveux - utiliser la couleur personnalisée
-    const hatColor = this.hexToNumber(this.heroColor);
-    g.fillStyle(hatColor, 1);
-    g.fillRoundedRect(-10 * s * k, -33 * s * k, 20 * s * k, 8 * s * k, 3 * s * k);
-
-    // Petit “regard” (vite fait mais ça donne de la vie)
-    g.fillStyle(0x111111, 0.9);
-    g.fillCircle(-3.2 * s * k, -24 * s * k, 1.1 * s * k);
-    g.fillCircle(3.2 * s * k, -24 * s * k, 1.1 * s * k);
+    // Utiliser la fonction de design depuis HeroDesigns.js
+    drawHeroBody(g, s, k, this.heroId, this.heroColor);
 
     this.bodyGroup.add(g);
   }
@@ -162,41 +112,34 @@ export class Hero extends Phaser.GameObjects.Container {
     const k = this.baseScale;
 
     this.swordGroup.removeAll(true);
+    
+    // Nettoyer le groupe de la deuxième arme si elle existe
+    if (this.secondWeaponGroup) {
+      this.secondWeaponGroup.removeAll(true);
+      this.remove(this.secondWeaponGroup);
+      this.secondWeaponGroup = null;
+    }
 
-    // Pivot de l’épée (pour animer comme un vrai swing)
-    this.swordPivot = this.scene.add.container(12 * s * k, -4 * s * k);
-    this.swordPivot.setRotation(-0.3);
-
-    const sword = this.scene.add.graphics();
-
-    // Lame (avec petit highlight)
-    sword.fillStyle(0xd6d6d6, 1);
-    sword.fillRoundedRect(0, -2 * s * k, 22 * s * k, 5 * s * k, 2 * s * k);
-    sword.fillStyle(0xffffff, 0.75);
-    sword.fillRoundedRect(0, -2 * s * k, 22 * s * k, 2.2 * s * k, 2 * s * k);
-
-    // Pointe
-    sword.fillStyle(0xcfcfcf, 1);
-    sword.fillTriangle(22 * s * k, -2 * s * k, 28 * s * k, 0.5 * s * k, 22 * s * k, 3 * s * k);
-
-    // Garde
-    sword.fillStyle(0x6b3d18, 1);
-    sword.fillRoundedRect(-4 * s * k, -4.2 * s * k, 6 * s * k, 9 * s * k, 2 * s * k);
-
-    // Poignée
-    sword.fillStyle(0x8b4513, 1);
-    sword.fillRoundedRect(-8 * s * k, -2.5 * s * k, 5 * s * k, 6 * s * k, 2 * s * k);
-    sword.fillStyle(0x3b2210, 0.55);
-    sword.fillRect(-7.2 * s * k, -2.2 * s * k, 3.5 * s * k, 0.8 * s * k);
-    sword.fillRect(-7.2 * s * k, -0.6 * s * k, 3.5 * s * k, 0.8 * s * k);
-    sword.fillRect(-7.2 * s * k, 1.0 * s * k, 3.5 * s * k, 0.8 * s * k);
-
-    // Pommeau
-    sword.fillStyle(0xbdbdbd, 1);
-    sword.fillCircle(-9.2 * s * k, 0.5 * s * k, 2.2 * s * k);
-
-    this.swordPivot.add(sword);
-    this.swordGroup.add(this.swordPivot);
+    // Utiliser la fonction de dessin d'arme depuis HeroWeapons.js
+    const weaponData = drawWeapon(this.scene, this.heroId, s, k);
+    
+    // Stocker les références aux pivots pour les animations
+    this.swordPivot = weaponData.swordPivot;
+    this.secondDaggerPivot = weaponData.secondDaggerPivot;
+    
+    // Ajouter les groupes d'armes au héros
+    // Le weaponData.swordGroup est un container qui contient le swordPivot
+    // On ajoute tous ses enfants au this.swordGroup
+    if (weaponData.swordGroup && weaponData.swordGroup.list) {
+      weaponData.swordGroup.list.forEach(child => {
+        this.swordGroup.add(child);
+      });
+    }
+    
+    if (weaponData.secondWeaponGroup) {
+      this.secondWeaponGroup = weaponData.secondWeaponGroup;
+      this.add(this.secondWeaponGroup);
+    }
   }
 
   drawHealthBar() {
@@ -488,12 +431,15 @@ export class Hero extends Phaser.GameObjects.Container {
     const step = (this.moveSpeed * delta) / 1000;
     const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
 
-    // Petit “bobbing” de marche (subtil)
+    // Petit "bobbing" de marche (subtil)
     const s = this.scene.scaleFactor || 1;
     const k = this.baseScale;
     const bob = Math.sin((this.scene.time.now || 0) / 90) * 0.35 * s * k;
     this.bodyGroup.y = bob;
     this.swordGroup.y = bob;
+    if (this.secondWeaponGroup) {
+      this.secondWeaponGroup.y = bob;
+    }
 
     const dx = Math.cos(angle) * Math.min(step, dist);
     const dy = Math.sin(angle) * Math.min(step, dist);
@@ -502,11 +448,20 @@ export class Hero extends Phaser.GameObjects.Container {
     this.y += dy;
     this.setDepth(40 + Math.floor(this.y / 10));
 
-    // Oriente légèrement l’épée selon le mouvement (sans faire tourner tout le perso)
+    // Oriente légèrement les armes selon le mouvement
     if (this.swordPivot) {
       const desired = Phaser.Math.Clamp(angle, -Math.PI, Math.PI);
       const tilt = Phaser.Math.Clamp(Math.sin(desired) * 0.18, -0.25, 0.25);
-      this.swordPivot.rotation = Phaser.Math.Linear(this.swordPivot.rotation, tilt - 0.25, 0.12);
+      if (this.heroId === 2) {
+        // Pour les dagues, orientation différente
+        this.swordPivot.rotation = Phaser.Math.Linear(this.swordPivot.rotation, tilt - 0.2, 0.12);
+        if (this.secondDaggerPivot) {
+          this.secondDaggerPivot.rotation = Phaser.Math.Linear(this.secondDaggerPivot.rotation, -tilt + 0.2, 0.12);
+        }
+      } else {
+        // Pour l'épée
+        this.swordPivot.rotation = Phaser.Math.Linear(this.swordPivot.rotation, tilt - 0.25, 0.12);
+      }
     }
   }
 
@@ -551,47 +506,37 @@ export class Hero extends Phaser.GameObjects.Container {
 
     this.lastAttackTime = time;
 
-    // Hit
-    this.blockingEnemy.damage(this.damage, { source: "hero" });
+    // Sauvegarder la position de l'ennemi AVANT d'infliger les dégâts
+    // pour pouvoir jouer l'animation même si l'ennemi meurt immédiatement
+    const enemyX = this.blockingEnemy.x;
+    const enemyY = this.blockingEnemy.y;
 
-    // Animations
-    this.playAttackAnimation(this.blockingEnemy);
+    // Déclencher l'animation AVANT d'infliger les dégâts pour s'assurer qu'elle se joue toujours
+    // même si l'ennemi est one-shot
+    this.playAttackAnimation(this.blockingEnemy, enemyX, enemyY);
+
+    // Hit - infliger les dégâts après avoir déclenché l'animation
+    this.blockingEnemy.damage(this.damage, { source: "hero" });
   }
 
-  playAttackAnimation(enemy) {
-    if (!enemy || !enemy.active) return;
+  playAttackAnimation(enemy, savedX = null, savedY = null) {
+    // Utiliser les coordonnées sauvegardées si l'ennemi n'est plus actif
+    const enemyX = (enemy && enemy.active) ? enemy.x : (savedX !== null ? savedX : this.x + 50);
+    const enemyY = (enemy && enemy.active) ? enemy.y : (savedY !== null ? savedY : this.y);
     
     const s = this.scene.scaleFactor || 1;
     const k = this.baseScale;
 
-    const angleToEnemy = Phaser.Math.Angle.Between(this.x, this.y, enemy.x, enemy.y);
+    const angleToEnemy = Phaser.Math.Angle.Between(this.x, this.y, enemyX, enemyY);
 
-    // 1) Swing d'épée basé sur un pivot -> plus “propre” et punchy
-    if (this.swordPivot) {
-      // Pré-armement puis coup
-      const pre = -0.95;
-      const hit = 0.75;
+    // Utiliser la fonction d'animation d'arme depuis HeroWeapons.js
+    playWeaponAttackAnimation(this.scene, this.heroId, this.swordPivot, this.secondDaggerPivot);
 
-      this.swordPivot.rotation = pre;
+    // Les effets visuels (trail, spark) sont communs
+    this.playAttackEffects(angleToEnemy, s, k);
+  }
 
-      this.scene.tweens.add({
-        targets: this.swordPivot,
-        rotation: hit,
-        duration: 140,
-        ease: "Cubic.easeOut",
-        yoyo: true,
-        hold: 0,
-        onComplete: () => {
-          // revient à une pose neutre
-          this.scene.tweens.add({
-            targets: this.swordPivot,
-            rotation: -0.25,
-            duration: 120,
-            ease: "Cubic.easeOut",
-          });
-        },
-      });
-    }
+  playAttackEffects(angleToEnemy, s, k) {
 
     // 2) Arc trail (beaucoup plus stylé) : double arc + petit glow
     this.swordTrail.clear();

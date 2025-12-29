@@ -2,11 +2,22 @@ import {
   getHeroStats,
   getHeroPointsAvailable,
   getHeroPointConversion,
+  getHeroLimits,
   queueHeroUpgrade,
   updateHeroColor,
   isAuthenticated,
+  getSelectedHeroId,
+  getProfile,
 } from "../../services/authManager.js";
 import { showAuth } from "../../services/authOverlay.js";
+import { fetchHeroes } from "../../services/heroService.js";
+
+// Fonction pour tronquer un nombre à N décimales (sans arrondir)
+function truncateDecimals(value, decimals) {
+  const factor = Math.pow(10, decimals);
+  return Math.floor(value * factor) / factor;
+}
+import { HeroSelectionUI } from "./HeroSelectionUI.js";
 
 export class HeroUpgradeUI extends Phaser.GameObjects.Container {
   constructor(scene, x, y) {
@@ -14,25 +25,34 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
 
     this.config = {
       width: 420,
-      height: 380,
+      height: 440, // Augmenté pour 4 stats
       padding: 20,
       accentColor: 0x00eaff,
       bgColor: 0x050a10,
       rowHeight: 60,
       avatarSize: 85,
-      maxValues: { hp: 2500, damage: 450, move_speed: 200 },
+      // Les valeurs max/min seront mises à jour depuis le profil
+      maxValues: { hp: 2500, damage: 450, move_speed: 200, attack_interval_ms: 1500 },
+      minValues: { attack_interval_ms: 500 }, // Minimum pour la vitesse de frappe
     };
 
     this.statElements = new Map();
-    this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0 };
+    this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0, attack_interval_ms: 0 };
     this.holdTimer = null;
 
     this.upgradeCompleteHandler = () => {
       this.refresh();
     };
+    this.profileUpdateHandler = () => {
+      this.refresh();
+    };
     window.addEventListener(
       "hero:upgrade-complete",
       this.upgradeCompleteHandler
+    );
+    window.addEventListener(
+      "profile:updated",
+      this.profileUpdateHandler
     );
 
     this.scene.events.once("shutdown", () => {
@@ -41,10 +61,16 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         "hero:upgrade-complete",
         this.upgradeCompleteHandler
       );
+      window.removeEventListener(
+        "profile:updated",
+        this.profileUpdateHandler
+      );
     });
 
     this.setupMainPanel();
     this.refresh();
+    // Charger le nom du héros initial
+    this.updateHeroName();
 
     this.scene.add.existing(this);
     this.setDepth(180);
@@ -76,12 +102,43 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       .setOrigin(0.5);
     this.add(title);
 
+    // Bouton pour ouvrir la sélection de héros
+    this.heroSelectionBtn = this.scene.add
+      .rectangle(width - padding - 10, -15, 80, 25, accentColor, 0.7)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => this.heroSelectionBtn.setAlpha(1))
+      .on("pointerout", () => this.heroSelectionBtn.setAlpha(0.7))
+      .on("pointerdown", () => this.openHeroSelection());
+
+    const selectText = this.scene.add.text(width - padding - 10, -15, "CHANGER", {
+      fontFamily: "Arial",
+      fontSize: "11px",
+      color: "#ffffff",
+      fontWeight: "bold",
+      resolution,
+    }).setOrigin(0.5);
+    this.add(this.heroSelectionBtn);
+    this.add(selectText);
+
+    // --- NOM DU HÉROS EN HAUT ---
+    this.heroNameText = this.scene.add.text(width / 2, 10, "", {
+      fontFamily: "Orbitron, sans-serif",
+      fontSize: "22px",
+      color: "#ffffff",
+      fontWeight: "bold",
+      stroke: "#000000",
+      strokeThickness: 4,
+      resolution,
+    }).setOrigin(0.5, 0);
+    this.add(this.heroNameText);
+
     // --- RESTAURATION DE L'AVATAR ORIGINAL ---
     this.createAvatar(padding, 40);
 
     const statsData = [
-      { key: "hp", label: "INTÉGRITÉ (PV)", color: 0x4caf50 },
-      { key: "damage", label: "PUISSANCE", color: 0xff4d4d },
+      { key: "hp", label: "VIE", color: 0x4caf50 },
+      { key: "damage", label: "DÉGÂT", color: 0xff4d4d },
+      { key: "attack_interval_ms", label: "VIT. DE FRAPPE", color: 0xffaa00 },
       { key: "move_speed", label: "AGILITÉ", color: 0x00eaff },
     ];
 
@@ -194,40 +251,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     return parseInt(cleanHex, 16);
   }
 
-  createAvatar(x, y) {
-    const size = this.config.avatarSize;
-    const container = this.scene.add.container(x, y);
-
-    const frame = this.scene.add.graphics();
-    frame.lineStyle(2, this.config.accentColor, 0.5);
-    frame.strokeRect(-2, -2, size + 4, size + 4);
-    frame.fillStyle(0x1a2a3a, 1);
-    frame.fillRect(0, 0, size, size);
-
-    const scale = size / 50;
-    const centerX = size / 2;
-    const centerY = size / 2;
-
-    frame.fillStyle(0x000000, 0.18);
-    frame.fillEllipse(centerX, centerY + 18 * scale, 26 * scale, 10 * scale);
-
-    frame.fillStyle(0x151526, 0.92);
-    frame.fillEllipse(
-      centerX - 2 * scale,
-      centerY + 8 * scale,
-      22 * scale,
-      30 * scale
-    );
-    frame.fillStyle(0x0d0d18, 0.35);
-    frame.fillEllipse(
-      centerX - 6 * scale,
-      centerY + 10 * scale,
-      14 * scale,
-      24 * scale
-    );
-
-    const stats = getHeroStats();
-    const heroColor = stats?.color || "#2b2b2b";
+  drawKnightAvatarBody(frame, centerX, centerY, scale, heroColor) {
     const chestplateColor = this.hexToNumber(heroColor);
     frame.fillStyle(chestplateColor, 1);
     frame.fillRoundedRect(
@@ -291,9 +315,74 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     frame.fillStyle(0x111111, 0.9);
     frame.fillCircle(centerX - 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
     frame.fillCircle(centerX + 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
+  }
 
-    container.add(frame);
+  drawNinjaAvatarBody(frame, centerX, centerY, scale, heroColor) {
+    // Tenue ninja
+    frame.fillStyle(0x1a1a2e, 0.85);
+    frame.fillEllipse(centerX - 1 * scale, centerY + 6 * scale, 18 * scale, 28 * scale);
+    frame.fillStyle(0x0f0f1a, 0.4);
+    frame.fillEllipse(centerX - 4 * scale, centerY + 8 * scale, 12 * scale, 22 * scale);
 
+    const ninjaColor = this.hexToNumber(heroColor);
+    frame.fillStyle(ninjaColor, 1);
+    frame.fillRoundedRect(
+      centerX - 10 * scale,
+      centerY - 16 * scale,
+      20 * scale,
+      32 * scale,
+      5 * scale
+    );
+    frame.lineStyle(1.5 * scale, 0x1a1a1a, 1);
+    frame.strokeRoundedRect(
+      centerX - 10 * scale,
+      centerY - 16 * scale,
+      20 * scale,
+      32 * scale,
+      5 * scale
+    );
+
+    frame.lineStyle(1.5 * scale, 0x4a4a4a, 0.7);
+    frame.beginPath();
+    frame.moveTo(centerX - 8 * scale, centerY - 12 * scale);
+    frame.lineTo(centerX + 8 * scale, centerY + 8 * scale);
+    frame.moveTo(centerX + 8 * scale, centerY - 12 * scale);
+    frame.lineTo(centerX - 8 * scale, centerY + 8 * scale);
+    frame.strokePath();
+
+    frame.fillStyle(0x2a2a2a, 1);
+    frame.fillRoundedRect(
+      centerX - 10 * scale,
+      centerY + 4 * scale,
+      20 * scale,
+      4 * scale,
+      1 * scale
+    );
+    frame.fillStyle(0x4a4a4a, 0.8);
+    frame.fillRect(
+      centerX - 1 * scale,
+      centerY + 4 * scale,
+      2 * scale,
+      4 * scale
+    );
+
+    frame.fillStyle(0xffd4a3, 1);
+    frame.fillCircle(centerX, centerY - 22 * scale, 7 * scale);
+
+    frame.fillStyle(0x1a1a1a, 1);
+    frame.fillRoundedRect(
+      centerX - 9 * scale,
+      centerY - 30 * scale,
+      18 * scale,
+      6 * scale,
+      2 * scale
+    );
+    frame.fillStyle(0x111111, 0.95);
+    frame.fillRect(centerX - 6 * scale, centerY - 28 * scale, 3 * scale, 2 * scale);
+    frame.fillRect(centerX + 3 * scale, centerY - 28 * scale, 3 * scale, 2 * scale);
+  }
+
+  drawSwordAvatar(container, centerX, centerY, scale) {
     const swordPivotX = centerX + 12 * scale;
     const swordPivotY = centerY - 4 * scale;
     const swordPivot = this.scene.add.container(swordPivotX, swordPivotY);
@@ -339,6 +428,126 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
 
     swordPivot.add(sword);
     container.add(swordPivot);
+  }
+
+  drawDaggersAvatar(container, centerX, centerY, scale) {
+    // Première dague (droite)
+    const dagger1PivotX = centerX + 10 * scale;
+    const dagger1PivotY = centerY - 2 * scale;
+    const dagger1Pivot = this.scene.add.container(dagger1PivotX, dagger1PivotY);
+    dagger1Pivot.setRotation(-0.2);
+    dagger1Pivot.setDepth(10);
+
+    const dagger1 = this.scene.add.graphics();
+    dagger1.fillStyle(0xc0c0c0, 1);
+    dagger1.fillRoundedRect(0, -1.5 * scale, 14 * scale, 3 * scale, 1 * scale);
+    dagger1.fillStyle(0xffffff, 0.8);
+    dagger1.fillRoundedRect(0, -1.5 * scale, 14 * scale, 1.5 * scale, 1 * scale);
+    dagger1.fillStyle(0xa0a0a0, 1);
+    dagger1.fillTriangle(14 * scale, -1.5 * scale, 18 * scale, 0, 14 * scale, 1.5 * scale);
+    dagger1.fillStyle(0x4a4a4a, 1);
+    dagger1.fillRoundedRect(-2 * scale, -2.5 * scale, 4 * scale, 5 * scale, 1 * scale);
+    dagger1.fillStyle(0x2a2a2a, 1);
+    dagger1.fillRoundedRect(-4 * scale, -1.5 * scale, 3 * scale, 3 * scale, 1 * scale);
+    dagger1.fillStyle(0x1a1a1a, 0.7);
+    dagger1.fillRect(-3.5 * scale, -1.2 * scale, 2 * scale, 0.6 * scale);
+    dagger1.fillRect(-3.5 * scale, 0.3 * scale, 2 * scale, 0.6 * scale);
+    dagger1.fillStyle(0x5a5a5a, 1);
+    dagger1.fillCircle(-5 * scale, 0, 1.5 * scale);
+
+    dagger1Pivot.add(dagger1);
+    container.add(dagger1Pivot);
+
+    // Deuxième dague (gauche)
+    const dagger2PivotX = centerX - 10 * scale;
+    const dagger2PivotY = centerY - 2 * scale;
+    const dagger2Pivot = this.scene.add.container(dagger2PivotX, dagger2PivotY);
+    dagger2Pivot.setRotation(0.2);
+    dagger2Pivot.setDepth(10);
+
+    const dagger2 = this.scene.add.graphics();
+    dagger2.fillStyle(0xc0c0c0, 1);
+    dagger2.fillRoundedRect(0, -1.5 * scale, 14 * scale, 3 * scale, 1 * scale);
+    dagger2.fillStyle(0xffffff, 0.8);
+    dagger2.fillRoundedRect(0, -1.5 * scale, 14 * scale, 1.5 * scale, 1 * scale);
+    dagger2.fillStyle(0xa0a0a0, 1);
+    dagger2.fillTriangle(14 * scale, -1.5 * scale, 18 * scale, 0, 14 * scale, 1.5 * scale);
+    dagger2.fillStyle(0x4a4a4a, 1);
+    dagger2.fillRoundedRect(-2 * scale, -2.5 * scale, 4 * scale, 5 * scale, 1 * scale);
+    dagger2.fillStyle(0x2a2a2a, 1);
+    dagger2.fillRoundedRect(-4 * scale, -1.5 * scale, 3 * scale, 3 * scale, 1 * scale);
+    dagger2.fillStyle(0x1a1a1a, 0.7);
+    dagger2.fillRect(-3.5 * scale, -1.2 * scale, 2 * scale, 0.6 * scale);
+    dagger2.fillRect(-3.5 * scale, 0.3 * scale, 2 * scale, 0.6 * scale);
+    dagger2.fillStyle(0x5a5a5a, 1);
+    dagger2.fillCircle(-5 * scale, 0, 1.5 * scale);
+
+    dagger2Pivot.add(dagger2);
+    container.add(dagger2Pivot);
+  }
+
+  createAvatar(x, y) {
+    // Si un avatar existe déjà, le détruire d'abord
+    if (this.avatarContainer) {
+      this.avatarContainer.destroy();
+      this.avatarContainer = null;
+      this.avatarFrame = null;
+    }
+    
+    const size = this.config.avatarSize;
+    const container = this.scene.add.container(x, y);
+
+    const frame = this.scene.add.graphics();
+    frame.lineStyle(2, this.config.accentColor, 0.5);
+    frame.strokeRect(-2, -2, size + 4, size + 4);
+    frame.fillStyle(0x1a2a3a, 1);
+    frame.fillRect(0, 0, size, size);
+
+    const scale = size / 50;
+    const centerX = size / 2;
+    const centerY = size / 2;
+
+    frame.fillStyle(0x000000, 0.18);
+    frame.fillEllipse(centerX, centerY + 18 * scale, 26 * scale, 10 * scale);
+
+    frame.fillStyle(0x151526, 0.92);
+    frame.fillEllipse(
+      centerX - 2 * scale,
+      centerY + 8 * scale,
+      22 * scale,
+      30 * scale
+    );
+    frame.fillStyle(0x0d0d18, 0.35);
+    frame.fillEllipse(
+      centerX - 6 * scale,
+      centerY + 10 * scale,
+      14 * scale,
+      24 * scale
+    );
+
+    const stats = getHeroStats();
+    const heroColor = stats?.color || "#2b2b2b";
+    const heroId = stats?.hero_id ?? 1;
+
+    // Dessiner le corps selon le hero_id
+    if (heroId === 2) {
+      // Pirlov dagues - Ninja
+      this.drawNinjaAvatarBody(frame, centerX, centerY, scale, heroColor);
+    } else {
+      // Pulskar l'épéiste (hero_id = 1) ou autres - Chevalier
+      this.drawKnightAvatarBody(frame, centerX, centerY, scale, heroColor);
+    }
+
+    container.add(frame);
+
+    // Dessiner les armes selon le hero_id
+    if (heroId === 2) {
+      // Deux dagues
+      this.drawDaggersAvatar(container, centerX, centerY, scale);
+    } else {
+      // Épée
+      this.drawSwordAvatar(container, centerX, centerY, scale);
+    }
 
     this.add(container);
 
@@ -371,6 +580,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     this.add(this.killsText);
 
     this.avatarFrame = frame;
+    this.avatarContainer = container; // Stocker la référence au container pour pouvoir supprimer les armes
   }
 
   redrawAvatar(color) {
@@ -378,9 +588,10 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     const scale = size / 50;
     const centerX = size / 2;
     const centerY = size / 2;
-    const hatColor = this.hexToNumber(color);
-    const chestplateColor = this.hexToNumber(color);
+    const stats = getHeroStats();
+    const heroId = stats?.hero_id ?? 1;
 
+    // Nettoyer le frame
     this.avatarFrame.clear();
 
     this.avatarFrame.lineStyle(2, this.config.accentColor, 0.5);
@@ -388,6 +599,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     this.avatarFrame.fillStyle(0x1a2a3a, 1);
     this.avatarFrame.fillRect(0, 0, size, size);
 
+    // Ombre au sol
     this.avatarFrame.fillStyle(0x000000, 0.18);
     this.avatarFrame.fillEllipse(
       centerX,
@@ -396,106 +608,40 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       10 * scale
     );
 
-    this.avatarFrame.fillStyle(0x151526, 0.92);
-    this.avatarFrame.fillEllipse(
-      centerX - 2 * scale,
-      centerY + 8 * scale,
-      22 * scale,
-      30 * scale
-    );
-    this.avatarFrame.fillStyle(0x0d0d18, 0.35);
-    this.avatarFrame.fillEllipse(
-      centerX - 6 * scale,
-      centerY + 10 * scale,
-      14 * scale,
-      24 * scale
-    );
+    // Dessiner le corps selon le hero_id
+    if (heroId === 2) {
+      // Pirlov dagues - Ninja
+      this.drawNinjaAvatarBody(this.avatarFrame, centerX, centerY, scale, color);
+    } else {
+      // Pulskar l'épéiste (hero_id = 1) ou autres - Chevalier
+      this.drawKnightAvatarBody(this.avatarFrame, centerX, centerY, scale, color);
+    }
 
-    this.avatarFrame.fillStyle(chestplateColor, 1);
-    this.avatarFrame.fillRoundedRect(
-      centerX - 12 * scale,
-      centerY - 18 * scale,
-      24 * scale,
-      34 * scale,
-      7 * scale
-    );
-    this.avatarFrame.lineStyle(2 * scale, 0x242424, 1);
-    this.avatarFrame.strokeRoundedRect(
-      centerX - 12 * scale,
-      centerY - 18 * scale,
-      24 * scale,
-      34 * scale,
-      7 * scale
-    );
+    // Supprimer toutes les armes existantes du container (garder seulement le frame)
+    if (this.avatarContainer) {
+      const children = this.avatarContainer.list.slice(); // Copie de la liste
+      children.forEach(child => {
+        // Supprimer tout sauf le frame
+        if (child !== this.avatarFrame) {
+          child.destroy();
+        }
+      });
+      // S'assurer que le frame est toujours dans le container
+      if (!this.avatarContainer.list.includes(this.avatarFrame)) {
+        this.avatarContainer.add(this.avatarFrame);
+      }
+    }
 
-    this.avatarFrame.lineStyle(2 * scale, 0x6a6a6a, 0.6);
-    this.avatarFrame.beginPath();
-    this.avatarFrame.moveTo(centerX, centerY - 16 * scale);
-    this.avatarFrame.lineTo(centerX, centerY + 10 * scale);
-    this.avatarFrame.strokePath();
-
-    this.avatarFrame.fillStyle(0x7a7a7a, 1);
-    this.avatarFrame.fillCircle(
-      centerX - 11 * scale,
-      centerY - 12 * scale,
-      7 * scale
-    );
-    this.avatarFrame.fillCircle(
-      centerX + 11 * scale,
-      centerY - 12 * scale,
-      7 * scale
-    );
-    this.avatarFrame.lineStyle(2 * scale, 0x2a2a2a, 0.9);
-    this.avatarFrame.strokeCircle(
-      centerX - 11 * scale,
-      centerY - 12 * scale,
-      7 * scale
-    );
-    this.avatarFrame.strokeCircle(
-      centerX + 11 * scale,
-      centerY - 12 * scale,
-      7 * scale
-    );
-
-    this.avatarFrame.fillStyle(0x8b5a2b, 1);
-    this.avatarFrame.fillRoundedRect(
-      centerX - 12 * scale,
-      centerY + 6 * scale,
-      24 * scale,
-      5 * scale,
-      2 * scale
-    );
-    this.avatarFrame.fillStyle(0xd2b48c, 0.9);
-    this.avatarFrame.fillRect(
-      centerX - 2 * scale,
-      centerY + 6 * scale,
-      4 * scale,
-      5 * scale
-    );
-
-    this.avatarFrame.fillStyle(0xffd4a3, 1);
-    this.avatarFrame.fillCircle(centerX, centerY - 24 * scale, 8 * scale);
-
-    this.avatarFrame.fillStyle(hatColor, 1);
-    this.avatarFrame.fillRoundedRect(
-      centerX - 10 * scale,
-      centerY - 33 * scale,
-      20 * scale,
-      8 * scale,
-      3 * scale
-    );
-
-    this.avatarFrame.fillStyle(0x111111, 0.9);
-    this.avatarFrame.fillCircle(
-      centerX - 3.2 * scale,
-      centerY - 24 * scale,
-      1.1 * scale
-    );
-    this.avatarFrame.fillCircle(
-      centerX + 3.2 * scale,
-      centerY - 24 * scale,
-      1.1 * scale
-    );
+    // Redessiner les armes selon le hero_id actuel
+    if (this.avatarContainer) {
+      if (heroId === 2) {
+        // Deux dagues
+        this.drawDaggersAvatar(this.avatarContainer, centerX, centerY, scale);
+      } else {
+        // Épée
+        this.drawSwordAvatar(this.avatarContainer, centerX, centerY, scale);
+      }
+    }
   }
   // ---------------------------------------------------------
 
@@ -525,6 +671,16 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       fontStyle: "italic",
       resolution,
     });
+
+    // Afficher le maximum de la stat au-dessus de la barre (blanc avec bordure noire)
+    const maxText = this.scene.add.text(x + barWidth / 2, y - 15, "", {
+      fontSize: "10px",
+      color: "#ffffff",
+      fontStyle: "bold",
+      stroke: "#000000",
+      strokeThickness: 3,
+      resolution,
+    }).setOrigin(0.5, 0);
 
     const barBg = this.scene.add
       .graphics()
@@ -566,6 +722,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       barFill,
       barPending,
       conversionText,
+      maxText,
       color: stat.color,
       x,
       y,
@@ -573,7 +730,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       btn,
     });
 
-    this.add([label, valText, conversionText, barBg, barFill, barPending, btn]);
+    this.add([label, valText, conversionText, maxText, barBg, barFill, barPending, btn]);
   }
 
   startContinuousUpgrade(key) {
@@ -621,20 +778,31 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       hp: "hp_per_point",
       damage: "damage_per_point",
       move_speed: "move_speed_per_point",
+      attack_interval_ms: "attack_interval_ms_per_point",
     };
 
     const currentVal =
       (key === "hp"
-        ? stats.max_hp
+        ? Number(stats?.max_hp) || 0
         : key === "damage"
-        ? stats.base_damage
-        : stats.move_speed) || 0;
+        ? parseFloat(stats?.base_damage) || 0
+        : key === "attack_interval_ms"
+        ? Number(stats?.attack_interval_ms) || 1500
+        : Number(stats?.move_speed) || 0);
     const pendingPoints = this.pendingUpgrades[key];
-    const convValue = conversion?.[conversionMap[key]] || 0;
-    const projectedValue =
-      parseFloat(currentVal) + (pendingPoints + 1) * convValue;
+    const convValue = parseFloat(conversion?.[conversionMap[key]] || 0);
+    
+    // Pour attack_interval_ms, on soustrait (plus bas = mieux)
+    const projectedValue = key === "attack_interval_ms"
+      ? Math.max(this.config.minValues.attack_interval_ms, currentVal - (pendingPoints + 1) * convValue)
+      : parseFloat(currentVal) + (pendingPoints + 1) * convValue;
 
-    if (projectedValue > this.config.maxValues[key]) {
+    if (key === "attack_interval_ms") {
+      if (projectedValue <= this.config.minValues.attack_interval_ms) {
+        this.stopContinuousUpgrade();
+        return;
+      }
+    } else if (projectedValue > this.config.maxValues[key]) {
       this.stopContinuousUpgrade();
       return;
     }
@@ -648,27 +816,54 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
   updateBarVisuals(statKey) {
     const el = this.statElements.get(statKey);
     const stats = getHeroStats();
+    if (!stats) return;
+    
     const values = {
-      hp: Number(stats.max_hp),
-      damage: parseFloat(stats.base_damage),
-      move_speed: Number(stats.move_speed),
+      hp: Number(stats?.max_hp) || 0,
+      damage: Number(parseFloat(stats?.base_damage) || 0),
+      attack_interval_ms: Number(stats?.attack_interval_ms) || 1500,
+      move_speed: Number(stats?.move_speed) || 0,
     };
     const max = this.config.maxValues[statKey];
+    const min = this.config.minValues?.[statKey];
+    
+    // Afficher le maximum au-dessus de la barre (blanc avec bordure noire, centré)
+    if (el.maxText) {
+      const maxDisplay = statKey === "attack_interval_ms"
+        ? `Min: ${truncateDecimals((min || 0) / 1000, 3).toFixed(3)}s`
+        : `Max: ${statKey === "damage" ? max.toFixed(2) : Math.round(max)}`;
+      el.maxText.setText(maxDisplay);
+      // Centrer le texte au-dessus de la barre
+      el.maxText.setPosition(el.x + el.barWidth / 2, el.y - 15);
+    }
 
     const conversion = getHeroPointConversion();
     const conversionMap = {
       hp: "hp_per_point",
       damage: "damage_per_point",
       move_speed: "move_speed_per_point",
+      attack_interval_ms: "attack_interval_ms_per_point",
     };
 
     const baseValue = values[statKey];
     const pendingPoints = this.pendingUpgrades[statKey];
-    const pendingValue =
-      baseValue + pendingPoints * (conversion?.[conversionMap[statKey]] || 0);
+    const convValue = parseFloat(conversion?.[conversionMap[statKey]] || 0);
+    
+    // Pour attack_interval_ms, on soustrait (plus bas = mieux)
+    const pendingValue = statKey === "attack_interval_ms"
+      ? Math.max(min || 0, baseValue - pendingPoints * convValue)
+      : baseValue + pendingPoints * convValue;
 
-    const baseScale = Phaser.Math.Clamp(baseValue / max, 0, 1);
-    const pendingScale = Phaser.Math.Clamp(pendingValue / max, 0, 1);
+    // Pour attack_interval_ms, on inverse la logique (plus bas = mieux)
+    const range = statKey === "attack_interval_ms" 
+      ? (max - (min || 0))
+      : max;
+    const baseScale = statKey === "attack_interval_ms"
+      ? Phaser.Math.Clamp(1 - (baseValue - (min || 0)) / range, 0, 1)
+      : Phaser.Math.Clamp(baseValue / max, 0, 1);
+    const pendingScale = statKey === "attack_interval_ms"
+      ? Phaser.Math.Clamp(1 - (pendingValue - (min || 0)) / range, 0, 1)
+      : Phaser.Math.Clamp(pendingValue / max, 0, 1);
 
     el.barFill
       .clear()
@@ -688,16 +883,23 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         );
       const displayVal =
         statKey === "damage"
-          ? pendingValue.toFixed(2)
-          : Math.round(pendingValue);
+          ? (Number(pendingValue) || 0).toFixed(2)
+          : statKey === "attack_interval_ms"
+          ? `${truncateDecimals((Number(pendingValue) || 0) / 1000, 5).toFixed(5)}s`
+          : Math.round(Number(pendingValue) || 0);
+      const sign = statKey === "attack_interval_ms" ? "-" : "+";
       el.valText
-        .setText(`${displayVal} (+${pendingPoints})`)
+        .setText(`${displayVal} (${sign}${pendingPoints})`)
         .setColor("#ffaa00");
     } else {
+      const displayVal =
+        statKey === "damage"
+          ? (Number(baseValue) || 0).toFixed(2)
+          : statKey === "attack_interval_ms"
+          ? `${truncateDecimals((Number(baseValue) || 0) / 1000, 5).toFixed(5)}s`
+          : Math.round(Number(baseValue) || 0);
       el.valText
-        .setText(
-          statKey === "damage" ? baseValue.toFixed(2) : Math.round(baseValue)
-        )
+        .setText(displayVal)
         .setColor("#00eaff");
     }
   }
@@ -734,7 +936,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
   // --- NOUVELLE FONCTION ANNULER ---
   cancelUpgrades() {
     this.scene.cameras.main.shake(50, 0.002);
-    this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0 };
+    this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0, attack_interval_ms: 0 };
     this.refresh();
   }
 
@@ -744,7 +946,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       for (const [key, points] of Object.entries(this.pendingUpgrades)) {
         if (points > 0) queueHeroUpgrade(key, points);
       }
-      this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0 };
+      this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0, attack_interval_ms: 0 };
       await new Promise((r) => setTimeout(r, 150));
       this.refresh();
     } catch (err) {
@@ -752,33 +954,97 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     }
   }
 
+  openHeroSelection() {
+    if (!isAuthenticated()) {
+      showAuth();
+      return;
+    }
+    
+    // Créer l'interface de sélection de héros au centre de l'écran
+    const { width, height } = this.scene.scale;
+    const selectionUI = new HeroSelectionUI(this.scene, width / 2, height / 2);
+    selectionUI.setPosition(width / 2 - selectionUI.config.width / 2, height / 2 - selectionUI.config.height / 2);
+    
+    // Écouter l'événement de sélection pour rafraîchir
+    const selectionHandler = () => {
+      this.refresh();
+      window.removeEventListener("hero:selected", selectionHandler);
+    };
+    window.addEventListener("hero:selected", selectionHandler);
+  }
+
   refresh() {
     const stats = getHeroStats();
     if (!stats) return;
     const conversion = getHeroPointConversion();
+    const heroLimits = getHeroLimits();
+    
+    // Vérifier si le hero_id a changé - si oui, recréer complètement l'avatar
+    const currentHeroId = stats?.hero_id ?? 1;
+    if (this.lastHeroId !== undefined && this.lastHeroId !== currentHeroId) {
+      // Le héros a changé, détruire l'ancien avatar et en créer un nouveau
+      if (this.avatarContainer) {
+        this.avatarContainer.destroy();
+        this.avatarContainer = null;
+        this.avatarFrame = null;
+      }
+      // Détruire l'ancien killsText s'il existe pour éviter la superposition
+      if (this.killsText) {
+        this.killsText.destroy();
+        this.killsText = null;
+      }
+      // Note: heroNameText n'est pas recréé car il est créé une seule fois dans le constructeur
+      // et mis à jour via setText(), donc pas besoin de le détruire
+      this.createAvatar(this.config.padding, 40);
+    }
+    this.lastHeroId = currentHeroId;
+    
+    // Mettre à jour les limites depuis le profil
+    if (heroLimits) {
+      this.config.maxValues = {
+        hp: heroLimits.max_hp ?? 2500,
+        damage: heroLimits.max_damage ?? 450,
+        move_speed: heroLimits.max_move_speed ?? 200,
+        attack_interval_ms: 1500, // Pas de max pour attack_interval_ms
+      };
+      this.config.minValues = {
+        attack_interval_ms: heroLimits.min_attack_interval_ms ?? 500,
+      };
+    }
+    
     // Important : on s'assure que les pending sont reset si on refresh depuis l'extérieur
-    this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0 };
+    this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0, attack_interval_ms: 0 };
 
     const conversionMap = {
       hp: "hp_per_point",
       damage: "damage_per_point",
       move_speed: "move_speed_per_point",
+      attack_interval_ms: "attack_interval_ms_per_point",
     };
 
     this.statElements.forEach((el, key) => {
       this.updateBarVisuals(key);
       const convVal = conversion?.[conversionMap[key]];
-      if (convVal)
-        el.conversionText.setText(`+${parseFloat(convVal).toFixed(2)} / pt`);
+      if (convVal) {
+        const sign = key === "attack_interval_ms" ? "-" : "+";
+        el.conversionText.setText(`${sign}${parseFloat(convVal).toFixed(2)} / pt`);
+      }
 
-      // Désactiver le bouton si déjà au max
+      // Désactiver le bouton si déjà au max/min
       const currentVal =
         (key === "hp"
-          ? stats.max_hp
+          ? Number(stats?.max_hp) || 0
           : key === "damage"
-          ? stats.base_damage
-          : stats.move_speed) || 0;
-      if (currentVal >= this.config.maxValues[key]) {
+          ? parseFloat(stats?.base_damage) || 0
+          : key === "attack_interval_ms"
+          ? Number(stats?.attack_interval_ms) || 1500
+          : Number(stats?.move_speed) || 0);
+      
+      const isMax = key === "attack_interval_ms"
+        ? currentVal <= (this.config.minValues?.attack_interval_ms || 500)
+        : currentVal >= this.config.maxValues[key];
+      
+      if (isMax) {
         el.btn.setAlpha(0.3);
         el.btn.input.enabled = false;
       } else {
@@ -790,7 +1056,31 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     if (this.killsText) this.killsText.setText(`${stats.kills || 0}☠️`);
     this.updatePointsDisplay();
     this.updateValidateButtonsState();
-    if (stats.color) this.redrawAvatar(stats.color);
+    if (stats.color && this.avatarFrame) this.redrawAvatar(stats.color);
+    
+    // Mettre à jour le nom du héros
+    this.updateHeroName();
+  }
+
+  async updateHeroName() {
+    try {
+      const heroId = getSelectedHeroId();
+      const response = await fetchHeroes();
+      // fetchHeroes retourne { heroes, heroPointsAvailable }
+      const heroes = response?.heroes || [];
+      const hero = Array.isArray(heroes) ? heroes.find(h => h.id === heroId) : null;
+      if (hero && this.heroNameText) {
+        this.heroNameText.setText(hero.name.toUpperCase());
+      } else if (this.heroNameText) {
+        // Fallback si pas trouvé
+        this.heroNameText.setText("HÉROS");
+      }
+    } catch (error) {
+      console.error("Erreur récupération nom héros:", error);
+      if (this.heroNameText) {
+        this.heroNameText.setText("HÉROS");
+      }
+    }
   }
 
   openColorPicker() {

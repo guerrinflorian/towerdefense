@@ -83,19 +83,8 @@ router.post("/register", async (req, res) => {
 
     const player = insertedPlayer.rows[0];
 
-    await query(
-      `INSERT INTO hero_stats 
-        (player_id, max_hp, base_damage, attack_interval_ms, move_speed, upgrade_points_spent)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        player.id,
-        HERO_BASE_STATS.max_hp,
-        HERO_BASE_STATS.base_damage,
-        HERO_BASE_STATS.attack_interval_ms,
-        HERO_BASE_STATS.move_speed,
-        HERO_BASE_STATS.upgrade_points_spent,
-      ]
-    );
+    // Ne plus créer d'entrée hero_stats - la nouvelle structure utilise heroes/player_heroes
+    // L'entrée player_heroes sera créée à la demande lors du premier accès au héros
 
     await ensurePlayerAchievementRows(player.id);
 
