@@ -60,6 +60,17 @@ export class MapManager {
         if (type === 18) key = "tile_rose_ground"; // Sol Rose (constructible)
         if (type === 19) key = "tile_rose_path"; // Chemin Rose Quartz Royale
 
+        // --- BIOME SNOW (20-21) ---
+        if (type === 20) key = "tile_snow_ground"; // Sol Neige (constructible)
+        if (type === 21) key = "tile_snow_path"; // Chemin Neige
+
+        // --- BIOME LABORATORY (22-23) ---
+        if (type === 22) key = "tile_laboratory_ground"; // Sol Laboratoire (constructible)
+        if (type === 23) key = "tile_laboratory_path"; // Chemin Laboratoire
+
+        // --- BIOME GLACE PROFONDE (24) ---
+        if (type === 24) key = "tile_frozen_ground"; // Sol Glacé Profond (constructible, plus glacé que type 6)
+
         const tile = this.scene.add
           .image(px, py, key)
           .setOrigin(0, 0)
@@ -72,10 +83,12 @@ export class MapManager {
         const shouldPlaceTree = 
           (biome === "grass" && type === 0) || // Herbe pour biome grass
           (biome === "sand" && (type === 0 || type === 10)) || // Herbe ou sable pour biome sand
-          (biome === "ice" && type === 6) || // Neige pour biome ice
+          (biome === "ice" && (type === 6 || type === 24)) || // Neige ou sol glacé profond pour biome ice
           (biome === "cimetiere" && type === 12) || // Sol cimetière pour biome cimetiere
           (biome === "lava" && type === 16) || // Sol roche cramée pour biome lava
-          (biome === "rose" && type === 18); // Sol rose pour biome rose
+          (biome === "rose" && type === 18) || // Sol rose pour biome rose
+          (biome === "snow" && type === 20) || // Sol neige pour biome snow
+          (biome === "laboratory" && type === 22); // Sol laboratoire pour biome laboratory
 
         if (shouldPlaceTree) {
           const canPlaceBarracks = this.isAdjacentToPath(x, y);
@@ -314,8 +327,8 @@ export class MapManager {
 
   isAdjacentToPath(tx, ty) {
     const map = this.scene.levelConfig.map;
-    // On considère 1 et 4 (Volcan), 7 (Neige), 13 (Cimetière), 14 (Lave), et 19 (Rose) comme des chemins
-    const pathTypes = [1, 4, 7, 13, 14, 19];
+    // On considère 1 et 4 (Volcan), 7 (Neige), 13 (Cimetière), 14 (Lave), 19 (Rose), et 23 (Laboratoire) comme des chemins
+    const pathTypes = [1, 4, 7, 13, 14, 19, 23];
     const directions = [
       { x: 0, y: -1 },
       { x: 0, y: 1 },

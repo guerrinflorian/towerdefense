@@ -115,6 +115,7 @@ export function buildChapterViewModels(chapters = [], bestRunsMap = new Map()) {
     let isLocked = chapter.isLocked ?? chapter.is_locked ?? null;
     let lockReason = chapter.lockReason || chapter.lock_reason || "";
 
+    // Logique de déblocage basée sur la progression
     if (prevChapter && (isLocked === null || typeof isLocked === "undefined")) {
       const prevCleared = isChapterCleared(prevChapter, bestRunsMap);
       const hearts = sumHeartsForChapter(prevChapter, bestRunsMap);
@@ -160,7 +161,7 @@ export function buildLevelLocks(levels = [], chapterLocked = false, bestRunsMap 
   levels.forEach((lvl, idx) => {
     const hasPrevious = idx > 0;
     const previousLevel = hasPrevious ? levels[idx - 1] : null;
-    const previousWin = previousLevel ? Boolean(bestRunsMap.get(previousLevel.id)) : true;
+    const previousWin = previousLevel ? Boolean(bestRunsMap.get(previousLevel.id)?.isWin !== false) : true;
     const isUnlocked = previousCleared && previousWin;
     locks.set(lvl.id, { isLocked: !isUnlocked, bestRun: bestRunsMap.get(lvl.id) || null });
     previousCleared = previousCleared && previousWin;

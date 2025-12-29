@@ -1,5 +1,4 @@
 export const LEVEL_6 = {
-  name: "Roselume de valeria",
   biome: "rose",
   startingMoney: 1250,
   // TYPES DE TEXTURES (0-18) :
