@@ -55,6 +55,32 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
     this.lastDamageSource = null;
     this.lastTurretType = null; // Type de tourelle qui a infligé les derniers dégâts
 
+    // Mécaniques spéciales des nouveaux monstres
+    this.berserkerMode = this.stats.berserkerMode || false;
+    this.vampireLifesteal = this.stats.vampireLifesteal || 0;
+    this.screamRadius = this.stats.screamRadius || 0;
+    this.screamDuration = this.stats.screamDuration || 0;
+    this.screamCooldown = this.stats.screamCooldown || 0;
+    this.lastScreamTime = 0;
+    this.buffRadius = this.stats.buffRadius || 0;
+    this.buffMultiplier = this.stats.buffMultiplier || 1;
+    this.isBuffed = false;
+    this.buffVisual = null;
+    this.jammingRadius = this.stats.jammingRadius || 0;
+    this.isJammed = false; // Statut de brouillage de la barre de vie
+    
+    // Berserker : gain de PV au fil du temps
+    this.hpGrowthEnabled = this.stats.hpGrowthEnabled || false;
+    this.hpGrowthInterval = this.stats.hpGrowthInterval || 1000;
+    this.hpGrowthPercent = this.stats.hpGrowthPercent || 0.01;
+    this.lastHpGainTime = 0;
+    this.spawnTime = 0; // Sera initialisé lors du spawn
+    
+    // Vampire : récupère des PV quand un ennemi meurt à proximité
+    this.vampireDeathFeast = this.stats.vampireDeathFeast || false;
+    this.vampireDeathFeastRadius = this.stats.vampireDeathFeastRadius || 2;
+    this.vampireDeathFeastPercent = this.stats.vampireDeathFeastPercent || 0.25;
+
     this.initVisuals();
 
     this.scene.add.existing(this);
@@ -92,6 +118,11 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
     if (this.path) {
       this.pathLength = this.path.getLength();
       this.previousTangent = this.calculateTangent(0);
+    }
+    // Initialiser le temps de spawn pour le berserker
+    if (this.hpGrowthEnabled && this.scene?.time) {
+      this.spawnTime = this.scene.time.now;
+      this.lastHpGainTime = this.scene.time.now;
     }
   }
 
@@ -145,6 +176,9 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
 
     this.handleSpecialAbilities(time);
     this.updateCombat(time);
+
+    // Vérifier le brouillage des barres de vie (pour tous les ennemis)
+    this.updateJammingStatus();
 
     if (this.hpTooltip && this.hpTooltip.active) {
       this.hpTooltip.setPosition(this.x, this.y - 60);
@@ -323,7 +357,34 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
           waveIndex: this.waveIndex ?? this.scene.activeWaveIndex,
         });
       }
-      if (this.scene.takeDamage) this.scene.takeDamage(this.playerDamage);
+      
+      // Berserker : plus il perd de PV, plus il inflige de dégâts
+      let finalDamage = this.playerDamage;
+      if (this.berserkerMode) {
+        const hpLost = this.maxHp - this.hp;
+        const hpLostPercent = hpLost / this.maxHp;
+        // Multiplicateur : 1x à 100% HP, jusqu'à 3x à 0% HP
+        const damageMultiplier = 1 + (hpLostPercent * 2);
+        finalDamage = Math.ceil(this.playerDamage * damageMultiplier);
+        
+        // Feedback visuel
+        const txt = this.scene.add.text(this.x, this.y - 50, `RAGE! +${Math.round((damageMultiplier - 1) * 100)}%`, {
+          fontSize: "14px",
+          color: "#ff0000",
+          fontStyle: "bold",
+          backgroundColor: "rgba(0,0,0,0.7)",
+          padding: { x: 6, y: 3 },
+        }).setOrigin(0.5).setDepth(2500);
+        this.scene.tweens.add({
+          targets: txt,
+          y: txt.y - 30,
+          alpha: 0,
+          duration: 800,
+          onComplete: () => txt.destroy(),
+        });
+      }
+      
+      if (this.scene.takeDamage) this.scene.takeDamage(finalDamage);
       this.destroy();
     }
   }
@@ -402,7 +463,61 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
       this.handleRangedCombat(time);
     } else if (this.isBlocked && this.blockedBy) {
       if (time - this.lastAttackTime >= this.attackSpeed) {
-        if (this.blockedBy.takeDamage) this.blockedBy.takeDamage(this.attackDamage);
+        // Berserker : calculer les dégâts selon les PV perdus
+        let damageDealt = this.attackDamage;
+        if (this.berserkerMode) {
+          const hpLost = this.maxHp - this.hp;
+          const hpLostPercent = hpLost / this.maxHp;
+          const damageMultiplier = 1 + (hpLostPercent * 2);
+          damageDealt = Math.ceil(this.attackDamage * damageMultiplier);
+        }
+        
+        if (this.blockedBy.takeDamage) this.blockedBy.takeDamage(damageDealt);
+        
+        // Vampire : se soigne de 20% des dégâts infligés
+        if (this.vampireLifesteal > 0 && damageDealt > 0) {
+          const healAmount = Math.ceil(damageDealt * this.vampireLifesteal);
+          this.hp = Math.min(this.maxHp, this.hp + healAmount);
+          this.updateHealthBar();
+          
+          // Feedback visuel
+          if (healAmount > 0) {
+            const txt = this.scene.add.text(this.x, this.y - 40, `+${healAmount} HP`, {
+              fontSize: "12px",
+              color: "#00ff00",
+              fontStyle: "bold",
+              backgroundColor: "rgba(0,0,0,0.6)",
+              padding: { x: 4, y: 2 },
+            }).setOrigin(0.5).setDepth(2500);
+            this.scene.tweens.add({
+              targets: txt,
+              y: txt.y - 20,
+              alpha: 0,
+              duration: 600,
+              onComplete: () => txt.destroy(),
+            });
+            
+            // Effet de sang
+            if (this.elements?.bloodEffect) {
+              this.elements.bloodEffect.clear();
+              this.elements.bloodEffect.fillStyle(0x8b0000, 0.6);
+              this.elements.bloodEffect.fillCircle(0, 0, 8);
+              this.elements.bloodEffect.setVisible(true);
+              this.scene.tweens.add({
+                targets: this.elements.bloodEffect,
+                alpha: 0,
+                scale: 1.5,
+                duration: 400,
+                onComplete: () => {
+                  if (this.elements?.bloodEffect) {
+                    this.elements.bloodEffect.setVisible(false);
+                  }
+                },
+              });
+            }
+          }
+        }
+        
         this.lastAttackTime = time;
       }
     }
@@ -489,6 +604,53 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
       this.hatchTimer = this.scene.time.delayedCall(hatchDelay, () => {
         this.hatchEgg();
       });
+    }
+
+    // Criard : désactive les tours à 2 cases pendant 2s
+    if (this.screamRadius > 0 && this.screamCooldown > 0) {
+      if (time - this.lastScreamTime >= this.screamCooldown) {
+        this.screamDisableTurrets();
+        this.lastScreamTime = time;
+      }
+    }
+
+    // Stratège : renforce les alliés proches
+    if (this.buffRadius > 0 && this.buffMultiplier > 1) {
+      this.buffNearbyAllies();
+    }
+
+    // Brouilleur : cache les barres de vie (géré de manière centralisée)
+    // La logique est dans update() pour être appelée pour tous les ennemis
+
+    // Berserker : gagne 1% de PV max toutes les secondes
+    if (this.hpGrowthEnabled && this.hpGrowthInterval && this.hpGrowthPercent && this.scene?.time) {
+      const currentTime = this.scene.time.now;
+      if (currentTime - this.lastHpGainTime >= this.hpGrowthInterval) {
+        const hpGain = Math.ceil(this.maxHp * this.hpGrowthPercent);
+        this.maxHp += hpGain;
+        this.hp += hpGain; // Gagne aussi les PV actuels pour rester à la même proportion
+        
+        // Feedback visuel discret
+        if (hpGain > 0) {
+          const txt = this.scene.add.text(this.x, this.y - 60, `+${hpGain} HP`, {
+            fontSize: "11px",
+            color: "#ffaa00",
+            fontStyle: "bold",
+            backgroundColor: "rgba(0,0,0,0.6)",
+            padding: { x: 4, y: 2 },
+          }).setOrigin(0.5).setDepth(2500);
+          this.scene.tweens.add({
+            targets: txt,
+            y: txt.y - 20,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => txt.destroy(),
+          });
+        }
+        
+        this.updateHealthBar();
+        this.lastHpGainTime = currentTime;
+      }
     }
   }
 
@@ -631,6 +793,11 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
     this.hpBarContainer.add([bg, this.hpFill]);
     this.add(this.hpBarContainer);
     this.hpBarContainer.setDepth(2000);
+    
+    // Vérifier si la barre doit être cachée (brouillage)
+    if (this.isJammed) {
+      this.hpBarContainer.setVisible(false);
+    }
   }
 
   updateHealthBar() {
@@ -639,6 +806,11 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
     this.hpFill.width = 40 * pct;
     const color = pct < 0.3 ? 0xff0000 : pct < 0.6 ? 0xffa500 : 0x00ff00;
     this.hpFill.fillColor = color;
+    
+    // Respecter le statut de brouillage
+    if (this.hpBarContainer) {
+      this.hpBarContainer.setVisible(!this.isJammed);
+    }
     this.refreshHpTooltip();
   }
 
@@ -673,6 +845,187 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
     return false;
   }
 
+  // Criard : désactive les tours à 2 cases pendant 2s
+  screamDisableTurrets() {
+    if (!this.scene?.turrets || this.screamRadius <= 0) return;
+    
+    const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
+    const radiusPixels = this.screamRadius * T;
+    
+    // Animation des ondes sonores
+    if (this.elements?.soundWaves) {
+      this.elements.soundWaves.setVisible(true);
+      this.elements.soundWaves.removeAll(true);
+      
+      for (let i = 1; i <= 3; i++) {
+        const wave = this.scene.add.graphics();
+        wave.lineStyle(3, 0xffff00, 0.6);
+        wave.strokeCircle(0, 0, radiusPixels * (i / 3));
+        this.elements.soundWaves.add(wave);
+      }
+      
+      this.scene.tweens.add({
+        targets: this.elements.soundWaves,
+        scale: 1.5,
+        alpha: 0,
+        duration: 500,
+        onComplete: () => {
+          if (this.elements?.soundWaves) {
+            this.elements.soundWaves.setVisible(false);
+            this.elements.soundWaves.removeAll(true);
+          }
+        },
+      });
+    }
+    
+    // Désactiver les tours dans le rayon
+    this.scene.turrets.forEach((turret) => {
+      if (!turret?.active) return;
+      
+      const dist = Phaser.Math.Distance.Between(this.x, this.y, turret.x, turret.y);
+      if (dist <= radiusPixels) {
+        // Marquer la tourelle comme désactivée
+        if (!turret.disabledByScream) {
+          turret.disabledByScream = true;
+          
+          // Ajouter une croix rouge sur la tourelle
+          const cross = this.scene.add.graphics();
+          cross.lineStyle(4, 0xff0000, 0.9);
+          cross.lineBetween(turret.x - 20, turret.y - 20, turret.x + 20, turret.y + 20);
+          cross.lineBetween(turret.x - 20, turret.y + 20, turret.x + 20, turret.y - 20);
+          cross.setDepth(100);
+          cross.setScrollFactor(0);
+          turret.screamCross = cross;
+          
+          // Réactiver après la durée
+          this.scene.time.delayedCall(this.screamDuration, () => {
+            if (turret?.active) {
+              turret.disabledByScream = false;
+              if (turret.screamCross) {
+                turret.screamCross.destroy();
+                turret.screamCross = null;
+              }
+            }
+          });
+        }
+      }
+    });
+  }
+
+  // Stratège : renforce les alliés proches (+12% stats, contour vert)
+  buffNearbyAllies() {
+    if (!this.scene?.enemies || this.buffRadius <= 0) return;
+    
+    const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
+    const radiusPixels = this.buffRadius * T;
+    
+    this.scene.enemies.getChildren().forEach((ally) => {
+      if (ally === this || !ally.active) return;
+      
+      const dist = Phaser.Math.Distance.Between(this.x, this.y, ally.x, ally.y);
+      if (dist <= radiusPixels) {
+        if (!ally.isBuffed) {
+          ally.isBuffed = true;
+          ally.buffedBy = this;
+          
+          // Stocker les stats de base si pas déjà fait
+          if (!ally.baseSpeed) ally.baseSpeed = ally.speed;
+          if (!ally.baseAttackDamage) ally.baseAttackDamage = ally.attackDamage;
+          if (!ally.baseMaxHp) ally.baseMaxHp = ally.maxHp;
+          
+          // Appliquer le buff (+12% stats)
+          const oldHpPercent = ally.hp / ally.maxHp;
+          ally.speed = Math.ceil(ally.baseSpeed * this.buffMultiplier);
+          ally.attackDamage = Math.ceil(ally.baseAttackDamage * this.buffMultiplier);
+          ally.maxHp = Math.ceil(ally.baseMaxHp * this.buffMultiplier);
+          ally.hp = Math.ceil(ally.maxHp * oldHpPercent);
+          ally.updateHealthBar();
+          
+          // Contour vert
+          const buffOutline = this.scene.add.graphics();
+          buffOutline.lineStyle(3, 0x00ff00, 0.8);
+          buffOutline.strokeCircle(0, 0, 20);
+          buffOutline.setDepth(ally.depth + 1);
+          ally.add(buffOutline);
+          ally.buffVisual = buffOutline;
+          
+          // Animation pulsante
+          this.scene.tweens.add({
+            targets: buffOutline,
+            alpha: { from: 0.5, to: 1 },
+            scale: { from: 0.9, to: 1.1 },
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut",
+          });
+        }
+      } else if (dist > radiusPixels && ally.isBuffed && ally.buffedBy === this) {
+        // Retirer le buff si trop loin (seulement si c'est ce Stratège qui l'a buffé)
+        ally.isBuffed = false;
+        ally.buffedBy = null;
+        
+        if (ally.baseSpeed) {
+          const oldHpPercent = ally.hp / ally.maxHp;
+          ally.speed = ally.baseSpeed;
+          ally.attackDamage = ally.baseAttackDamage;
+          ally.maxHp = ally.baseMaxHp;
+          ally.hp = Math.ceil(ally.maxHp * oldHpPercent);
+          ally.updateHealthBar();
+        }
+        
+        if (ally.buffVisual) {
+          ally.buffVisual.destroy();
+          ally.buffVisual = null;
+        }
+      }
+      
+      // Marquer qui a buffé cet allié
+      if (dist <= radiusPixels && ally.isBuffed) {
+        ally.buffedBy = this;
+      }
+    });
+  }
+
+  // Vérifier si cet ennemi est brouillé par un brouilleur à proximité
+  updateJammingStatus() {
+    if (!this.scene?.enemies) {
+      this.isJammed = false;
+      return;
+    }
+
+    const CONFIG = { TILE_SIZE: 64 };
+    const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
+    let isJammed = false;
+
+    // Parcourir tous les ennemis pour trouver les brouilleurs actifs
+    this.scene.enemies.getChildren().forEach((enemy) => {
+      if (!enemy || !enemy.active || enemy === this) return;
+      
+      // Vérifier si c'est un brouilleur avec un rayon actif
+      if (enemy.jammingRadius && enemy.jammingRadius > 0) {
+        const radiusPixels = enemy.jammingRadius * T;
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+        
+        if (dist <= radiusPixels) {
+          isJammed = true;
+        }
+      }
+    });
+
+    // Mettre à jour le statut de brouillage
+    if (this.isJammed !== isJammed) {
+      this.isJammed = isJammed;
+      // Mettre à jour la visibilité de la barre de vie
+      if (this.hpBarContainer) {
+        this.hpBarContainer.setVisible(!isJammed);
+      }
+    } else if (this.hpBarContainer) {
+      // S'assurer que la visibilité est correcte même si le statut n'a pas changé
+      this.hpBarContainer.setVisible(!this.isJammed);
+    }
+  }
+
   die() {
     if (this.hatchTimer) {
       this.hatchTimer.remove();
@@ -682,22 +1035,111 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
     if (this.isBlocked && this.blockedBy?.releaseEnemy) {
       this.blockedBy.releaseEnemy();
     }
-    if (this.stats.onDeath) this.stats.onDeath(this);
-    if (this.scene.earnMoney) this.scene.earnMoney(this.stats.reward || 10);
+    
+    // Vérifier si onDeath transforme le boss
+    const isTransforming = !!this.stats.nextPhase;
+    
+    if (this.stats.onDeath) {
+      this.stats.onDeath(this);
+    }
+    
+    // Ne pas donner de récompense ni émettre d'événement si c'est une transformation
+    if (!isTransforming) {
+      if (this.scene.earnMoney) this.scene.earnMoney(this.stats.reward || 10);
 
-    if (this.scene?.events) {
-      const src = this.lastDamageSource || "other";
-      this.scene.events.emit("enemy-killed", {
-        source: src,
-        turretType: this.lastTurretType || null, // Type de tourelle qui a tué l'ennemi
-        x: this.x,
-        y: this.y,
-        waveIndex: this.waveIndex ?? this.scene?.activeWaveIndex ?? null,
-      });
+      if (this.scene?.events) {
+        const src = this.lastDamageSource || "other";
+        this.scene.events.emit("enemy-killed", {
+          source: src,
+          turretType: this.lastTurretType || null, // Type de tourelle qui a tué l'ennemi
+          x: this.x,
+          y: this.y,
+          waveIndex: this.waveIndex ?? this.scene?.activeWaveIndex ?? null,
+        });
+      }
+
+      // Notifier les vampires à proximité qu'un ennemi est mort
+      this.notifyVampiresOfDeath();
     }
 
     this.explode();
     this.destroy();
+  }
+
+  notifyVampiresOfDeath() {
+    if (!this.scene?.enemies) return;
+    
+    // Calculer le rayon en pixels (2 cases par défaut)
+    const CONFIG = { TILE_SIZE: 64 };
+    const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
+    const defaultRadius = 2; // 2 cases par défaut
+    const radiusPixels = defaultRadius * T;
+    
+    // Parcourir tous les ennemis vivants
+    this.scene.enemies.getChildren().forEach((enemy) => {
+      if (!enemy || !enemy.active || enemy === this) return;
+      
+      // Vérifier si c'est un vampire avec la mécanique activée
+      if (!enemy.vampireDeathFeast) return;
+      
+      // Utiliser le rayon du vampire (peut être différent)
+      const vampireRadius = enemy.vampireDeathFeastRadius || defaultRadius;
+      const vampireRadiusPixels = vampireRadius * T;
+      
+      // Calculer la distance
+      const distance = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+      
+      if (distance <= vampireRadiusPixels) {
+        // Le vampire récupère 1/4 de son maxHp actuel
+        const hpGain = Math.ceil(enemy.maxHp * enemy.vampireDeathFeastPercent);
+        
+        // Augmenter à la fois maxHp et hp (peut dépasser le maxHp précédent)
+        enemy.maxHp += hpGain;
+        enemy.hp += hpGain;
+        
+        // Mettre à jour la barre de vie
+        enemy.updateHealthBar();
+        
+        // Feedback visuel
+        const txt = this.scene.add.text(enemy.x, enemy.y - 60, `+${hpGain} HP (Feast!)`, {
+          fontSize: "12px",
+          color: "#ff00ff",
+          fontStyle: "bold",
+          backgroundColor: "rgba(0,0,0,0.7)",
+          padding: { x: 6, y: 3 },
+        }).setOrigin(0.5).setDepth(2500);
+        
+        this.scene.tweens.add({
+          targets: txt,
+          y: txt.y - 30,
+          alpha: 0,
+          duration: 1200,
+          onComplete: () => txt.destroy(),
+        });
+        
+        // Effet visuel de sang sur le vampire
+        if (enemy.elements?.bloodEffect) {
+          enemy.elements.bloodEffect.setVisible(true);
+          enemy.elements.bloodEffect.clear();
+          enemy.elements.bloodEffect.fillStyle(0x8b0000, 0.6);
+          enemy.elements.bloodEffect.fillCircle(0, 0, 30);
+          enemy.elements.bloodEffect.lineStyle(2, 0xff0000, 0.8);
+          enemy.elements.bloodEffect.strokeCircle(0, 0, 32);
+          
+          this.scene.tweens.add({
+            targets: enemy.elements.bloodEffect,
+            alpha: 0,
+            scale: 1.3,
+            duration: 800,
+            onComplete: () => {
+              if (enemy.elements?.bloodEffect) {
+                enemy.elements.bloodEffect.setVisible(false);
+              }
+            },
+          });
+        }
+      }
+    });
   }
 
   explode() {

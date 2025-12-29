@@ -715,10 +715,10 @@ export class GameScene extends Phaser.Scene {
 
   buildTurret(turretConfig, tileX, tileY) {
     // --- CORRECTION ICI ---
-    // Vérification stricte du terrain : Types autorisés : herbe (0), neige (6), sable (10), cimetière (12), roche volcanique (16), sol rose (18)
+    // Vérification stricte du terrain : Types autorisés : herbe (0), neige (6), sol glacé profond (24), sable (10), cimetière (12), roche volcanique (16), sol rose (18), sol laboratoire (22)
     // Note: type 11 (rochers sable) et type 5 (rochers) ne sont pas constructibles car ce sont des décors
     const tileType = this.levelConfig.map[tileY][tileX];
-    if (tileType !== 0 && tileType !== 6 && tileType !== 10 && tileType !== 12 && tileType !== 16 && tileType !== 18) {
+    if (tileType !== 0 && tileType !== 6 && tileType !== 24 && tileType !== 10 && tileType !== 12 && tileType !== 16 && tileType !== 18 && tileType !== 22) {
       this.cameras.main.shake(50, 0.005);
       return false;
     }
@@ -890,7 +890,17 @@ export class GameScene extends Phaser.Scene {
     this.canCallNextWave = false;
 
     // Appeler de manière asynchrone sans bloquer
-    this.showGameOverNotification().catch(() => {});
+    this.showGameOverNotification().catch((err) => {
+      console.error("[GameOver] Error showing game over notification:", err);
+      // Fallback : afficher quand même la popup après un délai si l'erreur survient
+      setTimeout(() => {
+        if (!this._gameOverShown && this.scene && this.scene.isActive()) {
+          console.warn("[GameOver] Fallback: forcing game over display");
+          this._gameOverShown = false; // Réinitialiser pour permettre l'affichage
+          this.showGameOverNotification().catch(() => {});
+        }
+      }, 2000);
+    });
   }
 
   showTransmissionOverlay(result = "VICTOIRE") {
@@ -994,18 +1004,42 @@ export class GameScene extends Phaser.Scene {
     this.hideTransmissionOverlay();
     this.showTransmissionOverlay("DÉFAITE");
   
+    // Utiliser un timeout pour s'assurer que l'écran s'affiche même si les requêtes prennent trop de temps
+    const maxWaitTime = 10000; // 10 secondes maximum
+    const startTime = Date.now();
+    
     try {
       const heroKillReport = this.reportHeroKillsOnce(true);
-      if (heroKillReport) await heroKillReport;
+      if (heroKillReport) {
+        await Promise.race([
+          heroKillReport,
+          new Promise(resolve => setTimeout(resolve, maxWaitTime - (Date.now() - startTime)))
+        ]);
+      }
     } catch (_) {}
   
     try {
-      await this.finalizeRunReport("LOSE", "base_destroyed");
+      const remainingTime = Math.max(0, maxWaitTime - (Date.now() - startTime));
+      if (remainingTime > 0) {
+        await Promise.race([
+          this.finalizeRunReport("LOSE", "base_destroyed"),
+          new Promise(resolve => setTimeout(resolve, remainingTime))
+        ]);
+      }
     } catch (_) {}
   
     // stop l'écran "envoi" avant d'afficher la vraie popup
     this.hideTransmissionOverlay();
-  
+    
+    // S'assurer qu'on attend un peu pour que l'overlay soit bien détruit avant d'afficher la popup
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Vérifier que la scène est toujours active avant d'afficher la popup
+    if (!this.scene || !this.scene.isActive()) {
+      console.warn("[GameOver] Scene is not active, cannot show notification");
+      return;
+    }
+
     if (this.pauseBtn) {
       try {
         this.pauseBtn.disableInteractive();
@@ -1018,12 +1052,21 @@ export class GameScene extends Phaser.Scene {
         this.quitBtn.setAlpha(0.5);
       } catch (_) {}
     }
-  
+
     const cam = this.cameras.main;
+    if (!cam) {
+      console.warn("[GameOver] Camera not available, cannot show notification");
+      return;
+    }
+    
     const s = this.scaleFactor || 1;
-  
+
     // UI overlay fixé à l'écran
     const overlay = this.add.container(cam.midPoint.x, cam.midPoint.y);
+    if (!overlay) {
+      console.warn("[GameOver] Failed to create overlay container");
+      return;
+    }
     overlay.setDepth(999999);
     overlay.setScrollFactor(0);
   

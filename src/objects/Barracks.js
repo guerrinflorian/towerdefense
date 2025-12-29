@@ -231,8 +231,8 @@ export class Barracks extends Phaser.GameObjects.Container {
     for (let y = 0; y < map.length; y++) {
       for (let x = 0; x < map[y].length; x++) {
         const tileType = map[y][x];
-        if (tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14 || tileType === 19) {
-          // Chemin, pont, neige, cimetière, lave ou chemin rose
+        if (tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14 || tileType === 19 || tileType === 23) {
+          // Chemin, pont, neige, cimetière, lave, chemin rose ou chemin laboratoire
           const tileX = mapStartX + x * T + T / 2;
           const tileY = mapStartY + y * T + T / 2;
           const dist = Phaser.Math.Distance.Between(
@@ -432,7 +432,7 @@ export class Barracks extends Phaser.GameObjects.Container {
 
     const map = this.scene.levelConfig.map;
     const tileType = map[ty][tx];
-    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14 || tileType === 19;
+    return tileType === 1 || tileType === 4 || tileType === 7 || tileType === 13 || tileType === 14 || tileType === 19 || tileType === 23;
   }
 
   // Quand un soldat meurt

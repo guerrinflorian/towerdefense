@@ -446,6 +446,11 @@ export class Turret extends Phaser.GameObjects.Container {
       return;
     }
 
+    // Vérifier si la tourelle est désactivée par le cri du Criard
+    if (this.disabledByScream) {
+      return;
+    }
+
     if (time > this.lastFired) {
       const target = this.findTarget(enemies);
 
