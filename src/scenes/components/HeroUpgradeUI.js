@@ -1,10 +1,15 @@
 import {
+  ensureHeroContext,
+  getAvailableHeroes,
   getHeroStats,
   getHeroPointsAvailable,
   getHeroPointConversion,
-  getHeroLimits,
+  getSelectedHeroId,
+  getHeroUnlockCost,
+  isHeroLocked,
   queueHeroUpgrade,
-  updateHeroColor,
+  selectHero,
+  unlockHero,
   isAuthenticated,
   getSelectedHeroId,
   getProfile,
@@ -55,6 +60,12 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       this.profileUpdateHandler
     );
 
+    this.heroSelectionHandler = () => {
+      this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0 };
+      this.refresh();
+    };
+    window.addEventListener("hero:selection-changed", this.heroSelectionHandler);
+
     this.scene.events.once("shutdown", () => {
       this.stopContinuousUpgrade();
       window.removeEventListener(
@@ -62,15 +73,13 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         this.upgradeCompleteHandler
       );
       window.removeEventListener(
-        "profile:updated",
-        this.profileUpdateHandler
+        "hero:selection-changed",
+        this.heroSelectionHandler
       );
     });
 
     this.setupMainPanel();
-    this.refresh();
-    // Charger le nom du héros initial
-    this.updateHeroName();
+    ensureHeroContext().then(() => this.refresh());
 
     this.scene.add.existing(this);
     this.setDepth(180);
@@ -102,34 +111,41 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       .setOrigin(0.5);
     this.add(title);
 
-    // Bouton pour ouvrir la sélection de héros
-    this.heroSelectionBtn = this.scene.add
-      .rectangle(width - padding - 10, -15, 80, 25, accentColor, 0.7)
-      .setInteractive({ useHandCursor: true })
-      .on("pointerover", () => this.heroSelectionBtn.setAlpha(1))
-      .on("pointerout", () => this.heroSelectionBtn.setAlpha(0.7))
-      .on("pointerdown", () => this.openHeroSelection());
+    this.heroNameText = this.scene.add
+      .text(width / 2, 20, "", {
+        fontFamily: "Orbitron, sans-serif",
+        fontSize: "18px",
+        color: "#7dd0ff",
+        fontWeight: "bold",
+        resolution,
+      })
+      .setOrigin(0.5);
+    this.add(this.heroNameText);
 
-    const selectText = this.scene.add.text(width - padding - 10, -15, "CHANGER", {
-      fontFamily: "Arial",
-      fontSize: "11px",
-      color: "#ffffff",
-      fontWeight: "bold",
-      resolution,
-    }).setOrigin(0.5);
-    this.add(this.heroSelectionBtn);
-    this.add(selectText);
+    const navOffsetY = 20;
+    this.heroNavLeft = this.scene.add
+      .text(padding, navOffsetY, "◀", {
+        fontSize: "18px",
+        color: "#7dd0ff",
+        fontFamily: "Orbitron, sans-serif",
+        resolution,
+      })
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+    this.heroNavRight = this.scene.add
+      .text(width - padding, navOffsetY, "▶", {
+        fontSize: "18px",
+        color: "#7dd0ff",
+        fontFamily: "Orbitron, sans-serif",
+        resolution,
+      })
+      .setOrigin(1, 0.5)
+      .setInteractive({ useHandCursor: true });
 
-    // --- NOM DU HÉROS EN HAUT ---
-    this.heroNameText = this.scene.add.text(width / 2, 10, "", {
-      fontFamily: "Orbitron, sans-serif",
-      fontSize: "22px",
-      color: "#ffffff",
-      fontWeight: "bold",
-      stroke: "#000000",
-      strokeThickness: 4,
-      resolution,
-    }).setOrigin(0.5, 0);
+    this.heroNavLeft.on("pointerdown", () => this.cycleHero(-1));
+    this.heroNavRight.on("pointerdown", () => this.cycleHero(1));
+
+    this.add([this.heroNavLeft, this.heroNavRight]);
     this.add(this.heroNameText);
 
     // --- RESTAURATION DE L'AVATAR ORIGINAL ---
@@ -149,7 +165,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
 
     // --- TEXTES DU BAS ---
     this.pointsText = this.scene.add
-      .text(width / 2, height - 95, "", {
+      .text(width / 2, height - 115, "", {
         fontSize: "18px",
         fontFamily: "Orbitron, sans-serif",
         color: "#7dd0ff",
@@ -157,6 +173,47 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         resolution,
       })
       .setOrigin(0.5);
+
+    this.lockedText = this.scene.add
+      .text(width / 2, height - 90, "", {
+        fontSize: "15px",
+        fontFamily: "Orbitron, sans-serif",
+        color: "#ffb347",
+        fontWeight: "bold",
+        resolution,
+      })
+      .setOrigin(0.5)
+      .setVisible(false);
+
+    this.unlockButton = this.scene.add
+      .container(width / 2, height - 60)
+      .setVisible(false);
+    const unlockBg = this.scene.add.graphics();
+    const unlockW = 220;
+    const unlockH = 38;
+    const drawUnlockBg = (hover) => {
+      unlockBg.clear();
+      unlockBg.fillStyle(0x1a2639, hover ? 0.9 : 0.7);
+      unlockBg.lineStyle(2, 0x00eaff, hover ? 1 : 0.7);
+      unlockBg.fillRoundedRect(-unlockW / 2, -unlockH / 2, unlockW, unlockH, 10);
+      unlockBg.strokeRoundedRect(-unlockW / 2, -unlockH / 2, unlockW, unlockH, 10);
+    };
+    drawUnlockBg(false);
+    this.unlockText = this.scene.add
+      .text(0, 0, "DÉBLOQUER", {
+        fontSize: "16px",
+        fontFamily: "Orbitron, sans-serif",
+        color: "#ffffff",
+        fontWeight: "bold",
+        resolution,
+      })
+      .setOrigin(0.5);
+    this.unlockButton.add([unlockBg, this.unlockText]);
+    this.unlockButton.setSize(unlockW, unlockH).setInteractive({ useHandCursor: true });
+    this.unlockButton
+      .on("pointerover", () => drawUnlockBg(true))
+      .on("pointerout", () => drawUnlockBg(false))
+      .on("pointerdown", () => this.handleUnlock());
 
     this.costText = this.scene.add
       .text(width / 2, height - 25, "", {
@@ -231,6 +288,8 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     this.add([
       this.pointsText,
       this.costText,
+      this.lockedText,
+      this.unlockButton,
       this.globalCancelBtn,
       this.globalValidateBtn,
     ]);
@@ -244,6 +303,25 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     graphics.strokeRoundedRect(-65, -18, 130, 36, 8);
   }
 
+  async cycleHero(direction) {
+    const list = getAvailableHeroes();
+    if (!list || list.length === 0) return;
+    const currentId = getSelectedHeroId();
+    const currentIndex = Math.max(
+      0,
+      list.findIndex((h) => Number(h.id) === Number(currentId ?? list[0]?.id))
+    );
+    const nextIndex = (currentIndex + direction + list.length) % list.length;
+    const nextHero = list[nextIndex];
+    if (!nextHero) return;
+    try {
+      await selectHero(nextHero.id);
+      this.refresh();
+    } catch (err) {
+      console.error("Impossible de changer de héros", err);
+    }
+  }
+
   // --- FONCTIONS DE DESSIN DE L'AVATAR ORIGINALES ---
   hexToNumber(hex) {
     if (!hex) return 0x2b2b2b;
@@ -251,7 +329,41 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     return parseInt(cleanHex, 16);
   }
 
-  drawKnightAvatarBody(frame, centerX, centerY, scale, heroColor) {
+  createAvatar(x, y) {
+    const size = this.config.avatarSize;
+    const resolution = window.devicePixelRatio || 1;
+    const container = this.scene.add.container(x, y);
+
+    const frame = this.scene.add.graphics();
+    frame.lineStyle(2, this.config.accentColor, 0.5);
+    frame.strokeRect(-2, -2, size + 4, size + 4);
+    frame.fillStyle(0x1a2a3a, 1);
+    frame.fillRect(0, 0, size, size);
+
+    const scale = size / 50;
+    const centerX = size / 2;
+    const centerY = size / 2;
+
+    frame.fillStyle(0x000000, 0.18);
+    frame.fillEllipse(centerX, centerY + 18 * scale, 26 * scale, 10 * scale);
+
+    frame.fillStyle(0x151526, 0.92);
+    frame.fillEllipse(
+      centerX - 2 * scale,
+      centerY + 8 * scale,
+      22 * scale,
+      30 * scale
+    );
+    frame.fillStyle(0x0d0d18, 0.35);
+    frame.fillEllipse(
+      centerX - 6 * scale,
+      centerY + 10 * scale,
+      14 * scale,
+      24 * scale
+    );
+
+    const stats = getHeroStats();
+    const heroColor = stats?.color || "#2b2b2b";
     const chestplateColor = this.hexToNumber(heroColor);
     frame.fillStyle(chestplateColor, 1);
     frame.fillRoundedRect(
@@ -551,23 +663,6 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
 
     this.add(container);
 
-    const penBtn = this.scene.add.container(x + size - 5, y + 5);
-    const penBg = this.scene.add
-      .circle(0, 0, 12, 0x00eaff, 0.2)
-      .setStrokeStyle(1, 0x00eaff);
-    const resolution = window.devicePixelRatio || 1;
-    const penIcon = this.scene.add
-      .text(0, 0, "✏️", { fontSize: "14px", resolution })
-      .setOrigin(0.5);
-    penBtn.add([penBg, penIcon]);
-    penBtn.setSize(24, 24).setInteractive({ useHandCursor: true });
-
-    penBtn.on("pointerover", () => penBg.setFillStyle(0x00eaff, 0.5));
-    penBtn.on("pointerout", () => penBg.setFillStyle(0x00eaff, 0.2));
-    penBtn.on("pointerdown", () => this.openColorPicker());
-
-    this.add(penBtn);
-
     this.killsText = this.scene.add
       .text(x + size / 2, y + size + 15, "", {
         fontSize: "15px",
@@ -761,6 +856,13 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       return;
     }
 
+    const stats = getHeroStats();
+    const conversion = getHeroPointConversion();
+    if (!stats || !conversion) {
+      this.stopContinuousUpgrade();
+      return;
+    }
+
     const available = getHeroPointsAvailable();
     const totalPending = Object.values(this.pendingUpgrades).reduce(
       (a, b) => a + b,
@@ -772,8 +874,6 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     }
 
     // Vérification du maximum absolu
-    const stats = getHeroStats();
-    const conversion = getHeroPointConversion();
     const conversionMap = {
       hp: "hp_per_point",
       damage: "damage_per_point",
@@ -790,19 +890,16 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         ? Number(stats?.attack_interval_ms) || 1500
         : Number(stats?.move_speed) || 0);
     const pendingPoints = this.pendingUpgrades[key];
-    const convValue = parseFloat(conversion?.[conversionMap[key]] || 0);
-    
-    // Pour attack_interval_ms, on soustrait (plus bas = mieux)
-    const projectedValue = key === "attack_interval_ms"
-      ? Math.max(this.config.minValues.attack_interval_ms, currentVal - (pendingPoints + 1) * convValue)
-      : parseFloat(currentVal) + (pendingPoints + 1) * convValue;
+    const convValue = Number(conversion?.[conversionMap[key]] || 0);
+    if (convValue <= 0) {
+      this.stopContinuousUpgrade();
+      return;
+    }
+    const projectedValue =
+      parseFloat(currentVal) + (pendingPoints + 1) * convValue;
 
-    if (key === "attack_interval_ms") {
-      if (projectedValue <= this.config.minValues.attack_interval_ms) {
-        this.stopContinuousUpgrade();
-        return;
-      }
-    } else if (projectedValue > this.config.maxValues[key]) {
+    const capValue = this.config.maxValues[key];
+    if (capValue !== null && capValue !== undefined && projectedValue > capValue) {
       this.stopContinuousUpgrade();
       return;
     }
@@ -816,26 +913,19 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
   updateBarVisuals(statKey) {
     const el = this.statElements.get(statKey);
     const stats = getHeroStats();
-    if (!stats) return;
-    
+    if (!stats) {
+      el.barFill.clear();
+      el.barPending.clear();
+      el.valText.setText("—");
+      return;
+    }
     const values = {
       hp: Number(stats?.max_hp) || 0,
       damage: Number(parseFloat(stats?.base_damage) || 0),
       attack_interval_ms: Number(stats?.attack_interval_ms) || 1500,
       move_speed: Number(stats?.move_speed) || 0,
     };
-    const max = this.config.maxValues[statKey];
-    const min = this.config.minValues?.[statKey];
-    
-    // Afficher le maximum au-dessus de la barre (blanc avec bordure noire, centré)
-    if (el.maxText) {
-      const maxDisplay = statKey === "attack_interval_ms"
-        ? `Min: ${truncateDecimals((min || 0) / 1000, 3).toFixed(3)}s`
-        : `Max: ${statKey === "damage" ? max.toFixed(2) : Math.round(max)}`;
-      el.maxText.setText(maxDisplay);
-      // Centrer le texte au-dessus de la barre
-      el.maxText.setPosition(el.x + el.barWidth / 2, el.y - 15);
-    }
+    const max = this.config.maxValues[statKey] || values[statKey] || 1;
 
     const conversion = getHeroPointConversion();
     const conversionMap = {
@@ -941,6 +1031,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
   }
 
   async confirmAllUpgrades() {
+    if (!getHeroStats()) return;
     try {
       this.scene.cameras.main.shake(100, 0.002);
       for (const [key, points] of Object.entries(this.pendingUpgrades)) {
@@ -954,28 +1045,77 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     }
   }
 
-  openHeroSelection() {
+  async handleUnlock() {
     if (!isAuthenticated()) {
       showAuth();
       return;
     }
-    
-    // Créer l'interface de sélection de héros au centre de l'écran
-    const { width, height } = this.scene.scale;
-    const selectionUI = new HeroSelectionUI(this.scene, width / 2, height / 2);
-    selectionUI.setPosition(width / 2 - selectionUI.config.width / 2, height / 2 - selectionUI.config.height / 2);
-    
-    // Écouter l'événement de sélection pour rafraîchir
-    const selectionHandler = () => {
+    try {
+      await unlockHero(getSelectedHeroId());
+      await ensureHeroContext(getSelectedHeroId());
+      this.scene.cameras.main.flash(120, 0, 234, 255);
       this.refresh();
-      window.removeEventListener("hero:selected", selectionHandler);
-    };
-    window.addEventListener("hero:selected", selectionHandler);
+    } catch (err) {
+      console.error("Erreur déblocage héros", err);
+    }
   }
 
   refresh() {
     const stats = getHeroStats();
-    if (!stats) return;
+    const heroes = getAvailableHeroes();
+    const selectedHero = heroes.find((h) => Number(h.id) === Number(getSelectedHeroId()));
+    if (this.heroNameText) {
+      const name = selectedHero?.name || "Sélectionnez un héros";
+      this.heroNameText.setText(name.toUpperCase());
+    }
+    const hasMultipleHeroes = heroes.length > 1;
+    if (this.heroNavLeft) this.heroNavLeft.setVisible(hasMultipleHeroes);
+    if (this.heroNavRight) this.heroNavRight.setVisible(hasMultipleHeroes);
+    const locked = isHeroLocked();
+    const unlockCost = getHeroUnlockCost();
+    if (this.lockedText) {
+      this.lockedText.setVisible(locked);
+      if (locked) {
+        const costTxt = unlockCost > 0 ? `${unlockCost} pts` : "gratuit";
+        this.lockedText.setText(`HÉROS VERROUILLÉ (${costTxt})`);
+      }
+    }
+    if (this.unlockButton) {
+      this.unlockButton.setVisible(locked);
+      const available = getHeroPointsAvailable();
+      const canAfford = (unlockCost ?? 0) <= available;
+      this.unlockButton.setAlpha(canAfford ? 1 : 0.4);
+      this.unlockButton.list?.forEach?.((child) => {
+        if (child.setFillStyle) child.setFillStyle(child.fillColor || 0xffffff, canAfford ? child.alpha : 0.4);
+      });
+      this.unlockButton.input.enabled = canAfford;
+      if (this.unlockText) {
+        this.unlockText.setText(
+          unlockCost && unlockCost > 0
+            ? `DÉBLOQUER (${unlockCost} pts)`
+            : "DÉBLOQUER GRATUITEMENT"
+        );
+      }
+    }
+    const caps = {
+      hp: stats?.max_hp_cap ?? stats?.max_hp ?? this.config.maxValues.hp,
+      damage: stats?.max_damage_cap ?? stats?.base_damage ?? this.config.maxValues.damage,
+      move_speed:
+        stats?.max_move_speed_cap ?? stats?.move_speed ?? this.config.maxValues.move_speed,
+    };
+    this.config.maxValues = caps;
+
+    if (!stats) {
+      const available = getHeroPointsAvailable();
+      this.pointsText?.setText(`POINTS DISPONIBLES : ${available}`);
+      this.costText?.setText(locked ? "Débloquez ce héros pour voir ses stats" : "");
+      this.updateValidateButtonsState();
+      this.statElements.forEach((el) => {
+        el.btn.setAlpha(0.3);
+        el.btn.input.enabled = false;
+      });
+      return;
+    }
     const conversion = getHeroPointConversion();
     const heroLimits = getHeroLimits();
     
@@ -1048,8 +1188,8 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         el.btn.setAlpha(0.3);
         el.btn.input.enabled = false;
       } else {
-        el.btn.setAlpha(1);
-        el.btn.input.enabled = true;
+        el.btn.setAlpha(locked ? 0.3 : 1);
+        el.btn.input.enabled = !locked;
       }
     });
 
@@ -1083,27 +1223,4 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     }
   }
 
-  openColorPicker() {
-    if (!isAuthenticated()) {
-      showAuth();
-      return;
-    }
-    const input = document.createElement("input");
-    input.type = "color";
-    input.value = getHeroStats()?.color || "#2b2b2b";
-    input.style.opacity = "0"; // Cacher l'input
-    document.body.appendChild(input);
-
-    input.onchange = async (e) => {
-      await updateHeroColor(e.target.value);
-      this.refresh();
-      document.body.removeChild(input);
-    };
-    input.onblur = () => {
-      setTimeout(() => {
-        if (document.body.contains(input)) document.body.removeChild(input);
-      }, 100);
-    };
-    input.click();
-  }
 }

@@ -1,5 +1,9 @@
 import { getLevelConfigById } from "../config/levels/index.js";
-import { getHeroStats, isAuthenticated, getUnlockedLevel } from "../services/authManager.js";
+import {
+  ensureHeroContext,
+  getHeroStats,
+  isAuthenticated,
+} from "../services/authManager.js";
 import { showAuth } from "../services/authOverlay.js";
 import {
   fetchChaptersWithLevels,
@@ -865,7 +869,7 @@ export class MapScene extends Phaser.Scene {
     island.statsContainer.setVisible(true);
   }
 
-  handleLevelSelection(level) {
+  async handleLevelSelection(level) {
     const config = getLevelConfigById(level.id);
     if (!config) {
       this.showToast("Configuration du niveau manquante côté client.");
@@ -875,10 +879,16 @@ export class MapScene extends Phaser.Scene {
       showAuth();
       return;
     }
+    await ensureHeroContext();
+    const heroStats = getHeroStats();
+    if (!heroStats) {
+      this.showToast("Stats du héros indisponibles.");
+      return;
+    }
     this.scene.start("GameScene", {
       level: level.id,
       levelName: level.name || null,
-      heroStats: getHeroStats(),
+      heroStats,
     });
   }
 

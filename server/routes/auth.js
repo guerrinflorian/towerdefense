@@ -2,7 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { query } from "../db.js";
-import { HERO_BASE_STATS, TOKEN_EXPIRATION } from "../constants.js";
+import { TOKEN_EXPIRATION } from "../constants.js";
 import crypto from "crypto";
 import { sendResetPasswordEmail } from "../utils/email.js";
 import {
@@ -82,9 +82,6 @@ router.post("/register", async (req, res) => {
     );
 
     const player = insertedPlayer.rows[0];
-
-    // Ne plus créer d'entrée hero_stats - la nouvelle structure utilise heroes/player_heroes
-    // L'entrée player_heroes sera créée à la demande lors du premier accès au héros
 
     await ensurePlayerAchievementRows(player.id);
 
