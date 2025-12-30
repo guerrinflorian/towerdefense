@@ -1,5 +1,5 @@
 import { fetchAchievements } from "../services/achievementsService.js";
-
+// 
 export class AchievementsScene extends Phaser.Scene {
   constructor() {
     super("AchievementsScene");
