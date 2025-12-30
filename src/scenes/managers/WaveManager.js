@@ -326,65 +326,13 @@ export class WaveManager {
       this.scene.quitBtn.setAlpha(0.5);
     }
 
-    // Couche de blocage pour empêcher les clics ailleurs
-    const blocker = this.scene.add
-      .rectangle(
-        this.scene.gameWidth / 2,
-        this.scene.gameHeight / 2,
-        this.scene.gameWidth,
-        this.scene.gameHeight,
-        0x000000,
-        0.3
-      )
-      .setDepth(199)
-      .setInteractive()
-      .on("pointerdown", (pointer) => {
-        // Empêcher la propagation du clic
-        pointer.event.stopPropagation();
-      });
-
-    const bg = this.scene.add
-      .rectangle(
-        this.scene.gameWidth / 2,
-        this.scene.gameHeight / 2,
-        500 * this.scene.scaleFactor,
-        300 * this.scene.scaleFactor,
-        0x000000,
-        0.9
-      )
-      .setDepth(200);
-
-    const txt = this.scene.add
-      .text(
-        this.scene.gameWidth / 2,
-        this.scene.gameHeight / 2 - 30 * this.scene.scaleFactor,
-        "VICTOIRE !",
-        {
-          fontSize: `${Math.max(30, 50 * this.scene.scaleFactor)}px`,
-          color: "#00ff00",
-          fontStyle: "bold",
-        }
-      )
-      .setOrigin(0.5)
-      .setDepth(201);
-
-    const sub = this.scene.add
-      .text(
-        this.scene.gameWidth / 2,
-        this.scene.gameHeight / 2 + 50 * this.scene.scaleFactor,
-        "Continuer",
-        {
-          fontSize: `${Math.max(16, 24 * this.scene.scaleFactor)}px`,
-        }
-      )
-      .setOrigin(0.5)
-      .setDepth(201);
-
-    bg.setInteractive({ useHandCursor: true }).on("pointerdown", () =>
-      this.scene.scene.start("MainMenuScene")
+    // Utiliser le composant Vue pour afficher la victoire
+    showGameResult(
+      "victory",
+      "Félicitations ! Vous avez terminé le niveau avec succès.",
+      () => {
+        this.scene.scene.start("MainMenuScene");
+      }
     );
-
-    // Stocker la référence pour pouvoir la détruire si nécessaire
-    this.scene.victoryBlocker = blocker;
   }
 }

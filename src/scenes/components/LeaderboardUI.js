@@ -3,6 +3,7 @@ import {
   fetchHeroLeaderboard,
   fetchAchievementsLeaderboard,
   fetchLevelLeaderboards,
+  fetchHeroTypeLeaderboards,
 } from "../../services/leaderboardService.js";
 import { isAuthenticated } from "../../services/authManager.js";
 import {
@@ -37,12 +38,16 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     };
 
     // --- ÉTAT ---
-    this.viewModes = ["hero", "global", "achievements", "level"];
-    this.currentModeIndex = 1;
+    this.viewModes = ["global", "achievements", "level", "hero-type"];
+    this.currentModeIndex = 0;
     this.currentLevelIndex = 0;
     this.levelLeaderboards = [];
     this.levelLeaderboardMap = new Map();
     this.levelMetas = [];
+    this.currentHeroTypeIndex = 0;
+    this.heroTypeLeaderboards = [];
+    this.heroTypeLeaderboardMap = new Map();
+    this.heroTypeMetas = [];
 
     this.setupLayout();
     this.updateModeUI();
@@ -188,8 +193,20 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     // --- ÉVÉNEMENTS ---
     this.btnPrevMode.on("pointerdown", () => this.switchMode(-1));
     this.btnNextMode.on("pointerdown", () => this.switchMode(1));
-    this.btnPrevLvl.on("pointerdown", () => this.changeLevel(-1));
-    this.btnNextLvl.on("pointerdown", () => this.changeLevel(1));
+    this.btnPrevLvl.on("pointerdown", () => {
+      if (this.currentMode === "level") {
+        this.changeLevel(-1);
+      } else if (this.currentMode === "hero-type") {
+        this.changeHeroType(-1);
+      }
+    });
+    this.btnNextLvl.on("pointerdown", () => {
+      if (this.currentMode === "level") {
+        this.changeLevel(1);
+      } else if (this.currentMode === "hero-type") {
+        this.changeHeroType(1);
+      }
+    });
     this.refreshBtn.on("pointerdown", () => this.handleRefresh());
   }
 
@@ -199,6 +216,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     const total = this.viewModes.length;
     this.currentModeIndex = (this.currentModeIndex + delta + total) % total;
     if (this.currentMode === "level") this.currentLevelIndex = 0;
+    if (this.currentMode === "hero-type") this.currentHeroTypeIndex = 0;
     this.updateModeUI();
     this.loadData();
   }
@@ -213,16 +231,28 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this.loadData();
   }
 
+  async changeHeroType(delta) {
+    await this.ensureHeroTypeMetadata();
+    const totalTypes = this.heroTypeMetas.length;
+    if (totalTypes === 0) return;
+    this.currentHeroTypeIndex =
+      (this.currentHeroTypeIndex + delta + totalTypes) % totalTypes;
+    this.updateModeUI();
+    this.loadData();
+  }
+
   updateModeUI() {
     this.title.setText(this.getTitleText());
 
-    // Afficher/Cacher la barre de sélection de niveau
+    // Afficher/Cacher la barre de sélection de niveau ou type de héros
     const isLevelMode = this.currentMode === "level";
-    this.levelNavContainer.setVisible(isLevelMode);
+    const isHeroTypeMode = this.currentMode === "hero-type";
+    this.levelNavContainer.setVisible(isLevelMode || isHeroTypeMode);
 
-    // Ajuster la position du tableau si on est en mode niveau ou non
-    this.headerContainer.setY(isLevelMode ? 130 : 80);
-    this.listContainer.setY(isLevelMode ? 155 : 105);
+    // Ajuster la position du tableau si on est en mode niveau/type ou non
+    const needsNav = isLevelMode || isHeroTypeMode;
+    this.headerContainer.setY(needsNav ? 130 : 80);
+    this.listContainer.setY(needsNav ? 155 : 105);
 
     if (isLevelMode) {
       if (this.levelMetas.length === 0) {
@@ -232,6 +262,25 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
       this.levelNavLabel.setText(
         lvl ? `${lvl.id} • ${lvl.name.toUpperCase()}` : "NIVEAU INCONNU"
       );
+      this.btnPrevLvl.setText("⟸ NIVEAU PRÉCÉDENT");
+      this.btnNextLvl.setText("NIVEAU SUIVANT ⟹");
+    } else if (isHeroTypeMode) {
+      if (this.heroTypeMetas.length === 0) {
+        this.ensureHeroTypeMetadata().then(() => this.updateModeUI());
+        return; // Sortir pour éviter d'accéder aux métadonnées avant qu'elles soient chargées
+      }
+      // S'assurer que l'index est valide
+      if (this.currentHeroTypeIndex >= this.heroTypeMetas.length) {
+        this.currentHeroTypeIndex = 0;
+      }
+      const heroMeta = this.heroTypeMetas[this.currentHeroTypeIndex];
+      if (heroMeta && heroMeta.name) {
+        this.levelNavLabel.setText(heroMeta.name.toUpperCase());
+      } else {
+        this.levelNavLabel.setText(`HÉROS ${(heroMeta?.id || this.currentHeroTypeIndex + 1)}`);
+      }
+      this.btnPrevLvl.setText("⟸ HÉROS PRÉCÉDENT");
+      this.btnNextLvl.setText("HÉROS SUIVANT ⟹");
     }
 
     this.drawHeaders();
@@ -239,12 +288,12 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
   getTitleText() {
     switch (this.currentMode) {
-      case "hero":
-        return "🦸 CLASSEMENT DES HÉROS";
       case "achievements":
         return "🏆 CLASSEMENT DES SUCCÈS";
       case "level":
         return "🗺️ RECORDS PAR MISSION";
+      case "hero-type":
+        return "🦸 CLASSEMENT DES HÉROS";
       default:
         return "📊 CLASSEMENT GÉNÉRAL";
     }
@@ -279,6 +328,16 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         { key: "hearts", label: "VIES PERDUES", x: 280 },
         { key: "time", label: "TEMPS", x: width - 110, align: "right" },
         { key: "date", label: "DATE", x: width - 20, align: "right" },
+      ];
+    }
+    if (this.currentMode === "hero-type") {
+      return [
+        { key: "rank", label: "RG", x: 20 },
+        { key: "player", label: "JOUEUR", x: 70 },
+        { key: "hp", label: "PV", x: 180 },
+        { key: "dmg", label: "DÉGÂTS", x: 240 },
+        { key: "speed", label: "VIT.", x: 320 },
+        { key: "score", label: "TOTAL", x: width - 20, align: "right" },
       ];
     }
     return [
@@ -334,6 +393,23 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     }
   }
 
+  async ensureHeroTypeMetadata() {
+    if (this.heroTypeMetas.length > 0) return;
+    try {
+      const heroTypes = await fetchHeroTypeLeaderboards();
+      // Extraire les héros avec leur ID et nom
+      this.heroTypeMetas = heroTypes
+        .filter(ht => ht.heroId != null) // Filtrer les entrées invalides
+        .map(ht => ({
+          id: ht.heroId,
+          name: ht.heroName || `Héros ${ht.heroId}`, // Utiliser un nom par défaut si manquant
+        }));
+    } catch (error) {
+      console.warn("Impossible de charger la liste des héros", error);
+      this.heroTypeMetas = [];
+    }
+  }
+
   async loadData() {
     // 1. Définition du token local pour ignorer les requêtes périmées
     const token = ++this._loadToken;
@@ -371,9 +447,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
       let entries = [];
 
       // 3. Récupération des données selon le mode
-      if (this.currentMode === "hero") {
-        entries = await fetchHeroLeaderboard();
-      } else if (this.currentMode === "level") {
+      if (this.currentMode === "level") {
         await this.ensureLevelMetadata();
         if (!stillAlive() || token !== this._loadToken) return;
 
@@ -389,6 +463,22 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
         const levelId = this.levelMetas[this.currentLevelIndex]?.id;
         entries = levelId ? this.levelLeaderboardMap.get(levelId) || [] : [];
+      } else if (this.currentMode === "hero-type") {
+        await this.ensureHeroTypeMetadata();
+        if (!stillAlive() || token !== this._loadToken) return;
+
+        // On ne recharge les leaderboards de types de héros que s'ils sont vides
+        if (this.heroTypeLeaderboards.length === 0) {
+          const heroTypes = await fetchHeroTypeLeaderboards();
+          if (!stillAlive()) return;
+          this.heroTypeLeaderboards = heroTypes;
+          this.heroTypeLeaderboardMap = new Map(
+            heroTypes.map((ht) => [ht.heroId, ht.entries || []])
+          );
+        }
+
+        const heroMeta = this.heroTypeMetas[this.currentHeroTypeIndex];
+        entries = heroMeta ? this.heroTypeLeaderboardMap.get(heroMeta.id) || [] : [];
       } else if (this.currentMode === "achievements") {
         entries = await fetchAchievementsLeaderboard();
       } else {
@@ -492,6 +582,9 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     this.levelLeaderboards = [];
     this.levelLeaderboardMap.clear();
     this.levelMetas = [];
+    this.heroTypeLeaderboards = [];
+    this.heroTypeLeaderboardMap.clear();
+    this.heroTypeMetas = [];
     this.scene.tweens.add({
       targets: this.refreshBtn,
       angle: 360,

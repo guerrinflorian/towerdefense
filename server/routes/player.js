@@ -224,6 +224,100 @@ router.get("/leaderboard/levels", async (_req, res) => {
   }
 });
 
+router.get("/leaderboard/hero-types", async (_req, res) => {
+  try {
+    const result = await query(
+      `WITH hero_stats AS (
+          SELECT 
+            h.id AS hero_id,
+            h.name AS hero_name,
+            h.hero_type,
+            p.id AS player_id,
+            p.username,
+            COALESCE(
+              LEAST(h.base_hp + COALESCE(ph.bonus_hp, 0), h.max_hp),
+              h.base_hp + COALESCE(ph.bonus_hp, 0)
+            ) AS max_hp,
+            COALESCE(
+              LEAST(h.base_damage + COALESCE(ph.bonus_damage, 0), h.max_damage),
+              h.base_damage + COALESCE(ph.bonus_damage, 0)
+            ) AS base_damage,
+            COALESCE(
+              LEAST(h.base_move_speed + COALESCE(ph.bonus_move_speed, 0), h.max_move_speed),
+              h.base_move_speed + COALESCE(ph.bonus_move_speed, 0)
+            ) AS move_speed,
+            COALESCE(
+              GREATEST(h.base_attack_interval_ms - COALESCE(ph.bonus_attack_interval_ms, 0), h.min_attack_interval_ms),
+              h.base_attack_interval_ms - COALESCE(ph.bonus_attack_interval_ms, 0)
+            ) AS attack_interval_ms,
+            (COALESCE(LEAST(h.base_hp + COALESCE(ph.bonus_hp, 0), h.max_hp), h.base_hp + COALESCE(ph.bonus_hp, 0)) +
+             COALESCE(LEAST(h.base_damage + COALESCE(ph.bonus_damage, 0), h.max_damage), h.base_damage + COALESCE(ph.bonus_damage, 0)) +
+             COALESCE(LEAST(h.base_move_speed + COALESCE(ph.bonus_move_speed, 0), h.max_move_speed), h.base_move_speed + COALESCE(ph.bonus_move_speed, 0))
+            ) AS hero_score,
+            ph.kills,
+            ph.upgrade_points_spent
+          FROM players p
+          JOIN player_heroes ph ON ph.player_id = p.id
+          JOIN heroes h ON h.id = ph.hero_id
+          WHERE h.hero_type IS NOT NULL
+        ),
+        ranked_heroes AS (
+          SELECT 
+            hero_id,
+            hero_name,
+            hero_type,
+            username,
+            max_hp,
+            base_damage,
+            move_speed,
+            attack_interval_ms,
+            hero_score,
+            kills,
+            upgrade_points_spent,
+            ROW_NUMBER() OVER (
+              PARTITION BY hero_id 
+              ORDER BY hero_score DESC, max_hp DESC, base_damage DESC, move_speed DESC
+            ) AS hero_rank
+          FROM hero_stats
+        )
+        SELECT hero_id, hero_name, hero_type, username, max_hp, base_damage, move_speed, attack_interval_ms, hero_score, kills, upgrade_points_spent
+        FROM ranked_heroes
+        WHERE hero_rank <= 10
+        ORDER BY hero_id, hero_rank`
+    );
+
+    const grouped = result.rows.reduce((acc, row) => {
+      const heroId = Number(row.hero_id);
+      const heroName = row.hero_name || `Héros ${heroId}`;
+      if (!acc[heroId]) acc[heroId] = { heroId, heroName, entries: [] };
+      acc[heroId].entries.push({
+        username: row.username,
+        max_hp: Number(row.max_hp || 0),
+        base_damage: parseFloat(row.base_damage || 0),
+        move_speed: Number(row.move_speed || 0),
+        attack_interval_ms: Number(row.attack_interval_ms || 0),
+        hero_score: Number(row.hero_score || 0),
+        kills: Number(row.kills || 0),
+        upgrade_points_spent: Number(row.upgrade_points_spent || 0),
+      });
+      return acc;
+    }, {});
+
+    const heroTypes = Object.values(grouped)
+      .map((hero) => ({
+        heroId: hero.heroId,
+        heroName: hero.heroName,
+        entries: hero.entries,
+      }))
+      .sort((a, b) => a.heroId - b.heroId);
+
+    return res.json({ heroTypes });
+  } catch (err) {
+    console.error("Erreur leaderboard types de héros:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 router.get("/levels/best", async (req, res) => {
   try {
     const result = await query(

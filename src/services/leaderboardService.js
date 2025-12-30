@@ -15,6 +15,11 @@ export async function fetchLevelLeaderboards() {
   return response.data?.levels || [];
 }
 
+export async function fetchHeroTypeLeaderboards() {
+  const response = await apiClient.get("/api/player/leaderboard/hero-types");
+  return response.data?.heroTypes || [];
+}
+
 export async function fetchAchievementsLeaderboard() {
   const response = await apiClient.get("/api/player/leaderboard/achievements");
   return response.data?.entries || [];

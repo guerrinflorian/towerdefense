@@ -15,7 +15,7 @@ import {
 } from "../../services/authManager.js";
 import { showAuth } from "../../services/authOverlay.js";
 import { fetchHeroes } from "../../services/heroService.js";
-import { HeroSelectionUI } from "./HeroSelectionUI.js";
+import { showHeroSelection } from "../../vue/bridge.js";
 import { HeroAvatarComponent } from "./heroUpgrade/HeroAvatarComponent.js";
 import { StatRowComponent } from "./heroUpgrade/StatRowComponent.js";
 import { UpgradeButtonsComponent } from "./heroUpgrade/UpgradeButtonsComponent.js";
@@ -288,20 +288,45 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     }
   }
 
-  openHeroSelection() {
+  async openHeroSelection() {
     if (!isAuthenticated()) {
       showAuth();
       return;
     }
     
-    // Créer HeroSelectionUI - il se positionnera automatiquement au centre via _layout()
-    const selectionUI = new HeroSelectionUI(this.scene, 0, 0);
-    
-    const selectionHandler = () => {
-      this.refresh();
-      window.removeEventListener("hero:selected", selectionHandler);
-    };
-    window.addEventListener("hero:selected", selectionHandler);
+    try {
+      const response = await fetchHeroes();
+      const heroes = response?.heroes || [];
+      const selectedHeroId = getSelectedHeroId();
+      const heroPointsAvailable = getHeroPointsAvailable() || 0;
+
+      showHeroSelection({
+        heroes,
+        selectedHeroId,
+        heroPointsAvailable,
+        onSelect: async (heroId) => {
+          const { setSelectedHeroId } = await import("../../services/authManager.js");
+          setSelectedHeroId(heroId);
+          this.refresh();
+          window.dispatchEvent(new CustomEvent("hero:selected", { detail: { heroId } }));
+        },
+        onUnlock: async (heroId) => {
+          const { unlockHero } = await import("../../services/heroService.js");
+          try {
+            await unlockHero(heroId);
+            this.refresh();
+            window.dispatchEvent(new CustomEvent("hero:unlocked", { detail: { heroId } }));
+          } catch (error) {
+            console.error("Erreur déblocage héros:", error);
+          }
+        },
+        onClose: () => {
+          // La modale est fermée
+        },
+      });
+    } catch (error) {
+      console.error("Erreur chargement héros:", error);
+    }
   }
 
   refresh() {
