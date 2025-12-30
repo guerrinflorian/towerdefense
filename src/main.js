@@ -1,3 +1,6 @@
+// IMPORTANT: Initialiser Vue AVANT Phaser pour éviter les conflits
+import "./vue/app.js";
+
 import { MainMenuScene } from "./scenes/MainMenuScene.js";
 import { ChapterScene } from "./scenes/ChapterScene.js";
 import { MapScene } from "./scenes/MapScene.js";
