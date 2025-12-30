@@ -1,8 +1,9 @@
 import { ensureProfileLoaded, logout, getProfile, isAuthenticated } from "../services/authManager.js";
 import { showAuth } from "../services/authOverlay.js";
 import { LeaderboardUI } from "./components/LeaderboardUI.js";
-import { HeroUpgradeUI } from "./components/HeroUpgradeUI.js";
+import { showHeroUpgrade } from "../vue/bridge.js";
 import { fetchAchievements } from "../services/achievementsService.js";
+import { showAchievements } from "../vue/bridge.js";
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -38,8 +39,8 @@ export class MainMenuScene extends Phaser.Scene {
 
     // --- 5. COMPOSANTS INTERFACE ---
     
-    // À GAUCHE : Amélioration du Héros
-    this.heroPanel = new HeroUpgradeUI(this, padding, height * 0.25);
+    // À GAUCHE : Bouton pour ouvrir le panneau d'amélioration du Héros (Vue)
+    this.createHeroUpgradeButton(padding, height * 0.25);
     this.createAchievementsButton();
 
     // À DROITE : Leaderboard
@@ -68,14 +69,19 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Initialisation
     ensureProfileLoaded().then(() => {
-      if (this.heroPanel) this.heroPanel.refresh();
       this.refreshAchievementsSummary();
+      this.updateHeroName();
       // Mettre à jour le nom d'utilisateur après chargement du profil
       if (this.userDisplayText) {
         const profile = getProfile();
         const username = profile?.player?.username || "Invité";
         this.userDisplayText.setText(`CONNECTÉ EN TANT QUE : ${username.toUpperCase()}`);
       }
+    });
+    
+    // Écouter les changements de héros
+    window.addEventListener("hero:selected", () => {
+      this.updateHeroName();
     });
   }
 
@@ -126,9 +132,108 @@ export class MainMenuScene extends Phaser.Scene {
     this.playButton = playBtn;
   }
 
+  createHeroUpgradeButton(x, y) {
+    const width = 420;
+    const btnHeight = 90;
+    
+    const container = this.add.container(x, y);
+    const bg = this.add.graphics();
+    const glowBg = this.add.graphics(); // Pour l'effet de lueur au hover
+  
+    const draw = (hover) => {
+      bg.clear();
+      glowBg.clear();
+      
+      if (hover) {
+        // Effet de lueur externe
+        glowBg.fillStyle(0x00f2ff, 0.15);
+        glowBg.fillRoundedRect(-4, -4, width + 8, btnHeight + 8, 16);
+        
+        // Bordure et fond au hover
+        bg.lineStyle(4, 0x00f2ff, 1);
+        bg.fillStyle(0x1a2639, 1);
+        bg.fillRoundedRect(0, 0, width, btnHeight, 14);
+        bg.strokeRoundedRect(0, 0, width, btnHeight, 14);
+        
+        // Ligne d'accentuation interne
+        bg.lineStyle(1, 0x00eaff, 0.4);
+        bg.strokeRoundedRect(2, 2, width - 4, btnHeight - 4, 12);
+      } else {
+        // Style normal
+        bg.lineStyle(2, 0x334155, 0.8);
+        bg.fillStyle(0x0e1624, 0.95);
+        bg.fillRoundedRect(0, 0, width, btnHeight, 14);
+        bg.strokeRoundedRect(0, 0, width, btnHeight, 14);
+      }
+    };
+    
+    draw(false);
+  
+    // Icône héros plus grande et avec effet
+    const heroIcon = this.add.text(35, btnHeight / 2, "⚔️", {
+      fontSize: "36px",
+    }).setOrigin(0.5).setShadow(0, 0, "#00eaff", 8, true, true);
+  
+    // Texte principal "Voir son héros"
+    const title = this.add.text(75, btnHeight / 2 - 18, "VOIR SON HÉROS", {
+      fontSize: "22px",
+      fontFamily: "Orbitron, sans-serif",
+      color: "#ffffff",
+      fontWeight: "bold",
+      letterSpacing: 1
+    }).setOrigin(0, 0.5).setShadow(0, 0, "#00eaff", 5, true, true);
+    
+    // Label "Héros actuellement sélectionné :"
+    const labelText = this.add.text(75, btnHeight / 2 + 4, "Héros actuellement sélectionné :", {
+      fontSize: "11px",
+      fontFamily: "Orbitron, sans-serif",
+      color: "#9ae8ff",
+      fontStyle: "italic"
+    }).setOrigin(0, 0.5);
+    
+    // Nom du héros (mis à jour dynamiquement)
+    this.heroNameSubtitle = this.add.text(75, btnHeight / 2 + 18, "Chargement...", {
+      fontSize: "16px",
+      fontFamily: "Orbitron, sans-serif",
+      color: "#00eaff",
+      fontWeight: "bold"
+    }).setOrigin(0, 0.5).setShadow(0, 0, "#00eaff", 8, true, true);
+  
+    container.add([glowBg, bg, heroIcon, title, labelText, this.heroNameSubtitle]);
+  
+    container.setSize(width, btnHeight);
+    container.width = width;
+    container.setInteractive(
+      new Phaser.Geom.Rectangle(width / 2, btnHeight / 2, width, btnHeight),
+      Phaser.Geom.Rectangle.Contains
+    );
+  
+    container.on("pointerover", () => {
+      draw(true);
+      container.setScale(container.scaleX * 1.02); // Effet de zoom
+    });
+    
+    container.on("pointerout", () => {
+      draw(false);
+      container.setScale(container.scaleX / 1.02);
+    });
+  
+    container.on("pointerdown", async () => {
+      const { showHeroUpgrade } = await import("../vue/bridge.js");
+      showHeroUpgrade({
+        onClose: () => {
+          this.updateHeroName(); // Rafraîchir le nom après fermeture
+        }
+      });
+    });
+  
+    this.add.existing(container);
+    this.heroUpgradeButton = container;
+  }
+
   createAchievementsButton() {
-    // On récupère la largeur du panel hero ou 380 par défaut
-    const width = this.heroPanel?.config?.width || 380;
+    // On récupère la largeur du bouton hero ou 380 par défaut
+    const width = this.heroUpgradeButton?.width || 380;
     const btnHeight = 60; // Plus haut pour être plus visible et cliquable
     
     const container = this.add.container(0, 0);
@@ -196,12 +301,45 @@ export class MainMenuScene extends Phaser.Scene {
       container.setScale(container.scaleX / 1.02);
     });
     
-    container.on("pointerdown", () => {
-      this.scene.start("AchievementsScene");
+    container.on("pointerdown", async () => {
+      // Utiliser le composant Vue au lieu de la scène Phaser
+      try {
+        const { achievements, summary } = await fetchAchievements();
+        showAchievements({
+          achievements: achievements || [],
+          summary: summary || { unlocked: 0, total: 0 },
+          onClose: () => {
+            // Reste sur le menu principal
+          },
+        });
+      } catch (error) {
+        console.error("Erreur chargement achievements:", error);
+      }
     });
   
     this.add.existing(container);
     this.achievementsButton = container;
+  }
+
+  async updateHeroName() {
+    try {
+      const { getSelectedHeroId } = await import("../services/authManager.js");
+      const { fetchHeroes } = await import("../services/heroService.js");
+      const heroId = getSelectedHeroId();
+      const response = await fetchHeroes();
+      const heroes = response?.heroes || [];
+      const hero = Array.isArray(heroes) ? heroes.find(h => Number(h.id) === Number(heroId)) : null;
+      if (hero && this.heroNameSubtitle) {
+        this.heroNameSubtitle.setText(hero.name.toUpperCase());
+      } else if (this.heroNameSubtitle) {
+        this.heroNameSubtitle.setText("AUCUN HÉROS");
+      }
+    } catch (error) {
+      console.error("Erreur récupération nom héros:", error);
+      if (this.heroNameSubtitle) {
+        this.heroNameSubtitle.setText("ERREUR");
+      }
+    }
   }
 
   async refreshAchievementsSummary() {

@@ -16,6 +16,7 @@ import { RunTracker } from "../services/runTracker.js";
 import { sendRunReport } from "../services/runReportService.js";
 import { fetchAchievements } from "../services/achievementsService.js";
 import { resetCachedChapters } from "../services/chapterService.js";
+import { showGameResult } from "../vue/bridge.js";
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -590,10 +591,6 @@ export class GameScene extends Phaser.Scene {
       return null;
     }
 
-    console.log("[RunReport] Sending natural end", {
-      result: report.result,
-      reason: report.reasonEnd,
-    });
     const sender = this.sendRunReportFn || sendRunReport;
     this.isRunReportSending = true;
     this.runReportPromise = sender(report)
@@ -1053,100 +1050,15 @@ export class GameScene extends Phaser.Scene {
       } catch (_) {}
     }
 
-    const cam = this.cameras.main;
-    if (!cam) {
-      console.warn("[GameOver] Camera not available, cannot show notification");
-      return;
-    }
-    
-    const s = this.scaleFactor || 1;
-
-    // UI overlay fixé à l'écran
-    const overlay = this.add.container(cam.midPoint.x, cam.midPoint.y);
-    if (!overlay) {
-      console.warn("[GameOver] Failed to create overlay container");
-      return;
-    }
-    overlay.setDepth(999999);
-    overlay.setScrollFactor(0);
-  
-    const blocker = this.add
-      .rectangle(0, 0, cam.width, cam.height, 0x000000, 0.35)
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setInteractive();
-  
-    const panelW = Math.min(cam.width * 0.86, 520 * s);
-    const panelH = Math.min(cam.height * 0.56, 300 * s);
-  
-    const panelBg = this.add.graphics();
-    panelBg.setScrollFactor(0);
-    panelBg.fillStyle(0x000000, 0.92);
-    panelBg.fillRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 18);
-    panelBg.lineStyle(3, 0xff0000, 0.9);
-    panelBg.strokeRoundedRect(-panelW / 2, -panelH / 2, panelW, panelH, 18);
-  
-    const title = this.add
-      .text(0, -panelH * 0.18, "PERDU !", {
-        fontSize: `${Math.max(28, 52 * s)}px`,
-        color: "#ff0000",
-        fontStyle: "bold",
-        fontFamily: "Arial",
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0);
-  
-    const sub = this.add
-      .text(0, panelH * 0.10, "Cliquez pour retourner au menu", {
-        fontSize: `${Math.max(16, 24 * s)}px`,
-        color: "#ffffff",
-        fontFamily: "Arial",
-        align: "center",
-        wordWrap: { width: panelW - 40 },
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0);
-  
-    overlay.add([blocker, panelBg, title, sub]);
-  
-    const goMenu = () => {
-      try {
-        blocker.disableInteractive();
-      } catch (_) {}
-  
-      try {
-        overlay.destroy(true);
-      } catch (_) {}
-  
-      this.gameOverBlocker = null;
-      this.scene.start("MainMenuScene");
-    };
-  
-    blocker.on("pointerdown", (pointer) => {
-      pointer?.event?.stopPropagation?.();
-      goMenu();
-    });
-  
-    this.gameOverBlocker = overlay;
-  
-    // resize: garder au centre et blocker à la bonne taille
-    const onResize = () => {
-      if (!overlay?.active) return;
-      overlay.setPosition(this.cameras.main.midPoint.x, this.cameras.main.midPoint.y);
-      blocker.setSize(this.cameras.main.width, this.cameras.main.height);
-    };
-  
-    try {
-      this.scale.off("resize", this._onGameOverResize);
-    } catch (_) {}
-    this._onGameOverResize = onResize;
-    this.scale.on("resize", this._onGameOverResize);
-  
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      try {
-        this.scale.off("resize", this._onGameOverResize);
-      } catch (_) {}
-    });
+    // Utiliser le composant Vue pour afficher la défaite
+    showGameResult(
+      "defeat",
+      "Votre base a été détruite. Essayez encore !",
+      () => {
+        this.gameOverBlocker = null;
+        this.scene.start("MainMenuScene");
+      }
+    );
   }  
   
   earnMoney(amount, meta = {}) {

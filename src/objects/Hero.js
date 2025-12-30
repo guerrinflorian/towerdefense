@@ -1,6 +1,6 @@
 import { CONFIG } from "../config/settings.js";
 import { drawHeroBody } from "./HeroDesigns.js";
-import { drawWeapon, playWeaponAttackAnimation } from "./HeroWeapons.js";
+import { drawWeapon, playWeaponAttackAnimation, playBowAttackAnimation } from "./HeroWeapons.js";
 
 const PATH_TYPES = [1, 4, 7, 13, 14, 19, 23];
 
@@ -23,13 +23,20 @@ export class Hero extends Phaser.GameObjects.Container {
     this.moveSpeed = (stats.move_speed ?? 100) * s;
     this.heroColor = stats.color || "#2b2b2b"; // Couleur par défaut (noir)
     this.heroId = stats.hero_id ?? 1; // ID du héros pour déterminer le design
+    this.heroType = stats.hero_type || "BRUISER"; // Type de héros (BRUISER, DPS, TANK, CONTROL, RANGED)
+    this.enemiesRetained = stats.enemies_retained ?? 1; // Nombre d'ennemis pouvant être retenus
 
     // --- State ---
     this.isAlive = true;
-    this.blockingEnemy = null;
+    this.blockingEnemies = []; // Tableau d'ennemis retenus (supporte plusieurs ennemis)
     this.targetPath = [];
     this.currentPathIndex = 0;
     this.lastAttackTime = 0;
+    
+    // Pour l'archer (RANGED)
+    this.attackRange = this.heroType === "RANGED" ? 3.0 : 0; // Rayon d'attaque en cases (3.0 cases = ~150 pixels)
+    this.rangeIndicator = null; // Indicateur de portée visible au survol
+    this.rangedTargets = []; // Ennemis ciblés à distance (sans les bloquer)
 
     this.corpseTimerEvent = null;
     this.corpseContainer = null;
@@ -86,9 +93,15 @@ export class Hero extends Phaser.GameObjects.Container {
     this.on("pointerover", () => {
       if (this.active && this.isAlive) {
         this.showHpTooltip();
+        if (this.heroType === "RANGED" && this.attackRange > 0) {
+          this.showRangeIndicator();
+        }
       }
     });
-    this.on("pointerout", () => this.hideHpTooltip());
+    this.on("pointerout", () => {
+      this.hideHpTooltip();
+      this.hideRangeIndicator();
+    });
   }
 
   // -----------------------------
@@ -227,6 +240,134 @@ export class Hero extends Phaser.GameObjects.Container {
     return `${Math.max(0, Math.ceil(this.hp))} / ${Math.ceil(this.maxHp)} HP`;
   }
 
+  showRangeIndicator() {
+    if (!this.active || !this.isAlive || this.heroType !== "RANGED") return;
+    if (this.rangeIndicator) return; // Déjà affiché
+
+    const s = this.scene.scaleFactor || 1;
+    const rangePixels = this.attackRange * CONFIG.TILE_SIZE * s;
+    
+    this.rangeIndicator = this.scene.add.graphics();
+    this.rangeIndicator.lineStyle(2, 0x2fa84f, 0.6);
+    this.rangeIndicator.strokeCircle(0, 0, rangePixels);
+    this.rangeIndicator.fillStyle(0x2fa84f, 0.1);
+    this.rangeIndicator.fillCircle(0, 0, rangePixels);
+    this.rangeIndicator.setDepth(35);
+    
+    // Ajouter au héros pour qu'il suive le mouvement
+    this.add(this.rangeIndicator);
+  }
+
+  hideRangeIndicator() {
+    if (this.rangeIndicator) {
+      this.rangeIndicator.destroy();
+      this.rangeIndicator = null;
+    }
+  }
+
+  playRangedAttackAnimation(enemy, savedX, savedY, isMelee) {
+    const enemyX = (enemy && enemy.active) ? enemy.x : (savedX !== null ? savedX : this.x + 50);
+    const enemyY = (enemy && enemy.active) ? enemy.y : (savedY !== null ? savedY : this.y);
+    
+    const s = this.scene.scaleFactor || 1;
+    const k = this.baseScale;
+    const angleToEnemy = Phaser.Math.Angle.Between(this.x, this.y, enemyX, enemyY);
+
+    // Utiliser l'animation d'arc depuis HeroWeapons.js
+    if (this.swordPivot) {
+      playBowAttackAnimation(this.scene, this.swordPivot, isMelee);
+      
+      // Si c'est une attaque à distance, créer une flèche
+      if (!isMelee) {
+        this.createArrowProjectile(enemyX, enemyY);
+      }
+    }
+
+    this.playAttackEffects(angleToEnemy, s, k);
+  }
+
+  createArrowProjectile(targetX, targetY) {
+    const s = this.scene.scaleFactor || 1;
+    const k = this.baseScale;
+    const startX = this.x;
+    const startY = this.y;
+    
+    const arrow = this.scene.add.graphics();
+    arrow.lineStyle(3, 0x8b4513, 1);
+    arrow.beginPath();
+    arrow.moveTo(0, 0);
+    arrow.lineTo(8 * s * k, 0);
+    arrow.strokePath();
+    arrow.fillStyle(0x654321, 1);
+    arrow.fillTriangle(8 * s * k, 0, 12 * s * k, -2 * s * k, 12 * s * k, 2 * s * k);
+    arrow.setPosition(startX, startY);
+    arrow.setDepth(45);
+    
+    const angle = Phaser.Math.Angle.Between(startX, startY, targetX, targetY);
+    arrow.setRotation(angle);
+    
+    this.scene.tweens.add({
+      targets: arrow,
+      x: targetX,
+      y: targetY,
+      duration: 200,
+      ease: 'Linear',
+      onComplete: () => {
+        arrow.destroy();
+      }
+    });
+  }
+
+  playControlAttackAnimation() {
+    // Animation de rotation pour le héros CONTROL
+    const s = this.scene.scaleFactor || 1;
+    const k = this.baseScale;
+    
+    // Rotation du corps
+    this.scene.tweens.add({
+      targets: this.bodyGroup,
+      rotation: this.bodyGroup.rotation + Math.PI * 2,
+      duration: 300,
+      ease: 'Quad.easeInOut'
+    });
+    
+    // Animation des armes (tourbillon)
+    if (this.swordPivot) {
+      const initialRotation = this.swordPivot.rotation || -0.3;
+      this.scene.tweens.add({
+        targets: this.swordPivot,
+        rotation: initialRotation + Math.PI * 2,
+        scaleX: 1.5,
+        scaleY: 1.5,
+        duration: 300,
+        ease: 'Quad.easeInOut',
+        onComplete: () => {
+          if (this.swordPivot) {
+            this.swordPivot.rotation = initialRotation;
+            this.swordPivot.scaleX = 1;
+            this.swordPivot.scaleY = 1;
+          }
+        }
+      });
+    }
+    
+    // Effets visuels de tourbillon
+    this.swordTrail.clear();
+    this.swordTrail.lineStyle(6 * s * k, 0x6b3fa0, 0.7);
+    this.swordTrail.beginPath();
+    this.swordTrail.arc(0, 0, 35 * s * k, 0, Math.PI * 2);
+    this.swordTrail.strokePath();
+    this.swordTrail.alpha = 1;
+    
+    this.scene.tweens.add({
+      targets: this.swordTrail,
+      alpha: 0,
+      duration: 300,
+      ease: "Quad.easeOut",
+      onComplete: () => this.swordTrail.clear(),
+    });
+  }
+
   // -----------------------------
   // Grid / Pathfinding
   // -----------------------------
@@ -303,8 +444,8 @@ export class Hero extends Phaser.GameObjects.Container {
 
     this.currentPathIndex = 0;
     
-    // Si on donne une nouvelle destination pendant le combat, libérer l'ennemi
-    if (this.blockingEnemy) {
+    // Si on donne une nouvelle destination pendant le combat, libérer les ennemis
+    if (this.blockingEnemies.length > 0) {
       this.releaseEnemy();
     }
     
@@ -323,25 +464,69 @@ export class Hero extends Phaser.GameObjects.Container {
     // Toujours permettre le déplacement, même en combat
     this.followPath(dt);
 
-    // Gérer le combat si on a un ennemi bloqué
-    if (this.blockingEnemy) {
-      if (!this.blockingEnemy.active || this.blockingEnemy.hp <= 0 || this.blockingEnemy.isInvulnerable) {
-        // Libérer si l'ennemi est mort, inactif ou invulnérable
-        this.releaseEnemy();
-      } else {
-        // Vérifier la distance avec l'ennemi - si on s'est trop éloigné, le libérer
-        const dist = Phaser.Math.Distance.Between(this.x, this.y, this.blockingEnemy.x, this.blockingEnemy.y);
-        if (dist > 50) {
-          // Si on s'est éloigné de plus de 50 pixels, libérer l'ennemi
-          this.releaseEnemy();
-        } else {
-          // Sinon, continuer à attaquer
-        this.tryAttack(now);
+    // Nettoyer les ennemis morts/inactifs
+    this.blockingEnemies = this.blockingEnemies.filter(enemy => {
+      if (!enemy.active || enemy.hp <= 0 || enemy.isInvulnerable) {
+        this.releaseEnemy(enemy);
+        return false;
       }
+      return true;
+    });
+
+    // Pour l'archer : nettoyer les cibles à distance
+    if (this.heroType === "RANGED") {
+      this.rangedTargets = this.rangedTargets.filter(enemy => {
+        return enemy.active && enemy.hp > 0 && !enemy.isInvulnerable;
+      });
+    }
+
+    // Gérer le combat
+    if (this.heroType === "RANGED") {
+      // L'archer : tirer à distance OU combattre au corps-à-corps
+      if (this.blockingEnemies.length > 0) {
+        // En combat au corps-à-corps
+        this.blockingEnemies.forEach(enemy => {
+          const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+          if (dist > 50) {
+            this.releaseEnemy(enemy);
+          }
+        });
+        this.blockingEnemies = this.blockingEnemies.filter(enemy => enemy.isBlocked && enemy.blockedBy === this);
+        if (this.blockingEnemies.length > 0) {
+          this.tryAttack(now);
+        }
+      } else {
+        // Pas en combat au corps-à-corps, chercher des cibles à distance
+        this.checkForRangedTargets();
+        if (this.rangedTargets.length > 0) {
+          this.tryRangedAttack(now);
+        }
       }
     } else {
-      // Si on n'est pas en combat, vérifier si on peut engager un ennemi
-      this.checkForEnemyEngage();
+      // Autres héros : combat normal
+      if (this.blockingEnemies.length > 0) {
+        // Vérifier les distances et libérer ceux qui sont trop loin
+        this.blockingEnemies.forEach(enemy => {
+          const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+          if (dist > 50) {
+            this.releaseEnemy(enemy);
+          }
+        });
+        
+        // Nettoyer à nouveau après les libérations
+        this.blockingEnemies = this.blockingEnemies.filter(enemy => enemy.isBlocked && enemy.blockedBy === this);
+        
+        // Attaquer si on a encore des ennemis
+        if (this.blockingEnemies.length > 0) {
+          this.tryAttack(now);
+        }
+      }
+      
+      // Toujours vérifier si on peut engager de nouveaux ennemis (même si on en a déjà)
+      // Cela permet au héros CONTROL de retenir plusieurs ennemis
+      if (this.blockingEnemies.length < this.enemiesRetained) {
+        this.checkForEnemyEngage();
+      }
     }
     
     // Gérer la régénération automatique
@@ -355,7 +540,7 @@ export class Hero extends Phaser.GameObjects.Container {
     }
     
     // Si en combat, arrêter la régénération
-    if (this.blockingEnemy) {
+    if (this.blockingEnemies.length > 0 || (this.heroType === "RANGED" && this.rangedTargets.length > 0)) {
       this.stopRegeneration();
       return;
     }
@@ -390,7 +575,8 @@ export class Hero extends Phaser.GameObjects.Container {
         
         // Vérifier si on est toujours hors combat et si assez de temps s'est écoulé
         const timeSinceDamage = this.scene.time.now - this.lastDamageTime;
-        if (timeSinceDamage < this.regenDelay || this.blockingEnemy) {
+        const inCombat = this.blockingEnemies.length > 0 || (this.heroType === "RANGED" && this.rangedTargets.length > 0);
+        if (timeSinceDamage < this.regenDelay || inCombat) {
           this.stopRegeneration();
       return;
     }
@@ -469,25 +655,76 @@ export class Hero extends Phaser.GameObjects.Container {
     if (!this.scene?.enemies) return;
     const enemies = this.scene.enemies.getChildren();
 
-    let closest = null;
-    let minDist = 32;
-
+    // Pour les autres héros (pas l'archer), chercher le plus proche
+    const candidates = [];
     for (const enemy of enemies) {
       if (!enemy.active || enemy.isBlocked || enemy.isRanged || enemy.isInvulnerable) continue;
       const d = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
-      if (d < minDist) {
-        minDist = d;
-        closest = enemy;
+      const engageDist = this.heroType === "CONTROL" ? 50 : 32;
+      if (d < engageDist) {
+        candidates.push({ enemy, dist: d });
       }
     }
+    
+    // Trier par distance et prendre les plus proches jusqu'à enemiesRetained
+    candidates.sort((a, b) => a.dist - b.dist);
+    for (let i = 0; i < Math.min(candidates.length, this.enemiesRetained - this.blockingEnemies.length); i++) {
+      this.blockEnemy(candidates[i].enemy);
+    }
+  }
 
-    if (closest) this.blockEnemy(closest);
+  checkForRangedTargets() {
+    if (!this.scene?.enemies || this.heroType !== "RANGED") return;
+    const enemies = this.scene.enemies.getChildren();
+    const rangePixels = this.attackRange * CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
+    
+    // Chercher les ennemis dans la portée (sans les bloquer)
+    this.rangedTargets = [];
+    for (const enemy of enemies) {
+      if (!enemy.active || enemy.hp <= 0 || enemy.isInvulnerable) continue;
+      const d = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
+      // Si l'ennemi est très proche (contact), on ne le cible pas à distance
+      if (d <= rangePixels && d > 40) {
+        this.rangedTargets.push(enemy);
+      }
+      // Si l'ennemi arrive au contact, on entre en combat au corps-à-corps
+      if (d <= 40 && !enemy.isBlocked && !enemy.isRanged) {
+        this.blockEnemy(enemy);
+      }
+    }
+    
+    // Limiter à 1 cible à distance
+    if (this.rangedTargets.length > 1) {
+      this.rangedTargets.sort((a, b) => {
+        const distA = Phaser.Math.Distance.Between(this.x, this.y, a.x, a.y);
+        const distB = Phaser.Math.Distance.Between(this.x, this.y, b.x, b.y);
+        return distA - distB;
+      });
+      this.rangedTargets = [this.rangedTargets[0]];
+    }
+  }
+
+  tryRangedAttack(time) {
+    if (time - this.lastAttackTime < this.attackInterval) return;
+    if (this.rangedTargets.length === 0) return;
+
+    this.lastAttackTime = time;
+    const target = this.rangedTargets[0];
+    
+    if (target && target.active && target.hp > 0) {
+      const enemyX = target.x;
+      const enemyY = target.y;
+      this.playRangedAttackAnimation(target, enemyX, enemyY, false);
+      target.damage(this.damage, { source: "hero" });
+    }
   }
 
   blockEnemy(enemy) {
     if (enemy.isInvulnerable) return; // Ne pas bloquer les ennemis invulnérables
+    if (this.blockingEnemies.length >= this.enemiesRetained) return; // Limite atteinte
+    if (this.blockingEnemies.includes(enemy)) return; // Déjà bloqué
     
-    this.blockingEnemy = enemy;
+    this.blockingEnemies.push(enemy);
     enemy.isBlocked = true;
     enemy.blockedBy = this;
 
@@ -502,21 +739,46 @@ export class Hero extends Phaser.GameObjects.Container {
 
   tryAttack(time) {
     if (time - this.lastAttackTime < this.attackInterval) return;
-    if (!this.blockingEnemy || !this.blockingEnemy.active) return;
+    if (this.blockingEnemies.length === 0) return;
 
     this.lastAttackTime = time;
 
-    // Sauvegarder la position de l'ennemi AVANT d'infliger les dégâts
-    // pour pouvoir jouer l'animation même si l'ennemi meurt immédiatement
-    const enemyX = this.blockingEnemy.x;
-    const enemyY = this.blockingEnemy.y;
-
-    // Déclencher l'animation AVANT d'infliger les dégâts pour s'assurer qu'elle se joue toujours
-    // même si l'ennemi est one-shot
-    this.playAttackAnimation(this.blockingEnemy, enemyX, enemyY);
-
-    // Hit - infliger les dégâts après avoir déclenché l'animation
-    this.blockingEnemy.damage(this.damage, { source: "hero" });
+    if (this.heroType === "CONTROL") {
+      // Le héros CONTROL attaque tous les ennemis retenus en tournant
+      this.playControlAttackAnimation();
+      this.blockingEnemies.forEach(enemy => {
+        if (enemy.active && enemy.hp > 0) {
+          const enemyX = enemy.x;
+          const enemyY = enemy.y;
+          enemy.damage(this.damage, { source: "hero" });
+        }
+      });
+    } else if (this.heroType === "RANGED") {
+      // L'archer attaque un ennemi à la fois à distance
+      const target = this.blockingEnemies[0];
+      if (target && target.active && target.hp > 0) {
+        const dist = Phaser.Math.Distance.Between(this.x, this.y, target.x, target.y);
+        const rangePixels = this.attackRange * CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
+        const isMelee = dist < 40; // Si très proche, c'est du corps-à-corps
+        
+        const enemyX = target.x;
+        const enemyY = target.y;
+        this.playRangedAttackAnimation(target, enemyX, enemyY, isMelee);
+        
+        // Dégâts réduits au corps-à-corps (2.5x moins)
+        const damageToDeal = isMelee ? this.damage / 2.5 : this.damage;
+        target.damage(damageToDeal, { source: "hero" });
+      }
+    } else {
+      // Attaque normale (un ennemi à la fois)
+      const target = this.blockingEnemies[0];
+      if (target && target.active && target.hp > 0) {
+        const enemyX = target.x;
+        const enemyY = target.y;
+        this.playAttackAnimation(target, enemyX, enemyY);
+        target.damage(this.damage, { source: "hero" });
+      }
+    }
   }
 
   playAttackAnimation(enemy, savedX = null, savedY = null) {
@@ -665,12 +927,23 @@ export class Hero extends Phaser.GameObjects.Container {
     });
   }
 
-  releaseEnemy() {
-    if (this.blockingEnemy) {
-      this.blockingEnemy.isBlocked = false;
-      this.blockingEnemy.blockedBy = null;
+  releaseEnemy(enemy = null) {
+    if (enemy) {
+      // Libérer un ennemi spécifique
+      const index = this.blockingEnemies.indexOf(enemy);
+      if (index !== -1) {
+        this.blockingEnemies.splice(index, 1);
+        enemy.isBlocked = false;
+        enemy.blockedBy = null;
+      }
+    } else {
+      // Libérer tous les ennemis (pour compatibilité)
+      this.blockingEnemies.forEach(e => {
+        e.isBlocked = false;
+        e.blockedBy = null;
+      });
+      this.blockingEnemies = [];
     }
-    this.blockingEnemy = null;
   }
 
   die() {

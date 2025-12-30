@@ -18,6 +18,11 @@ const TOWER_RULES = {
     value: (metrics) => (metrics.noSells && metrics.isWin ? 1 : 0),
     shouldUnlock: (metrics) => metrics.isWin && metrics.noSells,
   },
+  TOW_WIN_NO_UPGRADES: {
+    type: "run",
+    value: (metrics) => (metrics.noUpgrades && metrics.isWin ? 1 : 0),
+    shouldUnlock: (metrics) => metrics.isWin && metrics.noUpgrades,
+  },
   TOW_FIRST_TURRET_KILL: {
     type: "run",
     value: (metrics) => metrics.turretKillsTotal,
@@ -298,6 +303,7 @@ function extractTowerMetrics(runReport = {}) {
     typeof runReport?.result === "string" ? runReport.result.toUpperCase() : "";
 
   const noSellsFlag = runReport?.stats?.flags?.noSells !== false;
+  const noUpgradesFlag = upgrades === 0 || runReport?.stats?.flags?.noUpgrades === true;
 
   return {
     towersBuilt: built,
@@ -308,6 +314,7 @@ function extractTowerMetrics(runReport = {}) {
     turretKillsByType,
     turretKillsTotal,
     noSells: noSellsFlag,
+    noUpgrades: noUpgradesFlag,
     isWin: runResult === "WIN",
     runId: normalizedRunId,
   };
