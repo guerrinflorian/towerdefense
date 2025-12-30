@@ -7,14 +7,15 @@ export async function getOrCreatePlayerHero(playerId, heroId = 1) {
   try {
     // Essayer de récupérer l'entrée existante
     // Utiliser des alias explicites pour éviter les conflits avec ph.*
-    const existing = await query(
+      const existing = await query(
       `SELECT 
         ph.id, ph.player_id, ph.hero_id, 
         ph.bonus_hp, ph.bonus_damage, ph.bonus_attack_interval_ms, ph.bonus_move_speed,
         ph.kills, ph.upgrade_points_spent, ph.is_selected,
         h.base_hp, h.base_damage, h.base_attack_interval_ms, h.base_move_speed,
         h.max_hp, h.max_damage, h.min_attack_interval_ms, h.max_move_speed,
-        COALESCE(ph.color, h.color) AS color
+        COALESCE(ph.color, h.color) AS color,
+        h.hero_type, h.enemies_retained
        FROM player_heroes ph
        JOIN heroes h ON h.id = ph.hero_id
        WHERE ph.player_id = $1 AND ph.hero_id = $2`,
@@ -57,6 +58,8 @@ export async function getOrCreatePlayerHero(playerId, heroId = 1) {
         kills: row.kills != null ? Number(row.kills) : 0,
         color: row.color || "#2b2b2b",
         hero_id: heroId,
+        hero_type: row.hero_type || "BRUISER",
+        enemies_retained: row.enemies_retained != null ? Number(row.enemies_retained) : 1,
       };
     }
     
@@ -69,7 +72,7 @@ export async function getOrCreatePlayerHero(playerId, heroId = 1) {
     const isFirstHero = Number(playerHeroesCount.rows[0]?.count || 0) === 0;
     
     const heroBase = await query(
-      `SELECT base_hp, base_damage, base_attack_interval_ms, base_move_speed, color
+      `SELECT base_hp, base_damage, base_attack_interval_ms, base_move_speed, color, hero_type, enemies_retained
        FROM heroes WHERE id = $1`,
       [heroId]
     );
@@ -93,6 +96,8 @@ export async function getOrCreatePlayerHero(playerId, heroId = 1) {
         kills: 0,
         color: hero.color || "#2b2b2b",
         hero_id: heroId,
+        hero_type: hero.hero_type || "BRUISER",
+        enemies_retained: hero.enemies_retained != null ? Number(hero.enemies_retained) : 1,
       };
     }
     
@@ -106,6 +111,8 @@ export async function getOrCreatePlayerHero(playerId, heroId = 1) {
       kills: 0,
       color: "#2b2b2b",
       hero_id: heroId,
+      hero_type: "BRUISER",
+      enemies_retained: 1,
     };
   } catch (err) {
     // Si les tables n'existent pas encore, retourner les stats de base
@@ -119,6 +126,8 @@ export async function getOrCreatePlayerHero(playerId, heroId = 1) {
       kills: 0,
       color: "#2b2b2b",
       hero_id: heroId,
+      hero_type: "BRUISER",
+      enemies_retained: 1,
     };
   }
 }
