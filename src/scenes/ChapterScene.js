@@ -6,6 +6,7 @@ import {
 } from "../services/chapterService.js";
 import { showAuth } from "../services/authOverlay.js";
 import { isAuthenticated } from "../services/authManager.js";
+import { navigateToMainMenu, navigateToMap, persistChapterSelection } from "../services/navigationService.js";
 
 export class ChapterScene extends Phaser.Scene {
   constructor() {
@@ -45,7 +46,7 @@ export class ChapterScene extends Phaser.Scene {
   create() {
     if (!isAuthenticated()) {
       showAuth();
-      this.scene.start("MainMenuScene");
+      navigateToMainMenu();
       return;
     }
 
@@ -286,10 +287,8 @@ export class ChapterScene extends Phaser.Scene {
       });
 
       container.on("pointerdown", () => {
-        this.scene.start("MapScene", {
-          chapter: chapter,
-          fromMainMenu: true,
-        });
+        persistChapterSelection(chapter);
+        navigateToMap(chapter);
       });
     }
 
@@ -318,6 +317,6 @@ export class ChapterScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .on("pointerover", () => this.backButton.setColor("#ffffff"))
       .on("pointerout", () => this.backButton.setColor("#00f2ff"))
-      .on("pointerdown", () => this.scene.start("MainMenuScene"));
+      .on("pointerdown", () => navigateToMainMenu());
   }
 }

@@ -10,6 +10,12 @@ import {
   fetchChapterProgress,
 } from "../services/chapterService.js";
 import { fetchPlayerBestRuns } from "../services/leaderboardService.js";
+import {
+  navigateToChapters,
+  navigateToMainMenu,
+  resolvePreferredChapterId,
+  persistChapterSelection,
+} from "../services/navigationService.js";
 
 export class MapScene extends Phaser.Scene {
   constructor() {
@@ -18,7 +24,7 @@ export class MapScene extends Phaser.Scene {
     this.bestRunsByLevel = new Map();
     this.levelLocks = new Map();
     this.currentChapter = null;
-    this.launchedFromMainMenu = false;
+    this.requestedChapterId = null;
     this.biomes = {
       grass: {
         top: 0x55aa44,
@@ -66,7 +72,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.launchedFromMainMenu = data?.fromMainMenu === true;
+    this.requestedChapterId = data?.chapter?.id ?? resolvePreferredChapterId();
     this.currentChapter = data?.chapter || null;
     this.bestRunsByLevel = data?.bestRuns ? new Map(data.bestRuns) : new Map();
   }
@@ -80,11 +86,6 @@ export class MapScene extends Phaser.Scene {
   }
 
   create() {
-    if (!this.launchedFromMainMenu) {
-      this.scene.start("MainMenuScene");
-      return;
-    }
-
     const { width, height } = this.scale;
     const cx = width / 2;
 
@@ -135,6 +136,11 @@ export class MapScene extends Phaser.Scene {
 
       const chapterVMs = buildChapterViewModels(chapters, this.bestRunsByLevel);
 
+      const preferredId = this.requestedChapterId || this.currentChapter?.id;
+      if (!this.currentChapter && preferredId) {
+        this.currentChapter =
+          chapterVMs.find((c) => c.id === preferredId) || null;
+      }
       if (!this.currentChapter && chapterVMs.length > 0) {
         this.currentChapter = chapterVMs[0];
       } else if (this.currentChapter) {
@@ -144,6 +150,7 @@ export class MapScene extends Phaser.Scene {
       }
 
       if (this.currentChapter) {
+        persistChapterSelection(this.currentChapter);
         const unlockedLevel = isAuthenticated() ? getUnlockedLevel() : 1;
         this.levelLocks = buildLevelLocks(
           this.currentChapter.levels,
@@ -224,7 +231,7 @@ export class MapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     backMain.on("pointerover", () => backMain.setColor("#9ae8ff"));
     backMain.on("pointerout", () => backMain.setColor("#00f2ff"));
-    backMain.on("pointerdown", () => this.scene.start("MainMenuScene"));
+    backMain.on("pointerdown", () => navigateToMainMenu());
     this.backMain = backMain;
 
     const backChapters = this.add
@@ -236,9 +243,7 @@ export class MapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     backChapters.on("pointerover", () => backChapters.setColor("#ffffff"));
     backChapters.on("pointerout", () => backChapters.setColor("#9ae8ff"));
-    backChapters.on("pointerdown", () =>
-      this.scene.start("ChapterScene", { fromMainMenu: true })
-    );
+    backChapters.on("pointerdown", () => navigateToChapters());
     this.backChapters = backChapters;
   }
 

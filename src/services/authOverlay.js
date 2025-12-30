@@ -86,15 +86,6 @@ const clearAllErrors = () => {
   updateSuccess(UI.reset.success);
 };
 
-const goToMainMenu = () => {
-  const sceneManager = window.game?.scene;
-  if (!sceneManager) return;
-
-  sceneManager.stop("GameScene");
-  sceneManager.stop("MapScene");
-  sceneManager.start("MainMenuScene");
-};
-
 // --- Actions ---
 function renderWelcome() {
   if (!UI.welcome) return;
@@ -114,8 +105,6 @@ async function processAuth(action, event, errorBox) {
     toggleVisible(UI.overlay, false);
     toggleGameBlock(false);
     window.dispatchEvent(new CustomEvent("auth:profile-updated"));
-    
-    goToMainMenu();
   } catch (error) {
     updateError(errorBox, handleAuthError(error));
   }
@@ -291,7 +280,6 @@ export function setupAuthOverlay() {
       .then(() => {
         toggleVisible(UI.overlay, false);
         toggleGameBlock(false);
-        goToMainMenu();
       })
       .catch(() => {
         toggleVisible(UI.overlay, true);

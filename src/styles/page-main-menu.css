@@ -1,0 +1,9 @@
+body.page-main-menu {
+  background: radial-gradient(circle at 20% 20%, rgba(0, 242, 255, 0.08), transparent 40%),
+    radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.05), transparent 35%),
+    #05070d;
+}
+
+body.page-main-menu #game-container {
+  align-items: stretch;
+}

@@ -6,9 +6,9 @@
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "start:no-watch": "concurrently \"npm run server\" \"npm run client:no-watch\"",
-    "client": "cross-env PORT=1234 parcel ./index.html",
-    "client:no-watch": "cross-env PORT=1234 parcel serve ./index.html --no-hmr",
-    "build": "parcel build ./index.html",
+    "client": "cross-env PORT=1234 parcel ./index.html ./chapters.html ./map.html ./achievements.html",
+    "client:no-watch": "cross-env PORT=1234 parcel serve ./index.html ./chapters.html ./map.html ./achievements.html --no-hmr",
+    "build": "parcel build ./index.html ./chapters.html ./map.html ./achievements.html",
     "server": "node server/index.js",
     "dev:server": "nodemon server/index.js"
   },

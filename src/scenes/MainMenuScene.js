@@ -3,6 +3,7 @@ import { showAuth } from "../services/authOverlay.js";
 import { LeaderboardUI } from "./components/LeaderboardUI.js";
 import { HeroUpgradeUI } from "./components/HeroUpgradeUI.js";
 import { fetchAchievements } from "../services/achievementsService.js";
+import { navigateToAchievements, navigateToChapters } from "../services/navigationService.js";
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -121,7 +122,7 @@ export class MainMenuScene extends Phaser.Scene {
     
     playBtn.on("pointerover", () => { drawBtn(true); playBtn.setScale(playBtn.baseScale * 1.05); });
     playBtn.on("pointerout", () => { drawBtn(false); playBtn.setScale(playBtn.baseScale); });
-    playBtn.on("pointerdown", () => this.scene.start("ChapterScene", { fromMainMenu: true }));
+    playBtn.on("pointerdown", () => navigateToChapters());
 
     this.playButton = playBtn;
   }
@@ -196,9 +197,7 @@ export class MainMenuScene extends Phaser.Scene {
       container.setScale(container.scaleX / 1.02);
     });
     
-    container.on("pointerdown", () => {
-      this.scene.start("AchievementsScene");
-    });
+    container.on("pointerdown", () => navigateToAchievements());
   
     this.add.existing(container);
     this.achievementsButton = container;

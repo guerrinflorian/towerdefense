@@ -1,4 +1,5 @@
 import { fetchAchievements } from "../services/achievementsService.js";
+import { navigateToMainMenu } from "../services/navigationService.js";
 // 
 export class AchievementsScene extends Phaser.Scene {
   constructor() {
@@ -449,7 +450,7 @@ export class AchievementsScene extends Phaser.Scene {
     // 5. Événements sur le bouton entier
     btn.on("pointerover", () => drawBtn(true));
     btn.on("pointerout", () => drawBtn(false));
-    btn.on("pointerdown", () => this.scene.start("MainMenuScene"));
+    btn.on("pointerdown", () => navigateToMainMenu());
 
     this._closeBtn = btn;
 }
