@@ -488,6 +488,7 @@ router.get("/heroes", async (req, res) => {
         h.id, h.name, 
         h.base_hp, h.base_damage, h.base_attack_interval_ms, h.base_move_speed,
         h.max_hp, h.max_damage, h.min_attack_interval_ms, h.max_move_speed, 
+        h.enemies_retained,
         COALESCE(ph.color, h.color) AS color, h.hero_points_to_unlock,
         COALESCE(ph.bonus_hp, 0) AS bonus_hp,
         COALESCE(ph.bonus_damage, 0) AS bonus_damage,
@@ -566,6 +567,10 @@ router.get("/heroes", async (req, res) => {
         max_damage: hero.max_damage != null ? parseFloat(hero.max_damage) : null,
         min_attack_interval_ms: hero.min_attack_interval_ms != null ? Number(hero.min_attack_interval_ms) : null,
         max_move_speed: hero.max_move_speed != null ? Number(hero.max_move_speed) : null,
+        // Nombre d'ennemis retenus (s'assurer que c'est bien un nombre)
+        enemies_retained: (hero.enemies_retained != null && hero.enemies_retained !== undefined) 
+          ? Number(hero.enemies_retained) 
+          : 1,
         color: hero.color || "#2b2b2b",
         hero_points_to_unlock: Number(hero.hero_points_to_unlock) || 0,
         isUnlocked: isUnlocked,
