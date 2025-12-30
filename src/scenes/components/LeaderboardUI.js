@@ -398,7 +398,6 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
 
       // 4. Vérification finale avant rendu (très important pour l'asynchrone)
       if (!stillAlive() || token !== this._loadToken) {
-        console.log("[LB] Request outdated or component dead, ignoring render");
         return;
       }
 

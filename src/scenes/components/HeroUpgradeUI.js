@@ -1,3 +1,8 @@
+/**
+ * Interface principale de mise à niveau des héros
+ * Orchestre les différents composants pour une interface claire et modulaire
+ */
+
 import {
   getHeroStats,
   getHeroPointsAvailable,
@@ -7,17 +12,14 @@ import {
   updateHeroColor,
   isAuthenticated,
   getSelectedHeroId,
-  getProfile,
 } from "../../services/authManager.js";
 import { showAuth } from "../../services/authOverlay.js";
 import { fetchHeroes } from "../../services/heroService.js";
-
-// Fonction pour tronquer un nombre à N décimales (sans arrondir)
-function truncateDecimals(value, decimals) {
-  const factor = Math.pow(10, decimals);
-  return Math.floor(value * factor) / factor;
-}
 import { HeroSelectionUI } from "./HeroSelectionUI.js";
+import { HeroAvatarComponent } from "./heroUpgrade/HeroAvatarComponent.js";
+import { StatRowComponent } from "./heroUpgrade/StatRowComponent.js";
+import { UpgradeButtonsComponent } from "./heroUpgrade/UpgradeButtonsComponent.js";
+import { getCurrentStatValue, STAT_CONVERSION_MAP } from "./heroUpgrade/utils.js";
 
 export class HeroUpgradeUI extends Phaser.GameObjects.Container {
   constructor(scene, x, y) {
@@ -25,70 +27,63 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
 
     this.config = {
       width: 420,
-      height: 440, // Augmenté pour 4 stats
+      height: 440,
       padding: 20,
       accentColor: 0x00eaff,
       bgColor: 0x050a10,
       rowHeight: 60,
-      avatarSize: 85,
-      // Les valeurs max/min seront mises à jour depuis le profil
+      avatarSize: 70, // Réduit de 85 à 70 pour un avatar plus petit
       maxValues: { hp: 2500, damage: 450, move_speed: 200, attack_interval_ms: 1500 },
-      minValues: { attack_interval_ms: 500 }, // Minimum pour la vitesse de frappe
+      minValues: { attack_interval_ms: 500 },
     };
 
-    this.statElements = new Map();
+    this.statRows = new Map();
     this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0, attack_interval_ms: 0 };
     this.holdTimer = null;
+    this.lastHeroId = undefined;
 
-    this.upgradeCompleteHandler = () => {
-      this.refresh();
-    };
-    this.profileUpdateHandler = () => {
-      this.refresh();
-    };
-    window.addEventListener(
-      "hero:upgrade-complete",
-      this.upgradeCompleteHandler
-    );
-    window.addEventListener(
-      "profile:updated",
-      this.profileUpdateHandler
-    );
+    // Composants
+    this.avatarComponent = null;
+    this.buttonsComponent = null;
 
-    this.scene.events.once("shutdown", () => {
-      this.stopContinuousUpgrade();
-      window.removeEventListener(
-        "hero:upgrade-complete",
-        this.upgradeCompleteHandler
-      );
-      window.removeEventListener(
-        "profile:updated",
-        this.profileUpdateHandler
-      );
-    });
-
+    // Handlers pour les événements
+    this.setupEventHandlers();
     this.setupMainPanel();
     this.refresh();
-    // Charger le nom du héros initial
     this.updateHeroName();
 
     this.scene.add.existing(this);
     this.setDepth(180);
   }
 
+  setupEventHandlers() {
+    this.upgradeCompleteHandler = () => this.refresh();
+    this.profileUpdateHandler = () => this.refresh();
+
+    window.addEventListener("hero:upgrade-complete", this.upgradeCompleteHandler);
+    window.addEventListener("profile:updated", this.profileUpdateHandler);
+
+    this.scene.events.once("shutdown", () => {
+      this.stopContinuousUpgrade();
+      window.removeEventListener("hero:upgrade-complete", this.upgradeCompleteHandler);
+      window.removeEventListener("profile:updated", this.profileUpdateHandler);
+    });
+  }
+
   setupMainPanel() {
     const { width, height, padding, accentColor, bgColor } = this.config;
 
+    // Fond
     const bg = this.scene.add.graphics();
     bg.fillStyle(bgColor, 0.95);
     bg.lineStyle(2, accentColor, 1);
     bg.fillRoundedRect(0, 0, width, height, 15);
     bg.strokeRoundedRect(0, 0, width, height, 15);
-
     bg.lineStyle(4, accentColor, 0.5);
     bg.lineBetween(width * 0.3, 0, width * 0.7, 0);
     this.add(bg);
 
+    // Titre
     const resolution = window.devicePixelRatio || 1;
     const title = this.scene.add
       .text(width / 2, -15, " SYSTÈME HÉROS ", {
@@ -102,7 +97,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       .setOrigin(0.5);
     this.add(title);
 
-    // Bouton pour ouvrir la sélection de héros
+    // Bouton changer héros
     this.heroSelectionBtn = this.scene.add
       .rectangle(width - padding - 10, -15, 80, 25, accentColor, 0.7)
       .setInteractive({ useHandCursor: true })
@@ -120,7 +115,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     this.add(this.heroSelectionBtn);
     this.add(selectText);
 
-    // --- NOM DU HÉROS EN HAUT ---
+    // Nom du héros
     this.heroNameText = this.scene.add.text(width / 2, 10, "", {
       fontFamily: "Orbitron, sans-serif",
       fontSize: "22px",
@@ -132,9 +127,15 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     }).setOrigin(0.5, 0);
     this.add(this.heroNameText);
 
-    // --- RESTAURATION DE L'AVATAR ORIGINAL ---
-    this.createAvatar(padding, 40);
+    // Avatar
+    this.avatarComponent = new HeroAvatarComponent(
+      this.scene,
+      this.config,
+      this
+    );
+    this.avatarComponent.create(padding, 40, () => this.openColorPicker());
 
+    // Lignes de statistiques
     const statsData = [
       { key: "hp", label: "VIE", color: 0x4caf50 },
       { key: "damage", label: "DÉGÂT", color: 0xff4d4d },
@@ -144,10 +145,20 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
 
     const statsStartX = padding + this.config.avatarSize + 25;
     statsData.forEach((stat, idx) => {
-      this.createStatRow(stat, statsStartX, 65 + idx * this.config.rowHeight);
+      const statRow = new StatRowComponent(
+        this.scene,
+        stat,
+        statsStartX,
+        65 + idx * this.config.rowHeight,
+        this.config,
+        (key) => this.startContinuousUpgrade(key),
+        () => this.stopContinuousUpgrade()
+      );
+      this.statRows.set(stat.key, statRow);
+      statRow.getElements().forEach(el => this.add(el));
     });
 
-    // --- TEXTES DU BAS ---
+    // Texte des points
     this.pointsText = this.scene.add
       .text(width / 2, height - 95, "", {
         fontSize: "18px",
@@ -157,580 +168,16 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
         resolution,
       })
       .setOrigin(0.5);
+    this.add(this.pointsText);
 
-    this.costText = this.scene.add
-      .text(width / 2, height - 25, "", {
-        fontSize: "12px",
-        fontFamily: "Arial",
-        color: "#aaaaaa",
-        resolution,
-      })
-      .setOrigin(0.5);
-
-    // --- BOUTONS D'ACTION (ANNULER & VALIDER) ---
-    const buttonY = height - 60;
-
-    // 1. Bouton Annuler (Rouge)
-    this.globalCancelBtn = this.scene.add.container(width / 2 - 70, buttonY);
-    const cancelBg = this.scene.add.graphics();
-    this.drawButtonBg(cancelBg, 0xff4d4d, 0.3);
-
-    const cancelIcon = this.scene.add
-      .text(0, 0, "X ANNULER", {
-        fontSize: "16px",
-        fontFamily: "Arial",
-        color: "#ff4d4d",
-        fontWeight: "bold",
-        resolution,
-      })
-      .setOrigin(0.5);
-
-    this.globalCancelBtn.add([cancelBg, cancelIcon]);
-    this.globalCancelBtn
-      .setSize(130, 36)
-      .setInteractive({ useHandCursor: true })
-      .setVisible(false);
-
-    this.globalCancelBtn.on("pointerover", () =>
-      this.drawButtonBg(cancelBg, 0xff4d4d, 0.6)
+    // Boutons Valider/Annuler
+    this.buttonsComponent = new UpgradeButtonsComponent(
+      this.scene,
+      this.config,
+      () => this.cancelUpgrades(),
+      () => this.confirmAllUpgrades()
     );
-    this.globalCancelBtn.on("pointerout", () =>
-      this.drawButtonBg(cancelBg, 0xff4d4d, 0.3)
-    );
-    this.globalCancelBtn.on("pointerdown", () => this.cancelUpgrades());
-
-    // 2. Bouton Valider (Vert)
-    this.globalValidateBtn = this.scene.add.container(width / 2 + 70, buttonY);
-    const validateBg = this.scene.add.graphics();
-    this.drawButtonBg(validateBg, 0x4caf50, 0.3);
-
-    const validateIcon = this.scene.add
-      .text(0, 0, "✓ VALIDER", {
-        fontSize: "16px",
-        fontFamily: "Arial",
-        color: "#4caf50",
-        fontWeight: "bold",
-        resolution,
-      })
-      .setOrigin(0.5);
-
-    this.globalValidateBtn.add([validateBg, validateIcon]);
-    this.globalValidateBtn
-      .setSize(130, 36)
-      .setInteractive({ useHandCursor: true })
-      .setVisible(false);
-
-    this.globalValidateBtn.on("pointerover", () =>
-      this.drawButtonBg(validateBg, 0x4caf50, 0.6)
-    );
-    this.globalValidateBtn.on("pointerout", () =>
-      this.drawButtonBg(validateBg, 0x4caf50, 0.3)
-    );
-    this.globalValidateBtn.on("pointerdown", () => this.confirmAllUpgrades());
-
-    this.add([
-      this.pointsText,
-      this.costText,
-      this.globalCancelBtn,
-      this.globalValidateBtn,
-    ]);
-  }
-
-  drawButtonBg(graphics, color, alpha) {
-    graphics.clear();
-    graphics.fillStyle(color, alpha);
-    graphics.lineStyle(2, color, 1);
-    graphics.fillRoundedRect(-65, -18, 130, 36, 8);
-    graphics.strokeRoundedRect(-65, -18, 130, 36, 8);
-  }
-
-  // --- FONCTIONS DE DESSIN DE L'AVATAR ORIGINALES ---
-  hexToNumber(hex) {
-    if (!hex) return 0x2b2b2b;
-    const cleanHex = hex.replace("#", "");
-    return parseInt(cleanHex, 16);
-  }
-
-  drawKnightAvatarBody(frame, centerX, centerY, scale, heroColor) {
-    const chestplateColor = this.hexToNumber(heroColor);
-    frame.fillStyle(chestplateColor, 1);
-    frame.fillRoundedRect(
-      centerX - 12 * scale,
-      centerY - 18 * scale,
-      24 * scale,
-      34 * scale,
-      7 * scale
-    );
-    frame.lineStyle(2 * scale, 0x242424, 1);
-    frame.strokeRoundedRect(
-      centerX - 12 * scale,
-      centerY - 18 * scale,
-      24 * scale,
-      34 * scale,
-      7 * scale
-    );
-
-    frame.lineStyle(2 * scale, 0x6a6a6a, 0.6);
-    frame.beginPath();
-    frame.moveTo(centerX, centerY - 16 * scale);
-    frame.lineTo(centerX, centerY + 10 * scale);
-    frame.strokePath();
-
-    frame.fillStyle(0x7a7a7a, 1);
-    frame.fillCircle(centerX - 11 * scale, centerY - 12 * scale, 7 * scale);
-    frame.fillCircle(centerX + 11 * scale, centerY - 12 * scale, 7 * scale);
-    frame.lineStyle(2 * scale, 0x2a2a2a, 0.9);
-    frame.strokeCircle(centerX - 11 * scale, centerY - 12 * scale, 7 * scale);
-    frame.strokeCircle(centerX + 11 * scale, centerY - 12 * scale, 7 * scale);
-
-    frame.fillStyle(0x8b5a2b, 1);
-    frame.fillRoundedRect(
-      centerX - 12 * scale,
-      centerY + 6 * scale,
-      24 * scale,
-      5 * scale,
-      2 * scale
-    );
-    frame.fillStyle(0xd2b48c, 0.9);
-    frame.fillRect(
-      centerX - 2 * scale,
-      centerY + 6 * scale,
-      4 * scale,
-      5 * scale
-    );
-
-    frame.fillStyle(0xffd4a3, 1);
-    frame.fillCircle(centerX, centerY - 24 * scale, 8 * scale);
-
-    const hatColor = this.hexToNumber(heroColor);
-    frame.fillStyle(hatColor, 1);
-    frame.fillRoundedRect(
-      centerX - 10 * scale,
-      centerY - 33 * scale,
-      20 * scale,
-      8 * scale,
-      3 * scale
-    );
-
-    frame.fillStyle(0x111111, 0.9);
-    frame.fillCircle(centerX - 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
-    frame.fillCircle(centerX + 3.2 * scale, centerY - 24 * scale, 1.1 * scale);
-  }
-
-  drawNinjaAvatarBody(frame, centerX, centerY, scale, heroColor) {
-    // Tenue ninja
-    frame.fillStyle(0x1a1a2e, 0.85);
-    frame.fillEllipse(centerX - 1 * scale, centerY + 6 * scale, 18 * scale, 28 * scale);
-    frame.fillStyle(0x0f0f1a, 0.4);
-    frame.fillEllipse(centerX - 4 * scale, centerY + 8 * scale, 12 * scale, 22 * scale);
-
-    const ninjaColor = this.hexToNumber(heroColor);
-    frame.fillStyle(ninjaColor, 1);
-    frame.fillRoundedRect(
-      centerX - 10 * scale,
-      centerY - 16 * scale,
-      20 * scale,
-      32 * scale,
-      5 * scale
-    );
-    frame.lineStyle(1.5 * scale, 0x1a1a1a, 1);
-    frame.strokeRoundedRect(
-      centerX - 10 * scale,
-      centerY - 16 * scale,
-      20 * scale,
-      32 * scale,
-      5 * scale
-    );
-
-    frame.lineStyle(1.5 * scale, 0x4a4a4a, 0.7);
-    frame.beginPath();
-    frame.moveTo(centerX - 8 * scale, centerY - 12 * scale);
-    frame.lineTo(centerX + 8 * scale, centerY + 8 * scale);
-    frame.moveTo(centerX + 8 * scale, centerY - 12 * scale);
-    frame.lineTo(centerX - 8 * scale, centerY + 8 * scale);
-    frame.strokePath();
-
-    frame.fillStyle(0x2a2a2a, 1);
-    frame.fillRoundedRect(
-      centerX - 10 * scale,
-      centerY + 4 * scale,
-      20 * scale,
-      4 * scale,
-      1 * scale
-    );
-    frame.fillStyle(0x4a4a4a, 0.8);
-    frame.fillRect(
-      centerX - 1 * scale,
-      centerY + 4 * scale,
-      2 * scale,
-      4 * scale
-    );
-
-    frame.fillStyle(0xffd4a3, 1);
-    frame.fillCircle(centerX, centerY - 22 * scale, 7 * scale);
-
-    frame.fillStyle(0x1a1a1a, 1);
-    frame.fillRoundedRect(
-      centerX - 9 * scale,
-      centerY - 30 * scale,
-      18 * scale,
-      6 * scale,
-      2 * scale
-    );
-    frame.fillStyle(0x111111, 0.95);
-    frame.fillRect(centerX - 6 * scale, centerY - 28 * scale, 3 * scale, 2 * scale);
-    frame.fillRect(centerX + 3 * scale, centerY - 28 * scale, 3 * scale, 2 * scale);
-  }
-
-  drawSwordAvatar(container, centerX, centerY, scale) {
-    const swordPivotX = centerX + 12 * scale;
-    const swordPivotY = centerY - 4 * scale;
-    const swordPivot = this.scene.add.container(swordPivotX, swordPivotY);
-    swordPivot.setRotation(-0.3);
-    swordPivot.setDepth(10);
-
-    const sword = this.scene.add.graphics();
-    sword.fillStyle(0xd6d6d6, 1);
-    sword.fillRoundedRect(0, -2 * scale, 22 * scale, 5 * scale, 2 * scale);
-    sword.fillStyle(0xffffff, 0.75);
-    sword.fillRoundedRect(0, -2 * scale, 22 * scale, 2.2 * scale, 2 * scale);
-    sword.fillStyle(0xcfcfcf, 1);
-    sword.fillTriangle(
-      22 * scale,
-      -2 * scale,
-      28 * scale,
-      0.5 * scale,
-      22 * scale,
-      3 * scale
-    );
-    sword.fillStyle(0x6b3d18, 1);
-    sword.fillRoundedRect(
-      -4 * scale,
-      -4.2 * scale,
-      6 * scale,
-      9 * scale,
-      2 * scale
-    );
-    sword.fillStyle(0x8b4513, 1);
-    sword.fillRoundedRect(
-      -8 * scale,
-      -2.5 * scale,
-      5 * scale,
-      6 * scale,
-      2 * scale
-    );
-    sword.fillStyle(0x3b2210, 0.55);
-    sword.fillRect(-7.2 * scale, -2.2 * scale, 3.5 * scale, 0.8 * scale);
-    sword.fillRect(-7.2 * scale, -0.6 * scale, 3.5 * scale, 0.8 * scale);
-    sword.fillRect(-7.2 * scale, 1.0 * scale, 3.5 * scale, 0.8 * scale);
-    sword.fillStyle(0xbdbdbd, 1);
-    sword.fillCircle(-9.2 * scale, 0.5 * scale, 2.2 * scale);
-
-    swordPivot.add(sword);
-    container.add(swordPivot);
-  }
-
-  drawDaggersAvatar(container, centerX, centerY, scale) {
-    // Première dague (droite)
-    const dagger1PivotX = centerX + 10 * scale;
-    const dagger1PivotY = centerY - 2 * scale;
-    const dagger1Pivot = this.scene.add.container(dagger1PivotX, dagger1PivotY);
-    dagger1Pivot.setRotation(-0.2);
-    dagger1Pivot.setDepth(10);
-
-    const dagger1 = this.scene.add.graphics();
-    dagger1.fillStyle(0xc0c0c0, 1);
-    dagger1.fillRoundedRect(0, -1.5 * scale, 14 * scale, 3 * scale, 1 * scale);
-    dagger1.fillStyle(0xffffff, 0.8);
-    dagger1.fillRoundedRect(0, -1.5 * scale, 14 * scale, 1.5 * scale, 1 * scale);
-    dagger1.fillStyle(0xa0a0a0, 1);
-    dagger1.fillTriangle(14 * scale, -1.5 * scale, 18 * scale, 0, 14 * scale, 1.5 * scale);
-    dagger1.fillStyle(0x4a4a4a, 1);
-    dagger1.fillRoundedRect(-2 * scale, -2.5 * scale, 4 * scale, 5 * scale, 1 * scale);
-    dagger1.fillStyle(0x2a2a2a, 1);
-    dagger1.fillRoundedRect(-4 * scale, -1.5 * scale, 3 * scale, 3 * scale, 1 * scale);
-    dagger1.fillStyle(0x1a1a1a, 0.7);
-    dagger1.fillRect(-3.5 * scale, -1.2 * scale, 2 * scale, 0.6 * scale);
-    dagger1.fillRect(-3.5 * scale, 0.3 * scale, 2 * scale, 0.6 * scale);
-    dagger1.fillStyle(0x5a5a5a, 1);
-    dagger1.fillCircle(-5 * scale, 0, 1.5 * scale);
-
-    dagger1Pivot.add(dagger1);
-    container.add(dagger1Pivot);
-
-    // Deuxième dague (gauche)
-    const dagger2PivotX = centerX - 10 * scale;
-    const dagger2PivotY = centerY - 2 * scale;
-    const dagger2Pivot = this.scene.add.container(dagger2PivotX, dagger2PivotY);
-    dagger2Pivot.setRotation(0.2);
-    dagger2Pivot.setDepth(10);
-
-    const dagger2 = this.scene.add.graphics();
-    dagger2.fillStyle(0xc0c0c0, 1);
-    dagger2.fillRoundedRect(0, -1.5 * scale, 14 * scale, 3 * scale, 1 * scale);
-    dagger2.fillStyle(0xffffff, 0.8);
-    dagger2.fillRoundedRect(0, -1.5 * scale, 14 * scale, 1.5 * scale, 1 * scale);
-    dagger2.fillStyle(0xa0a0a0, 1);
-    dagger2.fillTriangle(14 * scale, -1.5 * scale, 18 * scale, 0, 14 * scale, 1.5 * scale);
-    dagger2.fillStyle(0x4a4a4a, 1);
-    dagger2.fillRoundedRect(-2 * scale, -2.5 * scale, 4 * scale, 5 * scale, 1 * scale);
-    dagger2.fillStyle(0x2a2a2a, 1);
-    dagger2.fillRoundedRect(-4 * scale, -1.5 * scale, 3 * scale, 3 * scale, 1 * scale);
-    dagger2.fillStyle(0x1a1a1a, 0.7);
-    dagger2.fillRect(-3.5 * scale, -1.2 * scale, 2 * scale, 0.6 * scale);
-    dagger2.fillRect(-3.5 * scale, 0.3 * scale, 2 * scale, 0.6 * scale);
-    dagger2.fillStyle(0x5a5a5a, 1);
-    dagger2.fillCircle(-5 * scale, 0, 1.5 * scale);
-
-    dagger2Pivot.add(dagger2);
-    container.add(dagger2Pivot);
-  }
-
-  createAvatar(x, y) {
-    // Si un avatar existe déjà, le détruire d'abord
-    if (this.avatarContainer) {
-      this.avatarContainer.destroy();
-      this.avatarContainer = null;
-      this.avatarFrame = null;
-    }
-    
-    const size = this.config.avatarSize;
-    const container = this.scene.add.container(x, y);
-
-    const frame = this.scene.add.graphics();
-    frame.lineStyle(2, this.config.accentColor, 0.5);
-    frame.strokeRect(-2, -2, size + 4, size + 4);
-    frame.fillStyle(0x1a2a3a, 1);
-    frame.fillRect(0, 0, size, size);
-
-    const scale = size / 50;
-    const centerX = size / 2;
-    const centerY = size / 2;
-
-    frame.fillStyle(0x000000, 0.18);
-    frame.fillEllipse(centerX, centerY + 18 * scale, 26 * scale, 10 * scale);
-
-    frame.fillStyle(0x151526, 0.92);
-    frame.fillEllipse(
-      centerX - 2 * scale,
-      centerY + 8 * scale,
-      22 * scale,
-      30 * scale
-    );
-    frame.fillStyle(0x0d0d18, 0.35);
-    frame.fillEllipse(
-      centerX - 6 * scale,
-      centerY + 10 * scale,
-      14 * scale,
-      24 * scale
-    );
-
-    const stats = getHeroStats();
-    const heroColor = stats?.color || "#2b2b2b";
-    const heroId = stats?.hero_id ?? 1;
-
-    // Dessiner le corps selon le hero_id
-    if (heroId === 2) {
-      // Pirlov dagues - Ninja
-      this.drawNinjaAvatarBody(frame, centerX, centerY, scale, heroColor);
-    } else {
-      // Pulskar l'épéiste (hero_id = 1) ou autres - Chevalier
-      this.drawKnightAvatarBody(frame, centerX, centerY, scale, heroColor);
-    }
-
-    container.add(frame);
-
-    // Dessiner les armes selon le hero_id
-    if (heroId === 2) {
-      // Deux dagues
-      this.drawDaggersAvatar(container, centerX, centerY, scale);
-    } else {
-      // Épée
-      this.drawSwordAvatar(container, centerX, centerY, scale);
-    }
-
-    this.add(container);
-
-    const penBtn = this.scene.add.container(x + size - 5, y + 5);
-    const penBg = this.scene.add
-      .circle(0, 0, 12, 0x00eaff, 0.2)
-      .setStrokeStyle(1, 0x00eaff);
-    const resolution = window.devicePixelRatio || 1;
-    const penIcon = this.scene.add
-      .text(0, 0, "✏️", { fontSize: "14px", resolution })
-      .setOrigin(0.5);
-    penBtn.add([penBg, penIcon]);
-    penBtn.setSize(24, 24).setInteractive({ useHandCursor: true });
-
-    penBtn.on("pointerover", () => penBg.setFillStyle(0x00eaff, 0.5));
-    penBtn.on("pointerout", () => penBg.setFillStyle(0x00eaff, 0.2));
-    penBtn.on("pointerdown", () => this.openColorPicker());
-
-    this.add(penBtn);
-
-    this.killsText = this.scene.add
-      .text(x + size / 2, y + size + 15, "", {
-        fontSize: "15px",
-        fontFamily: "Arial",
-        color: "#ff6b6b",
-        fontWeight: "bold",
-        resolution,
-      })
-      .setOrigin(0.5);
-    this.add(this.killsText);
-
-    this.avatarFrame = frame;
-    this.avatarContainer = container; // Stocker la référence au container pour pouvoir supprimer les armes
-  }
-
-  redrawAvatar(color) {
-    const size = this.config.avatarSize;
-    const scale = size / 50;
-    const centerX = size / 2;
-    const centerY = size / 2;
-    const stats = getHeroStats();
-    const heroId = stats?.hero_id ?? 1;
-
-    // Nettoyer le frame
-    this.avatarFrame.clear();
-
-    this.avatarFrame.lineStyle(2, this.config.accentColor, 0.5);
-    this.avatarFrame.strokeRect(-2, -2, size + 4, size + 4);
-    this.avatarFrame.fillStyle(0x1a2a3a, 1);
-    this.avatarFrame.fillRect(0, 0, size, size);
-
-    // Ombre au sol
-    this.avatarFrame.fillStyle(0x000000, 0.18);
-    this.avatarFrame.fillEllipse(
-      centerX,
-      centerY + 18 * scale,
-      26 * scale,
-      10 * scale
-    );
-
-    // Dessiner le corps selon le hero_id
-    if (heroId === 2) {
-      // Pirlov dagues - Ninja
-      this.drawNinjaAvatarBody(this.avatarFrame, centerX, centerY, scale, color);
-    } else {
-      // Pulskar l'épéiste (hero_id = 1) ou autres - Chevalier
-      this.drawKnightAvatarBody(this.avatarFrame, centerX, centerY, scale, color);
-    }
-
-    // Supprimer toutes les armes existantes du container (garder seulement le frame)
-    if (this.avatarContainer) {
-      const children = this.avatarContainer.list.slice(); // Copie de la liste
-      children.forEach(child => {
-        // Supprimer tout sauf le frame
-        if (child !== this.avatarFrame) {
-          child.destroy();
-        }
-      });
-      // S'assurer que le frame est toujours dans le container
-      if (!this.avatarContainer.list.includes(this.avatarFrame)) {
-        this.avatarContainer.add(this.avatarFrame);
-      }
-    }
-
-    // Redessiner les armes selon le hero_id actuel
-    if (this.avatarContainer) {
-      if (heroId === 2) {
-        // Deux dagues
-        this.drawDaggersAvatar(this.avatarContainer, centerX, centerY, scale);
-      } else {
-        // Épée
-        this.drawSwordAvatar(this.avatarContainer, centerX, centerY, scale);
-      }
-    }
-  }
-  // ---------------------------------------------------------
-
-  createStatRow(stat, x, y) {
-    const barWidth = 200;
-    const resolution = window.devicePixelRatio || 1;
-
-    const label = this.scene.add.text(x, y - 22, stat.label, {
-      fontSize: "13px",
-      fontWeight: "bold",
-      color: "#ffffff",
-      resolution,
-    });
-
-    const valText = this.scene.add
-      .text(x + barWidth, y - 22, "0", {
-        fontSize: "14px",
-        color: "#00eaff",
-        fontWeight: "bold",
-        resolution,
-      })
-      .setOrigin(1, 0);
-
-    const conversionText = this.scene.add.text(x, y + 18, "", {
-      fontSize: "11px",
-      color: "#7dd0ff",
-      fontStyle: "italic",
-      resolution,
-    });
-
-    // Afficher le maximum de la stat au-dessus de la barre (blanc avec bordure noire)
-    const maxText = this.scene.add.text(x + barWidth / 2, y - 15, "", {
-      fontSize: "10px",
-      color: "#ffffff",
-      fontStyle: "bold",
-      stroke: "#000000",
-      strokeThickness: 3,
-      resolution,
-    }).setOrigin(0.5, 0);
-
-    const barBg = this.scene.add
-      .graphics()
-      .fillStyle(0xffffff, 0.1)
-      .fillRoundedRect(x, y, barWidth, 12, 5);
-    const barFill = this.scene.add.graphics();
-    const barPending = this.scene.add.graphics();
-
-    const btn = this.scene.add.container(x + barWidth + 25, y + 6);
-    const btnBg = this.scene.add
-      .circle(0, 0, 15, 0x00eaff, 0.2)
-      .setStrokeStyle(1, 0x00eaff);
-    const btnPlus = this.scene.add
-      .text(0, 0, "+", {
-        fontSize: "22px",
-        color: "#00eaff",
-        fontWeight: "bold",
-        resolution,
-      })
-      .setOrigin(0.5);
-    btn.add([btnBg, btnPlus]);
-    btn.setSize(30, 30).setInteractive({ useHandCursor: true });
-
-    // --- GESTION DU LONG PRESS ---
-    btn.on("pointerdown", () => this.startContinuousUpgrade(stat.key));
-    btn.on("pointerup", () => this.stopContinuousUpgrade());
-    btn.on("pointerout", () => this.stopContinuousUpgrade());
-
-    btn.on("pointerover", () => {
-      if (btn.input.enabled) btnBg.setFillStyle(0x00eaff, 0.5);
-    });
-    btn.on("pointerout", () => {
-      if (btn.input.enabled) btnBg.setFillStyle(0x00eaff, 0.2);
-      this.stopContinuousUpgrade();
-    });
-
-    this.statElements.set(stat.key, {
-      valText,
-      barFill,
-      barPending,
-      conversionText,
-      maxText,
-      color: stat.color,
-      x,
-      y,
-      barWidth,
-      btn,
-    });
-
-    this.add([label, valText, conversionText, maxText, barBg, barFill, barPending, btn]);
+    this.buttonsComponent.create().forEach(el => this.add(el));
   }
 
   startContinuousUpgrade(key) {
@@ -739,7 +186,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       delay: 400,
       callback: () => {
         this.holdTimer = this.scene.time.addEvent({
-          delay: 70, // Vitesse d'incrémentation rapide
+          delay: 70,
           callback: () => this.handlePendingUpgrade(key),
           loop: true,
         });
@@ -762,37 +209,19 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     }
 
     const available = getHeroPointsAvailable();
-    const totalPending = Object.values(this.pendingUpgrades).reduce(
-      (a, b) => a + b,
-      0
-    );
+    const totalPending = Object.values(this.pendingUpgrades).reduce((a, b) => a + b, 0);
     if (totalPending >= available) {
       this.stopContinuousUpgrade();
       return;
     }
 
-    // Vérification du maximum absolu
     const stats = getHeroStats();
     const conversion = getHeroPointConversion();
-    const conversionMap = {
-      hp: "hp_per_point",
-      damage: "damage_per_point",
-      move_speed: "move_speed_per_point",
-      attack_interval_ms: "attack_interval_ms_per_point",
-    };
 
-    const currentVal =
-      (key === "hp"
-        ? Number(stats?.max_hp) || 0
-        : key === "damage"
-        ? parseFloat(stats?.base_damage) || 0
-        : key === "attack_interval_ms"
-        ? Number(stats?.attack_interval_ms) || 1500
-        : Number(stats?.move_speed) || 0);
+    const currentVal = getCurrentStatValue(stats, key);
     const pendingPoints = this.pendingUpgrades[key];
-    const convValue = parseFloat(conversion?.[conversionMap[key]] || 0);
-    
-    // Pour attack_interval_ms, on soustrait (plus bas = mieux)
+    const convValue = parseFloat(conversion?.[STAT_CONVERSION_MAP[key]] || 0);
+
     const projectedValue = key === "attack_interval_ms"
       ? Math.max(this.config.minValues.attack_interval_ms, currentVal - (pendingPoints + 1) * convValue)
       : parseFloat(currentVal) + (pendingPoints + 1) * convValue;
@@ -808,108 +237,29 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     }
 
     this.pendingUpgrades[key]++;
-    this.updateBarVisuals(key);
+    this.updateAllVisuals();
     this.updatePointsDisplay();
-    this.updateValidateButtonsState();
   }
 
-  updateBarVisuals(statKey) {
-    const el = this.statElements.get(statKey);
+  updateAllVisuals() {
     const stats = getHeroStats();
-    if (!stats) return;
-    
-    const values = {
-      hp: Number(stats?.max_hp) || 0,
-      damage: Number(parseFloat(stats?.base_damage) || 0),
-      attack_interval_ms: Number(stats?.attack_interval_ms) || 1500,
-      move_speed: Number(stats?.move_speed) || 0,
-    };
-    const max = this.config.maxValues[statKey];
-    const min = this.config.minValues?.[statKey];
-    
-    // Afficher le maximum au-dessus de la barre (blanc avec bordure noire, centré)
-    if (el.maxText) {
-      const maxDisplay = statKey === "attack_interval_ms"
-        ? `Min: ${truncateDecimals((min || 0) / 1000, 3).toFixed(3)}s`
-        : `Max: ${statKey === "damage" ? max.toFixed(2) : Math.round(max)}`;
-      el.maxText.setText(maxDisplay);
-      // Centrer le texte au-dessus de la barre
-      el.maxText.setPosition(el.x + el.barWidth / 2, el.y - 15);
-    }
-
     const conversion = getHeroPointConversion();
-    const conversionMap = {
-      hp: "hp_per_point",
-      damage: "damage_per_point",
-      move_speed: "move_speed_per_point",
-      attack_interval_ms: "attack_interval_ms_per_point",
-    };
-
-    const baseValue = values[statKey];
-    const pendingPoints = this.pendingUpgrades[statKey];
-    const convValue = parseFloat(conversion?.[conversionMap[statKey]] || 0);
     
-    // Pour attack_interval_ms, on soustrait (plus bas = mieux)
-    const pendingValue = statKey === "attack_interval_ms"
-      ? Math.max(min || 0, baseValue - pendingPoints * convValue)
-      : baseValue + pendingPoints * convValue;
-
-    // Pour attack_interval_ms, on inverse la logique (plus bas = mieux)
-    const range = statKey === "attack_interval_ms" 
-      ? (max - (min || 0))
-      : max;
-    const baseScale = statKey === "attack_interval_ms"
-      ? Phaser.Math.Clamp(1 - (baseValue - (min || 0)) / range, 0, 1)
-      : Phaser.Math.Clamp(baseValue / max, 0, 1);
-    const pendingScale = statKey === "attack_interval_ms"
-      ? Phaser.Math.Clamp(1 - (pendingValue - (min || 0)) / range, 0, 1)
-      : Phaser.Math.Clamp(pendingValue / max, 0, 1);
-
-    el.barFill
-      .clear()
-      .fillStyle(el.color, 1)
-      .fillRoundedRect(el.x, el.y, el.barWidth * baseScale, 12, 5);
-    el.barPending.clear();
-
-    if (pendingPoints > 0) {
-      el.barPending
-        .fillStyle(el.color, 0.4)
-        .fillRoundedRect(
-          el.x + el.barWidth * baseScale,
-          el.y,
-          el.barWidth * (pendingScale - baseScale),
-          12,
-          5
-        );
-      const displayVal =
-        statKey === "damage"
-          ? (Number(pendingValue) || 0).toFixed(2)
-          : statKey === "attack_interval_ms"
-          ? `${truncateDecimals((Number(pendingValue) || 0) / 1000, 5).toFixed(5)}s`
-          : Math.round(Number(pendingValue) || 0);
-      const sign = statKey === "attack_interval_ms" ? "-" : "+";
-      el.valText
-        .setText(`${displayVal} (${sign}${pendingPoints})`)
-        .setColor("#ffaa00");
-    } else {
-      const displayVal =
-        statKey === "damage"
-          ? (Number(baseValue) || 0).toFixed(2)
-          : statKey === "attack_interval_ms"
-          ? `${truncateDecimals((Number(baseValue) || 0) / 1000, 5).toFixed(5)}s`
-          : Math.round(Number(baseValue) || 0);
-      el.valText
-        .setText(displayVal)
-        .setColor("#00eaff");
-    }
+    this.statRows.forEach((statRow, key) => {
+      statRow.updateVisuals(
+        stats,
+        conversion,
+        this.pendingUpgrades[key],
+        this.config.maxValues,
+        this.config.minValues
+      );
+      statRow.updateButtonState(stats, this.config.maxValues, this.config.minValues);
+    });
   }
 
   updatePointsDisplay() {
     const available = getHeroPointsAvailable();
-    const totalPending = Object.values(this.pendingUpgrades).reduce(
-      (a, b) => a + b,
-      0
-    );
+    const totalPending = Object.values(this.pendingUpgrades).reduce((a, b) => a + b, 0);
     const remaining = available - totalPending;
     this.pointsText.setText(
       totalPending > 0
@@ -918,22 +268,6 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     );
   }
 
-  updateValidateButtonsState() {
-    const totalPending = Object.values(this.pendingUpgrades).reduce(
-      (a, b) => a + b,
-      0
-    );
-    const show = totalPending > 0;
-    this.globalValidateBtn.setVisible(show);
-    this.globalCancelBtn.setVisible(show);
-    this.costText.setText(
-      show
-        ? "Valider ou Annuler les changements"
-        : "Maintenez '+' pour allouer plusieurs points"
-    );
-  }
-
-  // --- NOUVELLE FONCTION ANNULER ---
   cancelUpgrades() {
     this.scene.cameras.main.shake(50, 0.002);
     this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0, attack_interval_ms: 0 };
@@ -960,12 +294,9 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
       return;
     }
     
-    // Créer l'interface de sélection de héros au centre de l'écran
-    const { width, height } = this.scene.scale;
-    const selectionUI = new HeroSelectionUI(this.scene, width / 2, height / 2);
-    selectionUI.setPosition(width / 2 - selectionUI.config.width / 2, height / 2 - selectionUI.config.height / 2);
+    // Créer HeroSelectionUI - il se positionnera automatiquement au centre via _layout()
+    const selectionUI = new HeroSelectionUI(this.scene, 0, 0);
     
-    // Écouter l'événement de sélection pour rafraîchir
     const selectionHandler = () => {
       this.refresh();
       window.removeEventListener("hero:selected", selectionHandler);
@@ -976,89 +307,52 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
   refresh() {
     const stats = getHeroStats();
     if (!stats) return;
-    const conversion = getHeroPointConversion();
-    const heroLimits = getHeroLimits();
     
-    // Vérifier si le hero_id a changé - si oui, recréer complètement l'avatar
+    const heroLimits = getHeroLimits();
     const currentHeroId = stats?.hero_id ?? 1;
+
+    // Vérifier si le héros a changé
     if (this.lastHeroId !== undefined && this.lastHeroId !== currentHeroId) {
-      // Le héros a changé, détruire l'ancien avatar et en créer un nouveau
-      if (this.avatarContainer) {
-        this.avatarContainer.destroy();
-        this.avatarContainer = null;
-        this.avatarFrame = null;
+      if (this.avatarComponent) {
+        this.avatarComponent.destroy();
       }
-      // Détruire l'ancien killsText s'il existe pour éviter la superposition
-      if (this.killsText) {
-        this.killsText.destroy();
-        this.killsText = null;
-      }
-      // Note: heroNameText n'est pas recréé car il est créé une seule fois dans le constructeur
-      // et mis à jour via setText(), donc pas besoin de le détruire
-      this.createAvatar(this.config.padding, 40);
+      this.avatarComponent = new HeroAvatarComponent(this.scene, this.config, this);
+      this.avatarComponent.create(this.config.padding, 40, () => this.openColorPicker());
     }
     this.lastHeroId = currentHeroId;
-    
-    // Mettre à jour les limites depuis le profil
+
+    // Mettre à jour les limites
     if (heroLimits) {
       this.config.maxValues = {
         hp: heroLimits.max_hp ?? 2500,
         damage: heroLimits.max_damage ?? 450,
         move_speed: heroLimits.max_move_speed ?? 200,
-        attack_interval_ms: 1500, // Pas de max pour attack_interval_ms
+        attack_interval_ms: 1500,
       };
       this.config.minValues = {
         attack_interval_ms: heroLimits.min_attack_interval_ms ?? 500,
       };
     }
-    
-    // Important : on s'assure que les pending sont reset si on refresh depuis l'extérieur
+
+    // Reset des pending upgrades
     this.pendingUpgrades = { hp: 0, damage: 0, move_speed: 0, attack_interval_ms: 0 };
 
-    const conversionMap = {
-      hp: "hp_per_point",
-      damage: "damage_per_point",
-      move_speed: "move_speed_per_point",
-      attack_interval_ms: "attack_interval_ms_per_point",
-    };
-
-    this.statElements.forEach((el, key) => {
-      this.updateBarVisuals(key);
-      const convVal = conversion?.[conversionMap[key]];
-      if (convVal) {
-        const sign = key === "attack_interval_ms" ? "-" : "+";
-        el.conversionText.setText(`${sign}${parseFloat(convVal).toFixed(2)} / pt`);
-      }
-
-      // Désactiver le bouton si déjà au max/min
-      const currentVal =
-        (key === "hp"
-          ? Number(stats?.max_hp) || 0
-          : key === "damage"
-          ? parseFloat(stats?.base_damage) || 0
-          : key === "attack_interval_ms"
-          ? Number(stats?.attack_interval_ms) || 1500
-          : Number(stats?.move_speed) || 0);
-      
-      const isMax = key === "attack_interval_ms"
-        ? currentVal <= (this.config.minValues?.attack_interval_ms || 500)
-        : currentVal >= this.config.maxValues[key];
-      
-      if (isMax) {
-        el.btn.setAlpha(0.3);
-        el.btn.input.enabled = false;
-      } else {
-        el.btn.setAlpha(1);
-        el.btn.input.enabled = true;
-      }
-    });
-
-    if (this.killsText) this.killsText.setText(`${stats.kills || 0}☠️`);
-    this.updatePointsDisplay();
-    this.updateValidateButtonsState();
-    if (stats.color && this.avatarFrame) this.redrawAvatar(stats.color);
+    // Mettre à jour tous les visuels
+    this.updateAllVisuals();
     
-    // Mettre à jour le nom du héros
+    // Mettre à jour l'avatar
+    if (this.avatarComponent && stats.color) {
+      this.avatarComponent.redraw(stats.color);
+      this.avatarComponent.updateKills(stats.kills);
+      this.avatarComponent.updateEnemiesRetained(stats.enemies_retained);
+    }
+
+    this.updatePointsDisplay();
+    const totalPending = Object.values(this.pendingUpgrades).reduce((a, b) => a + b, 0);
+    if (this.buttonsComponent) {
+      this.buttonsComponent.updateState(totalPending);
+    }
+    
     this.updateHeroName();
   }
 
@@ -1066,13 +360,11 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     try {
       const heroId = getSelectedHeroId();
       const response = await fetchHeroes();
-      // fetchHeroes retourne { heroes, heroPointsAvailable }
       const heroes = response?.heroes || [];
       const hero = Array.isArray(heroes) ? heroes.find(h => h.id === heroId) : null;
       if (hero && this.heroNameText) {
         this.heroNameText.setText(hero.name.toUpperCase());
       } else if (this.heroNameText) {
-        // Fallback si pas trouvé
         this.heroNameText.setText("HÉROS");
       }
     } catch (error) {
@@ -1091,7 +383,7 @@ export class HeroUpgradeUI extends Phaser.GameObjects.Container {
     const input = document.createElement("input");
     input.type = "color";
     input.value = getHeroStats()?.color || "#2b2b2b";
-    input.style.opacity = "0"; // Cacher l'input
+    input.style.opacity = "0";
     document.body.appendChild(input);
 
     input.onchange = async (e) => {

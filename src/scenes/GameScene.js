@@ -590,10 +590,6 @@ export class GameScene extends Phaser.Scene {
       return null;
     }
 
-    console.log("[RunReport] Sending natural end", {
-      result: report.result,
-      reason: report.reasonEnd,
-    });
     const sender = this.sendRunReportFn || sendRunReport;
     this.isRunReportSending = true;
     this.runReportPromise = sender(report)
