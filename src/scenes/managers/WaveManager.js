@@ -2,6 +2,7 @@ import { Enemy } from "../../objects/Enemy.js";
 import { SpawnWaveControls } from "./SpawnWaveControls.js";
 import { CONFIG } from "../../config/settings.js";
 import { recordLevelCompletion } from "../../services/authManager.js";
+import { showGameResult } from "../../vue/bridge.js";
 
 export class WaveManager {
   constructor(scene) {
