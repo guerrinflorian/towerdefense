@@ -1,3 +1,9 @@
+<template>
+  <!-- Scene rendered via Phaser; component placeholder for Vue tooling -->
+  <div class="scene-wrapper" aria-hidden="true"></div>
+</template>
+
+<script>
 import { ensureProfileLoaded, logout, getProfile, isAuthenticated } from "../services/authManager.js";
 import { showAuth } from "../services/authOverlay.js";
 import { LeaderboardUI } from "./components/LeaderboardUI.js";
@@ -524,3 +530,15 @@ export class MainMenuScene extends Phaser.Scene {
     }
   }
 }
+
+export default {
+  name: "MainMenuSceneView",
+  scene: MainMenuScene,
+};
+</script>
+
+<style scoped>
+.scene-wrapper {
+  display: none;
+}
+</style>

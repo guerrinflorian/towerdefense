@@ -1,3 +1,9 @@
+<template>
+  <!-- Scene rendered via Phaser; component placeholder for Vue tooling -->
+  <div class="scene-wrapper" aria-hidden="true"></div>
+</template>
+
+<script>
 import { CONFIG } from "../config/settings.js";
 import { getLevelConfigById, LEVELS_CONFIG } from "../config/levels/index.js";
 import { Enemy } from "../objects/Enemy.js";
@@ -1548,3 +1554,15 @@ export class GameScene extends Phaser.Scene {
     this.spawnControls = null;
   }
 }
+
+export default {
+  name: "GameSceneView",
+  scene: GameScene,
+};
+</script>
+
+<style scoped>
+.scene-wrapper {
+  display: none;
+}
+</style>
