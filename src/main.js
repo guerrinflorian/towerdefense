@@ -1,14 +1,19 @@
 // IMPORTANT: Initialiser Vue AVANT Phaser pour éviter les conflits
 import "./vue/app.js";
 
-import { MainMenuScene } from "./scenes/MainMenuScene.js";
-import { ChapterScene } from "./scenes/ChapterScene.js";
-import { MapScene } from "./scenes/MapScene.js";
-import { GameScene } from "./scenes/GameScene.js";
+import MainMenuSceneView from "./scenes/MainMenuScene.vue";
+import ChapterSceneView from "./scenes/ChapterScene.vue";
+import MapSceneView from "./scenes/MapScene.vue";
+import GameSceneView from "./scenes/GameScene.vue";
 import { AchievementsScene } from "./scenes/AchievementsScene.js";
 import { CONFIG } from "./config/settings.js";
 import { setupAuthOverlay } from "./services/authOverlay.js";
 import { ensureProfileLoaded } from "./services/authManager.js";
+
+const MainMenuScene = MainMenuSceneView.scene;
+const ChapterScene = ChapterSceneView.scene;
+const MapScene = MapSceneView.scene;
+const GameScene = GameSceneView.scene;
 
 function isMobileDevice() {
   const ua = (navigator.userAgent || navigator.vendor || "").toLowerCase();
