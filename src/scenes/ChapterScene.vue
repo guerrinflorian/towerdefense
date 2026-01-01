@@ -1,3 +1,9 @@
+<template>
+  <!-- Scene rendered via Phaser; component placeholder for Vue tooling -->
+  <div class="scene-wrapper" aria-hidden="true"></div>
+</template>
+
+<script>
 import {
   fetchChaptersWithLevels,
   fetchBestRunsMap,
@@ -321,3 +327,15 @@ export class ChapterScene extends Phaser.Scene {
       .on("pointerdown", () => this.scene.start("MainMenuScene"));
   }
 }
+
+export default {
+  name: "ChapterSceneView",
+  scene: ChapterScene,
+};
+</script>
+
+<style scoped>
+.scene-wrapper {
+  display: none;
+}
+</style>
