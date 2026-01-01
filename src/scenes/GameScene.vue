@@ -180,11 +180,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   // Calculer le layout pour centrer correctement
-  calculateLayout() {
-    this.gameWidth = this.scale.width;
-    this.gameHeight = this.scale.height;
+  calculateLayout(options = {}) {
+    const { lockScaleFactor = false, preserveMapOffset = false } = options;
+
+    // Toujours utiliser les dimensions réelles de la fenêtre pour le responsive
+    this.gameWidth = window.innerWidth || this.scale.width;
+    this.gameHeight = window.innerHeight || this.scale.height;
     this.baseWidth = this.game.baseWidth || CONFIG.GAME_WIDTH;
     this.baseHeight = this.game.baseHeight || CONFIG.GAME_HEIGHT;
+
+    const previousScale = this.scaleFactor || 1;
+    const previousMapX = this.mapStartX ?? 0;
+    const previousMapY = this.mapStartY ?? 0;
 
     // Détecter l'orientation actuelle (important pour le responsive mobile)
     this.isPortrait = this.gameHeight >= this.gameWidth * 0.94;
@@ -197,13 +204,13 @@ export class GameScene extends Phaser.Scene {
     if (isPortrait) {
       const topBarHeight = Phaser.Math.Clamp(
         this.gameHeight * 0.12,
-        96,
-        150
+        92,
+        160
       );
       const bottomBarHeight = Phaser.Math.Clamp(
         this.gameHeight * 0.16,
         110,
-        170
+        180
       );
 
       const usableHeight = this.gameHeight - padding * 2 - topBarHeight - bottomBarHeight;
@@ -211,21 +218,26 @@ export class GameScene extends Phaser.Scene {
 
       const scaleByHeight = usableHeight / mapSize;
       const scaleByWidth = usableWidth / mapSize;
-      this.scaleFactor = Phaser.Math.Clamp(
-        Math.min(scaleByHeight, scaleByWidth),
-        0.4,
-        1.4
-      );
+      if (!lockScaleFactor) {
+        this.scaleFactor = Phaser.Math.Clamp(
+          Math.min(scaleByHeight, scaleByWidth),
+          0.4,
+          1.4
+        );
+      }
 
       const projectedMapSize = mapSize * this.scaleFactor;
-      if (projectedMapSize > usableHeight) {
+      if (!lockScaleFactor && projectedMapSize > usableHeight) {
         this.scaleFactor = Math.min(this.scaleFactor, usableHeight / mapSize);
       }
 
       this.mapPixelSize = mapSize * this.scaleFactor;
 
-      this.mapOffsetX = padding + (usableWidth - this.mapPixelSize) / 2;
-      this.mapOffsetY = padding + topBarHeight + (usableHeight - this.mapPixelSize) / 2;
+      const centeredOffsetX = padding + (usableWidth - this.mapPixelSize) / 2;
+      const centeredOffsetY = padding + topBarHeight + (usableHeight - this.mapPixelSize) / 2;
+
+      this.mapOffsetX = preserveMapOffset ? previousMapX : centeredOffsetX;
+      this.mapOffsetY = preserveMapOffset ? previousMapY : centeredOffsetY;
 
       this.mapStartX = this.mapOffsetX;
       this.mapStartY = this.mapOffsetY;
@@ -273,20 +285,26 @@ export class GameScene extends Phaser.Scene {
 
       const scaleByHeight = usableHeight / mapSize;
       const scaleByWidth = estimatedCenterWidth / mapSize;
-      this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
+
+      if (!lockScaleFactor) {
+        this.scaleFactor = Phaser.Math.Clamp(Math.min(scaleByHeight, scaleByWidth), 0.6, 2);
+      }
 
       // Si malgré tout la map dépasse la hauteur disponible (écrans très allongés),
       // on réduit légèrement l'échelle pour que les 15 cases soient visibles.
       const projectedMapSize = mapSize * this.scaleFactor;
-      if (projectedMapSize > usableHeight) {
+      if (!lockScaleFactor && projectedMapSize > usableHeight) {
         this.scaleFactor = Math.min(this.scaleFactor, usableHeight / mapSize);
       }
 
       this.mapPixelSize = mapSize * this.scaleFactor;
 
       // Centrer la map horizontalement dans l'écran
-      this.mapOffsetX = (this.gameWidth - this.mapPixelSize) / 2;
-      this.mapOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
+      const centeredOffsetX = (this.gameWidth - this.mapPixelSize) / 2;
+      const centeredOffsetY = padding + (usableHeight - this.mapPixelSize) / 2;
+
+      this.mapOffsetX = preserveMapOffset ? previousMapX : centeredOffsetX;
+      this.mapOffsetY = preserveMapOffset ? previousMapY : centeredOffsetY;
 
       // Stocker les offsets pour utilisation dans createMap
       this.mapStartX = this.mapOffsetX;
@@ -326,13 +344,45 @@ export class GameScene extends Phaser.Scene {
         height: this.toolbarHeight,
       };
     }
+
+    // Vérifier qu'on ne dépasse pas l'écran : si on doit réduire, garder la même échelle
+    if (!preserveMapOffset) {
+      const mapOverflowX = this.mapOffsetX + this.mapPixelSize - this.gameWidth;
+      const mapOverflowY = this.mapOffsetY + this.mapPixelSize - this.gameHeight;
+      if (mapOverflowX > 0) {
+        this.mapOffsetX = Math.max(0, this.mapOffsetX - mapOverflowX);
+        this.mapStartX = this.mapOffsetX;
+      }
+      if (mapOverflowY > 0) {
+        this.mapOffsetY = Math.max(0, this.mapOffsetY - mapOverflowY);
+        this.mapStartY = this.mapOffsetY;
+      }
+    }
+
+    // Conserver la valeur initiale si on recalculait l'échelle pour éviter les sauts
+    if (lockScaleFactor) {
+      this.scaleFactor = previousScale;
+    }
   }
 
   // Gérer le redimensionnement
   handleResize() {
-    // Phaser gère le scaling via FIT : seules les références d'UI doivent rester centrées
-    this.gameWidth = this.scale.width;
-    this.gameHeight = this.scale.height;
+    const previousX = this.mapStartX;
+    const previousY = this.mapStartY;
+
+    this.calculateLayout({ lockScaleFactor: true, preserveMapOffset: false });
+
+    const deltaX = this.mapStartX - previousX;
+    const deltaY = this.mapStartY - previousY;
+
+    if ((deltaX !== 0 || deltaY !== 0) && this.children) {
+      this.children.list.forEach((child) => {
+        if (child && typeof child.x === "number" && typeof child.y === "number") {
+          child.x += deltaX;
+          child.y += deltaY;
+        }
+      });
+    }
 
     if (this.uiManager?.hud?.reposition) {
       this.uiManager.hud.reposition();

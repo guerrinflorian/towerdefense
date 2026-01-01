@@ -134,7 +134,7 @@ export class UIManager {
     if (this.isPointerOnBuildMenu(pointer)) {
       return true;
     }
-    return this.buildToolbar?.isPointerOnToolbar(pointer) || false;
+    return this.buildToolbar?.isPointerOnToolbar(pointer, pointer.pointerType === "touch") || false;
   }
 
   isPointerOnBuildMenu(pointer) {

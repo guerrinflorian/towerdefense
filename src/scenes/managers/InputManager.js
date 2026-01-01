@@ -481,8 +481,9 @@ export class InputManager {
       const localX = pointer.worldX - containerWorldX;
       const localY = pointer.worldY - containerWorldY;
       
+      const touchBoost = pointer?.pointerType === "touch" ? 1.25 : 1;
       // Utiliser la taille définie par setSize pour vérifier si on est dans la zone
-      const hitSize = icon.size * 2.2;
+      const hitSize = icon.size * 2.2 * touchBoost;
       const halfSize = hitSize / 2;
       
       // Vérifier si on est dans le rectangle centré

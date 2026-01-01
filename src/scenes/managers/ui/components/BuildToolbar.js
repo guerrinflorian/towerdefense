@@ -255,16 +255,17 @@ export class BuildToolbar {
     });
   }
 
-  isPointerOnToolbar(pointer) {
+  isPointerOnToolbar(pointer, isTouch = false) {
     const bounds = [this.scene.leftToolbarBounds, this.scene.rightToolbarBounds];
+    const padding = isTouch ? 14 * (this.scene.scaleFactor || 1) : 0;
 
     return bounds.some((b) => {
       if (!b) return false;
       return (
-        pointer.worldX >= b.x &&
-        pointer.worldX <= b.x + b.width &&
-        pointer.worldY >= b.y &&
-        pointer.worldY <= b.y + b.height
+        pointer.worldX >= b.x - padding &&
+        pointer.worldX <= b.x + b.width + padding &&
+        pointer.worldY >= b.y - padding &&
+        pointer.worldY <= b.y + b.height + padding
       );
     });
   }

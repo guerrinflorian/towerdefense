@@ -427,35 +427,66 @@ export class MainMenuScene extends Phaser.Scene {
     });
   }
 
+  handleResize() {
+    this.applyResponsiveLayout();
+  }
+
   applyResponsiveLayout() {
     const { width, height } = this.scale;
-    const padding = Math.max(20, Math.min(width, height) * 0.04);
+    const padding = Math.max(16, Math.min(width, height) * 0.04);
     const uiScale = Phaser.Math.Clamp(Math.min(width / 1400, height / 900), 0.6, 1);
     const isMobile = width < 900 || height > width * 1.05;
+    const isVeryTall = height > width * 1.25;
+    const playButtonScale = uiScale * (isMobile ? 0.98 : 1.05);
+    const playHeight = this.playButton ? 80 * playButtonScale : 0;
 
+    let heroBottom = padding;
     if (this.heroPanel) {
-      const heroScale = isMobile ? uiScale * 0.9 : uiScale;
+      const heroScale = uiScale * (isMobile ? 0.9 : 1);
       this.heroPanel.setScale(heroScale);
       const heroHeight = (this.heroPanel.config?.height || 300) * this.heroPanel.scaleY;
+      const heroWidth = (this.heroPanel.config?.width || 380) * this.heroPanel.scaleX;
+      const targetX = isMobile ? (width - heroWidth) / 2 : padding;
       const targetY = isMobile
         ? padding
-        : Math.max(padding, height * 0.16 - heroHeight * 0.15);
-      const targetX = isMobile ? width / 2 - (this.heroPanel.config?.width || 380) * this.heroPanel.scaleX / 2 : padding;
+        : Math.max(padding, height * 0.16 - heroHeight * 0.2);
       this.heroPanel.setPosition(targetX, targetY);
+
+      heroBottom = targetY + heroHeight;
+
       if (this.achievementsButton) {
         this.achievementsButton.setScale(heroScale);
-        // Augmenter l'espacement à 15 ou 20 si nécessaire
-  const buttonY = targetY + heroHeight + 15; 
-  this.achievementsButton.setPosition(targetX, buttonY);
+        const buttonX = isMobile ? width / 2 : targetX + heroWidth * 0.45;
+        const buttonY = heroBottom + Math.max(16, padding * 0.25);
+        this.achievementsButton.setPosition(buttonX, buttonY);
+        heroBottom = buttonY + this.achievementsButton.height * this.achievementsButton.scaleY;
       }
     }
 
+    // Positionner le texte "CONNECTÉ EN TANT QUE" en haut
+    if (this.userDisplayText) {
+      this.userDisplayText.setScale(uiScale);
+      const userTextY = padding + 30 * uiScale;
+      this.userDisplayText.setPosition(width / 2, userTextY);
+    }
+
+    // Positionner le titre "LAST OUTPOST" en dessous du texte utilisateur
+    let titleBottom = 0;
+    if (this.titleText) {
+      this.titleText.setScale(uiScale);
+      const titleY = this.userDisplayText
+        ? this.userDisplayText.y + 100 * uiScale
+        : Math.max(height * 0.14, heroBottom + padding * 0.6);
+      this.titleText.setPosition(width / 2, titleY);
+      titleBottom = titleY + 60 * uiScale;
+    }
+
     if (this.leaderboard) {
-      const targetScale = Phaser.Math.Clamp(uiScale, isMobile ? 0.48 : 0.5, 1);
+      const targetScale = Phaser.Math.Clamp(uiScale, isMobile ? 0.5 : 0.58, 1);
       const baseHeight = this.leaderboard.uiConfig?.height || 500;
       const baseWidth = this.leaderboard.uiConfig?.width || 560;
       let lbScale = Math.min(targetScale, (height - padding * 2) / baseHeight);
-      lbScale = Phaser.Math.Clamp(lbScale, isMobile ? 0.48 : 0.5, 1);
+      lbScale = Phaser.Math.Clamp(lbScale, isMobile ? 0.5 : 0.58, 1);
       this.leaderboard.setScale(lbScale);
 
       const lbWidth = baseWidth * lbScale;
@@ -463,8 +494,14 @@ export class MainMenuScene extends Phaser.Scene {
 
       if (isMobile) {
         const lbX = (width - lbWidth) / 2;
-        const lbY = (this.playButton?.y || height * 0.55) + padding * 0.6;
+        const referenceY = this.playButton?.y || height * 0.55;
+        const lbY = Math.max(referenceY + padding * (isVeryTall ? 0.9 : 0.7), heroBottom + padding * 1.1);
         this.leaderboard.setPosition(lbX, lbY);
+
+        // Éviter les chevauchements avec le bas d'écran
+        if (lbY + lbHeight > height - padding) {
+          this.leaderboard.setY(height - padding - lbHeight);
+        }
       } else {
         const lbX = Math.max(padding, width - padding - lbWidth);
         let lbY = padding;
@@ -475,41 +512,14 @@ export class MainMenuScene extends Phaser.Scene {
       }
     }
 
-    const heroBottom = this.heroPanel
-      ? this.heroPanel.y + (this.heroPanel.config?.height || 300) * (this.heroPanel.scaleY || 1)
-      : padding;
-    const lbBottom = this.leaderboard
-      ? this.leaderboard.y + (this.leaderboard.uiConfig?.height || 500) * (this.leaderboard.scaleY || 1)
-      : padding;
-    const panelsBottom = isMobile ? Math.max(heroBottom, (this.playButton?.y || 0)) : Math.max(heroBottom, lbBottom);
-
-    // Positionner le texte "CONNECTÉ EN TANT QUE" en haut
-    if (this.userDisplayText) {
-      this.userDisplayText.setScale(uiScale);
-      const userTextY = padding + 30 * uiScale;
-      this.userDisplayText.setPosition(width / 2, userTextY);
-    }
-
-    // Positionner le titre "LAST OUTPOST" en dessous du texte utilisateur
-    if (this.titleText) {
-      this.titleText.setScale(uiScale);
-      const titleY = this.userDisplayText 
-        ? this.userDisplayText.y + 100 * uiScale // Espacement augmenté entre le texte et le titre
-        : Math.max(height * 0.14, panelsBottom + padding * 0.6);
-      this.titleText.setPosition(width / 2, titleY);
-    }
-
     // Positionner le bouton "DÉPLOYER" au centre vertical de l'écran
     if (this.playButton) {
-      const playHeight = 80 * uiScale;
-      // Positionner au centre vertical (height / 2)
-      const centerY = height / 2;
-      // S'assurer qu'il ne chevauche pas avec les autres éléments
-      const titleBottom = this.titleText ? this.titleText.y + 50 * uiScale : 0;
-      const minY = titleBottom + padding * 2;
-      const desiredY = Math.max(centerY, minY);
+      const minY = Math.max(titleBottom + padding * 1.4, heroBottom + padding * 0.8);
+      const desiredY = isMobile
+        ? Math.min(height * 0.55, height - padding - playHeight)
+        : Math.max(height / 2, minY);
       const clampedY = Math.min(height - padding - playHeight * 0.5, desiredY);
-      this.playButton.baseScale = uiScale * (isMobile ? 0.95 : 1);
+      this.playButton.baseScale = playButtonScale;
       this.playButton.setScale(this.playButton.baseScale);
       this.playButton.setPosition(width / 2, clampedY);
     }
@@ -518,9 +528,12 @@ export class MainMenuScene extends Phaser.Scene {
       const baseHeight = this.leaderboard.uiConfig?.height || 500;
       const lbHeight = baseHeight * this.leaderboard.scaleY;
       const lbY = this.leaderboard.y;
-      if (lbY + lbHeight > height - padding * 1.6 && this.playButton) {
-        this.playButton.setY(Math.max(padding * 2, this.playButton.y - padding * 0.8));
-        this.leaderboard.setY(this.playButton.y + padding * 0.6);
+      if (this.playButton && lbY < this.playButton.y + 80) {
+        this.leaderboard.setY(this.playButton.y + playHeight + padding * 0.6);
+      }
+      // Ajuster si le leaderboard dépasse le bas de l'écran
+      if (this.leaderboard.y + lbHeight > height - padding) {
+        this.leaderboard.setY(height - padding - lbHeight);
       }
     }
 

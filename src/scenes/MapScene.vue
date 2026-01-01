@@ -312,13 +312,20 @@ export class MapScene extends Phaser.Scene {
   }
 
   applyResponsiveScale() {
+    if (!this.mapContainer) return;
+
     const { width, height } = this.scale;
-    const isPortrait = height >= width;
-    const targetScale = isPortrait ? 0.85 : width < 1100 ? 0.92 : 1;
+    const isPortrait = height >= width * 0.94;
+    const minScale = width < 720 ? 0.7 : 0.8;
+    const viewportFactor = Math.min((width - 40) / 1400, (height - 180) / 900);
+    const baseScale = isPortrait ? 0.85 : width < 1100 ? 0.92 : 1;
+    const targetScale = Phaser.Math.Clamp(baseScale * viewportFactor + (isPortrait ? 0.05 : 0), minScale, 1.05);
+
     this.mapContainer.setScale(targetScale);
 
+    const verticalGuard = isPortrait ? 120 : 90;
     const offsetX = (width - width * targetScale) / 2;
-    const offsetY = (height - height * targetScale) / 4;
+    const offsetY = (height - height * targetScale) / 3 + verticalGuard * 0.15;
     this.mapContainer.setPosition(offsetX, offsetY);
 
     this.addBackground(width / 2, height);
@@ -912,6 +919,10 @@ export class MapScene extends Phaser.Scene {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  handleResize() {
+    this.applyResponsiveScale();
   }
 }
 
