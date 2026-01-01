@@ -1,3 +1,9 @@
+<template>
+  <!-- Scene rendered via Phaser; component placeholder for Vue tooling -->
+  <div class="scene-wrapper" aria-hidden="true"></div>
+</template>
+
+<script>
 import { getLevelConfigById } from "../config/levels/index.js";
 import { getHeroStats, isAuthenticated, getUnlockedLevel } from "../services/authManager.js";
 import { showAuth } from "../services/authOverlay.js";
@@ -908,3 +914,15 @@ export class MapScene extends Phaser.Scene {
     return `${m}:${s.toString().padStart(2, "0")}`;
   }
 }
+
+export default {
+  name: "MapSceneView",
+  scene: MapScene,
+};
+</script>
+
+<style scoped>
+.scene-wrapper {
+  display: none;
+}
+</style>

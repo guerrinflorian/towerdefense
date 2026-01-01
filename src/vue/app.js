@@ -15,6 +15,7 @@ import GameResultOverlay from './components/GameResultOverlay.vue';
 import HeroSelectionModal from './components/HeroSelectionModal.vue';
 import AchievementsPage from './components/AchievementsPage.vue';
 import HeroUpgradePanel from './components/HeroUpgradePanel.vue';
+import AuthOverlay from './components/AuthOverlay.vue';
 
 // Créer l'app Vue avec render function au lieu de template string
 const app = createApp({
@@ -23,6 +24,7 @@ const app = createApp({
     HeroSelectionModal,
     AchievementsPage,
     HeroUpgradePanel,
+    AuthOverlay,
   },
   setup() {
     const modalStore = useModalStore();
@@ -37,6 +39,7 @@ const app = createApp({
     const showHeroUpgrade = computed(() => modalStore.state.showHeroUpgrade);
     
     return () => h('div', { id: 'vue-app' }, [
+      h(AuthOverlay),
       showGameResult.value ? h(GameResultOverlay) : null,
       showHeroSelection.value ? h(HeroSelectionModal) : null,
       showAchievements.value ? h(AchievementsPage) : null,
@@ -56,4 +59,3 @@ app.mount(vueContainer);
 window.vueApp = app;
 
 export default app;
-
