@@ -30,6 +30,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   init(data) {
+    // Réinitialiser tout l'état critique à chaque nouvelle partie (important si la scène est réutilisée)
+    this._gameOverShown = false;
+    this._gameOverFallbackShown = false;
+    if (this._gameOverFallbackTimer) {
+      clearTimeout(this._gameOverFallbackTimer);
+      this._gameOverFallbackTimer = null;
+    }
+
     this.levelID = data.level || 1;
     this.levelName = data.levelName || null;
     const src = getLevelConfigById(this.levelID) || LEVELS_CONFIG[0].data;
@@ -92,6 +100,9 @@ export class GameScene extends Phaser.Scene {
     this.elapsedTimeMs = 0; // Chronomètre de session
     this.isTimerRunning = false;
     this.gameOverTriggered = false;
+    this._gameOverShown = false;
+    this._gameOverFallbackShown = false;
+    this._gameOverFallbackTimer = null;
     this.heroKillCount = 0;
     this.heroKillReportPromise = null;
     this.runReportPromise = null;
@@ -1065,7 +1076,72 @@ export class GameScene extends Phaser.Scene {
         this.scene.start("MainMenuScene");
       }
     );
+
+    // Fallback si l'overlay Vue ne s'affiche pas (par ex: bridge non initialisé)
+    if (this._gameOverFallbackTimer) {
+      clearTimeout(this._gameOverFallbackTimer);
+    }
+    this._gameOverFallbackTimer = setTimeout(() => {
+      // Si la scène est détruite ou si l'overlay Vue est visible, ne rien faire
+      if (!this.scene || !this.scene.isActive()) return;
+      const vueOverlayVisible = document.querySelector(".game-result-card");
+      if (vueOverlayVisible || this._gameOverFallbackShown) return;
+      this._gameOverFallbackShown = true;
+      this.showLocalGameOverPanel();
+    }, 1200);
   }  
+
+  showLocalGameOverPanel() {
+    // Overlay Phaser minimaliste pour garantir un retour menu si Vue est indisponible
+    const cam = this.cameras.main;
+    const s = this.scaleFactor || 1;
+    const container = this.add.container(cam.centerX, cam.centerY).setDepth(999999);
+    const blocker = this.add.rectangle(0, 0, cam.width, cam.height, 0x000000, 0.7)
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setInteractive();
+    const panelWidth = Math.min(cam.width * 0.9, 420 * s);
+    const panelHeight = Math.min(cam.height * 0.6, 200 * s);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x1a1a2e, 0.95);
+    bg.fillRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
+    bg.lineStyle(3, 0xff6666, 1);
+    bg.strokeRoundedRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight, 16);
+
+    const title = this.add.text(0, -40 * s, "DÉFAITE", {
+      fontSize: `${Math.max(22, 30 * s)}px`,
+      fontStyle: "bold",
+      color: "#ff6666",
+      align: "center",
+    }).setOrigin(0.5);
+
+    const message = this.add.text(0, 10 * s, "Votre base a été détruite.\nRetour au menu principal.", {
+      fontSize: `${Math.max(14, 18 * s)}px`,
+      color: "#ffffff",
+      align: "center",
+      wordWrap: { width: panelWidth - 40 },
+    }).setOrigin(0.5);
+
+    const btn = this.add.text(0, 70 * s, "RETOUR MENU", {
+      fontSize: `${Math.max(14, 18 * s)}px`,
+      fontStyle: "bold",
+      color: "#ffcccc",
+      backgroundColor: "#2a1a1a",
+      padding: { x: 24 * s, y: 10 * s },
+    }).setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerover", () => btn.setColor("#ffffff"))
+      .on("pointerout", () => btn.setColor("#ffcccc"))
+      .on("pointerdown", () => {
+        try {
+          this.scene.start("MainMenuScene");
+        } catch (_) {}
+      });
+
+    container.add([blocker, bg, title, message, btn]);
+    container.setScrollFactor(0);
+    this._gameOverFallbackContainer = container;
+  }
   
   earnMoney(amount, meta = {}) {
     this.money += amount;
@@ -1369,6 +1445,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    this._gameOverShown = false;
+    this._gameOverFallbackShown = false;
+    if (this._gameOverFallbackTimer) {
+      clearTimeout(this._gameOverFallbackTimer);
+      this._gameOverFallbackTimer = null;
+    }
+    if (this._gameOverFallbackContainer) {
+      try {
+        this._gameOverFallbackContainer.destroy(true);
+      } catch (_) {}
+      this._gameOverFallbackContainer = null;
+    }
     this.hideTransmissionOverlay();
     if (this.runTracker && this.runTracker.hasEnded && !this.runTracker.hasEnded()) {
       this.finalizeRunReport("ABORT", "scene_shutdown");
