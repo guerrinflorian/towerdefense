@@ -113,3 +113,23 @@ export function hideHeroUpgrade() {
   modalStore.hideHeroUpgrade();
 }
 
+/**
+ * Affiche le menu principal (Vue)
+ */
+export function showMainMenu(config = {}) {
+  if (!modalStore) {
+    console.warn('Vue bridge not initialized');
+    return;
+  }
+  modalStore.showMainMenu(config);
+}
+
+/**
+ * Cache le menu principal
+ */
+export function hideMainMenu() {
+  if (!modalStore) {
+    return;
+  }
+  modalStore.hideMainMenu();
+}

@@ -60,7 +60,6 @@ function goToMainMenu() {
   const sceneManager = window.game?.scene;
   if (!sceneManager) return;
   sceneManager.stop('GameScene');
-  sceneManager.stop('MapScene');
   sceneManager.start('MainMenuScene');
 }
 
