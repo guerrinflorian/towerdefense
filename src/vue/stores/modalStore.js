@@ -11,6 +11,10 @@ const state = reactive({
   showHeroSelection: false,
   showAchievements: false,
   showHeroUpgrade: false,
+  mainMenu: {
+    visible: false,
+    callbacks: {},
+  },
   gameResult: {
     type: null, // 'victory' | 'defeat'
     message: '',
@@ -133,6 +137,19 @@ export function useModalStore() {
     }
   };
 
+  // Main menu overlay
+  const showMainMenu = (config = {}) => {
+    state.mainMenu.callbacks = config;
+    state.mainMenu.visible = true;
+    blockGame(true);
+  };
+
+  const hideMainMenu = () => {
+    state.mainMenu.visible = false;
+    state.mainMenu.callbacks = {};
+    blockGame(false);
+  };
+
   // Helper pour bloquer le jeu
   const blockGame = (block) => {
     const gameContainer = document.getElementById('game-container');
@@ -170,6 +187,9 @@ export function useModalStore() {
     get heroUpgrade() {
       return state.heroUpgrade;
     },
+    get mainMenu() {
+      return state.mainMenu;
+    },
     // Actions
     showGameResult,
     hideGameResult,
@@ -181,6 +201,7 @@ export function useModalStore() {
     hideAchievements,
     showHeroUpgrade,
     hideHeroUpgrade,
+    showMainMenu,
+    hideMainMenu,
   };
 }
-
