@@ -8,6 +8,7 @@ export const flame_scarab = {
   damage: 14,
   attackSpeed: 750,
   scale: 0.9,
+  description: "Scarabée des Flammes - Unité rapide. Rôle : éclaireur rapide sans pouvoir spécial. Très rapide et inflammable, éclot des œufs de la Reine.",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};

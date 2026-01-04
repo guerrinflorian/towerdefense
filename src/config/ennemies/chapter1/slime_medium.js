@@ -10,6 +10,7 @@ export const slime_medium = {
   color: 0x44ff44, // Vert moyen
   damage: 12,
   attackSpeed: 1000,
+  description: "Slime Moyen - Créature gélatineuse. Rôle : se divise à sa mort. POUVOIR SPÉCIAL : À sa mort, se divise en 2 Petits Slimes. Résistant aux attaques normales.",
   scale: 0.9,
   
   // --- LOGIQUE DE DIVISION ---

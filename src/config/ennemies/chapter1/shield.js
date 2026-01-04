@@ -8,6 +8,7 @@ export const shield = {
   damage: 12, // Dégâts par attaque
   attackSpeed: 900, // Vitesse d'attaque en ms
   scale: 1,
+  description: "Aegis - Protecteur. Rôle : bloque les attaques pour protéger les alliés derrière lui. POUVOIR SPÉCIAL : Bouclier qui intercepte les projectiles. Priorité absolue à éliminer en premier !",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};

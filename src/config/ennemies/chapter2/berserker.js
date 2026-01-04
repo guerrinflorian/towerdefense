@@ -8,6 +8,7 @@ export const berserker = {
   damage: 30, // Dégâts de base augmentés
   attackSpeed: 1000,
   scale: 1.1,
+  description: "Berserker - Guerrier enragé. Rôle : devient plus fort en perdant des PV. POUVOIR SPÉCIAL : Plus il perd de PV, plus ses dégâts augmentent. Régénère aussi 1% de ses PV max par seconde. Très dangereux !",
   // Plus il perd de PV, plus il inflige de dégâts
   berserkerMode: true,
   // Gagne 1% de PV max toutes les secondes

@@ -8,6 +8,7 @@ export const obsidian_bastion = {
   damage: 32,
   attackSpeed: 1800,
   scale: 1.15,
+  description: "Bastion d'Obsidienne - Forteresse mobile. Rôle : tank ultra-résistant sans pouvoir spécial. Extrêmement résistant avec un noyau magma, mais très lent.",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};

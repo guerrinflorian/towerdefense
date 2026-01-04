@@ -8,6 +8,7 @@ export const juggernaut_igloo = {
     damage: 45, 
     attackSpeed: 1500, 
     scale: 0.75, // Taille réduite
+    description: "Igloo de Combat - Forteresse de glace. Rôle : tank ultra-résistant sans pouvoir spécial. Géant massif et lent avec une énorme quantité de PV, dôme blindé.",
   
     onDraw: (scene, container, color, enemyInstance) => {
       enemyInstance.legs = {};

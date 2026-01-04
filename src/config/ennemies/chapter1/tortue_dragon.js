@@ -8,6 +8,7 @@ export const tortue_dragon = {
     damage: 25,
     attackSpeed: 1000,
     scale: 1.1,
+    description: "Tortue-Dragon - Tank défensif. Rôle : tank avec capacité défensive. POUVOIR SPÉCIAL : Se cache dans sa carapace à 30% HP, devenant invulnérable pendant 4 secondes. Extrêmement résistant !",
     
     // Paramètres lus par la classe Enemy.js
     shellThreshold: 0.3, 

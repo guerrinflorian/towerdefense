@@ -8,6 +8,7 @@ export const stratege = {
   damage: 50,
   attackSpeed: 1100,
   scale: 1.0,
+  description: "Stratège - Renforceur d'alliés. Rôle : buff les alliés. POUVOIR SPÉCIAL : Renforce les alliés proches (rayon 1.5 cases) de +12% à toutes leurs statistiques. Très dangereux, priorité élevée !",
   // Renforce les monstres proches à 1.5 cases (+12% stats)
   buffRadius: 1.5, // En cases
   buffMultiplier: 1.12, // +12% stats

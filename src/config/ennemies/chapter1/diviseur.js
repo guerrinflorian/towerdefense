@@ -11,6 +11,7 @@ export const diviseur = {
   damage: 20,
   attackSpeed: 1200,
   scale: 1.3,
+  description: "Diviseur - Créature gélatineuse géante. Rôle : se divise à sa mort. POUVOIR SPÉCIAL : À sa mort, se divise en 2 Slimes Moyens. Éliminez-le avec précaution !",
   
   // --- LOGIQUE DE DIVISION ---
   onDeath: (enemy) => {

@@ -8,6 +8,7 @@ export const criard = {
   damage: 38,
   attackSpeed: 1200,
   scale: 0.9,
+  description: "Criard - Saboteur. Rôle : désactive les tourelles. POUVOIR SPÉCIAL : Désactive toutes les tourelles à 2 cases pendant 2 secondes, toutes les 8 secondes. Priorité moyenne à éliminer !",
   // Désactive les tours à 2 cases pendant 2s
   screamRadius: 2, // En cases
   screamDuration: 2000, // 2 secondes

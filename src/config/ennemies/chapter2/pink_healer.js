@@ -8,7 +8,7 @@ export const pink_healer = {
     damage: 12,
     attackSpeed: 1500,
     scale: 0.9,
-    
+    description: "Soigneur Rose - Soigneur. Rôle : soutien médical. POUVOIR SPÉCIAL : Soigne les alliés proches de 75 HP toutes les 2.4 secondes dans un rayon de 2.1 cases. Priorité maximale à éliminer !",
     healAmount: 75,
     healInterval: 2400, 
     healRadius: 2.1, // Rayon mis à jour à 3.5

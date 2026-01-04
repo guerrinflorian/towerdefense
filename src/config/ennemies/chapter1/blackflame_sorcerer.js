@@ -8,6 +8,7 @@ export const blackflame_sorcerer = {
   damage: 12,
   attackSpeed: 1100,
   scale: 1,
+  description: "Sorcier de Flamme Noire - Maudisseur. Rôle : sabotage des tourelles. POUVOIR SPÉCIAL : Maudit les tourelles toutes les 12 secondes, leur coûtant 25 pièces pour les réparer. Très dangereux !",
 
   curseInterval: 12000,
   curseCost: 25,
