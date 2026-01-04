@@ -4,12 +4,13 @@
 export const pink_slime_small = {
   name: "Petit Slime Rose",
   speed: 55,
-  hp: 600,
+  hp: 550,
   reward: 15,
   playerDamage: 1,
   color: 0xffc0cb, // Rose plus clair
   damage: 10,
-  attackSpeed: 700,
+  attackSpeed: 800,
+  description: "Petit Slime Rose - Dernier stade de division. Rôle : unité rapide sans pouvoir spécial. Rapide et fuyard, résultat de la division du Slime Rose.",
   scale: 0.65,
   
   // Pas de onDeath car c'est la fin de la chaîne

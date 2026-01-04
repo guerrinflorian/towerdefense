@@ -8,6 +8,7 @@ export const soul_messenger_runner = {
     damage: 10,
     attackSpeed: 550,
     scale: 1,
+    description: "Soul Messenger - Messager spectral. Rôle : éclaireur ultra-rapide sans pouvoir spécial. Très rapide mais extrêmement fragile, éliminez-le rapidement !",
   
     onDraw: (scene, container, color, enemyInstance) => {
       enemyInstance.shouldRotate = false;

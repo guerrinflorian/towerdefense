@@ -8,6 +8,7 @@ export const scoria_soldier = {
   damage: 12,
   attackSpeed: 800,
   scale: 1,
+  description: "Soldat de Scories - Unité volcanique. Rôle : soldat standard sans pouvoir spécial. Résistant au feu grâce à son armure de scories volcaniques.",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};

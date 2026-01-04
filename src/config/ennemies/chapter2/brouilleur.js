@@ -8,6 +8,7 @@ export const brouilleur = {
   damage: 9,
   attackSpeed: 1000,
   scale: 0.95,
+  description: "Brouilleur - Saboteur visuel. Rôle : cache les informations. POUVOIR SPÉCIAL : Cache les barres de vie de tous les ennemis dans un rayon de 2.5 cases. Priorité élevée !",
   // Cache les barres de vie ennemies
   jammingRadius: 2.5, // En cases (affecte tous les ennemis visibles)
 

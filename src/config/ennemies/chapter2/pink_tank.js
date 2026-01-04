@@ -8,6 +8,7 @@ export const pink_bear_tank = {
   damage: 78,
   attackSpeed: 1200,
   scale: 0.8, // On réduit le scale global ici aussi
+  description: "Mini Grizzly Rose - Tank ours. Rôle : unité blindée sans pouvoir spécial. Massif et résistant avec une apparence d'ours rose, très haute résistance.",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.elements = {};

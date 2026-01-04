@@ -8,6 +8,7 @@ export const tank = {
   damage: 28, // Dégâts par attaque (très fort)
   attackSpeed: 1200, // Vitesse d'attaque en ms (lent)
   scale: 1,
+  description: "Heavy - Unité blindée. Rôle : tank sans pouvoir spécial. Extrêmement résistant avec beaucoup de PV, nécessite des dégâts élevés pour être éliminé.",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};

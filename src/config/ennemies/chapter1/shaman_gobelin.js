@@ -8,7 +8,7 @@ export const shaman_gobelin = {
     damage: 12,
     attackSpeed: 1500,
     scale: 0.9,
-    
+    description: "Shaman Gobelin - Soigneur. Rôle : soutien médical. POUVOIR SPÉCIAL : Soigne les alliés proches de 75 HP toutes les 2.4 secondes dans un rayon de 1.7 cases. Priorité absolue à éliminer !",
     healAmount: 75,
     healInterval: 2400, 
     healRadius: 1.7, // Rayon en cases

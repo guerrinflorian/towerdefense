@@ -8,6 +8,7 @@ export const pink_phase_ghost = {
   damage: 28, // Dégâts augmentés
   attackSpeed: 700,
   scale: 1.3, // Plus gros
+  description: "Fantôme de Phase - Unité invulnérable. Rôle : tank avec invulnérabilité périodique. POUVOIR SPÉCIAL : Devient invulnérable pendant 2 secondes toutes les 5 secondes (cycle de 3s vulnérable + 2s invulnérable). Très dangereux !",
 
   // Configuration de l'invulnérabilité périodique
   phaseInvulnerableDuration: 2000, // 2 secondes d'invulnérabilité

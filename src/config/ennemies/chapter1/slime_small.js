@@ -10,6 +10,7 @@ export const slime_small = {
   color: 0x88ff88, // Vert clair
   damage: 8,
   attackSpeed: 800,
+  description: "Petit Slime - Dernier stade de division. Rôle : unité rapide sans pouvoir spécial. Fragile mais rapide, facile à éliminer.",
   scale: 0.6,
   
   // Pas de onDeath car c'est la fin de la chaîne
