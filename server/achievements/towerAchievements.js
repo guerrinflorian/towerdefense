@@ -481,12 +481,12 @@ export async function evaluateTowerAchievements(
     await db.query(
       `UPDATE player_achievement_progress
          SET current_value = $3,
-             is_unlocked = $4,
-             unlocked_at = CASE WHEN $4 THEN COALESCE(unlocked_at, NOW()) ELSE unlocked_at END,
+             is_unlocked = CASE WHEN is_unlocked = TRUE THEN TRUE ELSE $4 END,
+             unlocked_at = CASE WHEN $4 = TRUE AND is_unlocked = FALSE THEN COALESCE(unlocked_at, NOW()) ELSE unlocked_at END,
              last_run_at = NOW(),
              last_run_id = $5,
-             unlocked_run_id = CASE WHEN $4 THEN COALESCE(unlocked_run_id, $5) ELSE unlocked_run_id END
-       WHERE player_id = $1 AND achievement_id = $2 AND is_unlocked = FALSE`,
+             unlocked_run_id = CASE WHEN $4 = TRUE AND is_unlocked = FALSE THEN COALESCE(unlocked_run_id, $5) ELSE unlocked_run_id END
+       WHERE player_id = $1 AND achievement_id = $2`,
       [playerId, update.achievementId, update.currentValue, update.isUnlocked, metrics.runId]
     );
   }

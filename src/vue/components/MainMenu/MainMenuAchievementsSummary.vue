@@ -2,7 +2,13 @@
   <div class="achievements-summary">
     <div class="achievements-summary__header">
       <h3>Succès</h3>
-      <button class="ghost-btn small" type="button" @click="$emit('open')" :disabled="loading">
+      <button 
+        class="ghost-btn small" 
+        type="button" 
+        @click="$emit('open')" 
+        :disabled="loading"
+        title="Voir tous les succès débloqués"
+      >
         Voir tout
       </button>
     </div>
@@ -104,7 +110,12 @@ const percentage = computed(() => {
 .ghost-btn:hover {
   border-color: rgba(0, 242, 255, 0.8);
   background: rgba(0, 242, 255, 0.16);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 242, 255, 0.2);
+}
+
+.ghost-btn:active {
+  transform: translateY(0);
 }
 
 .ghost-btn:disabled {

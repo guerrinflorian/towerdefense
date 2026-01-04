@@ -36,6 +36,10 @@ const state = reactive({
   heroUpgrade: {
     onClose: null,
   },
+  playerProfile: {
+    visible: false,
+    username: '',
+  },
 });
 
 export function useModalStore() {
@@ -150,6 +154,19 @@ export function useModalStore() {
     blockGame(false);
   };
 
+  // Player Profile
+  const showPlayerProfile = (username) => {
+    state.playerProfile.username = username;
+    state.playerProfile.visible = true;
+    blockGame(true);
+  };
+
+  const hidePlayerProfile = () => {
+    state.playerProfile.visible = false;
+    state.playerProfile.username = '';
+    blockGame(false);
+  };
+
   // Helper pour bloquer le jeu
   const blockGame = (block) => {
     const gameContainer = document.getElementById('game-container');
@@ -190,6 +207,9 @@ export function useModalStore() {
     get mainMenu() {
       return state.mainMenu;
     },
+    get playerProfile() {
+      return state.playerProfile;
+    },
     // Actions
     showGameResult,
     hideGameResult,
@@ -203,5 +223,7 @@ export function useModalStore() {
     hideHeroUpgrade,
     showMainMenu,
     hideMainMenu,
+    showPlayerProfile,
+    hidePlayerProfile,
   };
 }

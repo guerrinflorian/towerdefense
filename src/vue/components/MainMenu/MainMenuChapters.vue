@@ -1,267 +1,358 @@
 <template>
-  <div class="chapters">
-    <div class="chapters__header">
-      <div>
-        <p class="chapters__eyebrow">Chapitres & niveaux</p>
-        <h3 class="chapters__title">Progression</h3>
+  <div class="chapters-view">
+    <header class="chapters-header">
+      <div class="header-decorator"></div>
+      <div class="header-content">
+        <p class="eyebrow">Secteurs Disponibles</p>
+        <h3 class="title">PROGRESSION DE CAMPAGNE</h3>
       </div>
+    </header>
+
+    <div v-if="loading" class="status-message">
+      <div class="loading-spinner"></div>
+      <p>SYNCHRONISATION DES ARCHIVES...</p>
     </div>
 
-    <div v-if="loading" class="chapters__placeholder">
-      Chargement des chapitres...
+    <div v-else-if="chapters.length === 0" class="status-message">
+      <p>AUCUN SECTEUR DE MISSION DÉTECTÉ</p>
     </div>
 
-    <div v-else-if="chapters.length === 0" class="chapters__placeholder">
-      Aucun chapitre disponible pour le moment.
-    </div>
+    <div v-else class="chapters-grid">
+      <div 
+        v-for="chapter in chapters" 
+        :key="chapter.id" 
+        class="chapter-card"
+        :class="{ 'is-locked': chapter.isLocked }"
+        @click="!chapter.isLocked && $emit('select-chapter', chapter)"
+        :title="chapter.isLocked ? 'Chapitre verrouillé' : `Accéder au chapitre: ${chapter.name}`"
+      >
+        <div class="chapter-visual">
+          <img 
+            :src="getImageSrc(chapter)" 
+            :alt="chapter.name"
+            class="chapter-img"
+            @error="handleImageError($event, chapter)"
+          />
+          <div class="visual-overlay"></div>
+          
+          <div v-if="chapter.isLocked" class="lock-overlay">
+            <span class="lock-icon">🔒</span>
+            <p class="lock-text">CHAPITRE NON DÉBLOQUÉ</p>
+          </div>
+        </div>
 
-    <div v-else class="chapters__list">
-      <div v-for="chapter in chapters" :key="chapter.id" class="chapter-card">
-        <div class="chapter-card__header">
-          <div>
-            <p class="chapter-card__eyebrow">Chapitre {{ chapter.orderIndex || chapter.id }}</p>
-            <h4 class="chapter-card__title">{{ chapter.name }}</h4>
-            <p class="chapter-card__meta">
-              {{ chapter.stats?.clearedLevels || 0 }}/{{ chapter.stats?.totalLevels || chapter.levels.length }} niveaux complétés
+        <div class="chapter-details">
+          <div class="details-top">
+            <span class="chapter-num">SECTEUR {{ chapter.orderIndex || chapter.id }}</span>
+            <h4 class="chapter-name">{{ chapter.name }}</h4>
+          </div>
+
+          <div class="progress-section">
+            <div class="progress-meta">
+              <span class="progress-label">COMPLÉTION</span>
+              <span class="progress-value">{{ getCompletionPercent(chapter) }}%</span>
+            </div>
+            <div class="progress-track">
+              <div 
+                class="progress-fill" 
+                :style="{ width: getCompletionPercent(chapter) + '%' }"
+              ></div>
+            </div>
+            <p class="levels-count">
+              {{ chapter.stats?.clearedLevels || 0 }} / {{ chapter.stats?.totalLevels || chapter.levels.length }} NIVEAUX
             </p>
           </div>
-          <div class="chapter-card__status" :class="{ locked: chapter.isLocked }">
-            {{ chapter.isLocked ? 'Verrouillé' : 'Débloqué' }}
+
+          <p v-if="chapter.isLocked && chapter.lockReason" class="lock-reason">
+            {{ chapter.lockReason }}
+          </p>
+
+          <div class="action-area">
+            <button 
+              v-if="!chapter.isLocked" 
+              class="select-btn"
+              title="Voir les missions de ce chapitre"
+            >
+              ACCÉDER AU SECTEUR
+              <span class="btn-arrow">→</span>
+            </button>
           </div>
         </div>
-
-        <p v-if="chapter.isLocked && chapter.lockReason" class="chapter-card__lock-reason">
-          {{ chapter.lockReason }}
-        </p>
-
-        <div class="chapter-card__levels">
-          <button
-            v-for="level in chapter.levels"
-            :key="level.id"
-            class="level-chip"
-            :class="{ locked: isLevelLocked(chapter, level.id) }"
-            :disabled="isLevelLocked(chapter, level.id)"
-            @click="$emit('play', { levelId: level.id, levelName: level.name })"
-          >
-            <div class="level-chip__main">
-              <span class="level-chip__name">{{ level.name }}</span>
-              <span class="level-chip__tag">Niveau {{ level.orderIndex || level.id }}</span>
-            </div>
-            <div class="level-chip__details">
-              <template v-if="getBestRun(level.id)">
-                <span class="pill success">Victoire</span>
-                <span class="pill muted">Vies perdues: {{ getBestRun(level.id).livesLost }}</span>
-              </template>
-              <template v-else>
-                <span class="pill muted">Jamais tenté</span>
-              </template>
-            </div>
-          </button>
-        </div>
+        
+        <div class="border-decorator top-left"></div>
+        <div class="border-decorator bottom-right"></div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
-
 const props = defineProps({
-  chapters: {
-    type: Array,
-    default: () => [],
-  },
-  bestRunsMap: {
-    type: [Map, Object],
-    default: () => new Map(),
-  },
-  loading: {
-    type: Boolean,
-    default: false,
-  },
+  chapters: { type: Array, default: () => [] },
+  loading: { type: Boolean, default: false },
 });
 
-const locksByChapter = computed(() => {
-  const map = new Map();
-  props.chapters.forEach((chapter) => {
-    map.set(
-      chapter.id,
-      new Map(
-        (chapter.levelLocks || []).map((lock) => [
-          lock.levelId,
-          { isLocked: lock.isLocked, bestRun: lock.bestRun || null },
-        ])
-      )
-    );
-  });
-  return map;
-});
 
-const getBestRun = (levelId) => {
-  if (props.bestRunsMap instanceof Map) {
-    return props.bestRunsMap.get(levelId) || null;
+const getImageSrc = (chapter) => {
+  // Utiliser l'image base64 si disponible
+  if (chapter.imageb64Url) {
+    return chapter.imageb64Url;
   }
-  return props.bestRunsMap[levelId] || null;
+  
+  // Fallback vers l'image locale si pas d'image base64
+  const numId = Number(chapter.orderIndex || chapter.id) || 1;
+  return `/images/chapitre${numId}.png`;
 };
 
-const isLevelLocked = (chapter, levelId) => {
-  const locks = locksByChapter.value.get(chapter.id);
-  if (!locks) return true;
-  return locks.get(levelId)?.isLocked ?? true;
+const handleImageError = (event, chapter) => {
+  // Si l'image base64 échoue, utiliser l'image locale comme fallback
+  const numId = Number(chapter.orderIndex || chapter.id) || 1;
+  event.target.src = `/images/chapitre${numId}.png`;
+};
+
+const getCompletionPercent = (chapter) => {
+  const cleared = chapter.stats?.clearedLevels || 0;
+  const total = chapter.stats?.totalLevels || chapter.levels.length || 1;
+  return Math.round((cleared / total) * 100);
 };
 </script>
 
 <style scoped>
-.chapters__header {
+.chapters-view {
+  width: 100%;
+  padding: 10px;
+}
+
+/* HEADER STYLE */
+.chapters-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 10px;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 30px;
 }
 
-.chapters__eyebrow {
+.header-decorator {
+  width: 4px;
+  height: 40px;
+  background: #00eaff;
+  box-shadow: 0 0 15px #00eaff;
+}
+
+.eyebrow {
   margin: 0;
-  color: #6ddcff;
-  letter-spacing: 0.08em;
-  font-size: 12px;
+  color: #00eaff;
+  font-size: 11px;
+  letter-spacing: 3px;
   text-transform: uppercase;
+  opacity: 0.8;
 }
 
-.chapters__title {
-  margin: 4px 0 0;
-  font-size: 20px;
+.title {
+  margin: 2px 0 0;
+  font-size: 22px;
+  font-weight: 900;
+  color: #fff;
 }
 
-.chapters__list {
+/* GRILLE */
+.chapters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 25px;
+}
+
+/* CARTE CHAPITRE */
+.chapter-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.chapter-card {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 14px;
-  padding: 12px;
-}
-
-.chapter-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.chapter-card__eyebrow {
-  margin: 0;
-  color: #9ecff9;
-  letter-spacing: 0.04em;
-  font-size: 12px;
-}
-
-.chapter-card__title {
-  margin: 2px 0 0;
-  font-size: 18px;
-}
-
-.chapter-card__meta {
-  margin: 4px 0 0;
-  color: #8ca4b8;
-  font-size: 13px;
-}
-
-.chapter-card__status {
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(0, 242, 255, 0.35);
-  color: #b7f3ff;
-  background: rgba(0, 242, 255, 0.08);
-  font-weight: 700;
-}
-
-.chapter-card__status.locked {
-  background: rgba(255, 255, 255, 0.06);
-  color: #d7dee5;
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-.chapter-card__lock-reason {
-  margin: 8px 0 0;
-  color: #c9a861;
-  font-size: 13px;
-}
-
-.chapter-card__levels {
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 8px;
-}
-
-.level-chip {
-  width: 100%;
-  border: 1px solid rgba(0, 242, 255, 0.18);
-  background: rgba(255, 255, 255, 0.02);
-  color: #e5ecf5;
-  padding: 10px;
-  border-radius: 12px;
-  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
   cursor: pointer;
-  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
-.level-chip:hover {
-  transform: translateY(-1px);
-  border-color: rgba(0, 242, 255, 0.35);
-  background: rgba(0, 242, 255, 0.06);
+.chapter-card:hover:not(.is-locked) {
+  border-color: #00eaff;
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 234, 255, 0.3);
+  cursor: pointer;
+  background: rgba(0, 234, 255, 0.05);
 }
 
-.level-chip.locked {
-  opacity: 0.6;
-  cursor: not-allowed;
+.chapter-card:active:not(.is-locked) {
+  transform: translateY(-2px);
 }
 
-.level-chip__main {
+/* VISUEL */
+.chapter-visual {
+  position: relative;
+  height: 180px;
+  overflow: hidden;
+}
+
+.chapter-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+  display: block; /* S'assurer que l'image est affichée */
+  position: relative; /* S'assurer qu'elle est au-dessus du fond */
+  z-index: 1; /* Au-dessus du fond mais sous l'overlay */
+}
+
+.chapter-card:hover .chapter-img {
+  transform: scale(1.1);
+}
+
+.visual-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, rgba(8, 10, 15, 0.6) 100%);
+  z-index: 2; /* Au-dessus de l'image mais sous le lock-overlay */
+  pointer-events: none; /* Permettre les clics à travers */
+}
+
+/* LOCK STATE */
+.is-locked .chapter-img {
+  filter: grayscale(1) blur(4px);
+  opacity: 0.4;
+}
+
+.lock-overlay {
+  position: absolute;
+  inset: 0;
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 6px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
 }
 
-.level-chip__name {
+.lock-icon { font-size: 40px; margin-bottom: 10px; }
+.lock-text { 
+  font-size: 12px; 
+  font-weight: 900; 
+  letter-spacing: 2px; 
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* DETAILS */
+.chapter-details {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chapter-num {
+  font-size: 10px;
+  color: #00eaff;
+  letter-spacing: 2px;
   font-weight: 700;
 }
 
-.level-chip__tag {
-  font-size: 12px;
-  color: #9eb4c4;
+.chapter-name {
+  margin: 5px 0 15px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
 }
 
-.level-chip__details {
+/* PROGRESSION */
+.progress-section { margin-bottom: 20px; }
+
+.progress-meta {
   display: flex;
-  gap: 6px;
-  margin-top: 6px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 6px;
 }
 
-.pill {
-  padding: 4px 8px;
-  border-radius: 999px;
+.progress-label { font-size: 9px; opacity: 0.5; letter-spacing: 1px; }
+.progress-value { font-size: 11px; color: #00eaff; font-weight: 900; }
+
+.progress-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #00eaff;
+  box-shadow: 0 0 10px #00eaff;
+  border-radius: 2px;
+  transition: width 1s ease-out;
+}
+
+.levels-count { font-size: 10px; opacity: 0.4; margin: 0; }
+
+.lock-reason {
   font-size: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffaa00;
+  background: rgba(255, 170, 0, 0.1);
+  padding: 8px;
+  border-left: 2px solid #ffaa00;
+  margin: 0 0 15px;
 }
 
-.pill.success {
-  border-color: rgba(0, 242, 255, 0.35);
-  background: rgba(0, 242, 255, 0.12);
-  color: #bef4ff;
+/* BOUTON SELECTION */
+.select-btn {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid rgba(0, 234, 255, 0.4);
+  color: #00eaff;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: 0.2s;
 }
 
-.pill.muted {
-  color: #8ea6b8;
+.chapter-card:hover .select-btn {
+  background: #00eaff;
+  color: #000;
 }
 
-.chapters__placeholder {
-  color: #95a8b8;
+/* DECORATIONS HUD */
+.border-decorator {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: #00eaff;
+  border-style: solid;
+  opacity: 0;
+  transition: opacity 0.3s;
 }
+
+.top-left { top: 0; left: 0; border-width: 2px 0 0 2px; }
+.bottom-right { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+
+.chapter-card:hover .border-decorator {
+  opacity: 1;
+}
+
+/* CHARGEMENT */
+.status-message {
+  padding: 60px;
+  text-align: center;
+  color: #7dd0ff;
+  letter-spacing: 2px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 234, 255, 0.1);
+  border-top-color: #00eaff;
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
