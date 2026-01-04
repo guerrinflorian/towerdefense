@@ -8,6 +8,7 @@ export const vampire = {
   damage: 65,
   attackSpeed: 900,
   scale: 1.0,
+  description: "Vampire - Régénérateur. Rôle : auto-soin et régénération. POUVOIR SPÉCIAL : Se soigne de 30% des dégâts qu'il inflige en attaquant. Récupère aussi 10% de ses PV max quand un ennemi meurt à 1.8 cases. Éliminez-le rapidement !",
   // Se soigne de 30% des dégâts qu'il inflige
   vampireLifesteal: 0.3,
   // Récupère 1/4 de son maxHp quand un ennemi meurt à 2 cases autour

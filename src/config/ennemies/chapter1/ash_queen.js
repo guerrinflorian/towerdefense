@@ -8,6 +8,7 @@ export const ash_queen = {
   damage: 90,
   attackSpeed: 1400,
   scale: 1.3,
+  description: "Reine des Cendres - Boss reproducteur. Rôle : génère des renforts. POUVOIR SPÉCIAL : Spawne un Œuf Incandescent toutes les 8 secondes qui éclot en 3 Scarabées des Flammes. Commandante redoutable !",
 
   eggSpawnInterval: 8000,
   eggSpawnType: "ash_egg",

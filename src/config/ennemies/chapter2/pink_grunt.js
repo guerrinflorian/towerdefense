@@ -8,6 +8,7 @@ export const pink_heart_grunt = {
   damage: 8,
   attackSpeed: 800,
   scale: 1,
+  description: "Heart Knight - Variante rose du Grunt. Rôle : soldat standard sans pouvoir spécial. Plus résistant que le Grunt classique, tête en forme de cœur.",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.elements = {}; // Stockage pour l'animation

@@ -8,6 +8,7 @@ export const infernal_banner = {
   damage: 16,
   attackSpeed: 1200,
   scale: 1,
+  description: "Porte-Bannière Infernal - Protecteur. Rôle : empêche la mort des alliés. POUVOIR SPÉCIAL : Les alliés proches (rayon 1.6 cases) ne peuvent pas mourir tant qu'ils sont dans l'aura (sauf de dégats physiques de héros ou soldats). Priorité élevée !",
 
   preventDeathAura: true,
   survivalAuraRadius: 1.6,

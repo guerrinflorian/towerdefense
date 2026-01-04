@@ -8,6 +8,7 @@ export const ember_scout = {
   damage: 7,
   attackSpeed: 900,
   scale: 0.95,
+  description: "Éclaireur de Braises - Éclaireur rapide. Rôle : unité de reconnaissance sans pouvoir spécial. Rapide et agile avec une traînée d'étincelles.",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};
