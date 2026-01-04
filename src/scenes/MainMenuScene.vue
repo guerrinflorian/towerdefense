@@ -39,16 +39,34 @@ export class MainMenuScene extends Phaser.Scene {
       hideMainMenu();
     });
 
-    // Charger le profil avant d'afficher les composants Vue
-    ensureProfileLoaded()
-      .catch(() => {
-        if (!isAuthenticated()) {
-          showAuth();
-        }
-      })
-      .finally(() => {
+    // Forcer le rechargement du profil à chaque retour au menu pour avoir les données à jour
+    this.loadProfileAndShowMenu();
+  }
+
+  async loadProfileAndShowMenu() {
+    try {
+      // Importer loadProfile pour forcer le rechargement
+      const { loadProfile } = await import('../services/authManager.js');
+      await loadProfile();
+      window.dispatchEvent(new CustomEvent('profile:updated'));
+      
+      const profile = await ensureProfileLoaded();
+      // Si le profil est chargé avec succès, afficher le menu
+      if (profile && isAuthenticated()) {
         this.openMainMenuOverlay();
-      });
+      } else {
+        showAuth();
+      }
+    } catch (error) {
+      console.error("[MainMenuScene] Erreur chargement profil:", error);
+      // Si erreur ou non authentifié, afficher l'overlay d'auth
+      if (!isAuthenticated()) {
+        showAuth();
+      } else {
+        // Si authentifié mais erreur, quand même afficher le menu (peut-être problème réseau temporaire)
+        this.openMainMenuOverlay();
+      }
+    }
   }
 
   openMainMenuOverlay() {
@@ -63,6 +81,7 @@ export class MainMenuScene extends Phaser.Scene {
       },
       onLogout: async () => {
         logout();
+        hideMainMenu();
         showAuth();
       },
       onShowHeroUpgrade: () => {

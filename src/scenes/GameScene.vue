@@ -611,8 +611,16 @@ export class GameScene extends Phaser.Scene {
     const sender = this.sendRunReportFn || sendRunReport;
     this.isRunReportSending = true;
     this.runReportPromise = sender(report)
-      .then((response) => {
+      .then(async (response) => {
         this.notifyAchievementsUpdate();
+        // Rafraîchir le profil après une partie pour mettre à jour les stats du héros
+        try {
+          const { loadProfile } = await import('../services/authManager.js');
+          await loadProfile();
+          window.dispatchEvent(new CustomEvent('profile:updated'));
+        } catch (err) {
+          console.warn('Erreur rafraîchissement profil après partie:', err);
+        }
         return response;
       })
       .catch((err) => {

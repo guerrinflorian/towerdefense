@@ -38,7 +38,15 @@ const defaultMessage = computed(() => {
     : 'Votre base a été détruite. Essayez encore !';
 });
 
-const handleContinue = () => {
+const handleContinue = async () => {
+  // Rafraîchir le profil avant de retourner au menu
+  try {
+    const { loadProfile } = await import('../../services/authManager.js');
+    await loadProfile();
+    window.dispatchEvent(new CustomEvent('profile:updated'));
+  } catch (err) {
+    console.warn('Erreur rafraîchissement profil:', err);
+  }
   modalStore.hideGameResult();
 };
 

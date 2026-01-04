@@ -106,17 +106,31 @@ export async function loadProfile() {
 }
 
 export async function ensureProfileLoaded() {
-  if (!isAuthenticated()) {
+  const hasToken = isAuthenticated();
+  
+  if (!hasToken) {
     currentProfile = null;
     return null;
   }
 
-  if (currentProfile) return currentProfile;
+  if (currentProfile) {
+    return currentProfile;
+  }
 
   if (!loadingProfile) {
-    loadingProfile = fetchProfile().finally(() => {
-      loadingProfile = null;
-    });
+    loadingProfile = fetchProfile()
+      .catch((error) => {
+        console.error("[authManager] Erreur lors du chargement du profil:", error);
+        // Si le token est invalide (401), nettoyer le token
+        if (error?.response?.status === 401) {
+          setToken(null);
+          currentProfile = null;
+        }
+        throw error;
+      })
+      .finally(() => {
+        loadingProfile = null;
+      });
   }
   return loadingProfile;
 }
@@ -157,19 +171,19 @@ export async function recordHeroKill(kills = 1) {
   const killsToRecord = Number.isInteger(kills) && kills >= 0 ? kills : 1;
   const selectedHeroId = getSelectedHeroId();
   try {
-  const response = await apiClient.post("/api/player/hero/kill", {
-    kills: killsToRecord,
-    heroId: selectedHeroId,
-  });
-  if (currentProfile?.player) {
-    currentProfile.player.hero_points_available =
-      response.data.heroPointsAvailable;
-  }
+    const response = await apiClient.post("/api/player/hero/kill", {
+      kills: killsToRecord,
+      heroId: selectedHeroId,
+    });
+    if (currentProfile?.player) {
+      currentProfile.player.hero_points_available =
+        response.data.heroPointsAvailable;
+    }
     // Mettre à jour les heroStats si disponibles
     if (response.data?.heroStats && currentProfile) {
       currentProfile.heroStats = response.data.heroStats;
     }
-  return response.data;
+    return response.data;
   } catch (error) {
     throw error;
   }
@@ -295,6 +309,8 @@ async function flushUpgradeQueue() {
     
     if (response.data?.profile) {
       currentProfile = response.data.profile;
+      // Déclencher aussi l'événement profile:updated pour rafraîchir toutes les vues
+      window.dispatchEvent(new CustomEvent("profile:updated"));
     }
     
     upgradeQueue.clear();

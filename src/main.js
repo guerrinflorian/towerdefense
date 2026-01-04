@@ -79,7 +79,11 @@ if (isMobileBlocked) {
   let game = null;
 
   ensureProfileLoaded()
-    .catch(() => {
+    .then((profile) => {
+      // Profil chargé
+    })
+    .catch((error) => {
+      console.error("[main.js] Erreur chargement profil:", error);
       // L'overlay demandera une reconnexion si besoin
     })
     .finally(() => {

@@ -7,22 +7,42 @@
           {{ heroName }}
         </h2>
         <p class="hero-panel__subtitle" v-if="heroStats">
-          Niveau {{ heroStats.level || 1 }} · {{ heroStats.experience || 0 }} XP
+          💀 {{ (heroStats.kills || 0).toLocaleString() }} ennemis éliminés
         </p>
       </div>
       <div class="hero-panel__actions">
-        <button class="primary-btn" type="button" @click="$emit('upgrade')" :disabled="loading">
+        <button 
+          class="primary-btn" 
+          type="button" 
+          @click="$emit('upgrade')" 
+          :disabled="loading"
+          title="Ouvrir le panneau d'amélioration du héros"
+        >
           Améliorer
         </button>
-        <button class="ghost-btn" type="button" @click="$emit('select')" :disabled="loading">
+        <button 
+          class="ghost-btn" 
+          type="button" 
+          @click="$emit('select')" 
+          :disabled="loading"
+          title="Changer de héros"
+        >
           Changer
         </button>
       </div>
     </div>
 
     <div class="hero-panel__stats" v-if="heroStats">
-      <div class="stat-card" v-for="stat in displayedStats" :key="stat.key">
-        <p class="stat-label">{{ stat.label }}</p>
+      <div 
+        class="stat-card" 
+        v-for="stat in displayedStats" 
+        :key="stat.key"
+        :title="getStatTooltip(stat)"
+      >
+        <p class="stat-label">
+          <span class="stat-icon">{{ stat.icon }}</span>
+          {{ stat.label }}
+        </p>
         <p class="stat-value">{{ stat.value }}</p>
       </div>
     </div>
@@ -31,7 +51,7 @@
     </p>
 
     <div class="hero-panel__footer">
-      <div class="points-chip">
+      <div class="points-chip" title="Points d'amélioration disponibles pour renforcer les statistiques du héros">
         Points disponibles: <strong>{{ heroPoints }}</strong>
       </div>
       <p class="hint">Utilise tes points pour renforcer ton héros avant de partir en mission.</p>
@@ -51,23 +71,35 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  heroName: {
+    type: String,
+    default: 'Héros',
+  },
   loading: {
     type: Boolean,
     default: false,
   },
 });
 
-const heroName = computed(() => props.heroStats?.hero_name || props.heroStats?.name || 'Héros inconnu');
-
 const displayedStats = computed(() => {
   if (!props.heroStats) return [];
   return [
-    { key: 'hp', label: 'Vie', value: props.heroStats.max_hp ?? props.heroStats.hp ?? '—' },
-    { key: 'damage', label: 'Dégâts', value: props.heroStats.base_damage ?? props.heroStats.damage ?? '—' },
-    { key: 'attack_speed', label: 'Vitesse de frappe', value: props.heroStats.attack_interval_ms ? `${props.heroStats.attack_interval_ms} ms` : '—' },
-    { key: 'move_speed', label: 'Agilité', value: props.heroStats.move_speed ?? '—' },
+    { key: 'hp', label: 'Vie', icon: '❤️', value: props.heroStats.max_hp ?? props.heroStats.hp ?? '—' },
+    { key: 'damage', label: 'Dégâts', icon: '⚔️', value: props.heroStats.base_damage ?? props.heroStats.damage ?? '—' },
+    { key: 'attack_speed', label: 'Vitesse de frappe', icon: '⚡', value: props.heroStats.attack_interval_ms ? `${props.heroStats.attack_interval_ms} ms` : '—' },
+    { key: 'move_speed', label: 'Agilité', icon: '💨', value: props.heroStats.move_speed ?? '—' },
   ];
 });
+
+const getStatTooltip = (stat) => {
+  const tooltips = {
+    'hp': 'Points de vie maximum du héros',
+    'damage': 'Dégâts infligés par le héros',
+    'attack_speed': 'Temps entre chaque attaque (en millisecondes)',
+    'move_speed': 'Vitesse de déplacement du héros'
+  };
+  return tooltips[stat.key] || stat.label;
+};
 </script>
 
 <style scoped>
@@ -121,6 +153,15 @@ const displayedStats = computed(() => {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   padding: 10px;
+  transition: all 0.2s ease;
+  cursor: help;
+}
+
+.stat-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(0, 242, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 242, 255, 0.15);
 }
 
 .stat-label {
@@ -128,6 +169,14 @@ const displayedStats = computed(() => {
   color: #9fb3c6;
   font-size: 12px;
   letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-icon {
+  font-size: 14px;
+  filter: drop-shadow(0 0 2px rgba(0, 242, 255, 0.5));
 }
 
 .stat-value {
@@ -157,11 +206,20 @@ const displayedStats = computed(() => {
   border-radius: 12px;
   border: 1px solid rgba(0, 242, 255, 0.35);
   font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: help;
+}
+
+.points-chip:hover {
+  background: rgba(0, 242, 255, 0.2);
+  border-color: rgba(0, 242, 255, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 242, 255, 0.25);
 }
 
 .hint {
   margin: 0;
-  color: #6c7b8a;
+  color: #ffffff;
   font-size: 12px;
 }
 
@@ -178,8 +236,13 @@ const displayedStats = computed(() => {
 }
 
 .primary-btn:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: 0 12px 26px rgba(0, 242, 255, 0.35);
+  background: linear-gradient(135deg, #00d9ff, #7ee5ff);
+}
+
+.primary-btn:active {
+  transform: translateY(0);
 }
 
 .primary-btn:disabled,
@@ -203,7 +266,12 @@ const displayedStats = computed(() => {
 .ghost-btn:hover {
   border-color: rgba(0, 242, 255, 0.8);
   background: rgba(0, 242, 255, 0.16);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 242, 255, 0.2);
+}
+
+.ghost-btn:active {
+  transform: translateY(0);
 }
 
 @media (max-width: 640px) {

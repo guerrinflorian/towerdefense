@@ -1,106 +1,172 @@
 <template>
-  <div v-if="visible" class="main-menu-overlay">
-    <div class="main-menu__backdrop"></div>
-    <div class="main-menu__content">
-      <header class="main-menu__header">
-        <div>
-          <p class="main-menu__eyebrow">Menu Principal</p>
-          <h1 class="main-menu__title">Last Outpost</h1>
-          <p v-if="playerName" class="main-menu__subtitle">
-            Connecté en tant que <strong>{{ playerName }}</strong>
+  <div v-if="visible" class="hud-overlay">
+    <div class="hud-background"></div>
+
+    <div class="hud-container">
+      <header class="hud-header">
+        <div class="brand">
+          <span class="eyebrow">Interface de Commandement</span>
+          <h1 class="game-title">LAST OUTPOST</h1>
+          <p v-if="playerName" class="player-info">
+            Joueur : <span class="highlight">{{ playerName }}</span>
           </p>
         </div>
-        <div class="main-menu__header-actions">
-          <button class="ghost-btn" type="button" @click="refreshData" :disabled="loading">
-            ↻ Rafraîchir
+
+        <div class="header-actions">
+          <button class="hud-btn-secondary" @click="refreshData" :disabled="loading" title="Actualiser toutes les données">
+            <span class="icon">↻</span> ACTUALISER
           </button>
-          <button class="ghost-btn" type="button" @click="handleLogout">
-            Se déconnecter
-          </button>
+          <button class="hud-btn-danger" @click="handleLogout" title="Se déconnecter">DÉCONNEXION</button>
         </div>
       </header>
 
-      <div class="main-menu__grid">
-        <section class="main-menu__panel hero-panel">
-          <MainMenuHeroPanel
-            :hero-stats="heroStats"
-            :hero-points="heroPoints"
-            :loading="loading"
-            @upgrade="openHeroUpgrade"
-            @select="openHeroSelection"
-          />
+      <main v-if="currentView === 'home'" class="hud-main-grid">
+        
+        <aside class="hud-column-left">
+          <section class="hud-element hero-section">
+            <div class="hero-avatar-container">
+              <div class="avatar-frame-main">
+                <HeroAvatarCanvas
+                  v-if="heroStats"
+                  :hero-id="Number(heroStats?.hero_id || 1)"
+                  :hero-color="heroStats?.color || '#2b2b2b'"
+                  :size="60"
+                />
+              </div>
+            </div>
+            <MainMenuHeroPanel
+              :hero-stats="heroStats"
+              :hero-points="heroPoints"
+              :hero-name="heroName"
+              :loading="loading"
+              @upgrade="openHeroUpgrade"
+              @select="openHeroSelection"
+            />
+          </section>
 
-          <MainMenuAchievementsSummary
-            class="panel-margin"
-            :summary="achievementsSummary"
-            :loading="achievementsLoading"
-            @open="openAchievements"
-          />
+          <section class="hud-element achievements-section">
+            <h3 class="section-label">Archives de Combat</h3>
+            <MainMenuAchievementsSummary
+              :summary="achievementsSummary"
+              :loading="achievementsLoading"
+              @open="openAchievements"
+            />
+          </section>
+        </aside>
+
+        <section class="hud-column-center">
+          <div class="deploy-wrapper">
+            <div class="scanner-effect"></div>
+            <button class="deploy-main-btn" @click="showChapters" title="Sélectionner un chapitre et commencer une mission">
+              <span class="deploy-icon">🚀</span>
+              <span class="deploy-text">DÉPLOYER</span>
+              <span class="deploy-sub">Secteur Tactique</span>
+            </button>
+          </div>
         </section>
 
-        <section class="main-menu__panel chapters-panel">
+        <aside class="hud-column-right">
+          <section class="hud-element leaderboard-section">
+            <h3 class="section-label">Classement Mondial</h3>
+            <MainMenuLeaderboard :entries="leaderboard" :loading="leaderboardLoading" />
+          </section>
+        </aside>
+      </main>
+
+      <div v-else class="hud-navigation-view">
+        <nav class="nav-header">
+          <button 
+            class="hud-btn-secondary" 
+            @click="currentView === 'levels' ? showChapters() : goHome()"
+            :title="currentView === 'levels' ? 'Retour à la sélection des chapitres' : 'Retour au menu principal'"
+          >
+            ← RETOUR
+          </button>
+          <h2 class="view-title">{{ currentView === 'chapters' ? 'SÉLECTION DU CHAPITRE' : selectedChapter?.name }}</h2>
+        </nav>
+
+        <div class="nav-content">
           <MainMenuChapters
+            v-if="currentView === 'chapters'"
             :chapters="chapters"
             :best-runs-map="bestRunsMap"
             :loading="chaptersLoading"
-            @play="startLevel"
+            @select-chapter="showLevels"
           />
-        </section>
 
-        <section class="main-menu__panel leaderboard-panel">
-          <MainMenuLeaderboard :entries="leaderboard" :loading="leaderboardLoading" />
-        </section>
+          <MainMenuLevels
+            v-else-if="currentView === 'levels' && selectedChapter"
+            :levels="selectedChapter.levels"
+            :best-runs-map="bestRunsMap"
+            :level-locks="selectedChapter.levelLocks || []"
+            :level-records="levelRecords"
+            @select-level="startLevel"
+          />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useModalStore } from '../../stores/modalStore.js';
 import {
-  ensureProfileLoaded,
-  getHeroPointsAvailable,
-  getHeroStats,
-  getProfile,
-  getUnlockedLevel,
-  isAuthenticated,
-  setSelectedHeroId,
+  ensureProfileLoaded, getHeroPointsAvailable, getHeroStats,
+  getProfile, getUnlockedLevel, isAuthenticated, setSelectedHeroId
 } from '../../../services/authManager.js';
 import { showAuth } from '../../../services/authOverlay.js';
 import { fetchAchievements } from '../../../services/achievementsService.js';
 import {
-  buildChapterViewModels,
-  buildLevelLocks,
-  fetchBestRunsMap,
-  fetchChapterProgress,
-  fetchChaptersWithLevels,
-  resetCachedChapters,
+  buildChapterViewModels, buildLevelLocks, fetchBestRunsMap,
+  fetchChapterProgress, fetchChaptersWithLevels, resetCachedChapters
 } from '../../../services/chapterService.js';
-import { fetchGlobalLeaderboard } from '../../../services/leaderboardService.js';
+import { fetchGlobalLeaderboard, fetchLevelLeaderboards } from '../../../services/leaderboardService.js';
 import { fetchHeroes, unlockHero } from '../../../services/heroService.js';
+
+// Imports des composants enfants (inchangés)
 import MainMenuHeroPanel from './MainMenuHeroPanel.vue';
 import MainMenuAchievementsSummary from './MainMenuAchievementsSummary.vue';
 import MainMenuChapters from './MainMenuChapters.vue';
 import MainMenuLeaderboard from './MainMenuLeaderboard.vue';
+import MainMenuLevels from './MainMenuLevels.vue';
+import HeroAvatarCanvas from '../HeroAvatarCanvas.vue';
 
 const modalStore = useModalStore();
 const visible = computed(() => modalStore.state.mainMenu.visible);
 const callbacks = computed(() => modalStore.state.mainMenu.callbacks || {});
 
+// State
+const currentView = ref('home');
+const selectedChapter = ref(null);
+const loading = ref(false);
 const heroStats = ref(null);
 const heroPoints = ref(0);
+const heroName = ref('Héros');
 const playerName = ref('');
 const achievementsSummary = ref(null);
 const achievements = ref([]);
 const bestRunsMap = ref(new Map());
 const chapters = ref([]);
 const leaderboard = ref([]);
-
-const loading = ref(false);
 const achievementsLoading = ref(false);
 const chaptersLoading = ref(false);
 const leaderboardLoading = ref(false);
+const levelRecords = ref(new Map()); // Map<levelId, { username, lives_lost, completion_time_ms }>
+
+// Logic (Data fetching)
+const refreshData = async () => {
+  loading.value = true;
+  try {
+    resetCachedChapters();
+    if (isAuthenticated()) {
+      await Promise.all([loadProfile(), loadAchievements(), loadLeaderboard()]);
+    }
+    await loadChapters();
+  } finally {
+    loading.value = false;
+  }
+};
 
 const loadProfile = async () => {
   await ensureProfileLoaded();
@@ -108,335 +174,591 @@ const loadProfile = async () => {
   heroStats.value = getHeroStats();
   heroPoints.value = getHeroPointsAvailable();
   playerName.value = profile?.player?.username || 'Invité';
+  
+  // Charger le nom du héros
+  if (heroStats.value?.hero_id) {
+    try {
+      const heroId = heroStats.value.hero_id;
+      const response = await fetchHeroes();
+      const heroes = response?.heroes || response || [];
+      const hero = Array.isArray(heroes) ? heroes.find(h => Number(h.id) === Number(heroId) || Number(h.hero_id) === Number(heroId)) : null;
+      heroName.value = hero ? hero.name : `Héros ${heroId}`;
+    } catch (error) {
+      console.error('Erreur récupération nom héros:', error);
+      heroName.value = `Héros ${heroStats.value.hero_id || ''}`;
+    }
+  } else {
+    heroName.value = 'Héros';
+  }
 };
 
 const loadAchievements = async () => {
   achievementsLoading.value = true;
-  try {
-    const data = await fetchAchievements();
-    achievements.value = data?.achievements || data || [];
-    achievementsSummary.value = data?.summary || {
-      unlocked: achievements.value.filter((a) => a.is_unlocked).length,
-      total: achievements.value.length,
-    };
-  } finally {
-    achievementsLoading.value = false;
-  }
-};
-
-const buildChaptersPayload = (chapterData, runsMap, unlockedLevel) => {
-  const chapterVMs = buildChapterViewModels(chapterData, runsMap);
-  return chapterVMs.map((chapter) => {
-    const locks = buildLevelLocks(chapter.levels, chapter.isLocked, runsMap, unlockedLevel);
-    return {
-      ...chapter,
-      levelLocks: Array.from(locks.entries()).map(([levelId, payload]) => ({
-        levelId,
-        ...payload,
-      })),
-    };
-  });
+  const data = await fetchAchievements();
+  achievements.value = data?.achievements || data || [];
+  achievementsSummary.value = data?.summary || { unlocked: 0, total: 0 };
+  achievementsLoading.value = false;
 };
 
 const loadChapters = async () => {
   chaptersLoading.value = true;
-  try {
+  let chapterData = [];
+  let runsMap = new Map();
+  
+  if (isAuthenticated()) {
     const progress = await fetchChapterProgress().catch(() => null);
-    const runsMap = progress?.bestRunsMap || (await fetchBestRunsMap().catch(() => new Map()));
-    const chapterData =
-      progress?.chapters?.length > 0
-        ? progress.chapters
-        : await fetchChaptersWithLevels().catch(() => []);
-    const unlockedLevel = getUnlockedLevel();
-    bestRunsMap.value = runsMap || new Map();
-    chapters.value = buildChaptersPayload(chapterData, bestRunsMap.value, unlockedLevel);
-  } finally {
-    chaptersLoading.value = false;
+    chapterData = progress?.chapters || await fetchChaptersWithLevels();
+    runsMap = progress?.bestRunsMap || await fetchBestRunsMap();
+  } else {
+    chapterData = await fetchChaptersWithLevels();
   }
+  
+  const unlockedLevel = isAuthenticated() ? getUnlockedLevel() : 1;
+  bestRunsMap.value = runsMap;
+  const chapterVMs = buildChapterViewModels(chapterData, runsMap);
+  chapters.value = chapterVMs.map(c => ({
+    ...c,
+    levelLocks: Array.from(buildLevelLocks(c.levels, c.isLocked, runsMap, unlockedLevel))
+      .map(([id, p]) => ({ levelId: id, ...p }))
+  }));
+  chaptersLoading.value = false;
 };
 
 const loadLeaderboard = async () => {
   leaderboardLoading.value = true;
+  leaderboard.value = await fetchGlobalLeaderboard().catch(() => []);
+  leaderboardLoading.value = false;
+};
+
+const loadLevelRecords = async () => {
   try {
-    leaderboard.value = await fetchGlobalLeaderboard();
+    const levels = await fetchLevelLeaderboards();
+    // Créer une Map avec le meilleur record (premier de la liste) pour chaque niveau
+    const recordsMap = new Map();
+    levels.forEach(level => {
+      if (level.entries && level.entries.length > 0) {
+        // Le premier entry est le meilleur record
+        const bestRecord = level.entries[0];
+        recordsMap.set(level.levelId, {
+          username: bestRecord.username,
+          lives_lost: bestRecord.lives_lost,
+          completion_time_ms: bestRecord.completion_time_ms,
+        });
+      }
+    });
+    levelRecords.value = recordsMap;
   } catch (error) {
-    console.error('Erreur leaderboard', error);
-    leaderboard.value = [];
-  } finally {
-    leaderboardLoading.value = false;
+    console.error("Erreur chargement records niveaux:", error);
+    levelRecords.value = new Map();
   }
 };
 
-const refreshData = async () => {
-  if (!isAuthenticated()) {
-    showAuth();
-    return;
-  }
-  loading.value = true;
-  try {
-    resetCachedChapters();
-    await Promise.all([loadProfile(), loadAchievements(), loadChapters(), loadLeaderboard()]);
-  } finally {
-    loading.value = false;
-  }
-};
+// Navigation
+const goHome = () => { currentView.value = 'home'; selectedChapter.value = null; };
+const showChapters = () => { currentView.value = 'chapters'; selectedChapter.value = null; };
+const showLevels = (chapter) => { selectedChapter.value = chapter; currentView.value = 'levels'; };
 
 const startLevel = (payload) => {
-  if (!isAuthenticated()) {
-    showAuth();
-    return;
-  }
-  if (callbacks.value.onStartLevel) {
-    callbacks.value.onStartLevel(payload);
-  }
+  if (!isAuthenticated()) return showAuth();
+  callbacks.value.onStartLevel?.(payload);
 };
 
-const openHeroUpgrade = () => {
-  if (callbacks.value.onShowHeroUpgrade) {
-    callbacks.value.onShowHeroUpgrade();
-    return;
-  }
-  modalStore.showHeroUpgrade({});
-};
+// Helpers
+const getBestRun = (id) => bestRunsMap.value instanceof Map ? bestRunsMap.value.get(id) : bestRunsMap.value[id];
+const isLevelLocked = (chap, id) => chap?.levelLocks?.find(l => l.levelId === id)?.isLocked ?? true;
 
+const openHeroUpgrade = () => callbacks.value.onShowHeroUpgrade ? callbacks.value.onShowHeroUpgrade() : modalStore.showHeroUpgrade({});
 const openHeroSelection = async () => {
-  if (callbacks.value.onShowHeroSelection) {
-    callbacks.value.onShowHeroSelection();
-    return;
-  }
-  try {
-    const heroesData = await fetchHeroes();
-    const heroes = heroesData?.heroes || heroesData || [];
-    const selectedHeroId =
-      heroesData?.selectedHeroId || heroStats.value?.hero_id || heroes.find((h) => h.is_selected)?.id;
-
-    modalStore.showHeroSelection({
-      heroes,
-      selectedHeroId,
-      heroPointsAvailable: heroPoints.value,
-      onSelect: async (heroId) => {
-        await setSelectedHeroId(heroId);
-        await ensureProfileLoaded();
-        heroStats.value = getHeroStats();
-        heroPoints.value = getHeroPointsAvailable();
-      },
-      onUnlock: async (heroId) => {
-        await unlockHero(heroId);
-        await ensureProfileLoaded();
-        heroPoints.value = getHeroPointsAvailable();
-      },
-    });
-  } catch (error) {
-    console.error('Erreur chargement héros', error);
-    showAuth();
-  }
-};
-
-const openAchievements = () => {
-  modalStore.showAchievements({
-    achievements: achievements.value,
-    summary: achievementsSummary.value,
-    onClose: () => {},
+  const h = await fetchHeroes();
+  modalStore.showHeroSelection({
+    heroes: h?.heroes || h,
+    selectedHeroId: heroStats.value?.hero_id,
+    heroPointsAvailable: heroPoints.value,
+    onSelect: async (id) => { await setSelectedHeroId(id); await loadProfile(); }
   });
 };
+const openAchievements = () => modalStore.showAchievements({ achievements: achievements.value, summary: achievementsSummary.value });
+const handleLogout = () => callbacks.value.onLogout ? callbacks.value.onLogout() : showAuth();
 
-const handleLogout = () => {
-  if (callbacks.value.onLogout) {
-    callbacks.value.onLogout();
-  } else {
-    showAuth();
-  }
+// Lifecycle
+const hydrate = () => { 
+  if (visible.value) { 
+    currentView.value = 'home'; 
+    refreshData();
+    loadLevelRecords();
+  } 
 };
 
-const hydrate = async () => {
-  if (!visible.value) return;
-  await refreshData();
-};
+let profileHandler = null;
+let colorHandler = null;
+let upgradeHandler = null;
 
-onMounted(() => {
-  if (visible.value) {
-    hydrate();
-  }
-  window.addEventListener('hero:upgrade-complete', hydrate);
-  window.addEventListener('profile:updated', hydrate);
+onMounted(() => { 
+  hydrate(); 
+  profileHandler = () => hydrate();
+  colorHandler = () => loadProfile();
+  upgradeHandler = () => loadProfile(); // Rafraîchir les stats après une amélioration
+  window.addEventListener('profile:updated', profileHandler);
+  window.addEventListener('hero:color-changed', colorHandler);
+  window.addEventListener('hero:upgrade-complete', upgradeHandler);
 });
-
 onBeforeUnmount(() => {
-  window.removeEventListener('hero:upgrade-complete', hydrate);
-  window.removeEventListener('profile:updated', hydrate);
+  if (profileHandler) window.removeEventListener('profile:updated', profileHandler);
+  if (colorHandler) window.removeEventListener('hero:color-changed', colorHandler);
+  if (upgradeHandler) window.removeEventListener('hero:upgrade-complete', upgradeHandler);
 });
-
-watch(visible, (isVisible) => {
-  if (isVisible) {
-    hydrate();
-  }
-});
+watch(visible, (val) => val && hydrate());
 </script>
 
 <style scoped>
-.main-menu-overlay {
+/* HUD BASE */
+.hud-overlay {
   position: fixed;
   inset: 0;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  pointer-events: none;
   z-index: 12000;
   color: #e5ecf5;
-  font-family: "Inter", "Orbitron", "Segoe UI", sans-serif;
-}
-
-.main-menu__backdrop {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 30% 30%, rgba(0, 242, 255, 0.08), transparent 35%),
-    radial-gradient(circle at 80% 10%, rgba(86, 158, 255, 0.08), transparent 30%),
-    rgba(3, 6, 12, 0.78);
-  backdrop-filter: blur(12px);
+  font-family: "Orbitron", sans-serif;
+  overflow-y: auto;
+  overflow-x: hidden;
   pointer-events: auto;
 }
 
-.main-menu__content {
-  position: relative;
-  width: min(1400px, 96vw);
-  margin: auto;
-  padding: 28px;
-  pointer-events: auto;
-}
-
-.main-menu__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.main-menu__eyebrow {
-  letter-spacing: 0.08em;
-  color: #6ddcff;
-  text-transform: uppercase;
-  font-size: 12px;
-  margin: 0 0 4px;
-}
-
-.main-menu__title {
-  margin: 0;
-  font-size: clamp(32px, 4vw, 46px);
-  letter-spacing: 0.06em;
-  color: #f3f8ff;
-  text-shadow: 0 0 24px rgba(0, 242, 255, 0.35);
-}
-
-.main-menu__subtitle {
-  margin: 6px 0 0;
-  color: #9db4c7;
-  font-size: 14px;
-}
-
-.main-menu__header-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.main-menu__grid {
-  display: grid;
-  grid-template-columns: 320px 1fr 320px;
-  gap: 16px;
-}
-
-.main-menu__panel {
-  background: linear-gradient(160deg, rgba(10, 18, 32, 0.9), rgba(5, 8, 16, 0.9));
-  border: 1px solid rgba(0, 242, 255, 0.12);
-  border-radius: 18px;
-  box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 0 0 1px rgba(255, 255, 255, 0.02);
-  padding: 18px;
-  position: relative;
-}
-
-.main-menu__panel::after {
-  content: "";
+.hud-background {
   position: absolute;
   inset: 0;
-  border-radius: 18px;
-  padding: 1px;
-  background: linear-gradient(120deg, rgba(0, 242, 255, 0.18), transparent 45%, rgba(109, 220, 255, 0.08));
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.3) 100%),
+              url('../../../images/background.jpg') center/cover no-repeat;
+  z-index: -1;
   pointer-events: none;
+  opacity: 0.3;
 }
 
-.panel-margin {
-  margin-top: 12px;
+.hud-container {
+  min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  max-width: 1800px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  box-sizing: border-box;
 }
 
-.ghost-btn {
-  border: 1px solid rgba(0, 242, 255, 0.4);
-  background: rgba(0, 242, 255, 0.08);
-  color: #dff7ff;
-  padding: 10px 12px;
-  border-radius: 10px;
+/* HEADER */
+.hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(0, 242, 255, 0.2);
+  padding-bottom: 15px;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.game-title {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  margin: 0;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(0, 242, 255, 0.6);
+  line-height: 1.2;
+}
+
+.eyebrow {
+  color: #00f2ff;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* MAIN GRID */
+.hud-main-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+/* COLUMNS */
+.hud-column-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 0 0 28%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.hud-column-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.hud-column-right {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 28%;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* HUD ELEMENTS (No bg, just border/glow) */
+.hud-element {
+  background: transparent;
+  border-left: 2px solid rgba(0, 242, 255, 0.2);
+  padding: 15px;
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.hero-section {
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.hero-avatar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.avatar-frame-main {
+  width: 50px;
+  height: 70px;
+  border: 2px solid rgba(0, 242, 255, 0.4);
+  border-radius: 8px;
+  padding: 2px;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 0 12px rgba(0, 242, 255, 0.2);
+}
+
+.achievements-section {
+  flex: 0 1 auto;
+  margin-top: 15px;
+}
+
+.leaderboard-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.leaderboard-section > :deep(.hud-leaderboard) {
+  flex: 1;
+  min-height: 0;
+}
+
+.section-label {
+  font-size: 12px;
+  color: #00f2ff;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+/* DEPLOY BUTTON - CENTRAL PIECE */
+.deploy-wrapper {
+  position: relative;
+  padding: 30px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.deploy-main-btn {
+  background: transparent;
+  border: 2px solid #00f2ff;
+  padding: 40px 50px;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  box-shadow: 0 0 30px rgba(0, 242, 255, 0.1), inset 0 0 20px rgba(0, 242, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+  pointer-events: auto;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.deploy-main-btn:hover {
+  background: rgba(0, 242, 255, 0.1);
+  box-shadow: 0 0 50px rgba(0, 242, 255, 0.4);
+  transform: scale(1.05);
+  border-color: #00f2ff;
+}
+
+.deploy-main-btn:active {
+  transform: scale(1.02);
+}
+
+.deploy-icon { font-size: 48px; margin-bottom: 8px; }
+.deploy-text { font-size: 24px; font-weight: 800; letter-spacing: 6px; }
+.deploy-sub { font-size: 11px; opacity: 0.6; margin-top: 8px; }
+
+/* SCANNER EFFECT */
+.scanner-effect {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 2px;
+  background: #00f2ff;
+  box-shadow: 0 0 15px #00f2ff;
+  animation: scan 3s infinite linear;
+}
+
+@keyframes scan {
+  0% { top: 10%; opacity: 0; }
+  50% { opacity: 1; }
+  100% { top: 90%; opacity: 0; }
+}
+
+/* BUTTONS */
+.hud-btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  color: #00f2ff;
+  padding: 8px 16px;
   cursor: pointer;
   font-weight: 600;
-  letter-spacing: 0.01em;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  white-space: nowrap;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
 }
 
-.ghost-btn:hover {
-  border-color: rgba(0, 242, 255, 0.8);
-  background: rgba(0, 242, 255, 0.16);
+.hud-btn-secondary:hover {
+  background: rgba(0, 242, 255, 0.2);
+  border-color: rgba(0, 242, 255, 0.6);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 242, 255, 0.3);
 }
 
-.ghost-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.hud-btn-secondary:active {
+  transform: translateY(0);
 }
 
-@media (max-width: 1260px) {
-  .main-menu__grid {
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      "hero leaderboard"
-      "chapters chapters";
-  }
+.hud-btn-danger {
+  background: rgba(255, 60, 60, 0.1);
+  border: 1px solid #ff3c3c;
+  color: #ff3c3c;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
 
-  .hero-panel {
-    grid-area: hero;
-  }
+.hud-btn-danger:hover {
+  background: rgba(255, 60, 60, 0.2);
+  border-color: #ff6b6b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 60, 60, 0.3);
+}
 
-  .leaderboard-panel {
-    grid-area: leaderboard;
-  }
+.hud-btn-danger:active {
+  transform: translateY(0);
+}
 
-  .chapters-panel {
-    grid-area: chapters;
+/* NAV VIEWS */
+.hud-navigation-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-header {
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(0, 242, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.nav-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 20px;
+}
+
+
+/* RESPONSIVE */
+@media (max-width: 1400px) {
+  .hud-container {
+    padding: 15px;
+  }
+  
+  .game-title {
+    font-size: 28px;
+    letter-spacing: 2px;
+  }
+  
+  .hud-main-grid {
+    gap: 15px;
+  }
+  
+  .hud-column-left {
+    flex: 0 0 26%;
+  }
+  
+  .hud-column-center {
+    flex: 0 0 48%;
+  }
+  
+  .hud-column-right {
+    flex: 0 0 26%;
+  }
+  
+  .deploy-icon { font-size: 40px; }
+  .deploy-text { font-size: 20px; letter-spacing: 4px; }
+}
+
+@media (max-width: 1200px) {
+  .hud-main-grid {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .hud-column-left,
+  .hud-column-center,
+  .hud-column-right {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+  
+  .hud-column-center {
+    order: -1;
+  }
+  
+  .deploy-wrapper {
+    padding: 20px;
+  }
+  
+  .deploy-main-btn {
+    padding: 30px 40px;
+  }
+  
+  .hud-column-left {
+    flex-direction: row;
+    gap: 15px;
+  }
+  
+  .hero-section,
+  .achievements-section {
+    flex: 1;
+    margin-top: 0;
   }
 }
 
-@media (max-width: 980px) {
-  .main-menu__grid {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "hero"
-      "leaderboard"
-      "chapters";
+@media (max-height: 800px) {
+  .hud-container {
+    padding: 15px;
   }
+  
+  .hud-header {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .game-title {
+    font-size: 24px;
+  }
+  
+  .header-actions {
+    gap: 6px;
+  }
+  
+  .hud-main-grid {
+    gap: 15px;
+  }
+  
+  .hud-element {
+    padding: 12px;
+  }
+  
+  .deploy-wrapper {
+    padding: 15px;
+  }
+  
+  .deploy-main-btn {
+    padding: 25px 35px;
+  }
+  
+  .deploy-icon { font-size: 36px; }
+  .deploy-text { font-size: 18px; letter-spacing: 3px; }
+}
 
-  .main-menu__header {
+@media (max-width: 768px) {
+  .hud-container {
+    padding: 10px;
+  }
+  
+  .hud-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 10px;
   }
-
-  .main-menu__header-actions {
+  
+  .header-actions {
     width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .game-title {
+    font-size: 20px;
+  }
+  
+  .hud-btn-secondary,
+  .hud-btn-danger {
+    padding: 6px 12px;
+    font-size: 11px;
   }
 }
 </style>

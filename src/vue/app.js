@@ -17,6 +17,7 @@ import AchievementsPage from './components/AchievementsPage.vue';
 import HeroUpgradePanel from './components/HeroUpgradePanel.vue';
 import AuthOverlay from './components/AuthOverlay.vue';
 import MainMenuLayout from './components/MainMenu/MainMenuLayout.vue';
+import PlayerProfileModal from './components/PlayerProfileModal.vue';
 
 // Créer l'app Vue avec render function au lieu de template string
 const app = createApp({
@@ -27,6 +28,7 @@ const app = createApp({
     HeroUpgradePanel,
     AuthOverlay,
     MainMenuLayout,
+    PlayerProfileModal,
   },
   setup() {
     const modalStore = useModalStore();
@@ -40,6 +42,7 @@ const app = createApp({
     const showAchievements = computed(() => modalStore.state.showAchievements);
     const showHeroUpgrade = computed(() => modalStore.state.showHeroUpgrade);
     const showMainMenu = computed(() => modalStore.state.mainMenu.visible);
+    const playerProfile = computed(() => modalStore.state.playerProfile);
     
     return () => h('div', { id: 'vue-app' }, [
       h(AuthOverlay),
@@ -48,6 +51,11 @@ const app = createApp({
       showHeroSelection.value ? h(HeroSelectionModal) : null,
       showAchievements.value ? h(AchievementsPage) : null,
       showHeroUpgrade.value ? h(HeroUpgradePanel, { onClose: () => modalStore.hideHeroUpgrade() }) : null,
+      playerProfile.value.visible ? h(PlayerProfileModal, { 
+        visible: true,
+        username: playerProfile.value.username,
+        onClose: () => modalStore.hidePlayerProfile()
+      }) : null,
     ]);
   },
 });

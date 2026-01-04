@@ -32,6 +32,7 @@ async function getGlobalLeaderboard() {
             p.username,
             (20 - COALESCE(lc.lives_remaining, 20)) AS lives_lost,
             lc.completion_time_ms,
+            lc.created_at,
             ROW_NUMBER() OVER (
               PARTITION BY lc.level_id, lc.player_id 
               ORDER BY (20 - COALESCE(lc.lives_remaining, 20)), lc.completion_time_ms, lc.created_at
@@ -45,21 +46,34 @@ async function getGlobalLeaderboard() {
             username,
             level_id,
             lives_lost,
-            completion_time_ms
+            completion_time_ms,
+            created_at
           FROM ranked_runs
           WHERE player_rank = 1
+        ),
+        player_stats AS (
+          SELECT 
+            player_id,
+            username,
+            COUNT(DISTINCT level_id) AS levels_completed,
+            COALESCE(SUM(lives_lost), 0) AS total_lives_lost,
+            COALESCE(SUM(completion_time_ms), 0) AS total_time_ms,
+            MAX(created_at) AS last_level_completed_at
+          FROM best_per_level
+          GROUP BY player_id, username
         )
         SELECT 
           username,
-          MAX(level_id) AS max_level,
-          COALESCE(SUM(lives_lost), 0) AS total_lives_lost,
-          COALESCE(SUM(completion_time_ms), 0) AS total_time_ms
-        FROM best_per_level
-        GROUP BY player_id, username
+          levels_completed AS max_level,
+          total_lives_lost,
+          total_time_ms,
+          last_level_completed_at
+        FROM player_stats
         ORDER BY 
-          MAX(level_id) DESC,
-          COALESCE(SUM(lives_lost), 0) ASC,
-          COALESCE(SUM(completion_time_ms), 0) ASC
+          levels_completed DESC,
+          total_lives_lost ASC,
+          total_time_ms ASC,
+          last_level_completed_at ASC
         LIMIT 10`
     );
 
