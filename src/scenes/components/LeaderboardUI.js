@@ -325,7 +325,7 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
       return [
         { key: "rank", label: "RG", x: 20 },
         { key: "player", label: "PILOTE", x: 120 },
-        { key: "hearts", label: "VIES PERDUES", x: 280 },
+        { key: "hearts", label: "❤️ COEURS PERDUS", x: 280 },
         { key: "time", label: "TEMPS", x: width - 110, align: "right" },
         { key: "date", label: "DATE", x: width - 20, align: "right" },
       ];
@@ -343,9 +343,9 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     return [
       { key: "rank", label: "RG", x: 20 },
       { key: "player", label: "JOUEUR", x: 75 },
-      { key: "lvl", label: "NIV. MAX", x: 200 },
-      { key: "hearts", label: "COEURS PERDUS", x: 320 },
-      { key: "time", label: "TEMPS TOTAL", x: width - 20, align: "right" },
+      { key: "lvl", label: "🎯 NIV. MAX", x: 200 },
+      { key: "hearts", label: "❤️ COEURS PERDUS", x: 320 },
+      { key: "time", label: "⏱️ TEMPS TOTAL", x: width - 20, align: "right" },
     ];
   }
 
