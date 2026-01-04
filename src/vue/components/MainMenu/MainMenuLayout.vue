@@ -13,6 +13,9 @@
         </div>
 
         <div class="header-actions">
+          <button class="hud-btn-secondary" @click="openHelp" title="Ouvrir le guide tactique">
+            <span class="icon">❓</span> AIDE
+          </button>
           <button class="hud-btn-secondary" @click="refreshData" :disabled="loading" title="Actualiser toutes les données">
             <span class="icon">↻</span> ACTUALISER
           </button>
@@ -60,7 +63,7 @@
             <button class="deploy-main-btn" @click="showChapters" title="Sélectionner un chapitre et commencer une mission">
               <span class="deploy-icon">🚀</span>
               <span class="deploy-text">DÉPLOYER</span>
-              <span class="deploy-sub">Secteur Tactique</span>
+              <span class="deploy-sub">Aller au combat !</span>
             </button>
           </div>
         </section>
@@ -77,12 +80,12 @@
         <nav class="nav-header">
           <button 
             class="hud-btn-secondary" 
-            @click="currentView === 'levels' ? showChapters() : goHome()"
-            :title="currentView === 'levels' ? 'Retour à la sélection des chapitres' : 'Retour au menu principal'"
+            @click="handleBackNavigation"
+            :title="getBackButtonTitle()"
           >
             ← RETOUR
           </button>
-          <h2 class="view-title">{{ currentView === 'chapters' ? 'SÉLECTION DU CHAPITRE' : selectedChapter?.name }}</h2>
+          <h2 class="view-title">{{ getViewTitle() }}</h2>
         </nav>
 
         <div class="nav-content">
@@ -101,6 +104,10 @@
             :level-locks="selectedChapter.levelLocks || []"
             :level-records="levelRecords"
             @select-level="startLevel"
+          />
+
+          <HelpPage
+            v-else-if="currentView === 'help'"
           />
         </div>
       </div>
@@ -131,6 +138,7 @@ import MainMenuChapters from './MainMenuChapters.vue';
 import MainMenuLeaderboard from './MainMenuLeaderboard.vue';
 import MainMenuLevels from './MainMenuLevels.vue';
 import HeroAvatarCanvas from '../HeroAvatarCanvas.vue';
+import HelpPage from '../HelpPage.vue';
 
 const modalStore = useModalStore();
 const visible = computed(() => modalStore.state.mainMenu.visible);
@@ -257,6 +265,29 @@ const loadLevelRecords = async () => {
 const goHome = () => { currentView.value = 'home'; selectedChapter.value = null; };
 const showChapters = () => { currentView.value = 'chapters'; selectedChapter.value = null; };
 const showLevels = (chapter) => { selectedChapter.value = chapter; currentView.value = 'levels'; };
+const showHelp = () => { currentView.value = 'help'; };
+
+const handleBackNavigation = () => {
+  if (currentView.value === 'levels') {
+    showChapters();
+  } else if (currentView.value === 'help') {
+    goHome();
+  } else {
+    goHome();
+  }
+};
+
+const getBackButtonTitle = () => {
+  if (currentView.value === 'levels') return 'Retour à la sélection des chapitres';
+  if (currentView.value === 'help') return 'Retour au menu principal';
+  return 'Retour au menu principal';
+};
+
+const getViewTitle = () => {
+  if (currentView.value === 'chapters') return 'SÉLECTION DU CHAPITRE';
+  if (currentView.value === 'help') return 'GUIDE TACTIQUE';
+  return selectedChapter.value?.name || '';
+};
 
 const startLevel = (payload) => {
   if (!isAuthenticated()) return showAuth();
@@ -274,10 +305,30 @@ const openHeroSelection = async () => {
     heroes: h?.heroes || h,
     selectedHeroId: heroStats.value?.hero_id,
     heroPointsAvailable: heroPoints.value,
-    onSelect: async (id) => { await setSelectedHeroId(id); await loadProfile(); }
+    onSelect: async (id) => { await setSelectedHeroId(id); await loadProfile(); },
+    onUnlock: async (heroId) => {
+      try {
+        const response = await unlockHero(heroId);
+        // Mettre à jour les points disponibles
+        if (response?.heroPointsAvailable !== undefined) {
+          modalStore.updateHeroPoints(response.heroPointsAvailable);
+        }
+        // Recharger la liste des héros et le profil
+        await loadProfile();
+        const updatedHeroes = await fetchHeroes();
+        modalStore.updateHeroList(updatedHeroes?.heroes || updatedHeroes, response?.heroPointsAvailable);
+        window.dispatchEvent(new CustomEvent('hero:unlocked', { detail: { heroId, response } }));
+      } catch (error) {
+        console.error('Erreur déblocage héros:', error);
+        const errorMessage = error.response?.data?.error || 'Impossible de débloquer ce héros';
+        alert(errorMessage);
+        throw error;
+      }
+    }
   });
 };
 const openAchievements = () => modalStore.showAchievements({ achievements: achievements.value, summary: achievementsSummary.value });
+const openHelp = () => { showHelp(); };
 const handleLogout = () => callbacks.value.onLogout ? callbacks.value.onLogout() : showAuth();
 
 // Lifecycle
@@ -556,6 +607,7 @@ watch(visible, (val) => val && hydrate());
   border: 1px solid rgba(0, 242, 255, 0.3);
   color: #00f2ff;
   padding: 8px 16px;
+  margin-bottom: 10px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s ease;
@@ -592,6 +644,7 @@ watch(visible, (val) => val && hydrate());
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   line-height: 1;
 }
 

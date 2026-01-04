@@ -8,6 +8,7 @@ export const ash_egg = {
   damage: 0,
   attackSpeed: 0,
   scale: 1,
+  description: "Œuf Incandescent - Bombe à retardement. Rôle : génère des renforts. POUVOIR SPÉCIAL : Éclot en 2 Scarabées des Flammes après 5 secondes. Si détruit avant éclosion, inflige 1200 dégâts à la Reine des Cendres !",
 
   isEgg: true,
   isStationary: true,

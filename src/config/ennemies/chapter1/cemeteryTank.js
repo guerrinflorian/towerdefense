@@ -8,6 +8,7 @@ export const cemeteryTank = {
     damage: 28, 
     attackSpeed: 1200, 
     scale: 0.85, // --- ÉCHELLE RÉDUITE ---
+    description: "L'ABOMINATION - Tank mort-vivant. Rôle : unité blindée sans pouvoir spécial. Très résistant avec une armure renforcée, yeux verts phosphorescents.",
   
     onDraw: (scene, container, color, enemyInstance) => {
       enemyInstance.legs = {};

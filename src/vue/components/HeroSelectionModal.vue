@@ -31,7 +31,7 @@
       <div class="modal-body">
         <div class="hero-grid">
           <div
-            v-for="hero in heroSelection.heroes"
+            v-for="hero in sortedHeroes"
             :key="hero.id"
             class="hero-item"
             :class="{ 'is-locked': !isUnlocked(hero), 'is-selected': isSelected(hero) }"
@@ -112,6 +112,30 @@
   
   const modalStore = useModalStore();
   const heroSelection = computed(() => modalStore.state.heroSelection);
+  
+  // Trier les héros : débloqués d'abord, puis verrouillés par prix croissant
+  const sortedHeroes = computed(() => {
+    if (!heroSelection.value.heroes) return [];
+    const heroes = [...heroSelection.value.heroes];
+    return heroes.sort((a, b) => {
+      const aUnlocked = isUnlocked(a);
+      const bUnlocked = isUnlocked(b);
+      
+      // Les débloqués en premier
+      if (aUnlocked && !bUnlocked) return -1;
+      if (!aUnlocked && bUnlocked) return 1;
+      
+      // Si les deux sont verrouillés, trier par prix de déblocage croissant
+      if (!aUnlocked && !bUnlocked) {
+        const priceA = a.hero_points_to_unlock || 0;
+        const priceB = b.hero_points_to_unlock || 0;
+        return priceA - priceB;
+      }
+      
+      // Si les deux sont débloqués, garder l'ordre original
+      return 0;
+    });
+  });
   
   const isUnlocked = (hero) => {
     return hero.isUnlocked !== false && hero.unlocked !== false;

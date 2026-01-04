@@ -8,6 +8,7 @@ export const runner = {
   damage: 8, // Dégâts par attaque (rapide mais faible)
   attackSpeed: 600, // Vitesse d'attaque en ms
   scale: 1,
+  description: "Éclaireur rapide. Rôle : unité de reconnaissance sans pouvoir spécial. Très rapide mais fragile, priorité moyenne à éliminer.",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.legs = {};

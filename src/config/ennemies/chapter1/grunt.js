@@ -8,6 +8,7 @@ export const grunt = {
   damage: 8, // Dégâts par attaque
   attackSpeed: 800, // Vitesse d'attaque en ms
   scale: 1,
+  description: "Soldat de base ennemi. Rôle : unité standard sans pouvoir spécial. Lent mais résistant, il avance vers votre base pour l'attaquer.",
 
   // --- DESSIN DU PERSONNAGE (Vue de profil) ---
   onDraw: (scene, container, color, enemyInstance) => {

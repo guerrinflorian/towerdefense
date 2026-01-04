@@ -8,6 +8,7 @@ export const pink_marshmallow_runner = {
   damage: 18,
   attackSpeed: 600,
   scale: 1,
+  description: "Berry Bolt - Éclaireur rose. Rôle : unité de reconnaissance sans pouvoir spécial. Très rapide et espiègle, forme de guimauve.",
 
   onDraw: (scene, container, color, enemyInstance) => {
     enemyInstance.elements = {};
