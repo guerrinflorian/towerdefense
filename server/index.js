@@ -6,6 +6,7 @@ import playerRoutes from "./routes/player.js";
 import chapterRoutes from "./routes/chapters.js";
 import runReportRoutes from "./routes/runReport.js";
 import achievementRoutes from "./routes/achievements.js";
+import profileRoutes from "./routes/profile.js";
 
 dotenv.config();
 
@@ -61,6 +62,7 @@ app.use("/api/player", playerRoutes);
 app.use("/api/chapters", chapterRoutes);
 app.use("/api/run-report", runReportRoutes);
 app.use("/api/achievements", achievementRoutes);
+app.use("/api/profile", profileRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

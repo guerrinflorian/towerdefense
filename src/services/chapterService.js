@@ -20,6 +20,7 @@ function normalizeChapter(chapter) {
     name: chapter.name,
     orderIndex: Number(chapter.order_index ?? chapter.orderIndex ?? chapter.id ?? 0),
     unlockPrevChapterHeartsMax: chapter.unlock_prev_chapter_hearts_max ?? chapter.unlockPrevChapterHeartsMax ?? null,
+    imageb64Url: chapter.imageb64_url ?? chapter.imageb64Url ?? null,
     levels,
     isLocked: chapter.is_locked ?? chapter.isLocked ?? null,
     lockReason: chapter.lock_reason ?? chapter.lockReason ?? "",
@@ -28,18 +29,31 @@ function normalizeChapter(chapter) {
 }
 
 export async function fetchChaptersWithLevels(forceReload = false) {
-  if (cachedChapters && !forceReload) return cachedChapters;
-  if (chaptersPromise && !forceReload) return chaptersPromise;
+  if (cachedChapters && !forceReload) {
+    console.log("[chapterService] Utilisation du cache pour les chapitres");
+    return cachedChapters;
+  }
+  if (chaptersPromise && !forceReload) {
+    console.log("[chapterService] Requête déjà en cours, attente...");
+    return chaptersPromise;
+  }
 
+  console.log("[chapterService] Appel de /api/chapters (public)");
   chaptersPromise = apiClient
     .get("/api/chapters")
     .then((response) => {
+      console.log("[chapterService] Réponse reçue pour /api/chapters");
       const raw = response.data?.chapters ?? response.data ?? [];
       const normalized = raw.map(normalizeChapter).filter(Boolean);
       // Tri cohérent pour l'affichage
       normalized.sort((a, b) => (a.orderIndex - b.orderIndex) || (a.id - b.id));
       cachedChapters = normalized;
+      console.log("[chapterService] Chapitres normalisés:", normalized.length);
       return normalized;
+    })
+    .catch((error) => {
+      console.error("[chapterService] Erreur lors du chargement des chapitres:", error);
+      throw error;
     })
     .finally(() => {
       chaptersPromise = null;
@@ -122,12 +136,14 @@ export function buildChapterViewModels(chapters = [], bestRunsMap = new Map()) {
       const maxHearts = chapter.unlockPrevChapterHeartsMax;
       const heartsOk = maxHearts == null ? true : hearts <= Number(maxHearts);
 
-      if (!prevCleared) {
+      if (!prevCleared || !heartsOk) {
         isLocked = true;
-        lockReason = "Termine tous les niveaux du chapitre précédent.";
-      } else if (!heartsOk) {
-        isLocked = true;
-        lockReason = `Perds au maximum ${maxHearts} cœurs sur le chapitre précédent.`;
+        // Message personnalisé avec le nombre maximum de cœurs
+        if (maxHearts != null) {
+          lockReason = `Termine tous les niveaux du chapitre précédent avec maximum ${maxHearts} ❤️ cumulés sur les niveaux`;
+        } else {
+          lockReason = "Termine tous les niveaux du chapitre précédent.";
+        }
       } else {
         isLocked = false;
       }
@@ -137,16 +153,24 @@ export function buildChapterViewModels(chapters = [], bestRunsMap = new Map()) {
 
     const levels = [...(chapter.levels || [])].sort((a, b) => (a.orderIndex - b.orderIndex) || (a.id - b.id));
 
+    // Calculer les stats
+    const calculatedStats = {
+      totalLevels: levels.length,
+      clearedLevels: levels.filter((lvl) => bestRunsMap.has(lvl.id)).length,
+      totalHeartsUsed: sumHeartsForChapter(chapter, bestRunsMap),
+    };
+    
     chapterVMs.push({
       ...chapter,
       isLocked,
       lockReason,
       levels,
       stats: {
-        totalLevels: levels.length,
-        clearedLevels: levels.filter((lvl) => bestRunsMap.has(lvl.id)).length,
-        totalHeartsUsed: sumHeartsForChapter(chapter, bestRunsMap),
+        ...calculatedStats,
         ...(chapter.stats || {}),
+        // S'assurer que les valeurs calculées ne sont pas écrasées
+        totalLevels: calculatedStats.totalLevels,
+        clearedLevels: calculatedStats.clearedLevels,
       },
     });
   });

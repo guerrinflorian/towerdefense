@@ -2,17 +2,12 @@
 import "./vue/app.js";
 
 import MainMenuSceneView from "./scenes/MainMenuScene.vue";
-import ChapterSceneView from "./scenes/ChapterScene.vue";
-import MapSceneView from "./scenes/MapScene.vue";
 import GameSceneView from "./scenes/GameScene.vue";
-import { AchievementsScene } from "./scenes/AchievementsScene.js";
 import { CONFIG } from "./config/settings.js";
 import { setupAuthOverlay } from "./services/authOverlay.js";
 import { ensureProfileLoaded } from "./services/authManager.js";
 
 const MainMenuScene = MainMenuSceneView.scene;
-const ChapterScene = ChapterSceneView.scene;
-const MapScene = MapSceneView.scene;
 const GameScene = GameSceneView.scene;
 
 function isMobileDevice() {
@@ -66,7 +61,7 @@ const config = {
     smoothFactor: 0,
   },
 
-  scene: [MainMenuScene, AchievementsScene, ChapterScene, MapScene, GameScene],
+  scene: [MainMenuScene, GameScene],
   
   physics: {
     default: "arcade",
@@ -84,7 +79,11 @@ if (isMobileBlocked) {
   let game = null;
 
   ensureProfileLoaded()
-    .catch(() => {
+    .then((profile) => {
+      // Profil chargé
+    })
+    .catch((error) => {
+      console.error("[main.js] Erreur chargement profil:", error);
       // L'overlay demandera une reconnexion si besoin
     })
     .finally(() => {
@@ -95,7 +94,6 @@ if (isMobileBlocked) {
       const sceneManager = game.scene;
       if (sceneManager && !sceneManager.isActive("MainMenuScene")) {
         sceneManager.stop("GameScene");
-        sceneManager.stop("MapScene");
         sceneManager.start("MainMenuScene");
       }
       

@@ -9,6 +9,7 @@ export async function fetchChaptersWithLevelsFromDb() {
         c.name AS chapter_name,
         c.order_index AS chapter_order_index,
         c.unlock_prev_chapter_hearts_max,
+        c.imageb64_url AS chapter_imageb64_url,
         l.id AS level_id,
         l.name AS level_name,
         l.order_index AS level_order_index
@@ -26,6 +27,7 @@ export async function fetchChaptersWithLevelsFromDb() {
         name: row.chapter_name,
         order_index: Number(row.chapter_order_index ?? chapterId),
         unlock_prev_chapter_hearts_max: row.unlock_prev_chapter_hearts_max,
+        imageb64_url: row.chapter_imageb64_url,
         levels: [],
       });
     }
@@ -112,12 +114,14 @@ function computeChapterLocks(chapters, bestRunsMap) {
       const heartsOk =
         heartsMax == null ? true : heartsUsedPrev <= Number(heartsMax);
 
-      if (!prevAllCleared) {
+      if (!prevAllCleared || !heartsOk) {
         isLocked = true;
-        lockReason = "Termine tous les niveaux du chapitre précédent.";
-      } else if (!heartsOk) {
-        isLocked = true;
-        lockReason = `Perds au maximum ${heartsMax} cœurs sur le chapitre précédent.`;
+        // Message personnalisé avec le nombre maximum de cœurs
+        if (heartsMax != null) {
+          lockReason = `Termine tous les niveaux du chapitre précédent avec maximum ${heartsMax} ❤️ cumulés sur les niveaux`;
+        } else {
+          lockReason = "Termine tous les niveaux du chapitre précédent.";
+        }
       }
     }
 

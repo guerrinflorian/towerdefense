@@ -78,8 +78,16 @@
                   </div>
                   <p class="achievement-description">{{ achievement.description }}</p>
                   <div class="achievement-progress">
-                    <span v-if="achievement.current_value != null && achievement.goal_value != null">
+                    <!-- Afficher la progression uniquement si goal_value est défini et > 0 -->
+                    <span v-if="achievement.goal_value != null && achievement.goal_value > 0">
                       {{ achievement.current_value }}/{{ achievement.goal_value }}
+                    </span>
+                    <!-- Pour les achievements booléens (goal_value = 0 ou null), afficher le statut -->
+                    <span v-else-if="achievement.is_unlocked" class="achievement-status-completed">
+                      ✓ Complété
+                    </span>
+                    <span v-else class="achievement-status-pending">
+                      En attente
                     </span>
                   </div>
                 </div>
@@ -389,6 +397,16 @@ const handleOverlayClick = () => {
   color: #00eaff;
   margin-top: 8px;
   font-weight: bold;
+}
+
+.achievement-status-completed {
+  color: #00ff88;
+  font-weight: bold;
+}
+
+.achievement-status-pending {
+  color: #7dd0ff;
+  font-style: italic;
 }
 
 .achievement-icon {
