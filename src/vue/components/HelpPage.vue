@@ -89,6 +89,9 @@
                 <p class="mechanic-text">
                   Le sort <strong>Éclair</strong> inflige 350 dégâts dans une zone et paralyse les ennemis survivants pendant 3.5 secondes.
                   Utilisez-le stratégiquement lors des vagues difficiles ! Cooldown de 100 secondes.
+                  <br />
+                  <strong>Bombardement aérien</strong> (chapitre 2+) survole la zone et bombarde tous les chemins une seule fois, infligeant 1080 dégâts.
+                  Cooldown de 300 secondes.
                 </p>
               </div>
 

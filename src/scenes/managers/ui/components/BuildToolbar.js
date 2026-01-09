@@ -1,4 +1,6 @@
 import { CONFIG } from "../../../../config/settings.js";
+import { LEVELS_CONFIG } from "../../../../config/levels/index.js";
+import { airstrike as AIRSTRIKE_SPELL } from "../../../../sorts/airstrike.js";
 import { lightning as LIGHTNING_SPELL } from "../../../../sorts/lightning.js";
 import { createTurretButtons } from "./helpers/TurretButtons.js";
 import { showToolbarTooltip } from "./helpers/ToolbarTooltip.js";
@@ -110,13 +112,32 @@ export class BuildToolbar {
     spellBg.strokeRoundedRect(0, 0, spellPanelWidth, spellPanelHeight, 12);
     this.scene.spellSection.add(spellBg);
 
-    const lightningY = spellPanelHeight / 2;
-    this.createLightningSpellButton({
-      itemSize,
-      posX: spellPanelWidth / 2,
-      posY: lightningY,
-      targetContainer: this.scene.spellSection,
-    });
+    const spellCenterY = spellPanelHeight / 2;
+    const showAirstrike = this.isChapterTwoOrLater();
+
+    if (showAirstrike) {
+      const leftX = spellPanelWidth / 2 - itemSize * 0.6;
+      const rightX = spellPanelWidth / 2 + itemSize * 0.6;
+      this.createLightningSpellButton({
+        itemSize,
+        posX: leftX,
+        posY: spellCenterY,
+        targetContainer: this.scene.spellSection,
+      });
+      this.createAirstrikeSpellButton({
+        itemSize,
+        posX: rightX,
+        posY: spellCenterY,
+        targetContainer: this.scene.spellSection,
+      });
+    } else {
+      this.createLightningSpellButton({
+        itemSize,
+        posX: spellPanelWidth / 2,
+        posY: spellCenterY,
+        targetContainer: this.scene.spellSection,
+      });
+    }
 
     this.leftColumn.add(this.scene.spellSection);
 
@@ -203,6 +224,86 @@ export class BuildToolbar {
     if (container) {
       container.add(btnContainer);
     }
+  }
+
+  createAirstrikeSpellButton({ itemSize, posX, posY, targetContainer }) {
+    const x = posX;
+    const y = posY;
+    const container = targetContainer || this.scene.spellSection;
+
+    const btnContainer = this.scene.add.container(x, y);
+    btnContainer.setDepth(151);
+
+    const btnBg = this.scene.add.rectangle(
+      0,
+      0,
+      itemSize,
+      itemSize,
+      0x333333,
+      0.9
+    );
+    btnBg.setStrokeStyle(3, 0x666666);
+    btnBg.setInteractive({ useHandCursor: true });
+
+    const airstrikeIcon = this.scene.add.graphics();
+    this.spellManager.drawAirstrikeIcon(airstrikeIcon, 0, 0, itemSize * 0.6);
+    airstrikeIcon.setScale(this.scene.scaleFactor);
+
+    const cooldownMask = this.scene.add.graphics();
+    cooldownMask.setDepth(152);
+    cooldownMask.setVisible(false);
+
+    const cooldownText = this.scene.add
+      .text(0, itemSize / 2 + 12 * this.scene.scaleFactor, "", {
+        fontSize: `${Math.max(10, 12 * this.scene.scaleFactor)}px`,
+        fill: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    btnContainer.add([btnBg, airstrikeIcon, cooldownMask, cooldownText]);
+
+    btnBg.on("pointerover", () => {
+      if (AIRSTRIKE_SPELL.description) {
+        this.showToolbarTooltip(btnContainer, AIRSTRIKE_SPELL.description, btnBg);
+      }
+    });
+
+    btnBg.on("pointerout", () => {
+      if (this.toolbarTooltip) {
+        this.toolbarTooltip.destroy();
+        this.toolbarTooltip = null;
+      }
+    });
+
+    btnBg.on("pointerdown", () => {
+      if (this.toolbarTooltip) {
+        this.toolbarTooltip.destroy();
+        this.toolbarTooltip = null;
+      }
+
+      if (this.spellManager.airstrikeCooldown <= 0) {
+        this.spellManager.startAirstrike();
+      }
+    });
+
+    this.spellManager.attachAirstrikeButton({
+      container: btnContainer,
+      bg: btnBg,
+      icon: airstrikeIcon,
+      cooldownMask: cooldownMask,
+      cooldownText: cooldownText,
+    });
+
+    if (container) {
+      container.add(btnContainer);
+    }
+  }
+
+  isChapterTwoOrLater() {
+    const levelId = Number(this.scene?.levelID);
+    const level = LEVELS_CONFIG.find((lvl) => lvl.id === levelId);
+    return (level?.chapterId || 1) >= 2;
   }
 
   drawTurretPreview(container, config) {
