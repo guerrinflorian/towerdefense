@@ -507,6 +507,10 @@ export class GameScene extends Phaser.Scene {
     this.isTimerRunning = true;
   }
 
+  stopSessionTimer() {
+    this.isTimerRunning = false;
+  }
+
   monitorWaveEnd() {
     this.waveManager.monitorWaveEnd();
   }
@@ -522,7 +526,7 @@ export class GameScene extends Phaser.Scene {
       await this.showGameOverNotification();
       return;
     }
-    
+    this.stopSessionTimer();
     this.showTransmissionOverlay("VICTOIRE");
     this.pendingNaturalRunResult = "WIN";
     this.pendingNaturalReason = "level_complete";
