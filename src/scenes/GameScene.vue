@@ -885,13 +885,14 @@ export class GameScene extends Phaser.Scene {
       // Sauvegarder la valeur originale de la case avant de la modifier
       const originalTileType = this.levelConfig.map[tileY][tileX];
       
+      const unitScale = this.unitScale || this.scaleFactor || 1;
       if (isBarracks) {
         const b = new Barracks(this, px, py, turretConfig);
         b.tileX = tileX;
         b.tileY = tileY;
         b.originalTileType = originalTileType;
         b.setDepth(20);
-        b.setScale(this.scaleFactor);
+        b.setScale(unitScale);
         this.barracks.push(b);
         b.deploySoldiers();
         this.runTracker.onTowerBuild({ key: turretConfig.key, level: 1 });
@@ -901,7 +902,7 @@ export class GameScene extends Phaser.Scene {
         t.tileY = tileY;
         t.originalTileType = originalTileType;
         t.setDepth(20);
-        t.setScale(this.scaleFactor);
+        t.setScale(unitScale);
         this.turrets.push(t);
         this.runTracker.onTowerBuild({ key: turretConfig.key, level: 1 });
       }

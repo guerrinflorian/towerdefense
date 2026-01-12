@@ -173,13 +173,14 @@ export const cannon = {
   onFire: (scene, turret, target) => {
     if (!scene || !turret || !target || !target.active) return;
     const level = turret.level || 1;
+    const scale = scene.scaleFactor || 1;
 
     if (level < 3) {
       // --- LOGIQUE NIV 1 & 2 : OBUS EN CLOCHE (INCHANGÉ) ---
       const spread = 5;
       const impactX = target.x + (Math.random() - 0.5) * spread;
       const impactY = target.y + (Math.random() - 0.5) * spread;
-      const blastRadius = turret.config.aoe;
+      const blastRadius = turret.config.aoe * scale;
       const damageAmount = turret.config.damage;
 
       const muzzle = scene.add.circle(turret.x, turret.y, 10, 0xffaa00, 0.8);
@@ -239,7 +240,7 @@ export const cannon = {
       });
     } else {
       // --- LOGIQUE NIV 3 : MISSILE CINÉMATIQUE ---
-      launchRealisticMissile(scene, turret, target);
+      launchRealisticMissile(scene, turret, target, scale);
     }
   },
 };
@@ -247,9 +248,9 @@ export const cannon = {
 // ============================================================
 // NOUVEAU SYSTÈME DE MISSILE (PLUS FLUIDE ET RÉALISTE)
 // ============================================================
-function launchRealisticMissile(scene, turret, target) {
+function launchRealisticMissile(scene, turret, target, scale = 1) {
   const damageAmount = turret.config.damage * 2.5;
-  const blastRadius = turret.config.aoe * 1.8;
+  const blastRadius = turret.config.aoe * 1.8 * scale;
   const flightDuration = 2500; // 3 secondes
 
   // 1. Design du Missile (Plus détaillé)

@@ -113,8 +113,8 @@ export class Hero extends Phaser.GameObjects.Container {
   // Drawing
   // -----------------------------
   drawBody() {
-    const s = this.scene.scaleFactor || 1;
-    const k = this.baseScale;
+    const s = 1;
+    const k = 1;
     this.bodyGroup.removeAll(true);
 
     const g = this.scene.add.graphics();
@@ -126,8 +126,8 @@ export class Hero extends Phaser.GameObjects.Container {
   }
 
   drawSword() {
-    const s = this.scene.scaleFactor || 1;
-    const k = this.baseScale;
+    const s = 1;
+    const k = 1;
 
     this.swordGroup.removeAll(true);
     
@@ -161,8 +161,8 @@ export class Hero extends Phaser.GameObjects.Container {
   }
 
   drawHealthBar() {
-    const s = this.scene.scaleFactor || 1;
-    const k = this.baseScale;
+    const s = 1;
+    const k = 1;
 
     const pct = Phaser.Math.Clamp(this.hp / this.maxHp, 0, 1);
     const width = 56 * s * k;
