@@ -55,7 +55,7 @@ export function createTurretButtons(
 
     const previewContainer = scene.add.container(0, 0);
     buildToolbar.drawTurretPreview(previewContainer, item.config);
-    previewContainer.setScale(0.5 * scene.scaleFactor);
+    previewContainer.setScale(0.38 * scene.scaleFactor);
 
     const countText = scene.add
       .text(0, itemSize / 2 + 12 * scene.scaleFactor, "", {
