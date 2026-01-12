@@ -212,12 +212,13 @@ export class GameScene extends Phaser.Scene {
         150
       );
       const bottomBarHeight = Phaser.Math.Clamp(
-        this.gameHeight * 0.16,
-        110,
-        170
+        this.gameHeight * 0.18,
+        120,
+        180
       );
 
-      const usableHeight = this.gameHeight - padding * 2 - topBarHeight - bottomBarHeight;
+      const usableHeight =
+        this.gameHeight - padding * 2 - topBarHeight - bottomBarHeight;
       const usableWidth = this.gameWidth - padding * 2;
 
       const scaleByHeight = usableHeight / mapSize;
@@ -236,22 +237,23 @@ export class GameScene extends Phaser.Scene {
       this.mapPixelSize = mapSize * this.scaleFactor;
 
       this.mapOffsetX = padding + (usableWidth - this.mapPixelSize) / 2;
-      this.mapOffsetY = padding + topBarHeight + (usableHeight - this.mapPixelSize) / 2;
+      this.mapOffsetY =
+        padding + topBarHeight + (usableHeight - this.mapPixelSize) / 2;
 
       this.mapStartX = this.mapOffsetX;
       this.mapStartY = this.mapOffsetY;
 
-      // Barre de construction en haut
+      // Informations de partie en haut (HUD)
+      this.hudOffsetX = padding;
+      this.hudWidth = this.gameWidth - padding * 2;
+      this.hudHeight = topBarHeight;
+      this.hudOffsetY = padding;
+
+      // Barre de construction en bas
       this.toolbarOffsetX = padding;
       this.toolbarWidth = this.gameWidth - padding * 2;
-      this.toolbarHeight = topBarHeight;
-      this.toolbarOffsetY = padding;
-
-      // HUD en bas
-      this.hudOffsetX = padding;
-      this.hudWidth = this.toolbarWidth;
-      this.hudHeight = bottomBarHeight;
-      this.hudOffsetY = this.gameHeight - bottomBarHeight - padding;
+      this.toolbarHeight = bottomBarHeight;
+      this.toolbarOffsetY = this.gameHeight - bottomBarHeight - padding;
 
       this.leftToolbarBounds = {
         x: this.toolbarOffsetX,
@@ -337,6 +339,13 @@ export class GameScene extends Phaser.Scene {
         height: this.toolbarHeight,
       };
     }
+
+    this.unitScale = Phaser.Math.Clamp(
+      this.scaleFactor * (this.isPortrait ? 0.78 : 0.95),
+      0.45,
+      1.05
+    );
+    this.collisionScale = Phaser.Math.Clamp(this.scaleFactor, 0.45, 1.2);
   }
 
   // Gérer le redimensionnement

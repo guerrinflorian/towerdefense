@@ -212,10 +212,12 @@ export class HUD {
     if (!this.topBar || !this.bgBar) return;
 
     const s = this.scene.scaleFactor;
+    const isPortrait = this.scene.isPortrait;
     // Utiliser la largeur spécifique de la zone HUD (droite en paysage, bas en portrait)
-    const columnWidth = this.scene.rightToolbarWidth || this.scene.hudWidth || this.scene.toolbarWidth;
+    const columnWidth =
+      this.scene.rightToolbarWidth || this.scene.hudWidth || this.scene.toolbarWidth;
     const columnHeight = this.scene.hudHeight || this.scene.toolbarHeight;
-    const padding = 18 * s;
+    const padding = (isPortrait ? 12 : 18) * s;
     const startX = this.scene.rightToolbarOffsetX ?? this.scene.hudOffsetX ?? 0;
     const startY = this.scene.hudOffsetY ?? this.scene.toolbarOffsetY ?? 0;
 

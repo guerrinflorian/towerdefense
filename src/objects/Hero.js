@@ -7,6 +7,8 @@ const PATH_TYPES = [1, 4, 7, 13, 14, 19, 23];
 export class Hero extends Phaser.GameObjects.Container {
   constructor(scene, tileX, tileY, stats = {}) {
     const s = scene.scaleFactor || 1;
+    const unitScale = scene.unitScale || s;
+    const collisionScale = scene.collisionScale || s;
     const T = CONFIG.TILE_SIZE * s;
 
     const startX = scene.mapStartX + tileX * T + T / 2;
@@ -50,8 +52,11 @@ export class Hero extends Phaser.GameObjects.Container {
 
     // --- Visual / Layout (un peu plus gros + mieux lisible) ---
     this.baseScale = 1.05; // <- rend le héros un peu plus gros
-    const portraitBoost = scene.isPortrait ? 1.35 : 1;
-    this.visualScale = Math.max(0.78, Math.min(1.45, this.baseScale * s * portraitBoost));
+    const portraitBoost = scene.isPortrait ? 1.25 : 1;
+    this.visualScale = Math.max(
+      0.6,
+      Math.min(1.45, this.baseScale * unitScale * portraitBoost)
+    );
 
     this.bodyGroup = scene.add.container(0, 0);
     this.add(this.bodyGroup);
@@ -84,7 +89,7 @@ export class Hero extends Phaser.GameObjects.Container {
 
     // Hitbox (un chouïa plus grosse aussi)
     this.setDepth(40);
-    this.setSize(56, 56);
+    this.setSize(56 * collisionScale, 56 * collisionScale);
     this.setScale(this.visualScale);
     
     // Tooltip HP - définir une zone interactive
@@ -474,6 +479,10 @@ export class Hero extends Phaser.GameObjects.Container {
     });
 
     // Pour l'archer : nettoyer les cibles à distance
+    const collisionScale = this.scene.collisionScale || this.scene.scaleFactor || 1;
+    const releaseRange = 50 * collisionScale;
+    const contactRange = 40 * collisionScale;
+
     if (this.heroType === "RANGED") {
       this.rangedTargets = this.rangedTargets.filter(enemy => {
         return enemy.active && enemy.hp > 0 && !enemy.isInvulnerable;
@@ -487,7 +496,7 @@ export class Hero extends Phaser.GameObjects.Container {
         // En combat au corps-à-corps
         this.blockingEnemies.forEach(enemy => {
           const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
-          if (dist > 50) {
+          if (dist > releaseRange) {
             this.releaseEnemy(enemy);
           }
         });
@@ -508,7 +517,7 @@ export class Hero extends Phaser.GameObjects.Container {
         // Vérifier les distances et libérer ceux qui sont trop loin
         this.blockingEnemies.forEach(enemy => {
           const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
-          if (dist > 50) {
+          if (dist > releaseRange) {
             this.releaseEnemy(enemy);
           }
         });
@@ -660,7 +669,8 @@ export class Hero extends Phaser.GameObjects.Container {
     for (const enemy of enemies) {
       if (!enemy.active || enemy.isBlocked || enemy.isRanged || enemy.isInvulnerable) continue;
       const d = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
-      const engageDist = this.heroType === "CONTROL" ? 50 : 32;
+      const engageDist =
+        (this.heroType === "CONTROL" ? 50 : 32) * collisionScale;
       if (d < engageDist) {
         candidates.push({ enemy, dist: d });
       }
@@ -684,11 +694,11 @@ export class Hero extends Phaser.GameObjects.Container {
       if (!enemy.active || enemy.hp <= 0 || enemy.isInvulnerable) continue;
       const d = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
       // Si l'ennemi est très proche (contact), on ne le cible pas à distance
-      if (d <= rangePixels && d > 40) {
+      if (d <= rangePixels && d > contactRange) {
         this.rangedTargets.push(enemy);
       }
       // Si l'ennemi arrive au contact, on entre en combat au corps-à-corps
-      if (d <= 40 && !enemy.isBlocked && !enemy.isRanged) {
+      if (d <= contactRange && !enemy.isBlocked && !enemy.isRanged) {
         this.blockEnemy(enemy);
       }
     }
