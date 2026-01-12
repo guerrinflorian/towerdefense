@@ -121,11 +121,15 @@
 
       @media (orientation: portrait) {
         #hud-root {
-          flex: 0 0 clamp(110px, 16vh, 150px);
+          flex: 0 1 auto;
+          max-height: 18vh;
+          overflow: hidden;
         }
 
         #toolbar-root {
-          flex: 0 0 clamp(220px, 34vh, 340px);
+          flex: 0 1 auto;
+          max-height: 32vh;
+          overflow: auto;
         }
       }
 
