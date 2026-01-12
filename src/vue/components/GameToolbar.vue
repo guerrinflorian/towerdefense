@@ -10,7 +10,7 @@
           :class="{ 'game-toolbar__card--disabled': item.disabled }"
           @click="startDrag(item.key)"
         >
-          <TurretPreviewCanvas :turret-key="item.key" :size="56" />
+          <TurretPreviewCanvas :turret-key="item.key" :size="44" />
           <div class="game-toolbar__name">{{ item.label }}</div>
           <div class="game-toolbar__meta">
             <span class="game-toolbar__cost">{{ item.cost }}$</span>
@@ -96,8 +96,8 @@ const castLightning = () => {
 .game-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
+  gap: 12px;
+  padding: 12px;
   width: 100%;
   height: 100%;
   background: rgba(10, 10, 16, 0.92);
@@ -110,29 +110,29 @@ const castLightning = () => {
 
 .game-toolbar__section h3 {
   margin: 0 0 8px;
-  font-size: clamp(12px, 3vw, 16px);
+  font-size: clamp(11px, 2.8vw, 15px);
   color: #9edcff;
 }
 
 .game-toolbar__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 8px;
 }
 
 .game-toolbar__grid--spells {
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
 }
 
 .game-toolbar__card {
   background: rgba(51, 51, 51, 0.9);
   border: 2px solid rgba(102, 102, 102, 0.9);
   border-radius: 12px;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
   color: #ffffff;
 }
@@ -143,7 +143,7 @@ const castLightning = () => {
 }
 
 .game-toolbar__name {
-  font-size: clamp(10px, 2.5vw, 13px);
+  font-size: clamp(9px, 2.4vw, 12px);
   font-weight: 700;
   text-align: center;
   color: #9edcff;
@@ -153,7 +153,7 @@ const castLightning = () => {
   display: flex;
   justify-content: space-between;
   width: 100%;
-  font-size: clamp(10px, 2.5vw, 12px);
+  font-size: clamp(9px, 2.4vw, 11px);
 }
 
 .game-toolbar__cost {
@@ -167,6 +167,6 @@ const castLightning = () => {
 }
 
 .game-toolbar__spell {
-  font-size: clamp(20px, 6vw, 26px);
+  font-size: clamp(18px, 5.5vw, 24px);
 }
 </style>
