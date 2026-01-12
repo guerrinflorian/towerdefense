@@ -222,7 +222,7 @@ export class BuildToolbar {
   drawTurretPreview(container, config) {
     const base = this.scene.add.graphics();
     const color = 0x333333;
-    const baseRadius = 20;
+    const baseRadius = 16;
     base.fillStyle(color);
     base.fillCircle(0, 0, baseRadius);
     base.lineStyle(2, 0x111111);
