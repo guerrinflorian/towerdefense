@@ -336,8 +336,8 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         { key: "player", label: "JOUEUR", x: 70 },
         { key: "hp", label: "PV", x: 180 },
         { key: "dmg", label: "DÉGÂTS", x: 240 },
-        { key: "speed", label: "VIT.", x: 320 },
-        { key: "score", label: "TOTAL", x: width - 20, align: "right" },
+        { key: "speed", label: "VIT.", x: 310 },
+        { key: "attack", label: "VIT. ATQ", x: width - 20, align: "right" },
       ];
     }
     return [
@@ -554,6 +554,9 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
           case "speed":
             value = parseFloat(entry.move_speed || 0).toFixed(2);
             break;
+          case "attack":
+            value = this.formatAttackInterval(entry.attack_interval_ms);
+            break;
           case "lvl":
             value = entry.max_level || 0;
             break;
@@ -562,7 +565,15 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
         const cell = this.scene.add.text(col.x, 0, value, {
           fontSize: "13px",
           fontFamily: "Arial",
-          color: col.key === "time" || col.key === "score" ? "#00eaff" : color,
+          color:
+            col.key === "time" ||
+            col.key === "score" ||
+            col.key === "hp" ||
+            col.key === "dmg" ||
+            col.key === "speed" ||
+            col.key === "attack"
+              ? "#00eaff"
+              : color,
           fontWeight: isTop1 || col.key === "rank" ? "bold" : "normal",
           resolution: window.devicePixelRatio || 1,
         });
@@ -620,5 +631,10 @@ export class LeaderboardUI extends Phaser.GameObjects.Container {
     return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1)
       .toString()
       .padStart(2, "0")}`;
+  }
+
+  formatAttackInterval(ms) {
+    if (!ms) return "0.00s";
+    return `${(ms / 1000).toFixed(2)}s`;
   }
 }

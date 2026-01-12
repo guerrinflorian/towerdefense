@@ -266,7 +266,14 @@ router.get("/leaderboard/hero-types", async (_req, res) => {
             ) AS attack_interval_ms,
             (COALESCE(LEAST(h.base_hp + COALESCE(ph.bonus_hp, 0), h.max_hp), h.base_hp + COALESCE(ph.bonus_hp, 0)) +
              COALESCE(LEAST(h.base_damage + COALESCE(ph.bonus_damage, 0), h.max_damage), h.base_damage + COALESCE(ph.bonus_damage, 0)) +
-             COALESCE(LEAST(h.base_move_speed + COALESCE(ph.bonus_move_speed, 0), h.max_move_speed), h.base_move_speed + COALESCE(ph.bonus_move_speed, 0))
+             COALESCE(LEAST(h.base_move_speed + COALESCE(ph.bonus_move_speed, 0), h.max_move_speed), h.base_move_speed + COALESCE(ph.bonus_move_speed, 0)) +
+             GREATEST(
+               h.base_attack_interval_ms - COALESCE(
+                 GREATEST(h.base_attack_interval_ms - COALESCE(ph.bonus_attack_interval_ms, 0), h.min_attack_interval_ms),
+                 h.base_attack_interval_ms - COALESCE(ph.bonus_attack_interval_ms, 0)
+               ),
+               0
+             )
             ) AS hero_score,
             ph.kills,
             ph.upgrade_points_spent
