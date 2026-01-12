@@ -54,8 +54,8 @@ const quitGame = () => {
 .game-hud {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 8px;
+  padding: 12px;
   width: 100%;
   height: 100%;
   background: rgba(15, 16, 21, 0.92);
@@ -80,12 +80,12 @@ const quitGame = () => {
 }
 
 .game-hud__stat {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 10px;
   background: rgba(26, 26, 46, 0.8);
   text-align: center;
   font-weight: 700;
-  font-size: clamp(11px, 3vw, 15px);
+  font-size: clamp(10px, 2.6vw, 14px);
 }
 
 .game-hud__stat--money {
@@ -104,27 +104,27 @@ const quitGame = () => {
 }
 
 .game-hud__timer {
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 10px;
   background: rgba(26, 26, 46, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.4);
   text-align: center;
   font-weight: 700;
-  font-size: clamp(12px, 3.2vw, 16px);
+  font-size: clamp(11px, 3vw, 15px);
 }
 
 .game-hud__actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .game-hud__button {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 10px;
   border: none;
   font-weight: 700;
-  font-size: clamp(11px, 3vw, 14px);
+  font-size: clamp(10px, 2.6vw, 13px);
   cursor: pointer;
 }
 
