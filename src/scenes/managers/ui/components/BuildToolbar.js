@@ -21,12 +21,20 @@ export class BuildToolbar {
     const toolbarY = this.scene.toolbarOffsetY || 0;
     const columnWidth = this.scene.toolbarWidth;
     const columnHeight = this.scene.toolbarHeight;
-    const padding =
-      (this.scene.isPortrait ? 14 : 18) * this.scene.scaleFactor;
-    const itemSize =
-      (this.scene.isPortrait ? 98 : 82) * this.scene.scaleFactor;
+    const isPortrait = this.scene.isPortrait;
+    const padding = (isPortrait ? 10 : 18) * this.scene.scaleFactor;
+    const maxColumns = Math.max(
+      2,
+      Math.floor((columnWidth - padding * 2) / (70 * this.scene.scaleFactor))
+    );
+    const itemSize = isPortrait
+      ? Math.min(
+          (columnWidth - padding * 2 - (maxColumns - 1) * padding) / maxColumns,
+          86 * this.scene.scaleFactor
+        )
+      : 82 * this.scene.scaleFactor;
     const itemSpacing = Math.max(
-      (this.scene.isPortrait ? 118 : 110) * this.scene.scaleFactor,
+      (isPortrait ? itemSize + padding * 1.6 : 110 * this.scene.scaleFactor),
       itemSize + padding
     );
 
@@ -54,15 +62,20 @@ export class BuildToolbar {
 
     // Zone des tourelles
     const turretGridStartY = towerTitle.y + towerTitle.height + padding * 0.8;
-    const turretGridHeight = columnHeight * (this.scene.isPortrait ? 0.7 : 0.65); // un peu plus de place en portrait
-    const turretGridWidth = columnWidth - padding * 2;
-    const columns = 2;
+    const columns = isPortrait ? maxColumns : 2;
     const rows = Math.ceil(5 / columns);
+    const turretGridHeight = isPortrait
+      ? rows * itemSpacing + itemSize * 0.2
+      : columnHeight * 0.65; // un peu plus de place en portrait
+    const turretGridWidth = columnWidth - padding * 2;
     // Augmenter l'espacement vertical pour que ce soit plus beau
     const verticalSpacing = Math.min(
       turretGridHeight / rows,
       itemSpacing + padding * 1.5
     );
+    const horizontalStep = isPortrait
+      ? itemSize + padding
+      : Math.min(itemSpacing, turretGridWidth / columns);
 
     // S'assurer que buildToolbar pointe vers leftColumn avant de créer les boutons
     this.scene.buildToolbar = this.leftColumn;
@@ -74,17 +87,18 @@ export class BuildToolbar {
       itemSize,
       verticalSpacing,
       {
-        startX: padding + turretGridWidth / (columns * 2),
+        startX: padding + itemSize / 2,
         startY: turretGridStartY + itemSize / 2,
-        columns: columns,
+        columns,
         padding,
         gridWidth: turretGridWidth,
         verticalSpacing,
+        horizontalStep,
       }
     );
 
     // Titre SORTS
-    const spellTitleY = turretGridStartY + turretGridHeight + padding * 1.2;
+    const spellTitleY = turretGridStartY + turretGridHeight + padding * 1.1;
     const spellTitle = this.scene.add
       .text(padding, spellTitleY, "SORTS", {
         fontSize: `${Math.max(14, 16 * this.scene.scaleFactor)}px`,
