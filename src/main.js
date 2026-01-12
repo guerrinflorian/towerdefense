@@ -10,13 +10,23 @@ import { ensureProfileLoaded } from "./services/authManager.js";
 const MainMenuScene = MainMenuSceneView.scene;
 const GameScene = GameSceneView.scene;
 
+const gameContainer = document.getElementById("game-container");
+const getContainerSize = () => {
+  const rect = gameContainer?.getBoundingClientRect();
+  return {
+    width: rect?.width || window.innerWidth,
+    height: rect?.height || window.innerHeight,
+  };
+};
+const initialSize = getContainerSize();
+
 const config = {
   type: Phaser.AUTO,
   parent: "game-container",
 
   // Utiliser la taille de la fenêtre pour remplir tout l'écran
-  width: window.innerWidth,
-  height: window.innerHeight,
+  width: initialSize.width,
+  height: initialSize.height,
 
   backgroundColor: "#000000",
 
@@ -81,8 +91,7 @@ ensureProfileLoaded()
 
     // Gérer le redimensionnement
     function handleResize() {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      const { width, height } = getContainerSize();
 
       game.scale.resize(width, height);
       
@@ -94,6 +103,10 @@ ensureProfileLoaded()
       }
     }
 
+    if (typeof ResizeObserver !== "undefined" && gameContainer) {
+      const resizeObserver = new ResizeObserver(() => handleResize());
+      resizeObserver.observe(gameContainer);
+    }
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", () => {
       setTimeout(handleResize, 100);
