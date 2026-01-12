@@ -104,7 +104,7 @@ export function createBuildBtnOctagon(buildMenu, x, y, size, turretConfig) {
   const previewContainer = scene.add.container(0, -2 * s);
   if (scene.drawTurretPreview) {
     scene.drawTurretPreview(previewContainer, turretConfig);
-    previewContainer.setScale(0.36 * s);
+    previewContainer.setScale(0.28 * s);
   }
 
   const nameY = radius + 12 * s;
