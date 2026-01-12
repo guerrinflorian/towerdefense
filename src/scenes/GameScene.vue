@@ -22,7 +22,7 @@ import { RunTracker } from "../services/runTracker.js";
 import { sendRunReport } from "../services/runReportService.js";
 import { fetchAchievements } from "../services/achievementsService.js";
 import { resetCachedChapters } from "../services/chapterService.js";
-import { showGameResult } from "../vue/bridge.js";
+import { setGameUIVisible, showGameResult } from "../vue/bridge.js";
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -114,6 +114,7 @@ export class GameScene extends Phaser.Scene {
     this.isPortrait = false;
     this.activeWaveIndex = null;
     this.runTracker = new RunTracker();
+    this.useVueGameUI = true;
   }
 
   preload() {
@@ -197,13 +198,48 @@ export class GameScene extends Phaser.Scene {
     this.baseWidth = this.game.baseWidth || CONFIG.GAME_WIDTH;
     this.baseHeight = this.game.baseHeight || CONFIG.GAME_HEIGHT;
 
-    // Détecter l'orientation actuelle (important pour le responsive mobile)
-    this.isPortrait = this.gameHeight >= this.gameWidth * 0.94;
-
     const mapSize = 15 * CONFIG.TILE_SIZE;
     // Réduire les marges pour maximiser l'espace de la map, surtout sur mobile
     const padding = Math.max(6, Math.min(this.gameWidth, this.gameHeight) * 0.006);
-    const isPortrait = this.isPortrait;
+    const isPortrait = this.gameHeight >= this.gameWidth * 0.94;
+    this.isPortrait = isPortrait;
+
+    if (this.useVueGameUI) {
+      const usableWidth = this.gameWidth - padding * 2;
+      const usableHeight = this.gameHeight - padding * 2;
+      const scaleByHeight = usableHeight / mapSize;
+      const scaleByWidth = usableWidth / mapSize;
+      this.scaleFactor = Phaser.Math.Clamp(
+        Math.min(scaleByHeight, scaleByWidth),
+        0.4,
+        2
+      );
+
+      this.mapPixelSize = mapSize * this.scaleFactor;
+      this.mapOffsetX = (this.gameWidth - this.mapPixelSize) / 2;
+      this.mapOffsetY = (this.gameHeight - this.mapPixelSize) / 2;
+      this.mapStartX = this.mapOffsetX;
+      this.mapStartY = this.mapOffsetY;
+
+      this.toolbarOffsetX = 0;
+      this.toolbarWidth = 0;
+      this.toolbarHeight = 0;
+      this.toolbarOffsetY = 0;
+      this.hudOffsetX = 0;
+      this.hudWidth = 0;
+      this.hudHeight = 0;
+      this.hudOffsetY = 0;
+      this.leftToolbarBounds = null;
+      this.rightToolbarBounds = null;
+
+      this.unitScale = Phaser.Math.Clamp(
+        this.scaleFactor * (this.isPortrait ? 0.78 : 0.95),
+        0.45,
+        1.05
+      );
+      this.collisionScale = Phaser.Math.Clamp(this.scaleFactor, 0.45, 1.2);
+      return;
+    }
 
     if (isPortrait) {
       const topBarHeight = Phaser.Math.Clamp(
@@ -212,12 +248,13 @@ export class GameScene extends Phaser.Scene {
         150
       );
       const bottomBarHeight = Phaser.Math.Clamp(
-        this.gameHeight * 0.16,
-        110,
-        170
+        this.gameHeight * 0.18,
+        120,
+        180
       );
 
-      const usableHeight = this.gameHeight - padding * 2 - topBarHeight - bottomBarHeight;
+      const usableHeight =
+        this.gameHeight - padding * 2 - topBarHeight - bottomBarHeight;
       const usableWidth = this.gameWidth - padding * 2;
 
       const scaleByHeight = usableHeight / mapSize;
@@ -236,22 +273,23 @@ export class GameScene extends Phaser.Scene {
       this.mapPixelSize = mapSize * this.scaleFactor;
 
       this.mapOffsetX = padding + (usableWidth - this.mapPixelSize) / 2;
-      this.mapOffsetY = padding + topBarHeight + (usableHeight - this.mapPixelSize) / 2;
+      this.mapOffsetY =
+        padding + topBarHeight + (usableHeight - this.mapPixelSize) / 2;
 
       this.mapStartX = this.mapOffsetX;
       this.mapStartY = this.mapOffsetY;
 
-      // Barre de construction en haut
+      // Informations de partie en haut (HUD)
+      this.hudOffsetX = padding;
+      this.hudWidth = this.gameWidth - padding * 2;
+      this.hudHeight = topBarHeight;
+      this.hudOffsetY = padding;
+
+      // Barre de construction en bas
       this.toolbarOffsetX = padding;
       this.toolbarWidth = this.gameWidth - padding * 2;
-      this.toolbarHeight = topBarHeight;
-      this.toolbarOffsetY = padding;
-
-      // HUD en bas
-      this.hudOffsetX = padding;
-      this.hudWidth = this.toolbarWidth;
-      this.hudHeight = bottomBarHeight;
-      this.hudOffsetY = this.gameHeight - bottomBarHeight - padding;
+      this.toolbarHeight = bottomBarHeight;
+      this.toolbarOffsetY = this.gameHeight - bottomBarHeight - padding;
 
       this.leftToolbarBounds = {
         x: this.toolbarOffsetX,
@@ -337,6 +375,13 @@ export class GameScene extends Phaser.Scene {
         height: this.toolbarHeight,
       };
     }
+
+    this.unitScale = Phaser.Math.Clamp(
+      this.scaleFactor * (this.isPortrait ? 0.78 : 0.95),
+      0.45,
+      1.05
+    );
+    this.collisionScale = Phaser.Math.Clamp(this.scaleFactor, 0.45, 1.2);
   }
 
   // Gérer le redimensionnement
@@ -1424,7 +1469,37 @@ export class GameScene extends Phaser.Scene {
   }
 
   drawTurretPreview(container, config) {
-    this.uiManager.buildToolbar.drawTurretPreview(container, config);
+    if (this.uiManager.buildToolbar?.drawTurretPreview) {
+      this.uiManager.buildToolbar.drawTurretPreview(container, config);
+      return;
+    }
+
+    const base = this.add.graphics();
+    const color = 0x333333;
+    base.fillStyle(color);
+    base.fillCircle(0, 0, 24);
+    base.lineStyle(2, 0x111111);
+    base.strokeCircle(0, 0, 24);
+    container.add(base);
+
+    if (config.onDrawBarrel) {
+      const barrelContainer = this.add.container(0, 0);
+      const fakeTurret = { level: 1, config: config };
+      try {
+        config.onDrawBarrel(this, barrelContainer, config.color, fakeTurret);
+        container.add(barrelContainer);
+      } catch (e) {
+        const fallback = this.add.graphics();
+        fallback.fillStyle(0xffffff);
+        fallback.fillRect(0, -3, 15, 6);
+        container.add(fallback);
+      }
+    } else {
+      const fallback = this.add.graphics();
+      fallback.fillStyle(0xffffff);
+      fallback.fillRect(0, -3, 15, 6);
+      container.add(fallback);
+    }
   }
 
   spawnCoinDrop(x, y) {
@@ -1513,6 +1588,10 @@ export class GameScene extends Phaser.Scene {
       try {
         this.inputManager.cancelDrag();
       } catch (e) {}
+    }
+
+    if (this.useVueGameUI) {
+      setGameUIVisible(false);
     }
 
     // Nettoyer les managers
