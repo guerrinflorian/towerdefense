@@ -40,15 +40,15 @@ export class Soldier extends Phaser.GameObjects.Container {
     scene.add.existing(this);
     this.setDepth(15); // Au-dessus des ennemis
     const scale = Phaser.Math.Clamp(
-      (scene.scaleFactor || 1) * (scene.isPortrait ? 0.78 : 0.95),
-      0.65,
+      scene.unitScale || scene.scaleFactor || 1,
+      0.45,
       1.05
     );
     this.setScale(scale);
     
     // Tooltip HP - définir une zone interactive
     this.hpTooltip = null;
-    this.setSize(32, 32); // Taille pour l'interactivité
+    this.setSize(32 * scale, 32 * scale); // Taille pour l'interactivité
     this.setInteractive({ useHandCursor: false });
     this.on("pointerover", () => {
       if (this.active && this.isAlive) {
@@ -69,9 +69,10 @@ export class Soldier extends Phaser.GameObjects.Container {
     }
 
     const fontSize = Math.max(12, 14 * (this.scene.scaleFactor || 1));
+    const tooltipOffset = 50 * (this.scene.collisionScale || this.scene.scaleFactor || 1);
     this.hpTooltip = this.scene.add.text(
       this.x,
-      this.y - 50,
+      this.y - tooltipOffset,
       this.getHpTooltipText(),
       {
         fontSize: `${fontSize}px`,
@@ -90,7 +91,7 @@ export class Soldier extends Phaser.GameObjects.Container {
       delay: 50,
       callback: () => {
         if (this.hpTooltip && this.active && this.isAlive) {
-          this.hpTooltip.setPosition(this.x, this.y - 50);
+          this.hpTooltip.setPosition(this.x, this.y - tooltipOffset);
           this.hpTooltip.setText(this.getHpTooltipText());
         } else if (this.hpTooltip) {
           this.hideHpTooltip();
@@ -120,14 +121,15 @@ export class Soldier extends Phaser.GameObjects.Container {
       this.highlightCircle.destroy();
     }
     
+    const highlightScale = this.scene.collisionScale || this.scene.scaleFactor || 1;
     this.highlightCircle = this.scene.add.circle(
       this.x,
       this.y,
-      20 * (this.scene.scaleFactor || 1),
+      20 * highlightScale,
       0x00ffff,
       0
     );
-    this.highlightCircle.setStrokeStyle(2, 0x00ffff, 0.8);
+    this.highlightCircle.setStrokeStyle(2 * highlightScale, 0x00ffff, 0.8);
     this.highlightCircle.setDepth(16);
     
     // Mettre à jour la position du highlight en continu
@@ -453,7 +455,8 @@ export class Soldier extends Phaser.GameObjects.Container {
       }
     });
     
-    if (closestPath && closestPoint && minDist < 200) { // 200 pixels de tolérance
+    const tolerance = 200 * (this.scene.collisionScale || this.scene.scaleFactor || 1);
+    if (closestPath && closestPoint && minDist < tolerance) { // 200 pixels de tolérance
       this.pathPosition = closestPath;
       this.pathIndex = pathIndex;
       return closestPoint;
@@ -591,9 +594,14 @@ export class Soldier extends Phaser.GameObjects.Container {
     // Animation du soldat qui attaque
     if (this.combatAnimationState === 0 && this.scene && this.scene.tweens) {
       // Le soldat frappe vers l'avant
+      const impactScale = this.scene.collisionScale || this.scene.scaleFactor || 1;
       this.scene.tweens.add({
         targets: this,
-        x: this.x + Math.cos(Phaser.Math.Angle.Between(this.x, this.y, enemy.x, enemy.y)) * 8,
+        x:
+          this.x +
+          Math.cos(Phaser.Math.Angle.Between(this.x, this.y, enemy.x, enemy.y)) *
+            8 *
+            impactScale,
         duration: 100,
         yoyo: true,
         ease: "Power2",
@@ -632,9 +640,14 @@ export class Soldier extends Phaser.GameObjects.Container {
     
     // Animation de l'ennemi qui recule
     if (this.scene && this.scene.tweens) {
+      const impactScale = this.scene.collisionScale || this.scene.scaleFactor || 1;
       this.scene.tweens.add({
         targets: enemy,
-        x: enemy.x - Math.cos(Phaser.Math.Angle.Between(this.x, this.y, enemy.x, enemy.y)) * 5,
+        x:
+          enemy.x -
+          Math.cos(Phaser.Math.Angle.Between(this.x, this.y, enemy.x, enemy.y)) *
+            5 *
+            impactScale,
         duration: 150,
         yoyo: true,
         ease: "Power2",
@@ -644,15 +657,16 @@ export class Soldier extends Phaser.GameObjects.Container {
     // Ligne d'attaque dynamique (épée qui frappe)
     this.combatGraphics.clear();
     const angle = Phaser.Math.Angle.Between(this.x, this.y, enemy.x, enemy.y);
-    const startX = this.x + Math.cos(angle) * 10;
-    const startY = this.y + Math.sin(angle) * 10;
+    const impactScale = this.scene.collisionScale || this.scene.scaleFactor || 1;
+    const startX = this.x + Math.cos(angle) * 10 * impactScale;
+    const startY = this.y + Math.sin(angle) * 10 * impactScale;
     const endX = enemy.x;
     const endY = enemy.y;
     
     // Traînée d'épée
-    this.combatGraphics.lineStyle(3, 0xffffff, 1);
+    this.combatGraphics.lineStyle(3 * impactScale, 0xffffff, 1);
     this.combatGraphics.lineBetween(startX, startY, endX, endY);
-    this.combatGraphics.lineStyle(2, 0xffff00, 0.9);
+    this.combatGraphics.lineStyle(2 * impactScale, 0xffff00, 0.9);
     this.combatGraphics.lineBetween(startX, startY, endX, endY);
     
     // Disparition rapide
@@ -675,17 +689,17 @@ export class Soldier extends Phaser.GameObjects.Container {
         const angle = Math.random() * Math.PI * 2;
         const speed = Math.random() * 30 + 15;
         const particle = this.scene.add.circle(
-          endX + (Math.random() - 0.5) * 10,
-          endY + (Math.random() - 0.5) * 10,
-          Math.random() * 3 + 1,
+          endX + (Math.random() - 0.5) * 10 * impactScale,
+          endY + (Math.random() - 0.5) * 10 * impactScale,
+          (Math.random() * 3 + 1) * impactScale,
           0xffff00,
           1
         );
         particle.setDepth(101);
         this.scene.tweens.add({
           targets: particle,
-          x: particle.x + Math.cos(angle) * speed,
-          y: particle.y + Math.sin(angle) * speed,
+          x: particle.x + Math.cos(angle) * speed * impactScale,
+          y: particle.y + Math.sin(angle) * speed * impactScale,
           alpha: 0,
           scale: 0,
           duration: 400,
@@ -859,7 +873,7 @@ export class Soldier extends Phaser.GameObjects.Container {
     this.blockingEnemy = null;
     this.setVisible(true);
     this.setAlpha(1);
-    this.setScale(this.scene.scaleFactor || 1);
+    this.setScale(this.scene.unitScale || this.scene.scaleFactor || 1);
     this.setRotation(0);
     this.updateHealthBar();
     
@@ -871,7 +885,7 @@ export class Soldier extends Phaser.GameObjects.Container {
       this.setScale(0);
       this.scene.tweens.add({
         targets: this,
-        scale: this.scene.scaleFactor || 1,
+        scale: this.scene.unitScale || this.scene.scaleFactor || 1,
         duration: 300,
         ease: "Back.easeOut",
       });
@@ -888,7 +902,9 @@ export class Soldier extends Phaser.GameObjects.Container {
         // Ne pas bloquer les ennemis à distance (throwers) ou invulnérables
         if (enemy.active && !enemy.isBlocked && !enemy.isRanged && !enemy.isInvulnerable) {
           const dist = Phaser.Math.Distance.Between(this.x, this.y, enemy.x, enemy.y);
-          if (dist < 30) { // Range de blocage
+          const blockRange =
+            30 * (this.scene.collisionScale || this.scene.scaleFactor || 1);
+          if (dist < blockRange) { // Range de blocage
             this.blockEnemy(enemy);
             break;
           }
