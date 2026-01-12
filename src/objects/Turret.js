@@ -69,7 +69,8 @@ export class Turret extends Phaser.GameObjects.Container {
     this.rangeCircle = scene.add.circle(0, 0, this.rangePixels);
     this.rangeCircle.setStrokeStyle(2, 0xffffff, 0.3);
     this.rangeCircle.setVisible(false);
-    this.rangeCircle.setScale(1 / (scene.scaleFactor || 1));
+    const turretScale = scene.unitScale || scene.scaleFactor || 1;
+    this.rangeCircle.setScale(1 / turretScale);
     this.sendToBack(this.rangeCircle);
     this.add(this.rangeCircle);
 
@@ -528,7 +529,7 @@ export class Turret extends Phaser.GameObjects.Container {
 
   updateRangeVisual() {
     this.rangeCircle.setRadius(this.rangePixels);
-    const scaleFix = 1 / (this.scene?.scaleFactor || 1);
+    const scaleFix = 1 / (this.scene?.unitScale || this.scene?.scaleFactor || 1);
     this.rangeCircle.setScale(scaleFix);
   }
 }
