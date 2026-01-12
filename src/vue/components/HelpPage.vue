@@ -219,7 +219,7 @@
                   />
                   <div class="level-selector">
                     <button
-                      v-for="level in getMaxLevel(turret, selectedChapter[turret.key] || (turret.key === 'barracks' ? 1 : 2))"
+                      v-for="level in getMaxLevel(turret, getSelectedChapter(turret))"
                       :key="level"
                       class="level-btn"
                       :class="{ active: (selectedLevels[turret.key] || 1) === level }"
@@ -248,19 +248,19 @@
                     <span class="stat-label">
                       <span class="stat-icon">📏</span> Portée:
                     </span>
-                    <span class="stat-value">{{ getTurretLevelStats(turret, selectedLevels[turret.key] || 1).range }}</span>
+                    <span class="stat-value">{{ getTurretLevelStats(turret, selectedLevels[turret.key] || 1, getSelectedChapter(turret)).range }}</span>
                   </div>
                   <div v-if="turret.key !== 'barracks'" class="stat-row">
                     <span class="stat-label">
                       <span class="stat-icon">⚔️</span> Dégâts:
                     </span>
-                    <span class="stat-value">{{ getTurretLevelStats(turret, selectedLevels[turret.key] || 1).damage }}</span>
+                    <span class="stat-value">{{ getTurretLevelStats(turret, selectedLevels[turret.key] || 1, getSelectedChapter(turret)).damage }}</span>
                   </div>
                   <div v-if="turret.key !== 'barracks'" class="stat-row">
                     <span class="stat-label">
                       <span class="stat-icon">⏱️</span> Cadence:
                     </span>
-                    <span class="stat-value">{{ (getTurretLevelStats(turret, selectedLevels[turret.key] || 1).rate / 1000).toFixed(1) }}s</span>
+                    <span class="stat-value">{{ (getTurretLevelStats(turret, selectedLevels[turret.key] || 1, getSelectedChapter(turret)).rate / 1000).toFixed(1) }}s</span>
                   </div>
                   <div v-if="turret.aoe" class="stat-row">
                     <span class="stat-label">
@@ -279,9 +279,9 @@
                       <span class="stat-icon">⬆️</span> Coûts d'amélioration:
                     </div>
                     <div class="upgrade-costs-list">
-                      <div 
-                        v-for="level in Array.from({ length: getMaxLevel(turret, turret.key === 'barracks' ? (selectedChapter[turret.key] || 1) : 2) - 1 }, (_, i) => i + 1)" 
-                        :key="level" 
+                      <div
+                        v-for="level in Array.from({ length: getMaxLevel(turret, getSelectedChapter(turret)) - 1 }, (_, i) => i + 1)"
+                        :key="level"
                         class="upgrade-cost-item"
                       >
                         <span class="upgrade-level-label">Niv. {{ level }} → {{ level + 1 }}:</span>
@@ -294,7 +294,7 @@
                       <button
                         class="chapter-btn"
                         :class="{ active: (selectedChapter[turret.key] || 1) === 1 }"
-                        @click="changeBarracksChapter(turret, 1)"
+                        @click="changeTurretChapter(turret, 1)"
                         title="Chapitre 1"
                       >
                         Ch.1
@@ -302,7 +302,7 @@
                       <button
                         class="chapter-btn"
                         :class="{ active: (selectedChapter[turret.key] || 1) === 2 }"
-                        @click="changeBarracksChapter(turret, 2)"
+                        @click="changeTurretChapter(turret, 2)"
                         title="Chapitre 2"
                       >
                         Ch.2
@@ -333,6 +333,52 @@
                       <div class="barracks-comparison-note">
                         <strong>Note :</strong> Les statistiques des casernes diffèrent entre le chapitre 1 et le chapitre 2. 
                         Au chapitre 2, les soldats sont plus résistants, plus nombreux au niveau 4, et respawnent plus rapidement.
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="turret.key === 'machine_gun'" class="barracks-chapter-section">
+                    <div class="chapter-selector-barracks">
+                      <button
+                        class="chapter-btn"
+                        :class="{ active: (selectedChapter[turret.key] || 1) === 1 }"
+                        @click="changeTurretChapter(turret, 1)"
+                        title="Chapitre 1"
+                      >
+                        Ch.1
+                      </button>
+                      <button
+                        class="chapter-btn"
+                        :class="{ active: (selectedChapter[turret.key] || 1) === 2 }"
+                        @click="changeTurretChapter(turret, 2)"
+                        title="Chapitre 2"
+                      >
+                        Ch.2
+                      </button>
+                    </div>
+                    <div class="barracks-stats-comparison">
+                      <div class="chapter-stats">
+                        <div class="chapter-label">Chapitre {{ selectedChapter[turret.key] || 1 }}</div>
+                        <div class="stat-row">
+                          <span class="stat-label">
+                            <span class="stat-icon">📏</span> Portée:
+                          </span>
+                          <span class="stat-value">{{ getTurretLevelStats(turret, selectedLevels[turret.key] || 1, selectedChapter[turret.key] || 1).range }}</span>
+                        </div>
+                        <div class="stat-row">
+                          <span class="stat-label">
+                            <span class="stat-icon">⚔️</span> Dégâts:
+                          </span>
+                          <span class="stat-value">{{ getTurretLevelStats(turret, selectedLevels[turret.key] || 1, selectedChapter[turret.key] || 1).damage }}</span>
+                        </div>
+                        <div class="stat-row">
+                          <span class="stat-label">
+                            <span class="stat-icon">⏱️</span> Cadence:
+                          </span>
+                          <span class="stat-value">{{ (getTurretLevelStats(turret, selectedLevels[turret.key] || 1, selectedChapter[turret.key] || 1).rate / 1000).toFixed(1) }}s</span>
+                        </div>
+                      </div>
+                      <div class="barracks-comparison-note">
+                        <strong>Note :</strong> Au chapitre 2, la mitrailleuse débloque le niveau 4 avec des statistiques améliorées.
                       </div>
                     </div>
                   </div>
@@ -412,7 +458,7 @@ import EnemyPreviewCanvas from './EnemyPreviewCanvas.vue';
 
 const currentSection = ref('general');
 const selectedLevels = ref({});
-const selectedChapter = ref({ barracks: 1 }); // Pour les casernes : 1 ou 2, par défaut chapitre 1
+const selectedChapter = ref({ barracks: 1, machine_gun: 1 }); // Casernes et mitrailleuse : 1 ou 2, par défaut chapitre 1
 
 const turrets = computed(() => {
   return Object.entries(TURRETS).map(([key, turret]) => ({ key, ...turret }));
@@ -436,9 +482,9 @@ const getMaxLevel = (turret, chapterId = null) => {
   return turret.maxLevel || 3;
 };
 
-const getTurretLevelStats = (turret, level) => {
+const getTurretLevelStats = (turret, level, chapterId = 2) => {
   if (turret.getStatsForChapter) {
-    const stats = turret.getStatsForChapter(2); // Chapitre 2 pour avoir toutes les améliorations
+    const stats = turret.getStatsForChapter(chapterId);
     return {
       damage: stats.damage?.[level - 1] || turret.damage,
       rate: stats.rate?.[level - 1] || turret.rate,
@@ -477,7 +523,14 @@ const hasLevel4InChapter2 = (turret) => {
   return false;
 };
 
-const changeBarracksChapter = (turret, chapterId) => {
+const getSelectedChapter = (turret) => {
+  if (selectedChapter.value[turret.key]) {
+    return selectedChapter.value[turret.key];
+  }
+  return turret.key === 'barracks' || turret.key === 'machine_gun' ? 1 : 2;
+};
+
+const changeTurretChapter = (turret, chapterId) => {
   selectedChapter.value[turret.key] = chapterId;
   const maxLvl = getMaxLevel(turret, chapterId);
   if ((selectedLevels.value[turret.key] || 1) > maxLvl) {
