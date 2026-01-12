@@ -232,8 +232,16 @@ export class GameScene extends Phaser.Scene {
       this.leftToolbarBounds = null;
       this.rightToolbarBounds = null;
 
-      this.unitScale = Phaser.Math.Clamp(this.scaleFactor, 0.6, 1.2);
-      this.collisionScale = Phaser.Math.Clamp(this.scaleFactor, 0.6, 1.2);
+      this.unitScale = Phaser.Math.Clamp(
+        this.scaleFactor * (this.isPortrait ? 0.72 : 0.9),
+        0.45,
+        1
+      );
+      this.collisionScale = Phaser.Math.Clamp(
+        this.scaleFactor * (this.isPortrait ? 0.85 : 0.95),
+        0.5,
+        1.1
+      );
       return;
     }
 
@@ -373,11 +381,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.unitScale = Phaser.Math.Clamp(
-      this.scaleFactor * (this.isPortrait ? 0.78 : 0.95),
+      this.scaleFactor * (this.isPortrait ? 0.72 : 0.9),
       0.45,
-      1.05
+      1
     );
-    this.collisionScale = Phaser.Math.Clamp(this.scaleFactor, 0.45, 1.2);
+    this.collisionScale = Phaser.Math.Clamp(
+      this.scaleFactor * (this.isPortrait ? 0.85 : 0.95),
+      0.5,
+      1.1
+    );
   }
 
   // Gérer le redimensionnement

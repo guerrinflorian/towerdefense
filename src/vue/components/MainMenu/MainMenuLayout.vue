@@ -386,7 +386,7 @@ watch(visible, (val) => val && hydrate());
 
 .hud-container {
   min-height: 100vh;
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
   padding: 20px;
@@ -712,6 +712,19 @@ watch(visible, (val) => val && hydrate());
   .deploy-text { font-size: 20px; letter-spacing: 4px; }
 }
 
+@media (max-width: 1024px) {
+  .hud-main-grid {
+    flex-wrap: wrap;
+  }
+
+  .hud-column-left,
+  .hud-column-center,
+  .hud-column-right {
+    flex: 1 1 320px;
+    min-width: 280px;
+  }
+}
+
 @media (max-width: 1200px) {
   .hud-main-grid {
     flex-direction: column;
@@ -736,7 +749,7 @@ watch(visible, (val) => val && hydrate());
   .deploy-main-btn {
     padding: 30px 40px;
   }
-  
+
   .hud-column-left {
     flex-direction: row;
     gap: 15px;

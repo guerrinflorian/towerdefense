@@ -7,8 +7,8 @@
       <div class="game-hud__stat game-hud__stat--wave">
         🌊 {{ state.currentWave }}/{{ state.totalWaves }}
       </div>
+      <div class="game-hud__stat game-hud__stat--timer">⏱️ {{ formattedTimer }}</div>
     </div>
-    <div class="game-hud__timer">⏱️ {{ formattedTimer }}</div>
     <div class="game-hud__actions">
       <button class="game-hud__button game-hud__button--pause" @click="pauseGame">
         ⏸️ Pause
@@ -54,8 +54,8 @@ const quitGame = () => {
 .game-hud {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px;
   width: 100%;
   height: 100%;
   background: rgba(15, 16, 21, 0.92);
@@ -69,23 +69,23 @@ const quitGame = () => {
 .game-hud__title {
   text-align: center;
   font-weight: 700;
-  font-size: clamp(12px, 3vw, 16px);
+  font-size: clamp(11px, 2.6vw, 14px);
   color: #9edcff;
 }
 
 .game-hud__stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .game-hud__stat {
-  padding: 6px 8px;
+  padding: 5px 6px;
   border-radius: 10px;
   background: rgba(26, 26, 46, 0.8);
   text-align: center;
   font-weight: 700;
-  font-size: clamp(10px, 2.6vw, 14px);
+  font-size: clamp(10px, 2.4vw, 13px);
 }
 
 .game-hud__stat--money {
@@ -103,14 +103,9 @@ const quitGame = () => {
   color: #00ccff;
 }
 
-.game-hud__timer {
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: rgba(26, 26, 46, 0.8);
+.game-hud__stat--timer {
   border: 1px solid rgba(255, 255, 255, 0.4);
-  text-align: center;
-  font-weight: 700;
-  font-size: clamp(11px, 3vw, 15px);
+  color: #ffffff;
 }
 
 .game-hud__actions {
