@@ -7,10 +7,10 @@
 import './config.js';
 
 // Utiliser le build runtime complet de Vue (avec support des templates compilés)
-import { createApp, h } from 'vue/dist/vue.esm-bundler.js';
-import { computed } from 'vue/dist/vue.esm-bundler.js';
+import { createApp, h, Teleport, computed } from 'vue/dist/vue.esm-bundler.js';
 import { useModalStore } from './stores/modalStore.js';
-import { initVueBridge } from './bridge.js';
+import { initGameUIBridge, initVueBridge } from './bridge.js';
+import { useGameUIStore } from './stores/gameUIStore.js';
 import GameResultOverlay from './components/GameResultOverlay.vue';
 import HeroSelectionModal from './components/HeroSelectionModal.vue';
 import AchievementsPage from './components/AchievementsPage.vue';
@@ -18,6 +18,8 @@ import HeroUpgradePanel from './components/HeroUpgradePanel.vue';
 import AuthOverlay from './components/AuthOverlay.vue';
 import MainMenuLayout from './components/MainMenu/MainMenuLayout.vue';
 import PlayerProfileModal from './components/PlayerProfileModal.vue';
+import GameHud from './components/GameHud.vue';
+import GameToolbar from './components/GameToolbar.vue';
 
 // Créer l'app Vue avec render function au lieu de template string
 const app = createApp({
@@ -32,9 +34,11 @@ const app = createApp({
   },
   setup() {
     const modalStore = useModalStore();
+    const gameUIStore = useGameUIStore();
     
     // Initialiser le bridge pour communication avec Phaser
     initVueBridge(modalStore);
+    initGameUIBridge(gameUIStore);
     
     // Utiliser directement l'état reactive pour la réactivité
     const showGameResult = computed(() => modalStore.state.showGameResult);
@@ -46,6 +50,8 @@ const app = createApp({
     
     return () => h('div', { id: 'vue-app' }, [
       h(AuthOverlay),
+      h(Teleport, { to: '#hud-root' }, [h(GameHud)]),
+      h(Teleport, { to: '#toolbar-root' }, [h(GameToolbar)]),
       showMainMenu.value ? h(MainMenuLayout) : null,
       showGameResult.value ? h(GameResultOverlay) : null,
       showHeroSelection.value ? h(HeroSelectionModal) : null,
