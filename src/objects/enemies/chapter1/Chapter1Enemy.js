@@ -12,11 +12,13 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
 
     this.hp = this.stats.hp || 100;
     this.maxHp = this.hp;
-    this.speed = this.stats.speed || 50;
+    const scaleFactor = scene.scaleFactor || 1;
+    const collisionScale = scene.collisionScale || scaleFactor;
+    this.speed = (this.stats.speed || 50) * scaleFactor;
     this.attackDamage = this.stats.damage || 10;
     this.playerDamage = this.stats.playerDamage || 1;
     this.attackSpeed = this.stats.attackSpeed || 1000;
-    this.attackRange = this.stats.attackRange || 30;
+    this.attackRange = (this.stats.attackRange || 30) * collisionScale;
     this.isRanged = this.stats.isRanged || false;
 
     this.progress = 0;
@@ -29,11 +31,11 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
     this.hasUsedShell = false;
 
     // Système de lanes amélioré - évitement sans blocage
-    this.laneOffset = (Math.random() - 0.5) * 15;
+    this.laneOffset = (Math.random() - 0.5) * 15 * collisionScale;
     this.targetLaneOffset = this.laneOffset;
-    this.avoidanceRadius = 40; // Distance de détection des voisins
-    this.personalSpace = 25; // Espace personnel minimum
-    this.maxLaneWidth = 30; // Largeur maximale des lanes
+    this.avoidanceRadius = 40 * collisionScale; // Distance de détection des voisins
+    this.personalSpace = 25 * collisionScale; // Espace personnel minimum
+    this.maxLaneWidth = 30 * collisionScale; // Largeur maximale des lanes
     
     // Vitesses de réaction plus rapides
     this.laneChangeSpeed = 0.2; // Changement de lane rapide
@@ -58,11 +60,10 @@ export class Chapter1Enemy extends Phaser.GameObjects.Container {
     this.initVisuals();
 
     this.scene.add.existing(this);
-    this.setSize(32, 32);
-    const mobileScale = scene.isPortrait ? 0.72 : 0.92;
-    this.setScale(
-      Phaser.Math.Clamp((scene.scaleFactor || 1) * mobileScale, 0.6, 1.05)
-    );
+    const unitScale = scene.unitScale || scene.scaleFactor || 1;
+    const hitboxScale = scene.collisionScale || scene.scaleFactor || 1;
+    this.setSize(32 * hitboxScale, 32 * hitboxScale);
+    this.setScale(Phaser.Math.Clamp(unitScale, 0.45, 1.05));
     this.setInteractive();
 
     this.on("pointerover", () => this.showHpTooltip());
