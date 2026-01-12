@@ -191,8 +191,10 @@ const activeColumns = computed(() => {
   if (m === 'hero-type') return [
     { key: 'rank', label: 'RG', width: '40px' },
     { key: 'player', label: 'JOUEUR', width: '1.5fr' },
-    { key: 'hp', label: 'PV', width: '50px', align: 'center' },
-    { key: 'score', label: 'TOTAL', width: '80px', align: 'right' }
+    { key: 'hp', label: 'PV', width: '50px', align: 'center', icon: '❤️' },
+    { key: 'damage', label: 'ATQ', width: '60px', align: 'center', icon: '⚔️' },
+    { key: 'speed', label: 'VIT', width: '55px', align: 'center', icon: '💨' },
+    { key: 'attack', label: 'VIT. ATQ', width: '70px', align: 'center', icon: '⏱️' }
   ];
   return [ // Global
     { key: 'rank', label: 'RG', width: '40px' },
@@ -234,6 +236,9 @@ const formatValue = (entry, key, idx) => {
     case 'successes': return entry.unlocked_count ?? 0;
     case 'hearts': return entry.lives_lost ?? entry.total_lives_lost ?? 0;
     case 'hp': return entry.max_hp || 0;
+    case 'damage': return parseFloat(entry.base_damage || 0).toFixed(1);
+    case 'speed': return Math.round(entry.move_speed || 0);
+    case 'attack': return formatAttackInterval(entry.attack_interval_ms);
     case 'lvl': return entry.max_level || 0;
     default: return "";
   }
@@ -251,9 +256,14 @@ const formatDate = (d) => {
   return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
 };
 
+const formatAttackInterval = (ms) => {
+  if (!ms) return "0.00s";
+  return `${(ms / 1000).toFixed(2)}s`;
+};
+
 const getCellColorClass = (key, idx) => {
   if (idx === 0) return 'text-gold';
-  if (key === 'time' || key === 'score' || key === 'hearts') return 'text-accent';
+  if (key === 'time' || key === 'score' || key === 'hearts' || key === 'hp' || key === 'damage' || key === 'speed' || key === 'attack') return 'text-accent';
   return '';
 };
 
@@ -272,7 +282,7 @@ const getRowTooltip = (entry, idx) => {
   } else if (currentMode.value === 'level') {
     return `Rang ${rank}: ${username}\nCoeurs perdus: ${entry.lives_lost || entry.total_lives_lost || 0}\nTemps: ${formatTime(entry.completion_time_ms || 0)}`;
   } else if (currentMode.value === 'hero-type') {
-    return `Rang ${rank}: ${username}\nPoints de vie max: ${entry.max_hp || 0}\nScore total: ${Math.round(entry.hero_score || 0).toLocaleString()}`;
+    return `Rang ${rank}: ${username}\nPoints de vie max: ${entry.max_hp || 0}\nDégâts: ${parseFloat(entry.base_damage || 0).toFixed(1)}\nVitesse: ${Math.round(entry.move_speed || 0)}\nVitesse d'attaque: ${formatAttackInterval(entry.attack_interval_ms)}`;
   }
   return `Rang ${rank}: ${username}`;
 };
