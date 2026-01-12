@@ -663,6 +663,7 @@ export class Hero extends Phaser.GameObjects.Container {
   checkForEnemyEngage() {
     if (!this.scene?.enemies) return;
     const enemies = this.scene.enemies.getChildren();
+    const collisionScale = this.scene.collisionScale || this.scene.scaleFactor || 1;
 
     // Pour les autres héros (pas l'archer), chercher le plus proche
     const candidates = [];

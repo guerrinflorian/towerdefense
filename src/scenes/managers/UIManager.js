@@ -4,6 +4,12 @@ import { BuildToolbar } from "./ui/components/BuildToolbar.js";
 import { HUD } from "./ui/components/HUD.js";
 import { TreeMenu } from "./ui/components/TreeMenu.js";
 import { UpgradeMenu } from "./ui/components/UpgradeMenu.js";
+import {
+  setGameUIVisible,
+  updateGameHud,
+  updateGameTimer,
+  updateGameTurrets,
+} from "../../vue/bridge.js";
 
 export class UIManager {
   constructor(scene, spellManager, inputManager) {
@@ -21,15 +27,19 @@ export class UIManager {
   }
 
   createUI() {
-    this.hud = new HUD(this.scene);
-    this.hud.create();
+    if (!this.scene.useVueGameUI) {
+      this.hud = new HUD(this.scene);
+      this.hud.create();
 
-    this.buildToolbar = new BuildToolbar(
-      this.scene,
-      this.spellManager,
-      this.inputManager
-    );
-    this.buildToolbar.create();
+      this.buildToolbar = new BuildToolbar(
+        this.scene,
+        this.spellManager,
+        this.inputManager
+      );
+      this.buildToolbar.create();
+    } else {
+      setGameUIVisible(true);
+    }
 
     this.buildMenu = new BuildMenu(this.scene);
     this.buildMenu.create();
@@ -78,6 +88,14 @@ export class UIManager {
     if (this.hud) {
       this.hud.update(this.scene.money, this.scene.lives, currentWave, totalWaves);
       this.hud.updateTimer(this.scene.elapsedTimeMs || 0);
+    } else {
+      updateGameHud({
+        money: this.scene.money,
+        lives: this.scene.lives,
+        currentWave,
+        totalWaves,
+        elapsedMs: this.scene.elapsedTimeMs || 0,
+      });
     }
 
     this.updateToolbarCounts();
@@ -96,12 +114,34 @@ export class UIManager {
   updateToolbarCounts() {
     if (this.buildToolbar) {
       this.buildToolbar.updateToolbarCounts();
+      return;
+    }
+
+    if (this.scene.useVueGameUI) {
+      const turretCounts = {
+        machine_gun: this.scene.turrets.filter((t) => t.config.key === "machine_gun").length,
+        sniper: this.scene.turrets.filter((t) => t.config.key === "sniper").length,
+        cannon: this.scene.turrets.filter((t) => t.config.key === "cannon").length,
+        zap: this.scene.turrets.filter((t) => t.config.key === "zap").length,
+        barracks: this.scene.barracks.length,
+      };
+      updateGameTurrets({
+        money: this.scene.money,
+        counts: turretCounts,
+        maxBarracks: this.scene.maxBarracks,
+        maxSnipers: this.scene.maxSnipers,
+      });
     }
   }
 
   updateTimer(elapsedMs) {
     if (this.hud) {
       this.hud.updateTimer(elapsedMs);
+      return;
+    }
+
+    if (this.scene.useVueGameUI) {
+      updateGameTimer(elapsedMs);
     }
   }
 
@@ -134,7 +174,22 @@ export class UIManager {
     if (this.isPointerOnBuildMenu(pointer)) {
       return true;
     }
-    return this.buildToolbar?.isPointerOnToolbar(pointer) || false;
+    if (this.buildToolbar?.isPointerOnToolbar) {
+      return this.buildToolbar.isPointerOnToolbar(pointer);
+    }
+    if (this.scene.leftToolbarBounds || this.scene.rightToolbarBounds) {
+      const bounds = [this.scene.leftToolbarBounds, this.scene.rightToolbarBounds];
+      return bounds.some((b) => {
+        if (!b) return false;
+        return (
+          pointer.worldX >= b.x &&
+          pointer.worldX <= b.x + b.width &&
+          pointer.worldY >= b.y &&
+          pointer.worldY <= b.y + b.height
+        );
+      });
+    }
+    return false;
   }
 
   isPointerOnBuildMenu(pointer) {

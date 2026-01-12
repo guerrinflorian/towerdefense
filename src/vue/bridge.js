@@ -4,9 +4,14 @@
  */
 
 let modalStore = null;
+let gameUIStore = null;
 
 export function initVueBridge(store) {
   modalStore = store;
+}
+
+export function initGameUIBridge(store) {
+  gameUIStore = store;
 }
 
 /**
@@ -132,4 +137,32 @@ export function hideMainMenu() {
     return;
   }
   modalStore.hideMainMenu();
+}
+
+export function setGameUIVisible(visible) {
+  if (!gameUIStore) {
+    return;
+  }
+  gameUIStore.setVisible(visible);
+}
+
+export function updateGameHud(payload) {
+  if (!gameUIStore) {
+    return;
+  }
+  gameUIStore.setHud(payload);
+}
+
+export function updateGameTimer(elapsedMs) {
+  if (!gameUIStore) {
+    return;
+  }
+  gameUIStore.setTimer(elapsedMs);
+}
+
+export function updateGameTurrets(payload) {
+  if (!gameUIStore) {
+    return;
+  }
+  gameUIStore.setTurrets(payload);
 }
