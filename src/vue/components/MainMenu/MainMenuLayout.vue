@@ -814,4 +814,25 @@ watch(visible, (val) => val && hydrate());
     font-size: 11px;
   }
 }
+
+@media (max-width: 640px) {
+  .hud-main-grid {
+    gap: 16px;
+  }
+
+  .hud-column-left {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hud-column-left,
+  .hud-column-center,
+  .hud-column-right {
+    width: 100%;
+  }
+
+  .hud-element {
+    width: 100%;
+  }
+}
 </style>
