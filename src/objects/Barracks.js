@@ -389,7 +389,7 @@ export class Barracks extends Phaser.GameObjects.Container {
       const soldier = new Soldier(this.scene, pos.x, pos.y, this);
       soldier.level = this.level; // Définir le niveau
       soldier.drawBody(); // Redessiner avec le bon niveau
-      soldier.setScale(this.scene.scaleFactor || 1);
+      soldier.setScale(this.scene.unitScale || this.scene.scaleFactor || 1);
 
       // Mettre à jour les stats selon le niveau
       soldier.maxHp = this.config.soldierHp[this.level - 1];
@@ -403,7 +403,7 @@ export class Barracks extends Phaser.GameObjects.Container {
       soldier.setScale(0);
       this.scene.tweens.add({
         targets: soldier,
-        scale: this.scene.scaleFactor || 1,
+        scale: this.scene.unitScale || this.scene.scaleFactor || 1,
         duration: 300,
         ease: "Back.easeOut",
       });
