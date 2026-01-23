@@ -1,7 +1,7 @@
 // Détection automatique de l'URL de l'API
 // En production (Vercel), utilise l'origine actuelle (même domaine)
 // En développement, utilise localhost:3000
-export const getApiBaseUrl = () => {
+const getApiBaseUrl = () => {
   // Si une variable d'environnement est définie, l'utiliser (pour override)
   if (process.env.API_BASE_URL || process.env.API_URL) {
     return process.env.API_BASE_URL || process.env.API_URL;
@@ -22,7 +22,7 @@ export const getApiBaseUrl = () => {
   return "http://localhost:3000";
 };
 
-export const API_BASE_URL = getApiBaseUrl().replace(/\/$/, "");
+const API_BASE_URL = getApiBaseUrl().replace(/\/$/, "");
 const DEFAULT_TIMEOUT = 10000;
 
 async function httpRequest(
