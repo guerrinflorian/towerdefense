@@ -5,7 +5,7 @@ export const pink_slime = {
   name: "Slime Rose",
   speed: 34,
   hp: 3500,
-  reward: 100,
+  reward: 120,
   playerDamage: 4,
   color: 0xffb6c1, // Rose clair
   damage: 45,
