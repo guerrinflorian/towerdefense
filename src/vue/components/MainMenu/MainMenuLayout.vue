@@ -198,7 +198,7 @@ const loadOwnedSpells = async () => {
   }
   try {
     const data = await fetchSpells();
-    ownedSpells.value = (data.spells || []).filter(s => s.unlocked);
+    ownedSpells.value = (data.spells || []).filter(s => s.is_unlocked);
   } catch {
     ownedSpells.value = [{ key: 'lightning', name: 'Éclair', icon: '⚡' }];
   }
@@ -387,7 +387,7 @@ const openSpellShop = async () => {
         const refreshed = await fetchSpells();
         modalStore.updateSpellShopData(refreshed.spells, refreshed.heroPointsAvailable);
         // Mettre à jour le widget de sorts dans le header
-        ownedSpells.value = (refreshed.spells || []).filter(s => s.unlocked);
+        ownedSpells.value = (refreshed.spells || []).filter(s => s.is_unlocked);
         // Rafraîchir le profil pour mettre à jour les points affichés
         await loadProfile({ forceRefresh: true });
         window.dispatchEvent(new CustomEvent('spell:unlocked', { detail: { spellKey } }));
