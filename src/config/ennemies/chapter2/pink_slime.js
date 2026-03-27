@@ -5,10 +5,10 @@ export const pink_slime = {
   name: "Slime Rose",
   speed: 40,
   hp: 3800,
-  reward: 40,
+  reward: 100,
   playerDamage: 4,
   color: 0xffb6c1, // Rose clair
-  damage: 65,
+  damage: 55,
   attackSpeed: 1500,
   description: "Slime Rose - Créature divisante. Rôle : se divise à sa mort. POUVOIR SPÉCIAL : À sa mort, se divise en 3 Petits Slimes Roses. Résistant et collant, éliminez-le avec précaution !",
   scale: 1,
