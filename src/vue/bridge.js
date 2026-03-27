@@ -166,3 +166,17 @@ export function updateGameTurrets(payload) {
   }
   gameUIStore.setTurrets(payload);
 }
+
+export function updateLightningCooldown(cooldownMs, totalMs) {
+  if (!gameUIStore) {
+    return;
+  }
+  gameUIStore.setLightningCooldown(cooldownMs, totalMs);
+}
+
+export function updateBarrierAvailable(available) {
+  if (!gameUIStore) {
+    return;
+  }
+  gameUIStore.setBarrierAvailable(available);
+}

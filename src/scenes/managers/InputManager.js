@@ -227,7 +227,7 @@ export class InputManager {
         if (isOnToolbar || !isOnMap) {
           this.spellManager.cancelSpellPlacement();
         } else {
-          this.spellManager.placeLightning(pointer.worldX, pointer.worldY);
+          this.spellManager.placeCurrentSpell(pointer.worldX, pointer.worldY);
         }
         this.longPressTriggered = false;
         return;

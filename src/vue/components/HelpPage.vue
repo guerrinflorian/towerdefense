@@ -90,6 +90,12 @@
                   Le sort <strong>Éclair</strong> inflige 350 dégâts dans une zone et paralyse les ennemis survivants pendant 3.5 secondes.
                   Utilisez-le stratégiquement lors des vagues difficiles ! Cooldown de 100 secondes.
                 </p>
+                <p class="mechanic-text" style="margin-top: 8px;">
+                  <span class="chapter2-badge">Chapitre 2</span>
+                  Le sort <strong>Barrière 🪵</strong> pose une barricade de bois directement sur le chemin.
+                  Les ennemis doivent la détruire (350 PV) pour passer — elle explose ensuite pour <strong>115 dégâts</strong> autour d'elle.
+                  Disponible <strong>1 fois par vague</strong>, elle se recharge automatiquement à chaque nouvelle vague.
+                </p>
               </div>
 
               <div class="mechanic-card">
@@ -775,6 +781,19 @@ const getUpgradeCost = (turret, fromLevel) => {
   font-size: 10px;
   font-weight: 600;
   border-radius: 3px;
+}
+
+.chapter2-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 2px 7px;
+  background: rgba(0, 200, 255, 0.15);
+  border: 1px solid #00c8ff;
+  color: #00c8ff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 3px;
+  vertical-align: middle;
 }
 
 .general-content {

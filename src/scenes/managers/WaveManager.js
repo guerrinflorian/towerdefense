@@ -42,6 +42,9 @@ export class WaveManager {
     if (!hasMoreWaves) return;
     if (this.scene.isPaused) return;
 
+    // Reset de la barrière : nouvelle vague = nouvelle barrière disponible
+    this.scene.spellManager?.resetBarrierForNewWave();
+
     // Nettoyage du timer de fin de vague (IMPORTANT : toujours le faire en premier)
     if (this.scene.endCheckTimer) {
         this.scene.endCheckTimer.remove();

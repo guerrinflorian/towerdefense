@@ -12,6 +12,9 @@ const state = reactive({
     maxBarracks: 0,
     maxSnipers: 0,
   },
+  lightningCooldown: 0,
+  lightningTotalCooldown: 1,
+  barrierAvailable: true,
 });
 
 export function useGameUIStore() {
@@ -40,11 +43,24 @@ export function useGameUIStore() {
     if (typeof maxSnipers === "number") state.turrets.maxSnipers = maxSnipers;
   };
 
+  const setLightningCooldown = (cooldownMs, totalMs) => {
+    state.lightningCooldown = typeof cooldownMs === "number" ? cooldownMs : 0;
+    if (typeof totalMs === "number" && totalMs > 0) {
+      state.lightningTotalCooldown = totalMs;
+    }
+  };
+
+  const setBarrierAvailable = (available) => {
+    state.barrierAvailable = Boolean(available);
+  };
+
   return {
     state: readonly(state),
     setVisible,
     setHud,
     setTimer,
     setTurrets,
+    setLightningCooldown,
+    setBarrierAvailable,
   };
 }
