@@ -130,7 +130,8 @@
         </div>
       </div>
     </div>
-  <SpellShopModal v-if="modalStore.state.spellShop.visible" />
+    <SpellShopModal v-if="modalStore.state.spellShop.visible" />
+  </div>
 </template>
 
 <script setup>
