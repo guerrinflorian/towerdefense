@@ -34,7 +34,8 @@ export class SpellManager {
 
     // Poison
     this.poisonCooldown = 0;
-    this.activePoisonPools = []; // [{ graphics, x, y, radius, expireAt, tickTimer }]
+    this.activePoisonPools = []; // [{ graphics, x, y, radius, expireAt }]
+    this.poisonedEnemies = new Map(); // enemy → { expireAt, tickTimer, particles }]
 
     // Piège à ours : 1 par vague
     this.bearTrapAvailable = true;
@@ -148,21 +149,13 @@ export class SpellManager {
       this.scene.time.delayedCall(POISON_SPELL.poolDuration, () => bubble.destroy());
     }
 
-    // Tick timer for DOT
     const poolEntry = {
       graphics: poolGfx,
       x: cx,
       y: cy,
       radius: scaledRadius,
       expireAt: this.scene.time.now + POISON_SPELL.poolDuration,
-      poisonedEnemies: new Set(), // enemies currently tracked for this tick
     };
-
-    poolEntry.tickTimer = this.scene.time.addEvent({
-      delay: POISON_SPELL.tickInterval,
-      callback: () => this._applyPoisonTick(poolEntry),
-      loop: true,
-    });
 
     this.activePoisonPools.push(poolEntry);
 
@@ -172,28 +165,137 @@ export class SpellManager {
     this.cancelSpellPlacement();
   }
 
-  _applyPoisonTick(pool) {
-    if (!pool.graphics?.active) return;
-    if (this.scene.time.now >= pool.expireAt) return;
+  // Appelé chaque frame : vérifie les ennemis dans la flaque et les empoisonne
+  _checkPoisonPools() {
+    if (!this.activePoisonPools.length) return;
+    const now = this.scene.time.now;
 
     this.scene.enemies?.getChildren().forEach((enemy) => {
       if (!enemy?.active) return;
-      const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, pool.x, pool.y);
-      if (dist <= pool.radius) {
-        enemy.damage(POISON_SPELL.tickDamage, { source: "poison" });
-
-        // Visual pulse on enemy
-        const flash = this.scene.add.circle(enemy.x, enemy.y, 8 * this.scene.scaleFactor, 0x00ff44, 0.9);
-        flash.setDepth(50);
-        this.scene.tweens.add({
-          targets: flash,
-          scale: 2,
-          alpha: 0,
-          duration: 400,
-          onComplete: () => flash.destroy(),
-        });
+      for (const pool of this.activePoisonPools) {
+        if (now >= pool.expireAt) continue;
+        const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, pool.x, pool.y);
+        if (dist <= pool.radius) {
+          this._applyPoisonToEnemy(enemy);
+          break;
+        }
       }
     });
+  }
+
+  _applyPoisonToEnemy(enemy) {
+    const now = this.scene.time.now;
+    const existing = this.poisonedEnemies.get(enemy);
+
+    if (existing) {
+      // Prolonger / rafraîchir l'empoisonnement
+      existing.expireAt = now + POISON_SPELL.poisonDuration;
+      return;
+    }
+
+    // Nouveau poison : démarrer le DOT + les particules
+    const sc = this.scene.scaleFactor;
+    const entry = {
+      expireAt: now + POISON_SPELL.poisonDuration,
+      particles: [],
+      tickTimer: null,
+    };
+
+    // Timer de tick de dégâts (toutes les secondes)
+    entry.tickTimer = this.scene.time.addEvent({
+      delay: POISON_SPELL.tickInterval,
+      loop: true,
+      callback: () => {
+        if (!enemy?.active || this.scene.time.now >= entry.expireAt) {
+          this._clearPoisonFromEnemy(enemy);
+          return;
+        }
+        const dmg = Phaser.Math.Between(POISON_SPELL.minTickDamage, POISON_SPELL.maxTickDamage);
+        enemy.damage(dmg, { source: "poison" });
+
+        // Chiffre de dégâts flottant
+        const dmgText = this.scene.add.text(
+          enemy.x + (Math.random() - 0.5) * 14,
+          enemy.y - 10 * sc,
+          `-${dmg}`,
+          { fontSize: `${Math.round(11 * sc)}px`, fill: "#44ff44", fontStyle: "bold",
+            stroke: "#003300", strokeThickness: 2 }
+        ).setDepth(60).setOrigin(0.5);
+        this.scene.tweens.add({
+          targets: dmgText,
+          y: dmgText.y - 22 * sc,
+          alpha: 0,
+          duration: 900,
+          onComplete: () => dmgText.destroy(),
+        });
+      },
+    });
+
+    // Particules continues qui suivent l'ennemi (bulles vertes montantes)
+    const particleTimer = this.scene.time.addEvent({
+      delay: 220,
+      loop: true,
+      callback: () => {
+        if (!enemy?.active || this.scene.time.now >= entry.expireAt) return;
+        const ox = (Math.random() - 0.5) * 16 * sc;
+        const bubble = this.scene.add.circle(
+          enemy.x + ox,
+          enemy.y - 4 * sc,
+          Phaser.Math.Between(2, 4) * sc,
+          0x33ff66,
+          0.85
+        ).setDepth(55);
+        this.scene.tweens.add({
+          targets: bubble,
+          y: bubble.y - (18 + Math.random() * 14) * sc,
+          alpha: 0,
+          duration: 700 + Math.random() * 400,
+          onComplete: () => bubble.destroy(),
+        });
+
+        // Tête de mort occasionnelle
+        if (Math.random() < 0.25) {
+          const skull = this.scene.add.text(
+            enemy.x + (Math.random() - 0.5) * 18 * sc,
+            enemy.y - 8 * sc,
+            "☠",
+            { fontSize: `${Math.round(10 * sc)}px` }
+          ).setDepth(56).setAlpha(0.7);
+          this.scene.tweens.add({
+            targets: skull,
+            y: skull.y - 20 * sc,
+            alpha: 0,
+            duration: 900,
+            onComplete: () => skull.destroy(),
+          });
+        }
+      },
+    });
+
+    entry.particleTimer = particleTimer;
+    this.poisonedEnemies.set(enemy, entry);
+
+    // Teinte verte sur l'ennemi
+    if (enemy.setTint) enemy.setTint(0x88ff88);
+  }
+
+  _clearPoisonFromEnemy(enemy) {
+    const entry = this.poisonedEnemies.get(enemy);
+    if (!entry) return;
+    entry.tickTimer?.remove();
+    entry.particleTimer?.remove();
+    if (enemy?.active && enemy.clearTint) enemy.clearTint();
+    this.poisonedEnemies.delete(enemy);
+  }
+
+  // Nettoyage des ennemis morts ou dont le poison a expiré
+  _updatePoisonedEnemies() {
+    const now = this.scene.time.now;
+    for (const [enemy, entry] of this.poisonedEnemies) {
+      if (!enemy?.active || now >= entry.expireAt) {
+        this._clearPoisonFromEnemy(enemy);
+      }
+    }
   }
 
   // ─── PIÈGE À OURS ──────────────────────────────────────────────
@@ -1087,6 +1189,10 @@ export class SpellManager {
         this.activePoisonPools.splice(i, 1);
       }
     }
+
+    // Poison : contact flaque → empoisonnement + nettoyage expirations
+    this._checkPoisonPools();
+    this._updatePoisonedEnemies();
 
     // Check bear traps
     this._checkBearTraps();
