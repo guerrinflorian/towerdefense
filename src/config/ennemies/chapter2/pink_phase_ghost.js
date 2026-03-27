@@ -1,17 +1,17 @@
 export const pink_phase_ghost = {
   name: "Fantôme de Phase",
-  speed: 55, // Vitesse modérée, glisse doucement
-  hp: 1380, // Plus fort en HP
-  reward: 35, // Récompense augmentée
+  speed: 46, // Vitesse modérée, glisse doucement
+  hp: 1180, // Plus fort en HP
+  reward: 50, // Récompense augmentée
   playerDamage: 2,
   color: 0xffb6c1, // Rose clair
-  damage: 28, // Dégâts augmentés
-  attackSpeed: 700,
+  damage: 24, // Dégâts augmentés
+  attackSpeed: 1100,
   scale: 1.3, // Plus gros
   description: "Fantôme de Phase - Unité invulnérable. Rôle : tank avec invulnérabilité périodique. POUVOIR SPÉCIAL : Devient invulnérable pendant 2 secondes toutes les 5 secondes (cycle de 3s vulnérable + 2s invulnérable). Très dangereux !",
 
   // Configuration de l'invulnérabilité périodique
-  phaseInvulnerableDuration: 2000, // 2 secondes d'invulnérabilité
+  phaseInvulnerableDuration: 1800, // 1.8 secondes d'invulnérabilité
   phaseCycleDuration: 5000, // Cycle total de 5 secondes (3s vulnérable + 2s invulnérable)
 
   onDraw: (scene, container, color, enemyInstance) => {
