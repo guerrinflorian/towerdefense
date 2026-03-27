@@ -2,7 +2,7 @@ export const pink_marshmallow_runner = {
   name: "Berry Bolt",
   speed: 185,
   hp: 140,
-  reward: 20,
+  reward: 25,
   playerDamage: 1,
   color: 0xffd1dc, // Rose guimauve plus doux
   damage: 18,
