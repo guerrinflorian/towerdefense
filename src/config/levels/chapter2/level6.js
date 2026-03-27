@@ -84,7 +84,7 @@ export const LEVEL_6 = {
     // VAGUE 2 : Premiers défis
     [
       { count: 12, type: "pink_heart_grunt", interval: 600, startDelay: 0 },
-      { count: 4, type: "pink_phase_ghost", interval: 900, startDelay: 3000 },
+      { count: 2, type: "pink_phase_ghost", interval: 900, startDelay: 3000 },
       { count: 8, type: "pink_marshmallow_runner", interval: 450, startDelay: 7000 },
       { count: 1, type: "pink_healer", interval: 2000, startDelay: 10000 },
     ],
@@ -93,7 +93,7 @@ export const LEVEL_6 = {
     [
       { count: 18, type: "pink_heart_grunt", interval: 550, startDelay: 0 },
       { count: 3, type: "pink_slime", interval: 1000, startDelay: 2000 },
-      { count: 4, type: "pink_phase_ghost", interval: 800, startDelay: 5000 },
+      { count: 2, type: "pink_phase_ghost", interval: 800, startDelay: 5000 },
       { count: 12, type: "pink_marshmallow_runner", interval: 400, startDelay: 9000 },
       { count: 1, type: "pink_bear_tank", interval: 3500, startDelay: 12000 },
     ],
@@ -102,59 +102,59 @@ export const LEVEL_6 = {
     [
       { count: 25, type: "pink_heart_grunt", interval: 500, startDelay: 0 },
       { count: 8, type: "pink_slime", interval: 900, startDelay: 2500 },
-      { count: 10, type: "pink_phase_ghost", interval: 700, startDelay: 4000 },
+      { count: 5, type: "pink_phase_ghost", interval: 700, startDelay: 4000 },
       { count: 15, type: "pink_marshmallow_runner", interval: 380, startDelay: 8000 },
       { count: 2, type: "pink_healer", interval: 2500, startDelay: 12000 },
-      { count: 3, type: "pink_bear_tank", interval: 3200, startDelay: 15000 },
+      { count: 2, type: "pink_bear_tank", interval: 3200, startDelay: 15000 },
     ],
 
     // VAGUE 5 : Défense renforcée
     [
       { count: 30, type: "pink_heart_grunt", interval: 450, startDelay: 0 },
       { count: 10, type: "pink_slime", interval: 850, startDelay: 2000 },
-      { count: 12, type: "pink_phase_ghost", interval: 650, startDelay: 4000 },
+      { count: 7, type: "pink_phase_ghost", interval: 650, startDelay: 4000 },
       { count: 6, type: "shield", interval: 1500, startDelay: 7000 },
       { count: 18, type: "pink_marshmallow_runner", interval: 350, startDelay: 10000 },
-      { count: 4, type: "pink_bear_tank", interval: 3000, startDelay: 14000 },
+      { count: 3, type: "pink_bear_tank", interval: 3000, startDelay: 14000 },
     ],
 
     // VAGUE 6 : Assaut coordonné
     [
       { count: 35, type: "pink_heart_grunt", interval: 420, startDelay: 0 },
       { count: 12, type: "pink_slime", interval: 800, startDelay: 2000 },
-      { count: 15, type: "pink_phase_ghost", interval: 600, startDelay: 4000 },
+      { count: 10, type: "pink_phase_ghost", interval: 600, startDelay: 4000 },
       { count: 3, type: "pink_healer", interval: 3000, startDelay: 6000 },
       { count: 20, type: "pink_marshmallow_runner", interval: 330, startDelay: 9000 },
-      { count: 5, type: "pink_bear_tank", interval: 2800, startDelay: 13000 },
+      { count: 3, type: "pink_bear_tank", interval: 2800, startDelay: 13000 },
     ],
 
     // VAGUE 7 : Préparation finale
     [
       { count: 40, type: "pink_heart_grunt", interval: 400, startDelay: 0 },
       { count: 15, type: "pink_slime", interval: 750, startDelay: 1500 },
-      { count: 18, type: "pink_phase_ghost", interval: 550, startDelay: 3500 },
+      { count: 14, type: "pink_phase_ghost", interval: 550, startDelay: 3500 },
       { count: 8, type: "shield", interval: 1200, startDelay: 6000 },
       { count: 25, type: "pink_marshmallow_runner", interval: 300, startDelay: 8000 },
       { count: 4, type: "pink_healer", interval: 2800, startDelay: 11000 },
-      { count: 6, type: "pink_bear_tank", interval: 2600, startDelay: 15000 },
+      { count: 5, type: "pink_bear_tank", interval: 2600, startDelay: 15000 },
     ],
 
     // VAGUE 8 : Avant le boss
     [
       { count: 45, type: "pink_heart_grunt", interval: 380, startDelay: 0 },
       { count: 18, type: "pink_slime", interval: 700, startDelay: 1500 },
-      { count: 20, type: "pink_phase_ghost", interval: 500, startDelay: 3000 },
+      { count: 16, type: "pink_phase_ghost", interval: 500, startDelay: 3000 },
       { count: 10, type: "shield", interval: 1100, startDelay: 5500 },
       { count: 30, type: "pink_marshmallow_runner", interval: 280, startDelay: 7000 },
       { count: 5, type: "pink_healer", interval: 2600, startDelay: 10000 },
-      { count: 8, type: "pink_bear_tank", interval: 2400, startDelay: 14000 },
+      { count: 6, type: "pink_bear_tank", interval: 2400, startDelay: 14000 },
     ],
 
     // VAGUE 9 : BOSS FINAL - LA REINE DE VÉLORIA
     [
       { count: 50, type: "pink_heart_grunt", interval: 350, startDelay: 0 },
       { count: 20, type: "pink_slime", interval: 650, startDelay: 1000 },
-      { count: 25, type: "pink_phase_ghost", interval: 450, startDelay: 3000 },
+      { count: 18, type: "pink_phase_ghost", interval: 450, startDelay: 3000 },
       { count: 12, type: "shield", interval: 1000, startDelay: 5000 },
       { count: 35, type: "pink_marshmallow_runner", interval: 250, startDelay: 6000 },
       { count: 6, type: "pink_healer", interval: 2400, startDelay: 10000 },
