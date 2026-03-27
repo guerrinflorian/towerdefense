@@ -1,4 +1,5 @@
 import { CONFIG, ENEMIES } from "../../../config/settings.js";
+import { showFloatingDamage } from "../../../utils/floatingDamage.js";
 
 export class Chapter2Enemy extends Phaser.GameObjects.Container {
   constructor(scene, path, typeKey) {
@@ -393,7 +394,8 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
   damage(amount, metadata = {}) {
     if (this.isInvulnerable || !this.active) return;
 
-    const damageSource = metadata?.source || this.lastDamageSource || "turret"; // Par défaut, tourelle si rien n'est précisé
+    const damageSource = metadata?.source || this.lastDamageSource || "turret";
+    showFloatingDamage(this.scene, this.x, this.y, amount, damageSource); // Par défaut, tourelle si rien n'est précisé
     this.lastDamageSource = damageSource;
     
     // Si c'est une tourelle, stocker son type

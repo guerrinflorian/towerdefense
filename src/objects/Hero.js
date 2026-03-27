@@ -1,4 +1,5 @@
 import { CONFIG } from "../config/settings.js";
+import { showFloatingDamage } from "../utils/floatingDamage.js";
 import { drawHeroBody } from "./HeroDesigns.js";
 import { drawWeapon, playWeaponAttackAnimation, playBowAttackAnimation } from "./HeroWeapons.js";
 
@@ -904,6 +905,7 @@ export class Hero extends Phaser.GameObjects.Container {
     if (!this.isAlive) return;
 
     this.hp -= amount;
+    showFloatingDamage(this.scene, this.x, this.y, amount, "hero_dmg");
     
     // Mettre à jour le temps du dernier dégât
     this.lastDamageTime = this.scene?.time?.now || 0;

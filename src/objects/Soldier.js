@@ -1,3 +1,5 @@
+import { showFloatingDamage } from "../utils/floatingDamage.js";
+
 export class Soldier extends Phaser.GameObjects.Container {
   constructor(scene, x, y, barracks) {
     super(scene, x, y);
@@ -783,8 +785,9 @@ export class Soldier extends Phaser.GameObjects.Container {
   // Prendre des dégâts
   takeDamage(amount) {
     if (!this.scene || !this.scene.time) return;
-    
+
     this.hp -= amount;
+    showFloatingDamage(this.scene, this.x, this.y, amount, "soldier_dmg");
     
     // Mettre à jour le temps du dernier combat
     this.lastCombatTime = this.scene.time.now;

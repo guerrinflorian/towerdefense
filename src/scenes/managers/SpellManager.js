@@ -212,22 +212,6 @@ export class SpellManager {
         }
         const dmg = Phaser.Math.Between(POISON_SPELL.minTickDamage, POISON_SPELL.maxTickDamage);
         enemy.damage(dmg, { source: "poison" });
-
-        // Chiffre de dégâts flottant
-        const dmgText = this.scene.add.text(
-          enemy.x + (Math.random() - 0.5) * 14,
-          enemy.y - 10 * sc,
-          `-${dmg}`,
-          { fontSize: `${Math.round(11 * sc)}px`, fill: "#44ff44", fontStyle: "bold",
-            stroke: "#003300", strokeThickness: 2 }
-        ).setDepth(60).setOrigin(0.5);
-        this.scene.tweens.add({
-          targets: dmgText,
-          y: dmgText.y - 22 * sc,
-          alpha: 0,
-          duration: 900,
-          onComplete: () => dmgText.destroy(),
-        });
       },
     });
 
