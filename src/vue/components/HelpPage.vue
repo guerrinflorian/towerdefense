@@ -19,6 +19,13 @@
           </button>
           <button
             class="help-nav-item"
+            :class="{ active: currentSection === 'spells' }"
+            @click="currentSection = 'spells'"
+          >
+            Sorts
+          </button>
+          <button
+            class="help-nav-item"
             :class="{ active: currentSection === 'enemies' }"
             @click="currentSection = 'enemies'"
           >
@@ -91,10 +98,9 @@
                   Utilisez-le stratégiquement lors des vagues difficiles ! Cooldown de 100 secondes.
                 </p>
                 <p class="mechanic-text" style="margin-top: 8px;">
-                  <span class="chapter2-badge">Chapitre 2</span>
                   Le sort <strong>Barrière 🪵</strong> pose une barricade de bois directement sur le chemin.
                   Les ennemis doivent la détruire (350 PV) pour passer — elle explose ensuite pour <strong>115 dégâts</strong> autour d'elle.
-                  Disponible <strong>1 fois par vague</strong>, elle se recharge automatiquement à chaque nouvelle vague.
+                  Disponible <strong>1 fois par vague</strong>, se recharge automatiquement. S'achète dans la boutique de sorts.
                 </p>
               </div>
 
@@ -208,6 +214,197 @@
                 Chaque ennemi a ses propres capacités spéciales - consultez l'onglet <strong>Monstres</strong> pour les connaître !
               </p>
             </section>
+          </div>
+        </div>
+
+        <div v-if="currentSection === 'spells'" class="help-section">
+          <h2 class="section-title">Sorts Disponibles</h2>
+          <div class="spells-grid">
+
+            <div class="spell-card">
+              <div class="spell-header">
+                <div class="spell-icon-big">⚡</div>
+                <div class="spell-identity">
+                  <h3 class="spell-name">Éclair</h3>
+                  <span class="spell-chapter-badge">Chapitre 1 & 2</span>
+                </div>
+              </div>
+              <p class="spell-desc">
+                Frappe une zone avec un éclair dévastateur. Inflige <strong>350 dégâts</strong> à tous les ennemis dans le rayon,
+                puis les paralyse pendant <strong>3,5 secondes</strong>.
+              </p>
+              <div class="spell-stats-grid">
+                <div class="spell-stat"><span class="spell-stat-label">⚔️ Dégâts</span><span class="spell-stat-val">350</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">❄️ Paralysie</span><span class="spell-stat-val">3.5s</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">⏱️ Cooldown</span><span class="spell-stat-val">100s</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">🎯 Cible</span><span class="spell-stat-val">Zone</span></div>
+              </div>
+              <div class="spell-tips">
+                <h4 class="spell-tips-title">💡 Conseils</h4>
+                <ul class="spell-tips-list">
+                  <li>Attends qu'un maximum d'ennemis soient groupés pour maximiser les dégâts.</li>
+                  <li>La paralysie laisse le temps à tes tourelles de finir les survivants.</li>
+                  <li>Idéal contre les boss ou les vagues denses de fin de niveau.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="spell-card">
+              <div class="spell-header">
+                <div class="spell-icon-big">🪵</div>
+                <div class="spell-identity">
+                  <h3 class="spell-name">Barrière</h3>
+                  <span class="spell-chapter-badge chapter2">300 pts</span>
+                </div>
+              </div>
+              <p class="spell-desc">
+                Pose une barricade de bois sur le chemin. Les ennemis doivent la <strong>détruire (350 PV)</strong> pour passer.
+                À sa destruction, elle <strong>explose (115 dégâts)</strong> sur tous les ennemis proches.
+              </p>
+              <div class="spell-stats-grid">
+                <div class="spell-stat"><span class="spell-stat-label">❤️ Points de vie</span><span class="spell-stat-val">350</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">💥 Explosion</span><span class="spell-stat-val">115 dégâts</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">🔄 Recharge</span><span class="spell-stat-val">1 / vague</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">📍 Placement</span><span class="spell-stat-val">Sur le chemin</span></div>
+              </div>
+              <div class="spell-tips">
+                <h4 class="spell-tips-title">💡 Conseils</h4>
+                <ul class="spell-tips-list">
+                  <li>Place-la juste avant un virage pour donner plus de temps à tes tourelles.</li>
+                  <li>L'explosion de fin peut achever des ennemis affaiblis.</li>
+                  <li>Elle se recharge à chaque nouvelle vague — utilise-la à chaque vague !</li>
+                  <li>Ton héros et tes soldats peuvent attaquer les ennemis bloqués pendant qu'ils détruisent la barrière.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="spell-card">
+              <div class="spell-header">
+                <div class="spell-icon-big">☠️</div>
+                <div class="spell-identity">
+                  <h3 class="spell-name">Flaque de Poison</h3>
+                  <span class="spell-chapter-badge chapter2">200 pts</span>
+                </div>
+              </div>
+              <p class="spell-desc">
+                Crée une flaque toxique sur le chemin. Les ennemis qui la traversent subissent <strong>18 dégâts/sec</strong>
+                pendant <strong>8 secondes</strong>. La flaque reste <strong>12 secondes</strong> sur la carte.
+              </p>
+              <div class="spell-stats-grid">
+                <div class="spell-stat"><span class="spell-stat-label">☠️ Dégâts/tick</span><span class="spell-stat-val">18</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">💧 Durée flaque</span><span class="spell-stat-val">12s</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">⏱️ Cooldown</span><span class="spell-stat-val">40s</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">💀 Dégâts max</span><span class="spell-stat-val">144</span></div>
+              </div>
+              <div class="spell-tips">
+                <h4 class="spell-tips-title">💡 Conseils</h4>
+                <ul class="spell-tips-list">
+                  <li>Place la flaque sur une zone où les ennemis ralentissent (virages, barrière).</li>
+                  <li>Cumuler avec la Barrière maximise l'exposition au poison.</li>
+                  <li>Efficace contre les ennemis à forte armure qui résistent aux dégâts directs.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="spell-card">
+              <div class="spell-header">
+                <div class="spell-icon-big">🪤</div>
+                <div class="spell-identity">
+                  <h3 class="spell-name">Piège à Ours</h3>
+                  <span class="spell-chapter-badge chapter2">250 pts</span>
+                </div>
+              </div>
+              <p class="spell-desc">
+                Pose un piège invisible sur le chemin. Le premier ennemi qui marche dessus est <strong>immobilisé 4 secondes</strong>
+                et saigne pour <strong>20 dégâts/sec pendant 5 secondes</strong>.
+              </p>
+              <div class="spell-stats-grid">
+                <div class="spell-stat"><span class="spell-stat-label">❄️ Immobilisation</span><span class="spell-stat-val">4s</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">🩸 Saignement</span><span class="spell-stat-val">20/s × 5</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">🔄 Recharge</span><span class="spell-stat-val">1 / vague</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">💀 Dégâts tot.</span><span class="spell-stat-val">100</span></div>
+              </div>
+              <div class="spell-tips">
+                <h4 class="spell-tips-title">💡 Conseils</h4>
+                <ul class="spell-tips-list">
+                  <li>Invisible pour les ennemis — parfait pour surprendre les boss.</li>
+                  <li>Profite de l'immobilisation pour concentrer le feu de tes tourelles.</li>
+                  <li>À combiner avec la Barrière pour un double blocage.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="spell-card">
+              <div class="spell-header">
+                <div class="spell-icon-big">✨</div>
+                <div class="spell-identity">
+                  <h3 class="spell-name">Sanctuaire</h3>
+                  <span class="spell-chapter-badge chapter2">500 pts</span>
+                </div>
+              </div>
+              <p class="spell-desc">
+                Crée un sanctuaire doré qui booste toutes les tourelles dans la zone de <strong>+40% de dégâts</strong>
+                pendant <strong>10 secondes</strong>.
+              </p>
+              <div class="spell-stats-grid">
+                <div class="spell-stat"><span class="spell-stat-label">⚡ Boost dégâts</span><span class="spell-stat-val">+40%</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">⏳ Durée</span><span class="spell-stat-val">10s</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">⏱️ Cooldown</span><span class="spell-stat-val">70s</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">🎯 Zone</span><span class="spell-stat-val">Grand rayon</span></div>
+              </div>
+              <div class="spell-tips">
+                <h4 class="spell-tips-title">💡 Conseils</h4>
+                <ul class="spell-tips-list">
+                  <li>Active-le juste avant une vague difficile ou un boss.</li>
+                  <li>Centre le cercle sur ta concentration de tourelles.</li>
+                  <li>Encore plus efficace avec des tourelles de niveau max.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="spell-card">
+              <div class="spell-header">
+                <div class="spell-icon-big">⚔️</div>
+                <div class="spell-identity">
+                  <h3 class="spell-name">Invocation de Soldats</h3>
+                  <span class="spell-chapter-badge chapter2">400 pts</span>
+                </div>
+              </div>
+              <p class="spell-desc">
+                Invoque <strong>3 soldats temporaires</strong> sur le chemin qui bloquent et attaquent les ennemis
+                pendant <strong>10 secondes</strong>, puis disparaissent.
+              </p>
+              <div class="spell-stats-grid">
+                <div class="spell-stat"><span class="spell-stat-label">👥 Soldats</span><span class="spell-stat-val">3</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">❤️ PV / soldat</span><span class="spell-stat-val">200</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">⏳ Durée</span><span class="spell-stat-val">10s</span></div>
+                <div class="spell-stat"><span class="spell-stat-label">⏱️ Cooldown</span><span class="spell-stat-val">90s</span></div>
+              </div>
+              <div class="spell-tips">
+                <h4 class="spell-tips-title">💡 Conseils</h4>
+                <ul class="spell-tips-list">
+                  <li>Invoque-les juste avant une vague dense pour créer un mur temporaire.</li>
+                  <li>Ils se placent automatiquement sur le chemin.</li>
+                  <li>Ils disparaissent après 10s — ne compte pas sur eux sur le long terme.</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="spell-usage-section">
+            <h3 class="info-title">🖱️ Comment utiliser les sorts</h3>
+            <div class="mechanic-card">
+              <p class="mechanic-text">
+                Les sorts sont disponibles dans la <strong>barre d'outils</strong> en bas de l'écran, dans la section <strong>SORTS</strong>.
+                <ul class="mechanic-list">
+                  <li>Clique sur le sort dans la barre pour l'activer (il passe en mode placement).</li>
+                  <li>Clique ensuite sur la <strong>zone de la carte</strong> où tu veux le lancer.</li>
+                  <li>Pour annuler, fais un <strong>clic droit</strong> ou appuie sur <strong>Échap</strong>.</li>
+                  <li>Un sort grisé est en <strong>cooldown</strong> ou déjà utilisé pour cette vague.</li>
+                </ul>
+              </p>
+            </div>
           </div>
         </div>
 
@@ -868,6 +1065,144 @@ const getUpgradeCost = (turret, fromLevel) => {
   color: #fff;
   font-weight: 600;
 }
+
+/* ── SORTS ── */
+.spells-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.spell-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 242, 255, 0.15);
+  border-radius: 10px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.spell-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.spell-icon-big {
+  font-size: 36px;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 242, 255, 0.08);
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.spell-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.spell-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.spell-chapter-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(100, 200, 100, 0.15);
+  border: 1px solid #64c864;
+  color: #64c864;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 3px;
+  width: fit-content;
+}
+
+.spell-chapter-badge.chapter2 {
+  background: rgba(0, 200, 255, 0.15);
+  border-color: #00c8ff;
+  color: #00c8ff;
+}
+
+.spell-desc {
+  margin: 0;
+  color: #c0d0e0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.spell-desc strong {
+  color: #fff;
+}
+
+.spell-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.spell-stat {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.spell-stat-label {
+  font-size: 10px;
+  color: #7a9ab5;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.spell-stat-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: #00f2ff;
+}
+
+.spell-tips {
+  background: rgba(0, 242, 255, 0.04);
+  border: 1px solid rgba(0, 242, 255, 0.12);
+  border-left: 3px solid #00f2ff;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.spell-tips-title {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #00f2ff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.spell-tips-list {
+  margin: 0;
+  padding-left: 16px;
+  color: #c0d0e0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.spell-usage-section {
+  margin-top: 4px;
+}
+
+/* ── FIN SORTS ── */
 
 .mechanic-list {
   margin: 10px 0 0 20px;

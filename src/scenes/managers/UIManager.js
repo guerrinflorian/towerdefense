@@ -9,7 +9,9 @@ import {
   updateGameHud,
   updateGameTimer,
   updateGameTurrets,
+  setUnlockedSpells,
 } from "../../vue/bridge.js";
+import { getUnlockedSpells } from "../../services/authManager.js";
 
 export class UIManager {
   constructor(scene, spellManager, inputManager) {
@@ -39,6 +41,7 @@ export class UIManager {
       this.buildToolbar.create();
     } else {
       setGameUIVisible(true);
+      setUnlockedSpells(getUnlockedSpells());
     }
 
     this.buildMenu = new BuildMenu(this.scene);

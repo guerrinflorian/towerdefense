@@ -15,6 +15,14 @@ const state = reactive({
   lightningCooldown: 0,
   lightningTotalCooldown: 1,
   barrierAvailable: true,
+  poisonCooldown: 0,
+  poisonTotalCooldown: 1,
+  bearTrapAvailable: true,
+  sanctuaryCooldown: 0,
+  sanctuaryTotalCooldown: 1,
+  summonCooldown: 0,
+  summonTotalCooldown: 1,
+  unlockedSpells: ['lightning'],
 });
 
 export function useGameUIStore() {
@@ -54,6 +62,29 @@ export function useGameUIStore() {
     state.barrierAvailable = Boolean(available);
   };
 
+  const setPoisonCooldown = (cooldownMs, totalMs) => {
+    state.poisonCooldown = typeof cooldownMs === "number" ? cooldownMs : 0;
+    if (typeof totalMs === "number" && totalMs > 0) state.poisonTotalCooldown = totalMs;
+  };
+
+  const setBearTrapAvailable = (available) => {
+    state.bearTrapAvailable = Boolean(available);
+  };
+
+  const setSanctuaryCooldown = (cooldownMs, totalMs) => {
+    state.sanctuaryCooldown = typeof cooldownMs === "number" ? cooldownMs : 0;
+    if (typeof totalMs === "number" && totalMs > 0) state.sanctuaryTotalCooldown = totalMs;
+  };
+
+  const setSummonCooldown = (cooldownMs, totalMs) => {
+    state.summonCooldown = typeof cooldownMs === "number" ? cooldownMs : 0;
+    if (typeof totalMs === "number" && totalMs > 0) state.summonTotalCooldown = totalMs;
+  };
+
+  const setUnlockedSpells = (spellKeys) => {
+    state.unlockedSpells = Array.isArray(spellKeys) ? spellKeys : ['lightning'];
+  };
+
   return {
     state: readonly(state),
     setVisible,
@@ -62,5 +93,10 @@ export function useGameUIStore() {
     setTurrets,
     setLightningCooldown,
     setBarrierAvailable,
+    setPoisonCooldown,
+    setBearTrapAvailable,
+    setSanctuaryCooldown,
+    setSummonCooldown,
+    setUnlockedSpells,
   };
 }

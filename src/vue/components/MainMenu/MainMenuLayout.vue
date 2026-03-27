@@ -12,7 +12,25 @@
           </p>
         </div>
 
+        <div class="header-spells">
+          <span class="header-spells-label">SORTS</span>
+          <div class="header-spells-list">
+            <div class="header-spell-item" title="Éclair — 350 dégâts + paralysie 3,5s (cooldown 100s)">
+              <span class="header-spell-icon">⚡</span>
+              <span class="header-spell-name">Éclair</span>
+            </div>
+            <div class="header-spell-item header-spell-item--ch2" title="Barrière — 350 PV, explose pour 115 dégâts (1/vague) — 150 pts Hero Points" @click="openSpellShop" style="cursor:pointer">
+              <span class="header-spell-icon">🪵</span>
+              <span class="header-spell-name">Barrière</span>
+              <span class="header-spell-badge">150 pts</span>
+            </div>
+          </div>
+        </div>
+
         <div class="header-actions">
+          <button class="hud-btn-spell" @click="openSpellShop" :disabled="!isAuthenticated()" title="Boutique de sorts — acheter avec des Hero Points">
+            <span class="icon">✨</span> SORTS
+          </button>
           <button class="hud-btn-secondary" @click="openHelp" title="Ouvrir le guide tactique">
             <span class="icon">❓</span> AIDE
           </button>
@@ -112,7 +130,7 @@
         </div>
       </div>
     </div>
-  </div>
+  <SpellShopModal v-if="modalStore.state.spellShop.visible" />
 </template>
 
 <script setup>
@@ -120,10 +138,12 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useModalStore } from '../../stores/modalStore.js';
 import {
   ensureProfileLoaded, getHeroPointsAvailable, getHeroStats,
-  getProfile, getUnlockedLevel, isAuthenticated, setSelectedHeroId
+  getProfile, getUnlockedLevel, isAuthenticated, setSelectedHeroId,
+  loadProfile as fetchFreshProfile
 } from '../../../services/authManager.js';
 import { showAuth } from '../../../services/authOverlay.js';
 import { fetchAchievements } from '../../../services/achievementsService.js';
+import { fetchSpells, unlockSpell } from '../../../services/spellService.js';
 import {
   buildChapterViewModels, buildLevelLocks, fetchBestRunsMap,
   fetchChapterProgress, fetchChaptersWithLevels, resetCachedChapters
@@ -139,6 +159,7 @@ import MainMenuLeaderboard from './MainMenuLeaderboard.vue';
 import MainMenuLevels from './MainMenuLevels.vue';
 import HeroAvatarCanvas from '../HeroAvatarCanvas.vue';
 import HelpPage from '../HelpPage.vue';
+import SpellShopModal from '../SpellShopModal.vue';
 
 const modalStore = useModalStore();
 const visible = computed(() => modalStore.state.mainMenu.visible);
@@ -176,10 +197,14 @@ const refreshData = async () => {
   }
 };
 
-const loadProfile = async () => {
-  await ensureProfileLoaded();
+const loadProfile = async ({ forceRefresh = false } = {}) => {
+  if (forceRefresh) {
+    await fetchFreshProfile();
+  } else {
+    await ensureProfileLoaded();
+  }
   const profile = getProfile();
-  heroStats.value = getHeroStats();
+  heroStats.value = getHeroStats() ? { ...getHeroStats() } : null;
   heroPoints.value = getHeroPointsAvailable();
   playerName.value = profile?.player?.username || 'Invité';
   
@@ -328,6 +353,29 @@ const openHeroSelection = async () => {
   });
 };
 const openAchievements = () => modalStore.showAchievements({ achievements: achievements.value, summary: achievementsSummary.value });
+
+const openSpellShop = async () => {
+  if (!isAuthenticated()) return showAuth();
+  try {
+    const data = await fetchSpells();
+    modalStore.showSpellShop({
+      spells: data.spells || [],
+      heroPointsAvailable: data.heroPointsAvailable ?? heroPoints.value,
+      onUnlock: async (spellKey) => {
+        const result = await unlockSpell(spellKey);
+        // Mettre à jour les sorts et points dans la modale
+        const refreshed = await fetchSpells();
+        modalStore.updateSpellShopData(refreshed.spells, refreshed.heroPointsAvailable);
+        // Rafraîchir le profil pour mettre à jour les points affichés
+        await loadProfile({ forceRefresh: true });
+        window.dispatchEvent(new CustomEvent('spell:unlocked', { detail: { spellKey } }));
+        return result;
+      },
+    });
+  } catch (err) {
+    console.error('Erreur ouverture boutique sorts:', err);
+  }
+};
 const openHelp = () => { showHelp(); };
 const handleLogout = () => callbacks.value.onLogout ? callbacks.value.onLogout() : showAuth();
 
@@ -347,8 +395,8 @@ let upgradeHandler = null;
 onMounted(() => { 
   hydrate(); 
   profileHandler = () => hydrate();
-  colorHandler = () => loadProfile();
-  upgradeHandler = () => loadProfile(); // Rafraîchir les stats après une amélioration
+  colorHandler = () => loadProfile({ forceRefresh: true });
+  upgradeHandler = () => loadProfile({ forceRefresh: true }); // Rafraîchir les stats après une amélioration
   window.addEventListener('profile:updated', profileHandler);
   window.addEventListener('hero:color-changed', colorHandler);
   window.addEventListener('hero:upgrade-complete', upgradeHandler);
@@ -402,12 +450,82 @@ watch(visible, (val) => val && hydrate());
 .hud-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 20px;
   border-bottom: 1px solid rgba(0, 242, 255, 0.2);
   padding-bottom: 15px;
   flex-shrink: 0;
   gap: 12px;
+}
+
+.header-spells {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.header-spells-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #00f2ff;
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+.header-spells-list {
+  display: flex;
+  gap: 8px;
+}
+
+.header-spell-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 10px;
+  background: rgba(0, 242, 255, 0.06);
+  border: 1px solid rgba(0, 242, 255, 0.2);
+  border-radius: 8px;
+  cursor: help;
+  transition: all 0.2s ease;
+  position: relative;
+  min-width: 54px;
+}
+
+.header-spell-item:hover {
+  background: rgba(0, 242, 255, 0.12);
+  border-color: rgba(0, 242, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.header-spell-item--ch2 {
+  border-color: rgba(0, 200, 255, 0.25);
+}
+
+.header-spell-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.header-spell-name {
+  font-size: 9px;
+  color: #9fc8e0;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.header-spell-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #00c8ff;
+  color: #000;
+  font-size: 7px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .header-actions {
@@ -602,6 +720,35 @@ watch(visible, (val) => val && hydrate());
 }
 
 /* BUTTONS */
+.hud-btn-spell {
+  background: rgba(160, 60, 255, 0.12);
+  border: 1px solid rgba(160, 60, 255, 0.45);
+  color: #d090ff;
+  padding: 8px 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+
+.hud-btn-spell:hover:not(:disabled) {
+  background: rgba(160, 60, 255, 0.28);
+  border-color: rgba(200, 100, 255, 0.7);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(160, 60, 255, 0.35);
+}
+
+.hud-btn-spell:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .hud-btn-secondary {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(0, 242, 255, 0.3);
@@ -805,13 +952,17 @@ watch(visible, (val) => val && hydrate());
   .hud-container {
     padding: 10px;
   }
-  
+
   .hud-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-  
+
+  .header-spells {
+    display: none;
+  }
+
   .header-actions {
     width: 100%;
     justify-content: flex-end;

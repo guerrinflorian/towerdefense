@@ -42,6 +42,7 @@
         </button>
 
         <button
+          v-if="isSpellUnlocked('barrier')"
           class="game-toolbar__card game-toolbar__card--spell"
           :class="{ 'game-toolbar__card--disabled': !state.barrierAvailable }"
           @click="castBarrier"
@@ -55,6 +56,71 @@
           </div>
           <div class="game-toolbar__name">Barrière</div>
           <div class="game-toolbar__badge">1/vague</div>
+        </button>
+
+        <button
+          v-if="isSpellUnlocked('poison')"
+          class="game-toolbar__card game-toolbar__card--spell"
+          :class="{ 'game-toolbar__card--disabled': isPoisonOnCooldown }"
+          @click="castPoison"
+        >
+          <div class="game-toolbar__spell-wrapper">
+            <div class="game-toolbar__spell">☠️</div>
+            <div v-if="isPoisonOnCooldown" class="game-toolbar__cooldown-overlay">
+              <div class="game-toolbar__cooldown-fill" :style="{ height: poisonCooldownFillPercent + '%' }"></div>
+              <span class="game-toolbar__cooldown-text">{{ poisonCooldownSeconds }}s</span>
+            </div>
+          </div>
+          <div class="game-toolbar__name">Poison</div>
+        </button>
+
+        <button
+          v-if="isSpellUnlocked('bear_trap')"
+          class="game-toolbar__card game-toolbar__card--spell"
+          :class="{ 'game-toolbar__card--disabled': !state.bearTrapAvailable }"
+          @click="castBearTrap"
+        >
+          <div class="game-toolbar__spell-wrapper">
+            <div class="game-toolbar__spell">🪤</div>
+            <div v-if="!state.bearTrapAvailable" class="game-toolbar__cooldown-overlay">
+              <div class="game-toolbar__cooldown-fill" style="height: 100%"></div>
+              <span class="game-toolbar__cooldown-text">Utilisé</span>
+            </div>
+          </div>
+          <div class="game-toolbar__name">Piège</div>
+          <div class="game-toolbar__badge">1/vague</div>
+        </button>
+
+        <button
+          v-if="isSpellUnlocked('sanctuary')"
+          class="game-toolbar__card game-toolbar__card--spell"
+          :class="{ 'game-toolbar__card--disabled': isSanctuaryOnCooldown }"
+          @click="castSanctuary"
+        >
+          <div class="game-toolbar__spell-wrapper">
+            <div class="game-toolbar__spell">✨</div>
+            <div v-if="isSanctuaryOnCooldown" class="game-toolbar__cooldown-overlay">
+              <div class="game-toolbar__cooldown-fill" :style="{ height: sanctuaryCooldownFillPercent + '%' }"></div>
+              <span class="game-toolbar__cooldown-text">{{ sanctuaryCooldownSeconds }}s</span>
+            </div>
+          </div>
+          <div class="game-toolbar__name">Sanctuaire</div>
+        </button>
+
+        <button
+          v-if="isSpellUnlocked('summon')"
+          class="game-toolbar__card game-toolbar__card--spell"
+          :class="{ 'game-toolbar__card--disabled': isSummonOnCooldown }"
+          @click="castSummon"
+        >
+          <div class="game-toolbar__spell-wrapper">
+            <div class="game-toolbar__spell">⚔️</div>
+            <div v-if="isSummonOnCooldown" class="game-toolbar__cooldown-overlay">
+              <div class="game-toolbar__cooldown-fill" :style="{ height: summonCooldownFillPercent + '%' }"></div>
+              <span class="game-toolbar__cooldown-text">{{ summonCooldownSeconds }}s</span>
+            </div>
+          </div>
+          <div class="game-toolbar__name">Invocation</div>
         </button>
       </div>
     </div>
@@ -113,14 +179,30 @@ const startDrag = (key) => {
     ?.inputManager?.dragHandler?.startDrag(item.config);
 };
 
+const isSpellUnlocked = (key) => state.unlockedSpells?.includes(key) ?? key === 'lightning';
+
 const isLightningOnCooldown = computed(() => state.lightningCooldown > 0);
-
-const lightningCooldownSeconds = computed(() =>
-  Math.ceil(state.lightningCooldown / 1000)
-);
-
+const lightningCooldownSeconds = computed(() => Math.ceil(state.lightningCooldown / 1000));
 const cooldownFillPercent = computed(() =>
   Math.min(100, (state.lightningCooldown / state.lightningTotalCooldown) * 100)
+);
+
+const isPoisonOnCooldown = computed(() => state.poisonCooldown > 0);
+const poisonCooldownSeconds = computed(() => Math.ceil(state.poisonCooldown / 1000));
+const poisonCooldownFillPercent = computed(() =>
+  Math.min(100, (state.poisonCooldown / state.poisonTotalCooldown) * 100)
+);
+
+const isSanctuaryOnCooldown = computed(() => state.sanctuaryCooldown > 0);
+const sanctuaryCooldownSeconds = computed(() => Math.ceil(state.sanctuaryCooldown / 1000));
+const sanctuaryCooldownFillPercent = computed(() =>
+  Math.min(100, (state.sanctuaryCooldown / state.sanctuaryTotalCooldown) * 100)
+);
+
+const isSummonOnCooldown = computed(() => state.summonCooldown > 0);
+const summonCooldownSeconds = computed(() => Math.ceil(state.summonCooldown / 1000));
+const summonCooldownFillPercent = computed(() =>
+  Math.min(100, (state.summonCooldown / state.summonTotalCooldown) * 100)
 );
 
 const castLightning = () => {
@@ -133,6 +215,30 @@ const castBarrier = () => {
   if (!state.barrierAvailable) return;
   const scene = window.game?.scene?.getScene?.("GameScene");
   scene?.spellManager?.startPlacingBarrier();
+};
+
+const castPoison = () => {
+  if (isPoisonOnCooldown.value) return;
+  const scene = window.game?.scene?.getScene?.("GameScene");
+  scene?.spellManager?.startPlacingPoison();
+};
+
+const castBearTrap = () => {
+  if (!state.bearTrapAvailable) return;
+  const scene = window.game?.scene?.getScene?.("GameScene");
+  scene?.spellManager?.startPlacingBearTrap();
+};
+
+const castSanctuary = () => {
+  if (isSanctuaryOnCooldown.value) return;
+  const scene = window.game?.scene?.getScene?.("GameScene");
+  scene?.spellManager?.startPlacingSanctuary();
+};
+
+const castSummon = () => {
+  if (isSummonOnCooldown.value) return;
+  const scene = window.game?.scene?.getScene?.("GameScene");
+  scene?.spellManager?.startPlacingSummon();
 };
 </script>
 

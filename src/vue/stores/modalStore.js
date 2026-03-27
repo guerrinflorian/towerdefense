@@ -36,6 +36,13 @@ const state = reactive({
   heroUpgrade: {
     onClose: null,
   },
+  spellShop: {
+    visible: false,
+    spells: [],
+    heroPointsAvailable: 0,
+    onUnlock: null,
+    onClose: null,
+  },
   playerProfile: {
     visible: false,
     username: '',
@@ -141,6 +148,35 @@ export function useModalStore() {
     }
   };
 
+  // Spell Shop
+  const showSpellShop = (config = {}) => {
+    state.spellShop = {
+      visible: true,
+      spells: config.spells || [],
+      heroPointsAvailable: config.heroPointsAvailable || 0,
+      onUnlock: config.onUnlock || null,
+      onClose: config.onClose || null,
+    };
+    blockGame(true);
+  };
+
+  const hideSpellShop = () => {
+    const onClose = state.spellShop.onClose;
+    state.spellShop.onClose = null;
+    state.spellShop.visible = false;
+    blockGame(false);
+    if (onClose) setTimeout(() => { try { onClose(); } catch (e) {} }, 0);
+  };
+
+  const updateSpellShopData = (spells, heroPointsAvailable) => {
+    if (state.spellShop.visible) {
+      state.spellShop.spells = spells || [];
+      if (heroPointsAvailable !== undefined) {
+        state.spellShop.heroPointsAvailable = heroPointsAvailable;
+      }
+    }
+  };
+
   // Main menu overlay
   const showMainMenu = (config = {}) => {
     state.mainMenu.callbacks = config;
@@ -204,6 +240,9 @@ export function useModalStore() {
     get heroUpgrade() {
       return state.heroUpgrade;
     },
+    get spellShop() {
+      return state.spellShop;
+    },
     get mainMenu() {
       return state.mainMenu;
     },
@@ -221,6 +260,9 @@ export function useModalStore() {
     hideAchievements,
     showHeroUpgrade,
     hideHeroUpgrade,
+    showSpellShop,
+    hideSpellShop,
+    updateSpellShopData,
     showMainMenu,
     hideMainMenu,
     showPlayerProfile,

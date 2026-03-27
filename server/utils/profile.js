@@ -191,12 +191,30 @@ export async function buildPlayerProfile(playerId, heroId = null) {
 
     const progress = await getProgress(playerId);
 
+    // Sorts débloqués (clés uniquement)
+    let unlockedSpells = ['lightning']; // lightning toujours disponible
+    try {
+      const spellsRes = await client.query(
+        `SELECT s.key FROM spells s
+         LEFT JOIN player_spells ps ON ps.player_id = $1 AND ps.spell_key = s.key
+         WHERE s.is_free = true OR ps.spell_key IS NOT NULL
+         ORDER BY s.sort_order`,
+        [playerId]
+      );
+      if (spellsRes.rows.length > 0) {
+        unlockedSpells = spellsRes.rows.map(r => r.key);
+      }
+    } catch (_) {
+      // Table spells pas encore créée — fallback lightning seul
+    }
+
     return {
       player: playerRes.rows[0],
       heroStats,
       heroPointConversion,
       heroLimits: heroLimitsData,
       progress,
+      unlockedSpells,
     };
   } finally {
     client.release();

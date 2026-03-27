@@ -84,6 +84,15 @@ export function getPlayer() {
   return currentProfile?.player || null;
 }
 
+export function getUnlockedSpells() {
+  return currentProfile?.unlockedSpells || ['lightning'];
+}
+
+export function isSpellUnlocked(spellKey) {
+  const unlocked = getUnlockedSpells();
+  return Array.isArray(unlocked) ? unlocked.includes(spellKey) : spellKey === 'lightning';
+}
+
 async function fetchProfile() {
   // Ne plus passer heroId, le serveur récupère automatiquement le héros sélectionné
   const response = await apiClient.get("/api/player/me");

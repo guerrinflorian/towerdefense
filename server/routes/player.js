@@ -855,4 +855,116 @@ router.post("/heroes/:heroId/select", async (req, res) => {
   }
 });
 
+// ─── SORTS ────────────────────────────────────────────────────────────────────
+
+// Récupérer tous les sorts avec statut de déblocage du joueur
+router.get("/spells", async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT s.key, s.name, s.description, s.icon, s.cost_hero_points, s.is_free, s.sort_order,
+              CASE WHEN ps.spell_key IS NOT NULL OR s.is_free THEN true ELSE false END AS is_unlocked
+       FROM spells s
+       LEFT JOIN player_spells ps ON ps.player_id = $1 AND ps.spell_key = s.key
+       ORDER BY s.sort_order`,
+      [req.user.id]
+    );
+
+    const playerResult = await query(
+      `SELECT hero_points_available FROM players WHERE id = $1`,
+      [req.user.id]
+    );
+    const heroPointsAvailable = Number(playerResult.rows[0]?.hero_points_available || 0);
+
+    return res.json({
+      spells: result.rows,
+      heroPointsAvailable,
+    });
+  } catch (err) {
+    console.error("Erreur récupération sorts:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// Acheter un sort
+router.post("/spells/:spellKey/unlock", async (req, res) => {
+  const spellKey = req.params.spellKey;
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Vérifier que le sort existe
+    const spellResult = await client.query(
+      `SELECT key, name, cost_hero_points, is_free FROM spells WHERE key = $1`,
+      [spellKey]
+    );
+    if (spellResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Sort introuvable" });
+    }
+
+    const spell = spellResult.rows[0];
+
+    // Sort gratuit : pas besoin d'achat
+    if (spell.is_free) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Ce sort est gratuit, il est déjà disponible" });
+    }
+
+    // Vérifier si déjà débloqué
+    const existingResult = await client.query(
+      `SELECT id FROM player_spells WHERE player_id = $1 AND spell_key = $2`,
+      [req.user.id, spellKey]
+    );
+    if (existingResult.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Ce sort est déjà débloqué" });
+    }
+
+    const cost = Number(spell.cost_hero_points || 0);
+
+    // Vérifier les points disponibles
+    const playerResult = await client.query(
+      `SELECT hero_points_available FROM players WHERE id = $1 FOR UPDATE`,
+      [req.user.id]
+    );
+    const available = Number(playerResult.rows[0]?.hero_points_available || 0);
+
+    if (available < cost) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        error: `Points insuffisants. Nécessaire : ${cost}, Disponible : ${available}`,
+      });
+    }
+
+    // Déduire les points
+    await client.query(
+      `UPDATE players SET hero_points_available = hero_points_available - $1 WHERE id = $2`,
+      [cost, req.user.id]
+    );
+
+    // Insérer le sort débloqué
+    await client.query(
+      `INSERT INTO player_spells (player_id, spell_key) VALUES ($1, $2)`,
+      [req.user.id, spellKey]
+    );
+
+    await client.query("COMMIT");
+
+    const remainingPoints = available - cost;
+    return res.json({
+      success: true,
+      message: `Sort "${spell.name}" débloqué !`,
+      spellKey,
+      heroPointsAvailable: remainingPoints,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Erreur achat sort:", err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;

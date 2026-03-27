@@ -180,3 +180,41 @@ export function updateBarrierAvailable(available) {
   }
   gameUIStore.setBarrierAvailable(available);
 }
+
+export function setUnlockedSpells(spellKeys) {
+  if (!gameUIStore) return;
+  gameUIStore.setUnlockedSpells(spellKeys);
+}
+
+export function updatePoisonCooldown(cooldownMs, totalMs) {
+  if (!gameUIStore) return;
+  gameUIStore.setPoisonCooldown(cooldownMs, totalMs);
+}
+
+export function updateBearTrapAvailable(available) {
+  if (!gameUIStore) return;
+  gameUIStore.setBearTrapAvailable(available);
+}
+
+export function updateSanctuaryCooldown(cooldownMs, totalMs) {
+  if (!gameUIStore) return;
+  gameUIStore.setSanctuaryCooldown(cooldownMs, totalMs);
+}
+
+export function updateSummonCooldown(cooldownMs, totalMs) {
+  if (!gameUIStore) return;
+  gameUIStore.setSummonCooldown(cooldownMs, totalMs);
+}
+
+export function showSpellShop(config = {}) {
+  if (!modalStore) {
+    console.warn('Vue bridge not initialized');
+    return;
+  }
+  modalStore.showSpellShop(config);
+}
+
+export function hideSpellShop() {
+  if (!modalStore) return;
+  modalStore.hideSpellShop();
+}

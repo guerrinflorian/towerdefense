@@ -1,8 +1,20 @@
 import { CONFIG } from "../../config/settings.js";
 import { lightning as LIGHTNING_SPELL } from "../../sorts/lightning.js";
 import { barrier as BARRIER_SPELL } from "../../sorts/barrier.js";
+import { poison as POISON_SPELL } from "../../sorts/poison.js";
+import { bear_trap as BEAR_TRAP_SPELL } from "../../sorts/bear_trap.js";
+import { sanctuary as SANCTUARY_SPELL } from "../../sorts/sanctuary.js";
+import { summon as SUMMON_SPELL } from "../../sorts/summon.js";
 import { Barrier } from "../../objects/Barrier.js";
-import { updateLightningCooldown, updateBarrierAvailable } from "../../vue/bridge.js";
+import { Soldier } from "../../objects/Soldier.js";
+import {
+  updateLightningCooldown,
+  updateBarrierAvailable,
+  updatePoisonCooldown,
+  updateBearTrapAvailable,
+  updateSanctuaryCooldown,
+  updateSummonCooldown,
+} from "../../vue/bridge.js";
 
 // Types de tuiles qui sont des chemins (passage des ennemis)
 const PATH_TILE_TYPES = new Set([1, 4, 7, 13, 14, 19, 23]);
@@ -19,6 +31,22 @@ export class SpellManager {
     // Barrière : 1 par vague, reset à chaque nouvelle vague
     this.barrierAvailable = true;
     this.activeBarrier = null;
+
+    // Poison
+    this.poisonCooldown = 0;
+    this.activePoisonPools = []; // [{ graphics, x, y, radius, expireAt, tickTimer }]
+
+    // Piège à ours : 1 par vague
+    this.bearTrapAvailable = true;
+    this.activeBearTraps = []; // [{ graphics, x, y, radius, triggered }]
+
+    // Sanctuaire
+    this.sanctuaryCooldown = 0;
+    this.activeSanctuaries = []; // [{ graphics, boostedTurrets, expireAt }]
+
+    // Invocation
+    this.summonCooldown = 0;
+    this.summonedSoldiers = []; // soldiers temporaires
   }
 
   // ─── LIGHTNING ───────────────────────────────────────────────
@@ -59,6 +87,449 @@ export class SpellManager {
     this.activeBarrier = null;
     this.barrierAvailable = true;
     updateBarrierAvailable(true);
+
+    // Reset bear trap
+    this._clearBearTraps();
+    this.bearTrapAvailable = true;
+    updateBearTrapAvailable(true);
+  }
+
+  // ─── POISON ────────────────────────────────────────────────────
+
+  startPlacingPoison() {
+    if (this.poisonCooldown > 0 || this.placingSpell) return;
+    this.placingSpell = POISON_SPELL;
+    this._ensurePreviewGraphics();
+    this.scene.input.on("pointermove", this.updateSpellPreview, this);
+  }
+
+  _placePoison(worldX, worldY) {
+    const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
+    const tx = Math.floor((worldX - this.scene.mapStartX) / T);
+    const ty = Math.floor((worldY - this.scene.mapStartY) / T);
+
+    if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) {
+      this.cancelSpellPlacement();
+      return;
+    }
+
+    const tileType = this.scene.levelConfig?.map?.[ty]?.[tx];
+    if (!PATH_TILE_TYPES.has(tileType)) {
+      this.cancelSpellPlacement();
+      return;
+    }
+
+    const cx = this.scene.mapStartX + tx * T + T / 2;
+    const cy = this.scene.mapStartY + ty * T + T / 2;
+    const scaledRadius = POISON_SPELL.poolRadius * this.scene.scaleFactor;
+
+    // Visual: toxic green pool
+    const poolGfx = this.scene.add.graphics();
+    poolGfx.setDepth(6);
+    poolGfx.fillStyle(0x44ff44, 0.35);
+    poolGfx.fillCircle(cx, cy, scaledRadius);
+    poolGfx.lineStyle(2, 0x00cc00, 0.8);
+    poolGfx.strokeCircle(cx, cy, scaledRadius);
+
+    // Bubble particles
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      const bx = cx + Math.cos(angle) * scaledRadius * 0.6;
+      const by = cy + Math.sin(angle) * scaledRadius * 0.6;
+      const bubble = this.scene.add.circle(bx, by, 4 * this.scene.scaleFactor, 0x00ff44, 0.8);
+      bubble.setDepth(7);
+      this.scene.tweens.add({
+        targets: bubble,
+        y: by - 12 * this.scene.scaleFactor,
+        alpha: 0,
+        duration: 1200 + Math.random() * 800,
+        repeat: -1,
+        repeatDelay: Math.random() * 1000,
+        onRepeat: () => { bubble.setPosition(bx, by); bubble.setAlpha(0.8); },
+      });
+
+      const expireAt = this.scene.time.now + POISON_SPELL.poolDuration;
+      this.scene.time.delayedCall(POISON_SPELL.poolDuration, () => bubble.destroy());
+    }
+
+    // Tick timer for DOT
+    const poolEntry = {
+      graphics: poolGfx,
+      x: cx,
+      y: cy,
+      radius: scaledRadius,
+      expireAt: this.scene.time.now + POISON_SPELL.poolDuration,
+      poisonedEnemies: new Set(), // enemies currently tracked for this tick
+    };
+
+    poolEntry.tickTimer = this.scene.time.addEvent({
+      delay: POISON_SPELL.tickInterval,
+      callback: () => this._applyPoisonTick(poolEntry),
+      loop: true,
+    });
+
+    this.activePoisonPools.push(poolEntry);
+
+    this.poisonCooldown = POISON_SPELL.cooldown;
+    updatePoisonCooldown(this.poisonCooldown, POISON_SPELL.cooldown);
+
+    this.cancelSpellPlacement();
+  }
+
+  _applyPoisonTick(pool) {
+    if (!pool.graphics?.active) return;
+    if (this.scene.time.now >= pool.expireAt) return;
+
+    this.scene.enemies?.getChildren().forEach((enemy) => {
+      if (!enemy?.active) return;
+      const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, pool.x, pool.y);
+      if (dist <= pool.radius) {
+        enemy.damage(POISON_SPELL.tickDamage, { source: "poison" });
+
+        // Visual pulse on enemy
+        const flash = this.scene.add.circle(enemy.x, enemy.y, 8 * this.scene.scaleFactor, 0x00ff44, 0.9);
+        flash.setDepth(50);
+        this.scene.tweens.add({
+          targets: flash,
+          scale: 2,
+          alpha: 0,
+          duration: 400,
+          onComplete: () => flash.destroy(),
+        });
+      }
+    });
+  }
+
+  // ─── PIÈGE À OURS ──────────────────────────────────────────────
+
+  startPlacingBearTrap() {
+    if (!this.bearTrapAvailable || this.placingSpell) return;
+    this.placingSpell = BEAR_TRAP_SPELL;
+    this._ensurePreviewGraphics();
+    this.scene.input.on("pointermove", this.updateSpellPreview, this);
+  }
+
+  _placeBearTrap(worldX, worldY) {
+    if (!this.bearTrapAvailable) return;
+
+    const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
+    const tx = Math.floor((worldX - this.scene.mapStartX) / T);
+    const ty = Math.floor((worldY - this.scene.mapStartY) / T);
+
+    if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) {
+      this.cancelSpellPlacement();
+      return;
+    }
+
+    const tileType = this.scene.levelConfig?.map?.[ty]?.[tx];
+    if (!PATH_TILE_TYPES.has(tileType)) {
+      this.cancelSpellPlacement();
+      return;
+    }
+
+    const cx = this.scene.mapStartX + tx * T + T / 2;
+    const cy = this.scene.mapStartY + ty * T + T / 2;
+    const scaledRadius = BEAR_TRAP_SPELL.trapRadius * this.scene.scaleFactor;
+
+    // Visible to player only (semi-transparent)
+    const trapGfx = this.scene.add.graphics();
+    trapGfx.setDepth(6);
+    trapGfx.fillStyle(0x8B4513, 0.4);
+    trapGfx.fillCircle(cx, cy, scaledRadius);
+    trapGfx.lineStyle(2, 0xaa6633, 0.7);
+    trapGfx.strokeCircle(cx, cy, scaledRadius);
+    // Draw X in center
+    const s = scaledRadius * 0.5;
+    trapGfx.lineStyle(2, 0xcc4400, 0.9);
+    trapGfx.lineBetween(cx - s, cy - s, cx + s, cy + s);
+    trapGfx.lineBetween(cx + s, cy - s, cx - s, cy + s);
+
+    const trapEntry = {
+      graphics: trapGfx,
+      x: cx,
+      y: cy,
+      radius: scaledRadius,
+      triggered: false,
+    };
+
+    this.activeBearTraps.push(trapEntry);
+    this.bearTrapAvailable = false;
+    updateBearTrapAvailable(false);
+
+    this.cancelSpellPlacement();
+  }
+
+  _checkBearTraps() {
+    for (const trap of this.activeBearTraps) {
+      if (trap.triggered) continue;
+
+      const enemies = this.scene.enemies?.getChildren() || [];
+      for (const enemy of enemies) {
+        if (!enemy?.active) continue;
+        const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, trap.x, trap.y);
+        if (dist <= trap.radius) {
+          this._triggerBearTrap(trap, enemy);
+          break;
+        }
+      }
+    }
+  }
+
+  _triggerBearTrap(trap, enemy) {
+    trap.triggered = true;
+
+    // Flash effect
+    trap.graphics.clear();
+    const trigGfx = this.scene.add.graphics();
+    trigGfx.setDepth(20);
+    trigGfx.fillStyle(0xff6600, 0.8);
+    trigGfx.fillCircle(trap.x, trap.y, trap.radius * 1.5);
+    this.scene.tweens.add({
+      targets: trigGfx,
+      alpha: 0,
+      scale: 2,
+      duration: 500,
+      onComplete: () => {
+        trigGfx.destroy();
+        trap.graphics.destroy();
+      },
+    });
+
+    // Paralyze enemy
+    if (enemy.paralyze) {
+      enemy.paralyze(BEAR_TRAP_SPELL.paralyzeDuration);
+    }
+
+    // Bleed DOT
+    let bleedCount = 0;
+    const bleedTimer = this.scene.time.addEvent({
+      delay: BEAR_TRAP_SPELL.bleedInterval,
+      callback: () => {
+        bleedCount++;
+        if (!enemy?.active || bleedCount > BEAR_TRAP_SPELL.bleedTicks) {
+          bleedTimer.remove();
+          return;
+        }
+        enemy.damage(BEAR_TRAP_SPELL.bleedDamage, { source: "bleed" });
+        // Red blood drop visual
+        const drop = this.scene.add.circle(
+          enemy.x + (Math.random() - 0.5) * 10,
+          enemy.y + (Math.random() - 0.5) * 10,
+          4 * this.scene.scaleFactor,
+          0xff0000,
+          0.9
+        );
+        drop.setDepth(50);
+        this.scene.tweens.add({
+          targets: drop,
+          y: drop.y + 15,
+          alpha: 0,
+          duration: 600,
+          onComplete: () => drop.destroy(),
+        });
+      },
+      loop: true,
+    });
+  }
+
+  _clearBearTraps() {
+    for (const trap of this.activeBearTraps) {
+      if (trap.graphics?.active) trap.graphics.destroy();
+    }
+    this.activeBearTraps = [];
+  }
+
+  // ─── SANCTUAIRE ────────────────────────────────────────────────
+
+  startPlacingSanctuary() {
+    if (this.sanctuaryCooldown > 0 || this.placingSpell) return;
+    this.placingSpell = SANCTUARY_SPELL;
+    this._ensurePreviewGraphics();
+    this.scene.input.on("pointermove", this.updateSpellPreview, this);
+  }
+
+  _castSanctuary(worldX, worldY) {
+    const scaledRadius = SANCTUARY_SPELL.radius * this.scene.scaleFactor;
+
+    // Find turrets in range
+    const boostedTurrets = [];
+    (this.scene.turrets || []).forEach((turret) => {
+      if (!turret?.active) return;
+      const dist = Phaser.Math.Distance.Between(worldX, worldY, turret.x, turret.y);
+      if (dist <= scaledRadius) {
+        boostedTurrets.push({ turret, originalDamage: turret.config.damage });
+        turret.config.damage = Math.round(turret.config.damage * (1 + SANCTUARY_SPELL.damageBoost));
+      }
+    });
+
+    // Visual: golden circle with pulsing aura
+    const auraGfx = this.scene.add.graphics();
+    auraGfx.setDepth(5);
+    auraGfx.fillStyle(0xffd700, 0.15);
+    auraGfx.fillCircle(worldX, worldY, scaledRadius);
+    auraGfx.lineStyle(3, 0xffd700, 0.9);
+    auraGfx.strokeCircle(worldX, worldY, scaledRadius);
+
+    // Sparkle burst
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const sx = worldX + Math.cos(angle) * scaledRadius * 0.8;
+      const sy = worldY + Math.sin(angle) * scaledRadius * 0.8;
+      const spark = this.scene.add.circle(sx, sy, 5 * this.scene.scaleFactor, 0xffd700, 1);
+      spark.setDepth(25);
+      this.scene.tweens.add({
+        targets: spark,
+        x: worldX + Math.cos(angle) * scaledRadius * 1.3,
+        y: worldY + Math.sin(angle) * scaledRadius * 1.3,
+        alpha: 0,
+        scale: 0,
+        duration: 800 + Math.random() * 400,
+        onComplete: () => spark.destroy(),
+      });
+    }
+
+    // Gold ring on each boosted turret
+    boostedTurrets.forEach(({ turret }) => {
+      const ring = this.scene.add.circle(turret.x, turret.y, 24 * this.scene.scaleFactor, 0xffd700, 0);
+      ring.setStrokeStyle(3 * this.scene.scaleFactor, 0xffd700, 0.9);
+      ring.setDepth(20);
+      this.scene.tweens.add({
+        targets: ring,
+        scale: 1.4,
+        alpha: 0,
+        duration: SANCTUARY_SPELL.duration,
+        onComplete: () => ring.destroy(),
+      });
+    });
+
+    const expireAt = this.scene.time.now + SANCTUARY_SPELL.duration;
+    const entry = { graphics: auraGfx, boostedTurrets, expireAt };
+    this.activeSanctuaries.push(entry);
+
+    // Fade out aura at end
+    this.scene.tweens.add({
+      targets: auraGfx,
+      alpha: 0,
+      duration: SANCTUARY_SPELL.duration,
+      onComplete: () => {
+        this._expireSanctuary(entry);
+        auraGfx.destroy();
+      },
+    });
+
+    this.sanctuaryCooldown = SANCTUARY_SPELL.cooldown;
+    updateSanctuaryCooldown(this.sanctuaryCooldown, SANCTUARY_SPELL.cooldown);
+
+    this.cancelSpellPlacement();
+  }
+
+  _expireSanctuary(entry) {
+    for (const { turret, originalDamage } of entry.boostedTurrets) {
+      if (turret?.active) {
+        turret.config.damage = originalDamage;
+      }
+    }
+    const idx = this.activeSanctuaries.indexOf(entry);
+    if (idx !== -1) this.activeSanctuaries.splice(idx, 1);
+  }
+
+  // ─── INVOCATION DE SOLDATS ─────────────────────────────────────
+
+  startPlacingSummon() {
+    if (this.summonCooldown > 0 || this.placingSpell) return;
+    // Cast directement sans placement (apparaît sur le chemin)
+    this._castSummon();
+  }
+
+  _castSummon() {
+    const paths = this.scene.paths || [];
+    if (!paths.length) return;
+
+    const SAMPLES = 100;
+    const allPathPoints = [];
+    paths.forEach((path) => {
+      for (let i = Math.floor(SAMPLES * 0.1); i <= Math.floor(SAMPLES * 0.8); i++) {
+        const t = i / SAMPLES;
+        const p = path.getPoint(t);
+        allPathPoints.push({ x: p.x, y: p.y, path, t });
+      }
+    });
+
+    if (!allPathPoints.length) return;
+
+    // Pick 3 spread positions
+    const spread = Math.floor(allPathPoints.length / 4);
+    const positions = [
+      allPathPoints[Math.min(spread, allPathPoints.length - 1)],
+      allPathPoints[Math.min(spread * 2, allPathPoints.length - 1)],
+      allPathPoints[Math.min(spread * 3, allPathPoints.length - 1)],
+    ];
+
+    const expireAfter = SUMMON_SPELL.duration;
+    const newSoldiers = [];
+
+    positions.forEach((pos) => {
+      const fakeFaction = {
+        level: 1,
+        onSoldierDied: () => {
+          const idx = this.summonedSoldiers.indexOf(soldier);
+          if (idx !== -1) this.summonedSoldiers.splice(idx, 1);
+        },
+      };
+
+      const soldier = new Soldier(this.scene, pos.x, pos.y, fakeFaction);
+      soldier.maxHp = SUMMON_SPELL.soldierHp;
+      soldier.hp = soldier.maxHp;
+      soldier.updateHealthBar?.();
+      soldier.deployToPath?.(paths);
+
+      // Scale
+      const sc = this.scene.unitScale || this.scene.scaleFactor || 1;
+      soldier.setScale(0);
+      this.scene.tweens.add({
+        targets: soldier,
+        scale: sc,
+        duration: 400,
+        ease: "Back.easeOut",
+      });
+
+      // Add to scene.soldiers so the enemy blocking logic picks them up
+      this.scene.soldiers?.add(soldier);
+      newSoldiers.push(soldier);
+
+      // Golden tint to distinguish from barracks soldiers
+      const tintCircle = this.scene.add.circle(pos.x, pos.y, 14 * sc, 0xffd700, 0.3);
+      tintCircle.setDepth(14);
+      this.scene.time.delayedCall(expireAfter, () => tintCircle.destroy());
+
+      // Dissolve after duration
+      this.scene.time.delayedCall(expireAfter, () => {
+        if (!soldier?.active) return;
+        this.scene.tweens.add({
+          targets: soldier,
+          alpha: 0,
+          scale: 0,
+          duration: 600,
+          onComplete: () => {
+            soldier.isAlive = false;
+            soldier.destroy();
+            this.scene.soldiers?.remove(soldier, true, true);
+          },
+        });
+      });
+    });
+
+    this.summonedSoldiers.push(...newSoldiers);
+
+    // Flash effect at each spawn
+    positions.forEach((pos) => {
+      const flash = this.scene.add.circle(pos.x, pos.y, 30 * this.scene.scaleFactor, 0xffd700, 0.8);
+      flash.setDepth(30);
+      this.scene.tweens.add({ targets: flash, scale: 2, alpha: 0, duration: 500, onComplete: () => flash.destroy() });
+    });
+
+    this.summonCooldown = SUMMON_SPELL.cooldown;
+    updateSummonCooldown(this.summonCooldown, SUMMON_SPELL.cooldown);
   }
 
   // ─── PLACEMENT GÉNÉRIQUE ──────────────────────────────────────
@@ -74,6 +545,12 @@ export class SpellManager {
       this.placeLightning(x, y);
     } else if (this.placingSpell.key === "barrier") {
       this._placeBarrier(x, y);
+    } else if (this.placingSpell.key === "poison") {
+      this._placePoison(x, y);
+    } else if (this.placingSpell.key === "bear_trap") {
+      this._placeBearTrap(x, y);
+    } else if (this.placingSpell.key === "sanctuary") {
+      this._castSanctuary(x, y);
     }
   }
 
@@ -94,7 +571,66 @@ export class SpellManager {
       this._updateLightningPreview(pointer);
     } else if (this.placingSpell.key === "barrier") {
       this._updateBarrierPreview(pointer);
+    } else if (this.placingSpell.key === "poison") {
+      this._updatePoisonPreview(pointer);
+    } else if (this.placingSpell.key === "bear_trap") {
+      this._updateBearTrapPreview(pointer);
+    } else if (this.placingSpell.key === "sanctuary") {
+      this._updateSanctuaryPreview(pointer);
     }
+  }
+
+  _updatePoisonPreview(pointer) {
+    const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
+    const tx = Math.floor((pointer.worldX - this.scene.mapStartX) / T);
+    const ty = Math.floor((pointer.worldY - this.scene.mapStartY) / T);
+    this.spellPreview.clear();
+    if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) return;
+    const tileType = this.scene.levelConfig?.map?.[ty]?.[tx];
+    const cx = this.scene.mapStartX + tx * T + T / 2;
+    const cy = this.scene.mapStartY + ty * T + T / 2;
+    const r = POISON_SPELL.poolRadius * this.scene.scaleFactor;
+    const valid = PATH_TILE_TYPES.has(tileType);
+    const color = valid ? 0x44ff44 : 0xff3333;
+    this.spellPreview.fillStyle(color, 0.25);
+    this.spellPreview.fillCircle(cx, cy, r);
+    this.spellPreview.lineStyle(2, color, 0.8);
+    this.spellPreview.strokeCircle(cx, cy, r);
+  }
+
+  _updateBearTrapPreview(pointer) {
+    const T = CONFIG.TILE_SIZE * this.scene.scaleFactor;
+    const tx = Math.floor((pointer.worldX - this.scene.mapStartX) / T);
+    const ty = Math.floor((pointer.worldY - this.scene.mapStartY) / T);
+    this.spellPreview.clear();
+    if (tx < 0 || tx >= 15 || ty < 0 || ty >= 15) return;
+    const tileType = this.scene.levelConfig?.map?.[ty]?.[tx];
+    const cx = this.scene.mapStartX + tx * T + T / 2;
+    const cy = this.scene.mapStartY + ty * T + T / 2;
+    const r = BEAR_TRAP_SPELL.trapRadius * this.scene.scaleFactor;
+    const valid = PATH_TILE_TYPES.has(tileType);
+    const color = valid ? 0x8B4513 : 0xff3333;
+    this.spellPreview.fillStyle(color, 0.35);
+    this.spellPreview.fillCircle(cx, cy, r);
+    this.spellPreview.lineStyle(2, color, 0.8);
+    this.spellPreview.strokeCircle(cx, cy, r);
+    if (valid) {
+      const s = r * 0.6;
+      this.spellPreview.lineStyle(2, 0xcc4400, 0.9);
+      this.spellPreview.lineBetween(cx - s, cy - s, cx + s, cy + s);
+      this.spellPreview.lineBetween(cx + s, cy - s, cx - s, cy + s);
+    }
+  }
+
+  _updateSanctuaryPreview(pointer) {
+    const x = pointer.worldX;
+    const y = pointer.worldY;
+    const r = SANCTUARY_SPELL.radius * this.scene.scaleFactor;
+    this.spellPreview.clear();
+    this.spellPreview.fillStyle(0xffd700, 0.15);
+    this.spellPreview.fillCircle(x, y, r);
+    this.spellPreview.lineStyle(3, 0xffd700, 0.8);
+    this.spellPreview.strokeCircle(x, y, r);
   }
 
   _updateLightningPreview(pointer) {
@@ -239,7 +775,7 @@ export class SpellManager {
 
     const barrier = this.activeBarrier;
     const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
-    const blockRadius = T * 0.58;
+    const blockRadius = T * 0.65;
 
     this.scene.enemies?.getChildren().forEach((enemy) => {
       if (!enemy.active || enemy.isParalyzed || enemy.isInShell) return;
@@ -251,10 +787,19 @@ export class SpellManager {
       // Bloqué par autre chose (soldat, etc.)
       if (enemy.isBlocked) return;
 
-      const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, barrier.x, barrier.y);
-      const isApproaching = enemy.progress <= barrier.pathProgress + 0.008;
+      const progressDiff = barrier.pathProgress - enemy.progress;
 
-      if (dist < blockRadius && isApproaching) {
+      // L'ennemi n'a pas encore dépassé la barrière (tolérance -0.005 pour les ennemis rapides)
+      if (progressDiff < -0.005) return;
+
+      // Vérification par distance monde (ennemis normaux)
+      const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, barrier.x, barrier.y);
+      const closeByDistance = dist < blockRadius;
+
+      // Vérification par progression de chemin (ennemis rapides qui sautent la zone)
+      const closeByProgress = progressDiff >= 0 && progressDiff < 0.025;
+
+      if (closeByDistance || closeByProgress) {
         enemy.isBlocked = true;
         enemy.blockedBy = barrier;
         enemy.isMoving = false;
@@ -466,6 +1011,48 @@ export class SpellManager {
       this.updateLightningSpellButton();
       updateLightningCooldown(0, LIGHTNING_SPELL.cooldown);
     }
+
+    // Poison cooldown
+    if (this.poisonCooldown > 0) {
+      this.poisonCooldown -= delta;
+      if (this.poisonCooldown < 0) this.poisonCooldown = 0;
+      updatePoisonCooldown(this.poisonCooldown, POISON_SPELL.cooldown);
+    }
+
+    // Sanctuaire cooldown
+    if (this.sanctuaryCooldown > 0) {
+      this.sanctuaryCooldown -= delta;
+      if (this.sanctuaryCooldown < 0) this.sanctuaryCooldown = 0;
+      updateSanctuaryCooldown(this.sanctuaryCooldown, SANCTUARY_SPELL.cooldown);
+    }
+
+    // Invocation cooldown
+    if (this.summonCooldown > 0) {
+      this.summonCooldown -= delta;
+      if (this.summonCooldown < 0) this.summonCooldown = 0;
+      updateSummonCooldown(this.summonCooldown, SUMMON_SPELL.cooldown);
+    }
+
+    // Expire poison pools
+    const now = time;
+    for (let i = this.activePoisonPools.length - 1; i >= 0; i--) {
+      const pool = this.activePoisonPools[i];
+      if (now >= pool.expireAt) {
+        pool.tickTimer?.remove();
+        if (pool.graphics?.active) {
+          this.scene.tweens.add({
+            targets: pool.graphics,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => pool.graphics.destroy(),
+          });
+        }
+        this.activePoisonPools.splice(i, 1);
+      }
+    }
+
+    // Check bear traps
+    this._checkBearTraps();
 
     this._updateBarrierBlocking();
   }
