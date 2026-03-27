@@ -1,6 +1,6 @@
 export const LEVEL_6 = {
   biome: "rose",
-  startingMoney: 1250,
+  startingMoney: 1850,
   // TYPES DE TEXTURES (0-18) :
   // 0 = Herbe (sol constructible)
   // 1 = Chemin (passage des ennemis)
