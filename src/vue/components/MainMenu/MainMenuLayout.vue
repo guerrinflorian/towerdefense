@@ -15,14 +15,19 @@
         <div class="header-spells">
           <span class="header-spells-label">SORTS</span>
           <div class="header-spells-list">
-            <div class="header-spell-item" title="Éclair — 350 dégâts + paralysie 3,5s (cooldown 100s)">
-              <span class="header-spell-icon">⚡</span>
-              <span class="header-spell-name">Éclair</span>
+            <div
+              v-for="spell in ownedSpells"
+              :key="spell.key"
+              class="header-spell-item"
+              :title="spell.name"
+              @click="openSpellShop"
+              style="cursor:pointer"
+            >
+              <span class="header-spell-icon">{{ spell.icon }}</span>
+              <span class="header-spell-name">{{ spell.name }}</span>
             </div>
-            <div class="header-spell-item header-spell-item--ch2" title="Barrière — 350 PV, explose pour 115 dégâts (1/vague) — 150 pts Hero Points" @click="openSpellShop" style="cursor:pointer">
-              <span class="header-spell-icon">🪵</span>
-              <span class="header-spell-name">Barrière</span>
-              <span class="header-spell-badge">150 pts</span>
+            <div v-if="ownedSpells.length === 0" class="header-spell-empty">
+              Aucun sort — <span style="text-decoration:underline;cursor:pointer" @click="openSpellShop">Boutique</span>
             </div>
           </div>
         </div>
@@ -178,6 +183,7 @@ const achievementsSummary = ref(null);
 const achievements = ref([]);
 const bestRunsMap = ref(new Map());
 const chapters = ref([]);
+const ownedSpells = ref([]);
 const leaderboard = ref([]);
 const achievementsLoading = ref(false);
 const chaptersLoading = ref(false);
@@ -185,12 +191,25 @@ const leaderboardLoading = ref(false);
 const levelRecords = ref(new Map()); // Map<levelId, { username, lives_lost, completion_time_ms }>
 
 // Logic (Data fetching)
+const loadOwnedSpells = async () => {
+  if (!isAuthenticated()) {
+    ownedSpells.value = [{ key: 'lightning', name: 'Éclair', icon: '⚡' }];
+    return;
+  }
+  try {
+    const data = await fetchSpells();
+    ownedSpells.value = (data.spells || []).filter(s => s.unlocked);
+  } catch {
+    ownedSpells.value = [{ key: 'lightning', name: 'Éclair', icon: '⚡' }];
+  }
+};
+
 const refreshData = async () => {
   loading.value = true;
   try {
     resetCachedChapters();
     if (isAuthenticated()) {
-      await Promise.all([loadProfile(), loadAchievements(), loadLeaderboard()]);
+      await Promise.all([loadProfile(), loadAchievements(), loadLeaderboard(), loadOwnedSpells()]);
     }
     await loadChapters();
   } finally {
@@ -367,6 +386,8 @@ const openSpellShop = async () => {
         // Mettre à jour les sorts et points dans la modale
         const refreshed = await fetchSpells();
         modalStore.updateSpellShopData(refreshed.spells, refreshed.heroPointsAvailable);
+        // Mettre à jour le widget de sorts dans le header
+        ownedSpells.value = (refreshed.spells || []).filter(s => s.unlocked);
         // Rafraîchir le profil pour mettre à jour les points affichés
         await loadProfile({ forceRefresh: true });
         window.dispatchEvent(new CustomEvent('spell:unlocked', { detail: { spellKey } }));
@@ -527,6 +548,13 @@ watch(visible, (val) => val && hydrate());
   font-weight: 800;
   padding: 1px 4px;
   border-radius: 3px;
+}
+
+.header-spell-empty {
+  font-size: 10px;
+  color: rgba(158, 216, 255, 0.5);
+  font-style: italic;
+  padding: 4px 8px;
 }
 
 .header-actions {
