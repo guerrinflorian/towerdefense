@@ -81,15 +81,11 @@ export class SpellManager {
   }
 
   resetBarrierForNewWave() {
-    if (this.activeBarrier?.active) {
-      this.activeBarrier.destroyQuiet();
-    }
-    this.activeBarrier = null;
+    // Ne pas détruire les sorts actifs — ils ont été placés par le joueur et doivent persister.
+    // On remet juste la disponibilité à true pour que le joueur puisse en poser un nouveau.
     this.barrierAvailable = true;
     updateBarrierAvailable(true);
 
-    // Reset bear trap
-    this._clearBearTraps();
     this.bearTrapAvailable = true;
     updateBearTrapAvailable(true);
   }
@@ -437,33 +433,44 @@ export class SpellManager {
 
   startPlacingSummon() {
     if (this.summonCooldown > 0 || this.placingSpell) return;
-    // Cast directement sans placement (apparaît sur le chemin)
-    this._castSummon();
+    this.placingSpell = SUMMON_SPELL;
+    this._ensurePreviewGraphics();
+    this.scene.input.on("pointermove", this.updateSpellPreview, this);
   }
 
-  _castSummon() {
+  _castSummon(worldX, worldY) {
     const paths = this.scene.paths || [];
     if (!paths.length) return;
 
-    const SAMPLES = 100;
-    const allPathPoints = [];
+    // Trouver le point du chemin le plus proche du clic
+    const SAMPLES = 200;
+    let closestPath = paths[0];
+    let closestT = 0;
+    let minDist = Infinity;
+
     paths.forEach((path) => {
-      for (let i = Math.floor(SAMPLES * 0.1); i <= Math.floor(SAMPLES * 0.8); i++) {
+      for (let i = 0; i <= SAMPLES; i++) {
         const t = i / SAMPLES;
         const p = path.getPoint(t);
-        allPathPoints.push({ x: p.x, y: p.y, path, t });
+        const d = Phaser.Math.Distance.Between(p.x, p.y, worldX, worldY);
+        if (d < minDist) {
+          minDist = d;
+          closestPath = path;
+          closestT = t;
+        }
       }
     });
 
-    if (!allPathPoints.length) return;
-
-    // Pick 3 spread positions
-    const spread = Math.floor(allPathPoints.length / 4);
+    // 3 soldats espacés autour du point cliqué
+    const spacing = 0.04; // écart en progression de chemin
     const positions = [
-      allPathPoints[Math.min(spread, allPathPoints.length - 1)],
-      allPathPoints[Math.min(spread * 2, allPathPoints.length - 1)],
-      allPathPoints[Math.min(spread * 3, allPathPoints.length - 1)],
-    ];
+      { path: closestPath, t: Math.max(0.01, closestT - spacing) },
+      { path: closestPath, t: Phaser.Math.Clamp(closestT, 0.01, 0.99) },
+      { path: closestPath, t: Math.min(0.99, closestT + spacing) },
+    ].map((p) => {
+      const pt = p.path.getPoint(p.t);
+      return { x: pt.x, y: pt.y, path: p.path, t: p.t };
+    });
 
     const expireAfter = SUMMON_SPELL.duration;
     const newSoldiers = [];
@@ -530,6 +537,7 @@ export class SpellManager {
 
     this.summonCooldown = SUMMON_SPELL.cooldown;
     updateSummonCooldown(this.summonCooldown, SUMMON_SPELL.cooldown);
+    this.cancelSpellPlacement();
   }
 
   // ─── PLACEMENT GÉNÉRIQUE ──────────────────────────────────────
@@ -551,6 +559,8 @@ export class SpellManager {
       this._placeBearTrap(x, y);
     } else if (this.placingSpell.key === "sanctuary") {
       this._castSanctuary(x, y);
+    } else if (this.placingSpell.key === "summon") {
+      this._castSummon(x, y);
     }
   }
 
@@ -577,6 +587,8 @@ export class SpellManager {
       this._updateBearTrapPreview(pointer);
     } else if (this.placingSpell.key === "sanctuary") {
       this._updateSanctuaryPreview(pointer);
+    } else if (this.placingSpell.key === "summon") {
+      this._updateSummonPreview(pointer);
     }
   }
 
@@ -631,6 +643,23 @@ export class SpellManager {
     this.spellPreview.fillCircle(x, y, r);
     this.spellPreview.lineStyle(3, 0xffd700, 0.8);
     this.spellPreview.strokeCircle(x, y, r);
+  }
+
+  _updateSummonPreview(pointer) {
+    const x = pointer.worldX;
+    const y = pointer.worldY;
+    const r = 36 * this.scene.scaleFactor;
+    this.spellPreview.clear();
+    this.spellPreview.fillStyle(0xffd700, 0.2);
+    this.spellPreview.fillCircle(x, y, r);
+    this.spellPreview.lineStyle(2, 0xffd700, 0.9);
+    this.spellPreview.strokeCircle(x, y, r);
+    // 3 petits points pour représenter les soldats
+    const sc = this.scene.scaleFactor;
+    this.spellPreview.fillStyle(0xffd700, 0.9);
+    this.spellPreview.fillCircle(x - 12 * sc, y, 5 * sc);
+    this.spellPreview.fillCircle(x, y, 5 * sc);
+    this.spellPreview.fillCircle(x + 12 * sc, y, 5 * sc);
   }
 
   _updateLightningPreview(pointer) {
@@ -775,7 +804,7 @@ export class SpellManager {
 
     const barrier = this.activeBarrier;
     const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
-    const blockRadius = T * 0.65;
+    const blockRadius = T * 0.72;
 
     this.scene.enemies?.getChildren().forEach((enemy) => {
       if (!enemy.active || enemy.isParalyzed || enemy.isInShell) return;
@@ -789,17 +818,23 @@ export class SpellManager {
 
       const progressDiff = barrier.pathProgress - enemy.progress;
 
-      // L'ennemi n'a pas encore dépassé la barrière (tolérance -0.005 pour les ennemis rapides)
-      if (progressDiff < -0.005) return;
+      // Tolérance large : -0.05 pour rattraper les ennemis rapides qui ont sauté la barrière
+      if (progressDiff < -0.05) return;
 
-      // Vérification par distance monde (ennemis normaux)
+      // Vérification par distance monde
       const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, barrier.x, barrier.y);
       const closeByDistance = dist < blockRadius;
 
-      // Vérification par progression de chemin (ennemis rapides qui sautent la zone)
-      const closeByProgress = progressDiff >= 0 && progressDiff < 0.025;
+      // Vérification par progression de chemin (ennemis rapides qui sautent la zone en 1 frame)
+      const closeByProgress = progressDiff > -0.05 && progressDiff < 0.05;
 
       if (closeByDistance || closeByProgress) {
+        // Snap-back : si l'ennemi a légèrement dépassé la barrière, le replacer juste devant
+        if (enemy.progress > barrier.pathProgress) {
+          enemy.progress = barrier.pathProgress - 0.001;
+          const snapPos = barrier.path.getPoint(enemy.progress);
+          if (snapPos) enemy.setPosition(snapPos.x, snapPos.y);
+        }
         enemy.isBlocked = true;
         enemy.blockedBy = barrier;
         enemy.isMoving = false;
