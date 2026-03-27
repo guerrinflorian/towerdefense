@@ -10,6 +10,12 @@ import {
   updateGameTimer,
   updateGameTurrets,
   setUnlockedSpells,
+  updateLightningCooldown,
+  updateBarrierAvailable,
+  updatePoisonCooldown,
+  updateBearTrapAvailable,
+  updateSanctuaryCooldown,
+  updateSummonCooldown,
 } from "../../vue/bridge.js";
 import { getUnlockedSpells } from "../../services/authManager.js";
 
@@ -42,6 +48,13 @@ export class UIManager {
     } else {
       setGameUIVisible(true);
       setUnlockedSpells(getUnlockedSpells());
+      // Réinitialiser tous les cooldowns de sorts (le store Vue persiste entre les parties)
+      updateLightningCooldown(0, 100000);
+      updateBarrierAvailable(true);
+      updatePoisonCooldown(0, 40000);
+      updateBearTrapAvailable(true);
+      updateSanctuaryCooldown(0, 70000);
+      updateSummonCooldown(0, 90000);
     }
 
     this.buildMenu = new BuildMenu(this.scene);
