@@ -2,7 +2,7 @@ export const pink_heart_grunt = {
   name: "Heart Knight",
   speed: 62,
   hp: 320, // Légèrement augmenté pour un "beau" monstre
-  reward: 15,
+  reward: 21,
   playerDamage: 1,
   color: 0xffb6c1,
   damage: 8,
