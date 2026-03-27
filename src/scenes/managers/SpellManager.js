@@ -804,42 +804,44 @@ export class SpellManager {
 
     const barrier = this.activeBarrier;
     const T = CONFIG.TILE_SIZE * (this.scene.scaleFactor || 1);
-    const blockRadius = T * 0.72;
+    const blockRadius = T * 0.78;
 
     this.scene.enemies?.getChildren().forEach((enemy) => {
       if (!enemy.active || enemy.isParalyzed || enemy.isInShell) return;
-      if (enemy.path !== barrier.path) return;
-
-      // Déjà bloqué par cette barrière
       if (enemy.isBlocked && enemy.blockedBy === barrier) return;
-
-      // Bloqué par autre chose (soldat, etc.)
       if (enemy.isBlocked) return;
 
-      const progressDiff = barrier.pathProgress - enemy.progress;
-
-      // Tolérance large : -0.05 pour rattraper les ennemis rapides qui ont sauté la barrière
-      if (progressDiff < -0.05) return;
-
-      // Vérification par distance monde
       const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, barrier.x, barrier.y);
-      const closeByDistance = dist < blockRadius;
+      if (dist >= blockRadius) return;
 
-      // Vérification par progression de chemin (ennemis rapides qui sautent la zone en 1 frame)
-      const closeByProgress = progressDiff > -0.05 && progressDiff < 0.05;
-
-      if (closeByDistance || closeByProgress) {
-        // Snap-back : si l'ennemi a légèrement dépassé la barrière, le replacer juste devant
-        if (enemy.progress > barrier.pathProgress) {
-          enemy.progress = barrier.pathProgress - 0.001;
-          const snapPos = barrier.path.getPoint(enemy.progress);
-          if (snapPos) enemy.setPosition(snapPos.x, snapPos.y);
+      // Vérification de direction : l'ennemi se dirige-t-il VERS la barrière ?
+      // Évite de bloquer les ennemis qui passent en sens inverse au croisement.
+      if (enemy.path) {
+        const ahead = Math.min(1, enemy.progress + 0.015);
+        const p1 = enemy.path.getPoint(enemy.progress);
+        const p2 = enemy.path.getPoint(ahead);
+        if (p1 && p2) {
+          const dirX = p2.x - p1.x;
+          const dirY = p2.y - p1.y;
+          const toBx = barrier.x - enemy.x;
+          const toBy = barrier.y - enemy.y;
+          // Produit scalaire : négatif = ennemi s'éloigne (déjà passé ou mauvais sens)
+          const dot = dirX * toBx + dirY * toBy;
+          if (dot < 0) return;
         }
-        enemy.isBlocked = true;
-        enemy.blockedBy = barrier;
-        enemy.isMoving = false;
-        barrier.blockedEnemies.add(enemy);
       }
+
+      // Snap-back : si l'ennemi rapide a dépassé d'un chouïa, le replacer juste avant
+      if (enemy.path && enemy.progress > barrier.pathProgress + 0.002) {
+        enemy.progress = Math.max(0, barrier.pathProgress - 0.002);
+        const snapPos = barrier.path.getPoint(enemy.progress);
+        if (snapPos) enemy.setPosition(snapPos.x, snapPos.y);
+      }
+
+      enemy.isBlocked = true;
+      enemy.blockedBy = barrier;
+      enemy.isMoving = false;
+      barrier.blockedEnemies.add(enemy);
     });
   }
 
