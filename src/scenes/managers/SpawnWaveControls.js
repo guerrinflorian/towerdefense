@@ -449,6 +449,9 @@ export class SpawnWaveControls {
     this._lastIsLocked = this.isLocked;
     this._lastBonus = bonus;
 
+    const canLaunchNow = !this.isLocked && !(isRunning && !canChain);
+    if (!canLaunchNow) this.hideWavePreview();
+
     this.icons.forEach((icon) => {
       if (this.isLocked) {
         icon.container.setAlpha(0.3);
@@ -464,7 +467,7 @@ export class SpawnWaveControls {
         if (canChain) {
           icon.container.setAlpha(1);
           icon.countdownText.setText("Anticiper");
-          // Afficher le bonus seulement s'il y a des ennemis vivants (bonus > 0)
+          // Afficher le bonus seulement s’il y a des ennemis vivants (bonus > 0)
           this.setBonusVisible(icon, bonus > 0); // ✅ ici ça doit s’afficher
         } else {
           icon.container.setAlpha(0.6);

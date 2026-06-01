@@ -195,12 +195,15 @@ export async function evaluateHeroAchievements(
       };
 
     if (existing.is_unlocked) {
-      updateProgressState(
-        achievement,
-        existing.current_value,
-        true,
-        existing.last_increment
-      );
+      const rule = HERO_RULES[achievement.code_name];
+      if (rule?.type === "run") {
+        const newValue = Number(rule.value(metrics, existing)) || 0;
+        const bestValue = Math.max(Number(existing.current_value) || 0, newValue);
+        updateProgressState(achievement, bestValue, true, existing.last_increment);
+        runUpdates.push({ achievementId: achievement.id, currentValue: bestValue, isUnlocked: true });
+      } else {
+        updateProgressState(achievement, existing.current_value, true, existing.last_increment);
+      }
       continue;
     }
 
