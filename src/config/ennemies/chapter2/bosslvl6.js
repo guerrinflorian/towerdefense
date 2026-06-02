@@ -1,7 +1,7 @@
 export const bosslvl6 = {
     name: "LA REINE DE VÉLORIA",
     speed: 10,
-    hp: 210000,
+    hp: 187000,
     reward: 0,
     playerDamage: 20,
     color: 0xff6fb7, // rose
