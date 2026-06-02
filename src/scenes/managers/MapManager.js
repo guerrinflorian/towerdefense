@@ -92,11 +92,13 @@ export class MapManager {
 
         if (shouldPlaceTree) {
           const canPlaceBarracks = this.isAdjacentToPath(x, y);
-          // Probabilités d'apparition
-          if (!canPlaceBarracks && Math.random() < 0.3) {
-            this.addTree(px, py, x, y, biome); // On passe le biome pour savoir quel arbre dessiner
+          // Probabilités d'apparition (plus dense pour le biome laboratory)
+          const densityFar  = biome === "laboratory" ? 0.50 : 0.3;
+          const densityNear = biome === "laboratory" ? 0.18 : 0.1;
+          if (!canPlaceBarracks && Math.random() < densityFar) {
+            this.addTree(px, py, x, y, biome);
             this.treePositions.add(`${x},${y}`);
-          } else if (canPlaceBarracks && Math.random() < 0.1) {
+          } else if (canPlaceBarracks && Math.random() < densityNear) {
             this.addTree(px, py, x, y, biome);
             this.treePositions.add(`${x},${y}`);
           }

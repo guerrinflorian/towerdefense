@@ -1,7 +1,7 @@
 export const bosslvl8_3 = {
   name: "FERROX L'ALCHIMISTE MÉCANIQUE - PHASE 3",
   speed: 10,
-  hp: 150000, //140000
+  hp: 108000, //150000 * 0.72
   reward: 0,
   playerDamage: 20,
   color: 0xff4500, // Orange/rouge intense (forme finale)

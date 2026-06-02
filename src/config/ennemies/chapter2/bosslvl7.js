@@ -1,7 +1,7 @@
 export const bosslvl7 = {
   name: "GLACEBEAR LE DÉVOREUR",
   speed: 10,
-  hp: 158000,
+  hp: 164500,
   reward: 0,
   playerDamage: 20,
   color: 0x87ceeb, // Bleu ciel/glace

@@ -313,18 +313,9 @@ export class SpellManager {
     const cy = this.scene.mapStartY + ty * T + T / 2;
     const scaledRadius = BEAR_TRAP_SPELL.trapRadius * this.scene.scaleFactor;
 
-    // Visible to player only (semi-transparent)
     const trapGfx = this.scene.add.graphics();
     trapGfx.setDepth(6);
-    trapGfx.fillStyle(0x8B4513, 0.4);
-    trapGfx.fillCircle(cx, cy, scaledRadius);
-    trapGfx.lineStyle(2, 0xaa6633, 0.7);
-    trapGfx.strokeCircle(cx, cy, scaledRadius);
-    // Draw X in center
-    const s = scaledRadius * 0.5;
-    trapGfx.lineStyle(2, 0xcc4400, 0.9);
-    trapGfx.lineBetween(cx - s, cy - s, cx + s, cy + s);
-    trapGfx.lineBetween(cx + s, cy - s, cx - s, cy + s);
+    this._drawBearTrapShape(trapGfx, cx, cy, scaledRadius, 0.88);
 
     const trapEntry = {
       graphics: trapGfx,
@@ -339,6 +330,119 @@ export class SpellManager {
     updateBearTrapAvailable(false);
 
     this.cancelSpellPlacement();
+  }
+
+  // Dessine un piège à ours réaliste (mâchoires métalliques ouvertes)
+  _drawBearTrapShape(gfx, cx, cy, s, alpha) {
+    // Ombre au sol
+    gfx.fillStyle(0x000000, 0.22 * alpha);
+    gfx.fillEllipse(cx, cy + 2, s * 2.7, s * 0.85);
+
+    const jH = s * 0.5;    // hauteur des mâchoires
+    const jW = s * 0.56;   // largeur des mâchoires
+    const gap = s * 0.14;  // espace entre les mâchoires et le centre
+    const tc = 4;           // nombre de dents
+    const tH = s * 0.14;   // taille d'une dent
+    const tStep = jH / (tc + 1);
+
+    // ─── MÂCHOIRE GAUCHE ────────────────────────────────────────
+    const ljx = cx - gap - jW;
+
+    // Corps principal (fer sombre)
+    gfx.fillStyle(0x242424, alpha);
+    gfx.lineStyle(1.5, 0x111111, alpha);
+    gfx.fillRoundedRect(ljx, cy - jH / 2, jW, jH, 5);
+    gfx.strokeRoundedRect(ljx, cy - jH / 2, jW, jH, 5);
+
+    // Reflet métallique (coin supérieur gauche)
+    gfx.fillStyle(0x464646, 0.55 * alpha);
+    gfx.fillRoundedRect(ljx + 3, cy - jH / 2 + 3, jW * 0.46, jH * 0.36, 2);
+
+    // Strie de rouille verticale
+    gfx.fillStyle(0x7a3c18, 0.38 * alpha);
+    gfx.fillRect(ljx + jW * 0.2, cy - jH / 2, jW * 0.08, jH);
+
+    // Rivets
+    gfx.fillStyle(0x585858, alpha);
+    gfx.fillCircle(ljx + s * 0.11, cy - jH * 0.27, s * 0.052);
+    gfx.fillCircle(ljx + s * 0.11, cy + jH * 0.27, s * 0.052);
+    gfx.lineStyle(1, 0x888888, alpha * 0.7);
+    gfx.strokeCircle(ljx + s * 0.11, cy - jH * 0.27, s * 0.052);
+    gfx.strokeCircle(ljx + s * 0.11, cy + jH * 0.27, s * 0.052);
+
+    // Dents (pointant vers la droite / vers le centre)
+    for (let i = 0; i < tc; i++) {
+      const ty = cy - jH / 2 + (i + 1) * tStep;
+      const tx = ljx + jW;
+      gfx.fillStyle(0xb0b0b0, alpha);
+      gfx.fillTriangle(tx, ty - tH * 0.44, tx + tH, ty, tx, ty + tH * 0.44);
+      gfx.lineStyle(1, 0x444444, alpha * 0.8);
+      gfx.beginPath();
+      gfx.moveTo(tx, ty - tH * 0.44);
+      gfx.lineTo(tx + tH, ty);
+      gfx.lineTo(tx, ty + tH * 0.44);
+      gfx.closePath();
+      gfx.strokePath();
+    }
+
+    // ─── MÂCHOIRE DROITE ────────────────────────────────────────
+    const rjx = cx + gap;
+
+    gfx.fillStyle(0x242424, alpha);
+    gfx.lineStyle(1.5, 0x111111, alpha);
+    gfx.fillRoundedRect(rjx, cy - jH / 2, jW, jH, 5);
+    gfx.strokeRoundedRect(rjx, cy - jH / 2, jW, jH, 5);
+
+    gfx.fillStyle(0x464646, 0.55 * alpha);
+    gfx.fillRoundedRect(rjx + 3, cy - jH / 2 + 3, jW * 0.46, jH * 0.36, 2);
+
+    gfx.fillStyle(0x7a3c18, 0.38 * alpha);
+    gfx.fillRect(rjx + jW * 0.72, cy - jH / 2, jW * 0.08, jH);
+
+    gfx.fillStyle(0x585858, alpha);
+    gfx.fillCircle(rjx + jW - s * 0.11, cy - jH * 0.27, s * 0.052);
+    gfx.fillCircle(rjx + jW - s * 0.11, cy + jH * 0.27, s * 0.052);
+    gfx.lineStyle(1, 0x888888, alpha * 0.7);
+    gfx.strokeCircle(rjx + jW - s * 0.11, cy - jH * 0.27, s * 0.052);
+    gfx.strokeCircle(rjx + jW - s * 0.11, cy + jH * 0.27, s * 0.052);
+
+    // Dents (pointant vers la gauche / vers le centre)
+    for (let i = 0; i < tc; i++) {
+      const ty = cy - jH / 2 + (i + 1) * tStep;
+      const tx = rjx;
+      gfx.fillStyle(0xb0b0b0, alpha);
+      gfx.fillTriangle(tx, ty - tH * 0.44, tx - tH, ty, tx, ty + tH * 0.44);
+      gfx.lineStyle(1, 0x444444, alpha * 0.8);
+      gfx.beginPath();
+      gfx.moveTo(tx, ty - tH * 0.44);
+      gfx.lineTo(tx - tH, ty);
+      gfx.lineTo(tx, ty + tH * 0.44);
+      gfx.closePath();
+      gfx.strokePath();
+    }
+
+    // ─── RESSORT CENTRAL ────────────────────────────────────────
+    // Barres de liaison (pivots vers le ressort)
+    gfx.lineStyle(2.5, 0x3a3a3a, alpha);
+    gfx.lineBetween(ljx + jW, cy, cx - s * 0.17, cy);
+    gfx.lineBetween(cx + s * 0.17, cy, rjx, cy);
+
+    // Bobine de ressort (ellipses concentriques)
+    gfx.lineStyle(2, 0x575757, alpha * 0.95);
+    gfx.strokeEllipse(cx, cy, s * 0.38, s * 0.24);
+    gfx.lineStyle(1.5, 0x454545, alpha * 0.85);
+    gfx.strokeEllipse(cx, cy, s * 0.24, s * 0.15);
+
+    // Goupille centrale
+    gfx.fillStyle(0x686868, alpha);
+    gfx.fillCircle(cx, cy, s * 0.09);
+    gfx.lineStyle(1.5, 0xaaaaaa, alpha * 0.9);
+    gfx.strokeCircle(cx, cy, s * 0.09);
+
+    // ─── CHAÎNE (dessous) ───────────────────────────────────────
+    gfx.lineStyle(1.5, 0x454545, alpha * 0.65);
+    gfx.strokeEllipse(cx, cy + jH * 0.6, s * 0.16, s * 0.1);
+    gfx.strokeEllipse(cx, cy + jH * 0.76, s * 0.1, s * 0.16);
   }
 
   _checkBearTraps() {
@@ -707,14 +811,17 @@ export class SpellManager {
     const cy = this.scene.mapStartY + ty * T + T / 2;
     const r = BEAR_TRAP_SPELL.trapRadius * this.scene.scaleFactor;
     const valid = PATH_TILE_TYPES.has(tileType);
-    const color = valid ? 0x8B4513 : 0xff3333;
-    this.spellPreview.fillStyle(color, 0.35);
-    this.spellPreview.fillCircle(cx, cy, r);
-    this.spellPreview.lineStyle(2, color, 0.8);
-    this.spellPreview.strokeCircle(cx, cy, r);
+
     if (valid) {
-      const s = r * 0.6;
-      this.spellPreview.lineStyle(2, 0xcc4400, 0.9);
+      this._drawBearTrapShape(this.spellPreview, cx, cy, r, 0.65);
+    } else {
+      // Tuile invalide : croix rouge
+      this.spellPreview.fillStyle(0xff3333, 0.25);
+      this.spellPreview.fillCircle(cx, cy, r);
+      this.spellPreview.lineStyle(2, 0xff3333, 0.8);
+      this.spellPreview.strokeCircle(cx, cy, r);
+      const s = r * 0.55;
+      this.spellPreview.lineStyle(3, 0xff3333, 0.9);
       this.spellPreview.lineBetween(cx - s, cy - s, cx + s, cy + s);
       this.spellPreview.lineBetween(cx + s, cy - s, cx - s, cy + s);
     }

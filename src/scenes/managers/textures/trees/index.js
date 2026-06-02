@@ -1,7 +1,15 @@
 import { drawCimetiereTree } from "./biomes/cimetiere.js";
 import { drawGrassTree } from "./biomes/grass.js";
 import { drawIceTree } from "./biomes/ice.js";
-import { drawLaboratoryTree, drawEvilTree } from "./biomes/laboratory.js";
+import {
+  drawLaboratoryVials,
+  drawTeslaCoil,
+  drawHolographicPanel,
+  drawChemicalReactor,
+  drawServerRack,
+  drawEnergyPillar,
+  drawEvilMachine,
+} from "./biomes/laboratory.js";
 import { drawLavaTree } from "./biomes/lava.js";
 import { drawRoseTree } from "./biomes/rose.js";
 import { drawSandTree } from "./biomes/sand.js";
@@ -54,12 +62,14 @@ export const TREE_DRAWERS = {
     }
   },
   laboratory: (graphics, scale) => {
-    // Alterner entre arbre fiole et arbre maléfique
-    if (Math.random() < 0.6) {
-      drawLaboratoryTree(graphics, scale);
-    } else {
-      drawEvilTree(graphics, scale);
-    }
+    const r = Math.random();
+    if (r < 0.18)      drawLaboratoryVials(graphics, scale);
+    else if (r < 0.33) drawTeslaCoil(graphics, scale);
+    else if (r < 0.48) drawHolographicPanel(graphics, scale);
+    else if (r < 0.62) drawChemicalReactor(graphics, scale);
+    else if (r < 0.76) drawServerRack(graphics, scale);
+    else if (r < 0.88) drawEnergyPillar(graphics, scale);
+    else               drawEvilMachine(graphics, scale);
   },
 };
 

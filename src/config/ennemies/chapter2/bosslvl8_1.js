@@ -3,7 +3,7 @@ import { playBosslvl8Transform1Animation } from "./animations/bosslvl8_transform
 export const bosslvl8_1 = {
   name: "FERROX L'ALCHIMISTE MÉCANIQUE - PHASE 1",
   speed: 13,
-  hp: 45000, //45000
+  hp: 38250, //45000 * 0.85
   reward: 0,
   playerDamage: 20,
   color: 0x708090, // Gris acier
@@ -363,7 +363,10 @@ export const bosslvl8_1 = {
       
       // Ajouter à la scène
       scene.enemies.add(nextPhase);
-      
+
+      // Transformation terminée : décrémenter le compteur
+      if (scene.pendingTransformations > 0) scene.pendingTransformations--;
+
       // Effet d'apparition spectaculaire
       nextPhase.setAlpha(0);
       nextPhase.setScale(0.3);

@@ -197,7 +197,8 @@ export class WaveManager {
         if (this.scene.isPaused) return;
 
         const enemiesCount = this.scene.enemies?.getLength?.() || 0;
-        if (enemiesCount === 0 && this.scene.hasWaveFinishedSpawning) {
+        const pendingTransforms = this.scene.pendingTransformations || 0;
+        if (enemiesCount === 0 && pendingTransforms === 0 && this.scene.hasWaveFinishedSpawning) {
           this.finishWave();
         }
       },

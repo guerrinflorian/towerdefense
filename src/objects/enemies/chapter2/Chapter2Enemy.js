@@ -1041,7 +1041,12 @@ export class Chapter2Enemy extends Phaser.GameObjects.Container {
     
     // Vérifier si onDeath transforme le boss
     const isTransforming = !!this.stats.nextPhase;
-    
+
+    // Signaler une transformation en attente pour éviter une victoire prématurée
+    if (isTransforming && this.scene) {
+      this.scene.pendingTransformations = (this.scene.pendingTransformations || 0) + 1;
+    }
+
     if (this.stats.onDeath) {
       this.stats.onDeath(this);
     }
