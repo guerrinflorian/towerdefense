@@ -165,32 +165,32 @@ export const LEVEL_7 = {
 
     // VAGUE 7 : Assaut coordonné
     [
-      { count: 40, type: "grunt", interval: 400, startDelay: 0 },
-      { count: 10, type: "berserker", interval: 1400, startDelay: 1000 },
-      { count: 10, type: "vampire", interval: 1400, startDelay: 4000 },
-      { count: 5, type: "shaman_gobelin", interval: 2300, startDelay: 7000 },
-      { count: 25, type: "runner", interval: 280, startDelay: 9000 },
-      { count: 5, type: "juggernaut_igloo", interval: 2800, startDelay: 13000 },
+      { count: 35, type: "grunt", interval: 400, startDelay: 0 },
+      { count: 9, type: "berserker", interval: 1400, startDelay: 1000 },
+      { count: 9, type: "vampire", interval: 1400, startDelay: 4000 },
+      { count: 4, type: "shaman_gobelin", interval: 2300, startDelay: 7000 },
+      { count: 20, type: "runner", interval: 290, startDelay: 9000 },
+      { count: 4, type: "juggernaut_igloo", interval: 2800, startDelay: 13000 },
     ],
 
     // VAGUE 8 : Avant le boss
     [
-      { count: 45, type: "grunt", interval: 380, startDelay: 0 },
-      { count: 12, type: "berserker", interval: 1300, startDelay: 1000 },
-      { count: 12, type: "vampire", interval: 1300, startDelay: 3500 },
-      { count: 6, type: "shaman_gobelin", interval: 2200, startDelay: 6000 },
-      { count: 30, type: "runner", interval: 250, startDelay: 8000 },
-      { count: 6, type: "juggernaut_igloo", interval: 2600, startDelay: 12000 },
+      { count: 38, type: "grunt", interval: 380, startDelay: 0 },
+      { count: 10, type: "berserker", interval: 1300, startDelay: 1000 },
+      { count: 10, type: "vampire", interval: 1300, startDelay: 3500 },
+      { count: 5, type: "shaman_gobelin", interval: 2200, startDelay: 6000 },
+      { count: 24, type: "runner", interval: 260, startDelay: 8000 },
+      { count: 5, type: "juggernaut_igloo", interval: 2600, startDelay: 12000 },
     ],
 
     // VAGUE 9 : BOSS FINAL
     [
-      { count: 50, type: "grunt", interval: 350, startDelay: 0 },
-      { count: 15, type: "berserker", interval: 1200, startDelay: 1000 },
-      { count: 15, type: "vampire", interval: 1200, startDelay: 3000 },
-      { count: 8, type: "shaman_gobelin", interval: 2100, startDelay: 5000 },
-      { count: 35, type: "runner", interval: 220, startDelay: 6000 },
-      { count: 8, type: "juggernaut_igloo", interval: 2400, startDelay: 11000 },
+      { count: 42, type: "grunt", interval: 360, startDelay: 0 },
+      { count: 13, type: "berserker", interval: 1200, startDelay: 1000 },
+      { count: 13, type: "vampire", interval: 1200, startDelay: 3000 },
+      { count: 7, type: "shaman_gobelin", interval: 2100, startDelay: 5000 },
+      { count: 28, type: "runner", interval: 230, startDelay: 6000 },
+      { count: 7, type: "juggernaut_igloo", interval: 2400, startDelay: 11000 },
       { count: 1, type: "bosslvl7", interval: 10000, startDelay: 25000 },
     ],
   ],
