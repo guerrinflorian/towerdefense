@@ -16,6 +16,7 @@ import { vampire } from "./vampire.js";
 import { criard } from "./criard.js";
 import { stratege } from "./stratege.js";
 import { brouilleur } from "./brouilleur.js";
+import { citadelle_glaciaire } from "./citadelle_glaciaire.js";
 
 export const CHAPTER2_ENEMIES = {
   pink_marshmallow_runner,
@@ -36,5 +37,6 @@ export const CHAPTER2_ENEMIES = {
   criard,
   stratege,
   brouilleur,
+  citadelle_glaciaire,
 };
 

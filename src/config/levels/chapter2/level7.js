@@ -160,7 +160,7 @@ export const LEVEL_7 = {
       { count: 8, type: "vampire", interval: 1500, startDelay: 4500 },
       { count: 4, type: "shaman_gobelin", interval: 2400, startDelay: 8000 },
       { count: 22, type: "runner", interval: 300, startDelay: 10000 },
-      { count: 4, type: "juggernaut_igloo", interval: 3000, startDelay: 14000 },
+      { count: 4, type: "citadelle_glaciaire", interval: 3000, startDelay: 14000 },
     ],
 
     // VAGUE 7 : Assaut coordonné
@@ -170,7 +170,7 @@ export const LEVEL_7 = {
       { count: 9, type: "vampire", interval: 1400, startDelay: 4000 },
       { count: 4, type: "shaman_gobelin", interval: 2300, startDelay: 7000 },
       { count: 20, type: "runner", interval: 290, startDelay: 9000 },
-      { count: 4, type: "juggernaut_igloo", interval: 2800, startDelay: 13000 },
+      { count: 4, type: "citadelle_glaciaire", interval: 2800, startDelay: 13000 },
     ],
 
     // VAGUE 8 : Avant le boss
@@ -180,7 +180,7 @@ export const LEVEL_7 = {
       { count: 10, type: "vampire", interval: 1300, startDelay: 3500 },
       { count: 5, type: "shaman_gobelin", interval: 2200, startDelay: 6000 },
       { count: 24, type: "runner", interval: 260, startDelay: 8000 },
-      { count: 5, type: "juggernaut_igloo", interval: 2600, startDelay: 12000 },
+      { count: 5, type: "citadelle_glaciaire", interval: 2600, startDelay: 12000 },
     ],
 
     // VAGUE 9 : BOSS FINAL
@@ -190,7 +190,7 @@ export const LEVEL_7 = {
       { count: 13, type: "vampire", interval: 1200, startDelay: 3000 },
       { count: 7, type: "shaman_gobelin", interval: 2100, startDelay: 5000 },
       { count: 28, type: "runner", interval: 230, startDelay: 6000 },
-      { count: 7, type: "juggernaut_igloo", interval: 2400, startDelay: 11000 },
+      { count: 7, type: "citadelle_glaciaire", interval: 2400, startDelay: 11000 },
       { count: 1, type: "bosslvl7", interval: 10000, startDelay: 25000 },
     ],
   ],
